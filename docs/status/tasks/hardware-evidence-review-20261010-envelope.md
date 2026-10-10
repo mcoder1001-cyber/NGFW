@@ -50,3 +50,6 @@ Additional owned source/runtime review report:
 identity, exact findings and actual checks; keep preparation approval distinct from
 transition/repair gates. Controller-only isolated owned-loop helper testing is
 permitted; never operate on physical/target devices during reviewer tests.
+Additional owned proposed-return review:
+`hardware-evidence-review-20261010-return.md`. Source-backed single-force semantics
+and exact preconditions, no reboot execution or acceptance claim.

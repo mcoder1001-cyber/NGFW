@@ -56,10 +56,48 @@ old /run mount over the candidate /run. Candidate /run/sshd may therefore become
 hidden; the original ssh.service may remove its old runtime directory when stopped.
 A surviving service is restored without executing its ExecStart again. Do not
 assume an active survivor's RuntimeDirectory directive alone recreates the missing
-directory. Require exact source/runtime resolution and an authenticated RAM PTY
-kept open before transition; chroot authentication alone is not proof of boot.
+directory. Matching exec_runtime_make also does not create those directories;
+setup_exec_directory is in the executor spawn path. This is an inference from
+the complete coldplug/runtime/spawn implementations, not observed transition proof.
+Require exact source/runtime resolution and an authenticated RAM PTY kept open
+before transition; chroot authentication alone is not proof of boot.
 [Matching root switch source](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/shared/switch-root.c),
-[Matching service coldplug source](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/core/service.c).
+[Matching service coldplug source](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/core/service.c),
+[Matching runtime creation source](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/core/execute.c),
+[Matching executor directory source](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/core/exec-invoke.c).
+
+## Further focused candidate changes
+
+Worker .211's second actual RAM attempt reached tree/key/virtual mounts but stopped
+before daemon activation because /usr/sbin/chroot was absent. Focused source
+SHA2569baf631c1895f4ac0ce1b64b2e4d3ab5413f1f7d2d55847e62e4d38406d5e3bb
+discovers/validates the actual chroot before mutation, uses it in bootstrap/checks,
+copies its runtime and explicitly sets the SSH session tool PATH. Independently
+read diff/hash: APPROVE focused applicability to reversible owned cleanup/retry.
+Unmount only owned devpts/proc/dev children and then the owned tmpfs, after proving
+no running survivor/listener; keep original SSH22 available and nextroot absent.
+
+Complete .211 candidate SHA25691926edc5b1463066b9487f9937d06aa41980c00c6ac7f5adb7068dbec233719
+adds a new-root-only oneshot mkdir/chmod/chown for /run/sshd, with default target
+Requires/After and SSH After that helper. Focused source/design APPROVE RAM-only
+cleanup/retry after durable source publication; no helper execution or transition
+PASS is claimed. Direct helper command paths are checked; prefer explicit RAM log
+output so minimal boot does not depend on a default journal socket.
+
+Complete .37 candidate SHA2568dc72ca5703113ebef579c2c55eb0550aca754c285d9e8ce4e5c5c585b2b92ac
+adds matching systemd-shutdown/dependencies, validates hardcoded tool paths before
+mutations and adds equivalent RAM runtime-preparation/default ordering. Its global
+namespace bootstrap has no WorkingDirectory/RootDirectory/mount Requires; same-name
+RAM unit uses direct sshd. The test mode requires authenticated PTY, child cgroup,
+RAM root/cwd/exe/maps/fds and owned-service restart with original22 still listening.
+Reviewer read the complete source and independently ast.parse'd the outer source
+plus REMOTE/AUDIT/STOP_START: four syntax checks PASS. APPROVE RAM staging/test
+after durable source publication. Actual stage/test receipts remain pending.
+
+Both candidates are operational task scripts, not package changes; the reviewer
+did not execute either script. These hash-based reviews must be paired with the
+worker's published commit/readback before execution. Neither proves soft reboot,
+fresh posttransition SSH, offline root, successful repair or normal reboot.
 
 Next: inspect actual staged tree/units,
 parser warnings, global mount namespace, RAM-only exe/maps/root/cwd/fds and key-only

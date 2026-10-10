@@ -175,3 +175,17 @@ notified immediately; owned ram-stage report retracts the finding explicitly.
 No transition/repair/reboot approval. Next exact command: read published actual
 stage/auth/global-namespace/process-fd receipts after worker retry, then independently
 compare units/tree/runtime and network snapshots against source7f8e3426.
+
+Further review: matching259.5 source confirms /run/sshd coldplug concern; workers
+now include explicit new-RAM runtime-preparation oneshots. Focused .211 discovered
+chroot fix9baf631c and full prep candidate91926edc APPROVE applicability for RAM-only
+owned cleanup/retry after publication. .37 full source8dc72ca5 independently read
+and outer/REMOTE/AUDIT/STOP_START AST parses PASS4/4; matching shutdown runtime,
+early exact-path preflight, runtime helper/default ordering APPROVE RAM-only after
+publication. Actual staged/live/auth/PTY receipts pending, no scripts executed by
+reviewer. Proposed return report supports single-force normal kernel reboot only
+after actual offline clean repair, offhost verified preservation and original
+boot/auth/network/config checks. No transition, repair or return execution approval.
+Next: read immutable worker staged/test receipts, compare hashes/units/properties
+and independently inspect private manifest metadata only. Private contents remain
+unprinted/uncommitted. Last verified own remote31872b92238e282f69a8c710128156a13e84e033.

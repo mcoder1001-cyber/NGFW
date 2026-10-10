@@ -155,3 +155,22 @@ SHA02a2270a…d0f41c, six refusal tests PASS; additional guard APPROVE is separa
 from pending target mounted/positive/lazy-pinned behavior. Owned block-check report
 records actual commands/output. Reviewer continues awaiting exact staged receipts;
 no target mutation and no duplicate full quick.
+
+Current recovery follow-up: last verified published own checkpoint
+fe910846d6b9b95b235bb32de27da1a2df9927d1. Independent controller-only guard test
+used a newly owned8 MiB RAM-backed loop in a private mount namespace; five real
+cases PASS including mounted refusal and lazy-detached/open-directory-fd refusal
+until final release. Exact helper hash matched; cleanup removed only owned test
+resources; process exit0. No physical/target device touched. Guard report contains
+actual actions/output; target offline proof remains pending.
+
+Independent .211 stage source review: c4027e96 source design approved RAM-only,
+first actual collector attempt safely halted before keys/binds/sshd. Published
+7f8e3426/SHA743272ac flattened ldd fix is applicable; retry BLOCK on newly found
+literal-backslash-n generated NSS files. AST parse succeeded but constant inspection
+proved malformed separators. Notified manager/worker before retry. Owned new
+ram-stage report records immutable source, finding and superseded execution verdict.
+No transition/repair/reboot approval. Next exact command: git show the worker's
+corrected published SHA:docs/status/tasks/hardware-211-20261010-ram-stage.py, then
+AST-inspect generated-file constants before approving reversible retry. Review
+actual stage/auth/global-namespace/process-fd proof after worker publication.

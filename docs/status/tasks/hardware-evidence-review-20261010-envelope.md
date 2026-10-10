@@ -45,3 +45,8 @@ do not confuse missing capability evidence with missing owner authorization.
 Additional owned task-only helper report:
 `hardware-evidence-review-20261010-block-check.md`. Independently inspect/rebuild
 manager helper and staged host receipts without target mutations or product edits.
+Additional owned source/runtime review report:
+`hardware-evidence-review-20261010-ram-stage.md`. Record immutable stage-source
+identity, exact findings and actual checks; keep preparation approval distinct from
+transition/repair gates. Controller-only isolated owned-loop helper testing is
+permitted; never operate on physical/target devices during reviewer tests.

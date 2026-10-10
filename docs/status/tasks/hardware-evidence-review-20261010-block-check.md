@@ -54,8 +54,52 @@ refusal; every stdout was empty. Python subprocess assertions verified each exit
 and output, and final line printed "no block-device operation, mount or target
 command performed". Private helper contents were not committed to this branch.
 
-Pending behavioral evidence: exact helper must return3 on each mounted target,
-must refuse a deliberately pinned lazy-detached filesystem in an isolated test,
+Pending target evidence: exact helper must return3 on each mounted target,
 then return0 only after real root users/mounts are removed. O_EXCL itself does not
 write the device; neither success nor refusal permits bypassing the audited
 offline-root gate. No target positive-case PASS is claimed.
+
+## Independent isolated behavioral check
+
+The reviewer ran five real behavioral cases on one newly allocated, reviewer-owned
+8 MiB loop device backed by a temporary regular file in controller /dev/shm. No
+physical disk or target was touched. The test ran inside a private mount namespace;
+the exact owned backing-file identity was checked before testing and detach.
+The supplied helper SHA256 above was verified immediately before execution.
+
+Concrete setup and action arguments, executed through Python subprocess.run:
+
+```text
+mkfs.ext4 -q -F <owned RAM backing file>
+unshare --mount --propagation private --fork python3 -c <reviewer assertion harness>
+losetup --find --show <owned RAM backing file>
+losetup --noheadings --output BACK-FILE <owned loop>
+block-check <owned loop> <stat-derived major> <stat-derived minor>
+mount -o nosuid,nodev <owned loop> <owned mount directory>
+open(<owned mount directory>, O_RDONLY|O_DIRECTORY) # pins the mounted filesystem
+umount --lazy <owned mount directory>
+close(<owned directory fd>)
+mount -o nosuid,nodev <owned loop> <owned mount directory>
+umount <owned mount directory>
+losetup --detach <same owned loop>
+```
+
+Assertions called the exact helper after each state change and compared exit and
+output. Actual selected output:
+
+```text
+allocated reviewer-owned loop; private namespace; exact RAM backing identity verified
+unmounted: exit0 EXCLUSIVE_OPEN_OK: no filesystem/block holder; also require namespace/reference audit
+mounted: exit3 BUSY: block device still has an exclusive holder; no repair permitted
+lazy-detached with directory fd still open: exit3 BUSY: block device still has an exclusive holder; no repair permitted
+lazy-detached after final reference release: exit0 EXCLUSIVE_OPEN_OK: no filesystem/block holder; also require namespace/reference audit
+ordinary successful unmount: exit0 EXCLUSIVE_OPEN_OK: no filesystem/block holder; also require namespace/reference audit
+only reviewer-owned loop detached; private mount namespace exits
+5 behavioral cases PASS; owned RAM backing removed; no physical or target device touched
+```
+
+The lazy-detached path no longer appeared mounted while the guard correctly
+refused it. This checks the central failure mode of interpreting mount visibility
+as proof of offline ext4. Finally cleanup closed the owned fd, removed only the
+owned mount/loop/backing file and temporary directory; the process exited0. This
+local result does not establish target-root exclusivity or approve target repair.

@@ -52,9 +52,9 @@ def copy_missing(source_path):
     reports.append({'path':str(source),'source_package_MD5':True,'RAM_existed':existed,
                     'bytes':len(content),'sha256':hashlib.sha256(content).hexdigest()})
 for name,source in tools.items():
+    copy_missing(source)  # Package MD5 must pass before ldd inspects this executable.
     closure=run(['ldd',source]).stdout
     assert 'not found' not in closure
-    copy_missing(source)
     for line in closure.splitlines():
         match=re.search(r'=>\s+(/\S+)',line) or re.match(r'\s*(/\S+)\s+\(',line)
         if match:copy_missing(match.group(1))

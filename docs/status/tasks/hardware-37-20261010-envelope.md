@@ -49,3 +49,5 @@
 - Guarded package-input.py d5294674 is source/localvalidation only: AST3PASS/all11hash-controls0, private4502Breceiptbbe9b51d, target_contacted=false. FutureRAMupload+apt-s under pre-existingpolicy101/VPPmask requires post-repair originalroot/time/network gates and manager phase; no target execution/install.
 
 - Parent/R7 authorize exactf5057224 V3RAM-only staging afterpublication, sourceb764/staticd8d8 separatefilename; invalid2/mountedguard3 only, novalidread/crossing. Actual37OFFLINEinode/blockmapping and native/offhost/undo gates mandatory after211normalreturn.
+
+- ActualV3RAM-only SSH0: private860B/0600receipt0fd8ebb3789d10eac379b6edd3e3b197517f793c5b2eea1c3e72d079c085aeaf; invalid2/mountedguardBUSY3, novalidrawcapture/noext4write. Sourcepublished320f1e49d; sameRAM51/rescue3866/held3940/nextrootabsent.

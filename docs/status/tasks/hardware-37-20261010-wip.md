@@ -150,4 +150,4 @@ Then follow owned install-plan.md: verify actual cleanFS/management/nativefirewa
 
 - Source-only guarded11deb input/apt-s plan prepared: package-input.py d5294674 AST3PASS, actual local11hash/control check0 with target_contacted=false/private4502Breceiptbbe9b51d. Target upload/solver/install NOT RUN; requires post-repair normalroot/clock/mgmt, exactpolicy101+VPPmask and later plan review. Root originalinstallgoal remains; details in install-plan.md.
 
-- V3separateRAMreader candidate f5057224/sourceb764/staticd8d8 independentlyR7APPROVE afterpublication; invalidselector/mountedguard only, noactualstageyet. FutureOFFLINE9inode/7block preservation requires actual37readings+guard0/native/offhostverification; 211clonefacts are not37evidence. Root211-firsthold remains.
+- V3separateRAMreader candidate f5057224/sourceb764/staticd8d8 independentlyR7APPROVE afterpublication; actualV3stageSSH0/private860Breceipt0fd8ebb3, invalid2/mountedguard3 only, sameRAM51/MainPID3866/held3940/noNextroot. FutureOFFLINE9inode/7block preservation requires actual37readings+guard0/native/offhostverification; 211clonefacts are not37evidence. Root211-firsthold remains.

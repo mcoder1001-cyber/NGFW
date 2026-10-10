@@ -6,7 +6,7 @@ Source2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c is preserved in remote
 subsequent changes address task documentation only. Outputs below are selected actual
 log lines; omitted output is retained outside the repository in the task-owned directory
 `/root/Documents/Codex/2026-10-10/hardware/`. All completed process commands listed here
-were observed exit0. The final hosted quick remains pending. Fixed native archive integrity/metadata
+were observed exit0. The final PR hosted quick completed SUCCESS; post-merge main quick remains in progress. Fixed native archive integrity/metadata
 passed independent R8 inspection; its durable receipt is linked below when published.
 
 ## Source preparation
@@ -143,6 +143,78 @@ Command: `git diff --exit-code 2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c HEAD -- 
 - [R8 original archive/source](https://github.com/mcoder1001-cyber/NGFW/blob/3009a40ead3d73e0c1ed277d334cfc739f2d67a7/docs/status/tasks/hardware-review-20261010-artifact-review.md): old archive BLOCK, narrow source fix APPROVE, independent helper/unit checks.
 - [R1/T1 preliminary evidence](https://github.com/mcoder1001-cyber/NGFW/blob/4c2ac762f316a4147c008f4fc79c775dc1c1776d/docs/status/tasks/hardware-37-20261010-test-T1.md): lightweight checks; complete hosted quick pending, no T1 PASS claimed yet.
 
-PR217 complete unchanged hosted quick must pass on the final amended HEAD. A pending
-or superseded run is not a merge PASS. No target firstboot/API/forwarding/reboot tests
+PR217 complete unchanged hosted quick38033766837 passed on final5bd7e8b; see combined
+review for immutable final receipts and literal CI GATE PASSED. A pending or
+superseded run was not counted as a merge PASS. No target firstboot/API/forwarding/reboot tests
 ran, and no persistent runner or live installation worker is claimed.
+
+## Final source, independent reviews and merge
+
+See [combined review](hardware-manager-20261010-review.md) for final immutable
+R1/R2/R7/R8/T1 receipts. Source metadata correction APPROVE; T1 PASS.
+
+Command: `gh run view 38033766837 --json status,conclusion,headSha,url,jobs`.
+Actual root readback: completed,success,headSha5bd7e8b545fc765fd2babd8dda15175d6f33af1b;
+job114159912573 completed2026-10-10T07:36:18Z,allstepssuccess. Independent T1 downloaded
+60874-byte full log and verified:
+
+```text
+HEAD is now at 8a15d644 Merge 5bd7e8b545fc765fd2babd8dda15175d6f33af1b into d2d55984d74fa1d06c32e8271886f11f16375407
+CI GATE PASSED
+```
+
+Command: `gh pr merge 217 --merge --match-head-commit 5bd7e8b545fc765fd2babd8dda15175d6f33af1b --body-file <task-owned merge-body.txt>`
+under /run/lock/ngfw-main.lock; no admin/bypass. Readback `gh pr view217`:
+MERGED,mergeCommit4908716b4501312102382e6979b8fc1ded6f9311,mergedAt2026-10-10T07:46:33Z.
+Fresh `git fetch origin main`, `git ls-remote origin refs/heads/main`,
+`git show -s --format='%H%n%P%n%T%n%s' origin/main` actual output:
+
+```text
+4908716b4501312102382e6979b8fc1ded6f9311
+d2d55984d74fa1d06c32e8271886f11f16375407 5bd7e8b545fc765fd2babd8dda15175d6f33af1b
+a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2
+Merge pull request #217 from mcoder1001-cyber/codex/hardware-manager-20261010
+```
+
+Actual merged tree equals independently tested integration tree. Main bare quick
+38035583209,packaging38035583240,provisioning38035583210 observed IN PROGRESS;
+post-merge PASS not yet claimed.
+
+Premerge entire-worktree canonical-config scan command:
+`gitleaks detect --no-git -s /root/ngfw-wt/hardware-manager-20261010 --config .github/gitleaks.toml --redact --no-banner`
+(report paths outside repo). Actual exit0: scanned114800082bytes in11.4s; no leaks
+found. Default scan without existing config initially flagged10sanctioned fixture
+markers; independent R2 reviewed every redacted location and existing conventions,
+confirmed sources unchanged frommain, then independently configured scan exit0
+114800082bytes/15.7s/noleaks. No exception/config change.
+
+## Final read-only target readback
+
+Command for each supplied address at07:38UTC:
+
+```sh
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@<address> 'ip -br -4 addr; ip -4 route show default; findmnt -no SOURCE,FSTYPE,OPTIONS /; systemctl is-failed systemd-fsck-root.service; tune2fs -l /dev/sda2 | sed -n "/Filesystem state/p;/FS Error count/p"'
+```
+
+Both command processes exit0; `is-failed` printsfailed. Selected actual output:
+
+```text
+172.30.126.37:
+enp12s0 UP 172.30.126.37/24
+default via 172.30.126.1 dev enp12s0 proto static
+/dev/sda2 ext4 rw,relatime
+failed
+Filesystem state: clean with errors
+FS Error count:1258
+
+172.30.110.211:
+enp4s0 UP 172.30.110.211/24
+default via 172.30.110.1 dev enp4s0 proto static
+/dev/sda2 ext4 rw,relatime
+failed
+Filesystem state: clean with errors
+FS Error count:1248
+```
+
+Storage errors remain active; no target mutation/install/reboot. Package/API/live
+physical inventory/forwarding/throughput/reboot acceptance all remain NOT RUN.

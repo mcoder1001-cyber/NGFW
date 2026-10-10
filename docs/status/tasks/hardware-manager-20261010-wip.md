@@ -1,90 +1,77 @@
-# Hardware installation WIP — 2026-10-10 07:07 UTC
+# Hardware installation WIP — 2026-10-10 07:42 UTC
 
-Branch: codex/hardware-manager-20261010; base origin/main
-`d2d55984d74fa1d06c32e8271886f11f16375407`.
-Last published/read-back integration checkpoint: `bde83bc87ae817a61bbc70e4029f76109ae77c35`.
-Compiled source checkpoint: `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`.
-Integration history also preserved remotely as
-`codex/archive-hardware-manager-20261010-integration` at bde83bc87.
-Actual command/output excerpts and immutable independent receipts:
-[hardware-manager-20261010-evidence.md](hardware-manager-20261010-evidence.md).
-Reviewed history preserved in local refs/archive/hardware-manager-20261010 and
-remote codex/archive-hardware-manager-20261010, independently read back at that SHA.
-The final D112 single-commit HEAD is discoverable with `git rev-parse HEAD` and
-`git ls-remote origin refs/heads/codex/hardware-manager-20261010`; publication is
-reported only after push/read-back. Owned files: this task's docs, the API native
-Depends field in deploy/debian/ngfw/debian/control, and external build output.
+Branch: codex/hardware-manager-20261010.
+Worktree: /root/ngfw-wt/hardware-manager-20261010.
+At this status edit localHEAD/origin-main:4908716b4501312102382e6979b8fc1ded6f9311;
+last published own-branch checkpoint:5bd7e8b545fc765fd2babd8dda15175d6f33af1b.
+This status checkpoint will be committed/pushed immediately; discover its current
+local/remote SHA with `git rev-parse HEAD` and
+`git ls-remote origin refs/heads/codex/hardware-manager-20261010`. Publication is
+reported on PR217 only after successful push/readback. Owned files are task docs,
+API native Depends field in deploy/debian/ngfw/debian/control, external build output.
+No edits to another worktree or local main. User workspace remains untouched.
 
-Completed: remote main/branches/PR/CI and board inspected at startup. Board212 tasks:
-205 merged,7 parked,0 running/ready/review. No existing PR at startup. No board state
-was invented for this additional hardware request. Prior complete hosted quick
-run37903333143 PASS on reviewed product source30de26ee; final corrected source still
-needs its own unchanged complete hosted quick gate before merge.
+Compiled source:2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c, remotely preserved in
+codex/archive-hardware-manager-20261010. Prior integrationbde83bc preserved in
+codex/archive-hardware-manager-20261010-integration. Final D112 one-commit source
+5bd7e8b has identical product content. PR217 merged expected head without bypass;
+remote main4908716b has exact expected parents/current main d2d55984 plus5bd7e8b
+and fully tested treea0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2.
 
-Target preflight: strict-known-host BatchMode SSH to both PASS; no NGFW/VPP installed.
-Both ext4 root /dev/sda2 filesystems have active checksum/journal errors and failed
-boot fsck (invalid inode259596 extent; UNEXPECTED INCONSISTENCY). Independent review
-confirmed. Package install, data NIC binding, firstboot, service start, route edits,
-filesystem repair and reboot have NOT RUN. Fresh SSH still PASS, addresses/routes
-intact. Management exclusions: .37 enp12s0/0000:0c:00.0/group58/default172.30.126.1;
-.211 enp4s0/0000:04:00.0/group28/default172.30.110.1.
+Completed host-independent code: API package now consumes existing shlibs:Depends,
+enforcing actual native libc6>=2.34/libgcc-s1>=4.2 plus Node22 bounds. No other
+product/test/build/CI change. Corrected clean prepare completed14TS tasks,
+seven Go helpers, production API deployment. Unchanged dpkg-buildpackage exited0,
+all41 mandatory fixtures PASS. Current VPP verifier72tests/manifests/hashes/install
+gate PASS; four corrected application archives and seven selected VPP packages
+preserved with hashes. Old runtime/archives remain explicitly BLOCKED.
+Final hosted unchanged mandatory quick38033766837 SUCCESS: literal CI GATE PASSED
+read independently, actual checkout8a15d644/fully tested treea0d7b7. Both additional
+hosted fixture gates success. All R1/R2/R7/R8 APPROVE, T1PASS; immutable receipts in
+[combined review](hardware-manager-20261010-review.md) and
+[actual evidence](hardware-manager-20261010-evidence.md).
+Premerge default full gitleaks found10 preexisting sanctioned test placeholders;
+independent R2 triage confirmed no real secret. Unchanged canonical-config full
+no-git scans both exit0/noleaks. No allowlist/test was modified to hide findings.
+Main push quick38035583209 IN PROGRESS; post-merge PASS still unverified.
 
-Host inventories independently verified: .37 seven data NICs; .211 seventeen.
-External proposed-dataplane-{37,211}.json schema checks PASS, exact PCI/port mappings
-and matching whitelists reviewed. Management groups excluded; all groups singleton.
-Proposals are unapplied. Existing .211 data bridges need reviewed topology handling.
-Physical af_packet import is unsupported (D105); guarded DPDK and persistent
-physical-interface rows/validated-confirmed commit/live retrieval remain necessary.
+Hardware task: BLOCKED, installation and hardware acceptance NOT RUN. Both ext4
+/dev/sda2 roots have structural checksum/extent/journal errors and failed boot fsck:
+UNEXPECTED INCONSISTENCY at inode259596. Fresh strict-known-host SSH07:38UTC PASS;
+.37enp12s0UP172.30.126.37/24/default172.30.126.1/group58/PCI0000:0c:00.0;
+.211enp4s0UP172.30.110.211/24/default172.30.110.1/group28/PCI0000:04:00.0.
+Both roots mountedrw, clean-with-errors; counts1258/.37,1248/.211.
+No package transfer/install, firstboot/service change, NIC binding, route/config
+change, filesystem repair or reboot performed. Management PCI/groups stay excluded.
+Seven/seventeen data NICs have independently verified original names/PCI/group
+maps; proposed configs are schema-validated and NOT APPLIED. .211 data bridges need
+reviewed membership changes only after clean storage. Physical af_packet declarative
+import unsupportedD105; guarded DPDK/true IOMMU, no no-IOMMU bypass.
 
-Build evidence: VPP26.06+ngfw3 full verifier72 tests/manifest/hashes/install gate PASS.
-pnpm frozen604-package install PASS; fresh14/14 TypeScript build tasks PASS including
-web bundle budget; all seven Go helper builds and production API deployment PASS.
-Initial cc80be66edcf dpkg-buildpackage exit0,41 unchanged required fixtures PASS.
-Independent native archive review found missing generated libc6>=2.34/libgcc-s1>=4.2
-API Depends. Old runtime/ artifacts are BLOCKED. Source correction consumes existing
-shlibs:Depends; no compiler sources, test expectations, rules or CI changed.
-R8 independently APPROVE source2045ab8; receipt3009a40ead3d73e0c1ed277d334cfc739f2d67a7.
+Required recovery input: verified console/rescue (physical/serial/IPMI/KVM/LiveISO)
+and off-host backup/offline repair path, or evidence owner already repaired root
+unmounted and management returned. Asynchronous owner question remains unanswered.
+Do not fsck mounted root, force unattended repair/reboot, or delete corrupt dirs.
+After recovery: repeat root/fsck/device-health/SSH/route preflight; fix trusted time;
+inspect package/service dependencies and preserve existing routing/firewall/netplan.
+Complete canonical firstboot with VPPno-pci/managementblacklist, start agent/API,
+seed builtin physical rows BEFORE any data PCI binding and before operator revisions.
+Verify exact7/17 original names/markers and management exclusions; export authoritative
+seeded dataplane, guarded apply-startup uses same names, reconverge and verify stored
+and live inventory. Ordinary API import cannot fabricate physical markers. Then real
+API/TLS/forwarding/restart/reboot persistence tests. No live forwarding/throughput,
+offline dependency closure or release acceptance claimed.
 
-Corrected clean prepare from2045ab8 completed exit0, version0.1.0~dev+2045ab8b3d2f,
-at /dev/shm/ngfw-hardware-package-fixed-20261010. Full verifier/build/deploy PASS again.
-Corrected unchanged dpkg-buildpackage -us -uc -b completed exit0; all41 required
-fixtures passed. Four fixed runtime-fixed/ archives/buildinfo/changes/hash manifest
-are preserved. API final Depends now enforces libc6>=2.34/libgcc-s1>=4.2 plus Node22.
-R8 independently inspected all fixed archives/helper bytes/units and APPROVE
-integrity/metadata; its publication receipt follows separately. Logs/proposed configs:
-/root/Documents/Codex/2026-10-10/hardware/. Root free space~565MiB; tmpfs~1.3GiB.
-Do not delete other work or modify shared-host VPP. No target packages transferred.
+Remote preflight .37=86a2f06eafc6406e3e5395769d923a09bbfa60aa;
+.211=a4059c73b4a2e3346b7cf1cf705c0a5b908c317d. Resume existing owned host branches,
+never silently rebuild. Live roles at07:42:rootmanager,host_37independentmainT1;
+R2/R7/R8 finished awaitingresume; no active installers/persistent supervisor.
+Board212tasks:205merged,7parked,0running/ready/review. Adhoc hardware request has no
+invented WBS state. This cycle has one new product merge(PR217), no stale-row fixes.
+Root disk~500MiB available; do not duplicate broad local builds or delete others' work.
+Outputs/logs:/root/Documents/Codex/2026-10-10/hardware/.
 
-Live roles: root manages/builds this correction; install_review R8 archive review;
-host_37 resumed only for independent R1/T1; evidence_review is independent R7.
-host_211 completed R2 (published da9426156320e5a95fd1b26351af43bb102a5f1a) and is
-awaiting resume. No host agent is installing. Their target preflight work remains awaiting offline recovery.
-Published preflight .37=86a2f06eafc6406e3e5395769d923a09bbfa60aa;
-.211=a4059c73b4a2e3346b7cf1cf705c0a5b908c317d. See separate role receipts as they finish.
-Reviewer25 Python fixtures PASS; its prior Go command printed ok but was stopped
-while stalled afterward, so it is not reported as a completed PASS.
-
-Current blocker: offline repair requires verified console/rescue and backups first.
-Owner console information requested asynchronously, still unanswered. Do not run
-fsck on mounted root, force fsck/reboot, or erase directories to hide corruption.
-Remaining: final applicable R1/R7/R8/T1 receipts and complete unchanged hosted
-quick on amended final PR217 HEAD, then expected-head single-commit merge; then offline recovery, guarded
-install, application import and real packet/API/service/reboot persistence tests.
-Hardware acceptance/throughput and aggregate release claims remain unverified.
-
-Exact next command: `gh pr checks 217`; keep all complete hosted quick steps
-unchanged. Final amended docs correct R7's command/output evidence gap without
-changing product/test/build/CI files or rebuilding packages. Source history is
-archived remotely before amendment. Recheck main and expected PR head before merge. After owner supplies verified console/rescue, resume each
-existing host branch/worktree from its durable envelope for offline recovery.
-
-Source-derived installation ordering (independent R8; NOT live-tested): firstboot
-canonical api.env must complete first. Start VPP with no-pci and agent, keep database
-without operator revisions/candidate edits. Enable NGFW_SEED_DEFAULT_NICS=1 only
-after provisioning and BEFORE any data PCI binding; API seeds revision1 containing
-original netdev names and physical markers. Unbound physical NICs are intentionally
-not applied yet; dataplane is stored/notApplied. Verify exact7/17 rows and management
-exclusions, export authoritative seeded dataplane, then guarded apply-startup uses
-the same names. Binding first would erase kernel names and change seed fallback
-names; ordinary API edits cannot add physical markers. Do not fake them with import
-or write DB rows directly. Real seed/startup/retrieval/forwarding verification remains.
+Current failure: active target root-filesystem errors; verified rescue input missing.
+Remaining: main bare quick completion/readback; final docs checkpoint/publication;
+then offline recovery and actual installation/hardware testing when inputs arrive.
+Exact next command: `gh run view 38035583209 --json headSha,status,conclusion,jobs,url`.

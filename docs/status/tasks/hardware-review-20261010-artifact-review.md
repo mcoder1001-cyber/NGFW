@@ -82,4 +82,57 @@ The manager published `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`, `fix(packaging
 
 Rules, tests and both CI implementations are unchanged; the manager checkout was clean. This uses the already generated shlibs bounds without hardcoding library names or changing Node constraints, runtime privilege boundaries or activation behavior.
 
-**R8 source-only verdict: APPROVE exact correction `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`.** The old `cc80be66edcf` archives retain their artifact-readiness BLOCK. A corrected native build is underway in `/dev/shm/ngfw-hardware-package-fixed-20261010`; its final package controls/payloads are still awaiting independent inspection. Source approval is not a claim that hosted quick, rebuilt artifacts, target filesystem recovery or hardware acceptance have passed.
+**R8 source-only verdict: APPROVE exact correction `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`.** The old `cc80be66edcf` archives retain their artifact-readiness BLOCK. The corrected final build has now received the independent inspection below. Source approval is not a claim that hosted quick, target filesystem recovery or hardware acceptance have passed.
+
+## Corrected final archive inspection
+
+Input: `/root/Documents/Codex/2026-10-10/hardware/runtime-fixed/`, version `0.1.0~dev+2045ab8b3d2f`. The manager reported `dpkg-buildpackage` exit zero and 41 unchanged staged fixtures passing. Independently compared product directories/CI/lock files between source `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c` and D112 integration `bde83bc87ae817a61bbc70e4029f76109ae77c35`: no differences. Actual remote branch readback confirmed integration `bde83bc87ae817a61bbc70e4029f76109ae77c35` and its preserved integration archive ref. The differing package version is provenance from the reviewed source checkpoint, not a different product tree.
+
+| Corrected artifact | Independently computed SHA256 |
+| --- | --- |
+| ngfw-agent_0.1.0~dev+2045ab8b3d2f_amd64.deb | 7e505cf9c6415a58c45a39366b512667d4ad79e2f6db340f7ef0d639ca6431bf |
+| ngfw-api_0.1.0~dev+2045ab8b3d2f_amd64.deb | 47683ec5b2194ea360c656648718f48943cb04480717cf59804e5ff6ec6309a0 |
+| ngfw-web_0.1.0~dev+2045ab8b3d2f_all.deb | f124a576f14435903dfe62f69fd6853a75c2e609528a5c6e0733334a93d48d56 |
+| ngfw-meta_0.1.0~dev+2045ab8b3d2f_all.deb | 4a16c2e6b04da696876c2978a36af9feca238ab55ec120801ffdfb63c89c777d |
+
+All seven manifest/archive/buildinfo/changes hashes matched `SHA256SUMS`. Actual final control metadata for all four archives agreed with the manifest and expected versions/architectures. API now carries both generated native bounds and unchanged Node constraints. Meta exactly pins the three management packages and VPP. Independent streamed payload inspection repeated safe path and critical root ownership/non-writable-mode assertions, all three helper byte-to-receipt comparisons with 0755 executable modes, all seven reviewed unit/script byte comparisons and final maintainer-script no-start/restart inspection. Native Argon2 was extracted only into private temporary scratch, read with `readelf`, then removed; its DT_NEEDED set remained the six libraries recorded above. No binary was executed, full API tree extracted, package installed or target mutated.
+
+Command/output appendix (each exited zero):
+
+```text
+cd /root/Documents/Codex/2026-10-10/hardware/runtime-fixed
+sha256sum --check SHA256SUMS
+manifest.json: OK
+ngfw-agent_0.1.0~dev+2045ab8b3d2f_amd64.deb: OK
+ngfw-api_0.1.0~dev+2045ab8b3d2f_amd64.deb: OK
+ngfw-meta_0.1.0~dev+2045ab8b3d2f_all.deb: OK
+ngfw-web_0.1.0~dev+2045ab8b3d2f_all.deb: OK
+ngfw_0.1.0~dev+2045ab8b3d2f_amd64.buildinfo: OK
+ngfw_0.1.0~dev+2045ab8b3d2f_amd64.changes: OK
+
+dpkg-deb -f ngfw-api_0.1.0~dev+2045ab8b3d2f_amd64.deb Package Version Architecture Depends
+Package: ngfw-api
+Version: 0.1.0~dev+2045ab8b3d2f
+Architecture: amd64
+Depends: libc6 (>= 2.34), libgcc-s1 (>= 4.2), nodejs (>= 22), nodejs (<< 23), adduser, python3
+```
+
+The independent Python inspection used `subprocess.Popen(['dpkg-deb','--fsys-tarfile',archive])` and `tarfile.open(fileobj=proc.stdout,mode='r|')` for payloads, and `--ctrl-tarfile` for maintainer scripts; it asserted child exit zero, compared bytes with `hashlib.sha256`, and never invoked maintainer scripts. Actual selected output from that exited-zero inspection:
+
+```text
+SHA256SUMS: 7/7 PASS
+ngfw-agent: metadata/payload/activation checks PASS
+ngfw-api: metadata/payload/activation checks PASS
+ngfw-meta: metadata/payload/activation checks PASS
+ngfw-web: metadata/payload/activation checks PASS
+ngfw-ra-daemon: 9a41b8b873b008f1a364b88937e0ee1e52b12db6c488215b197875991f7be44f receipt/mode PASS
+ngfw-ra-namespace-broker: 7511796cf27805b5dca2dbc270cf592b9ca74898ce7fcee899017f35f47e4d61 receipt/mode PASS
+ngfw-wan-probe: 00cec4f44c75e63a0155a440d49ff18b0bc9ac512587ad9a12857df85e907deb receipt/mode PASS
+Source unit/script bytes: 7/7 PASS
+API final Depends: libc6 (>= 2.34), libgcc-s1 (>= 4.2), nodejs (>= 22), nodejs (<< 23), adduser, python3
+Meta exact management/VPP pins PASS
+Native DT_NEEDED: libdl.so.2,libgcc_s.so.1,librt.so.1,libpthread.so.0,libc.so.6,ld-linux-x86-64.so.2
+Corrected final archive inspection PASS (no installation/execution)
+```
+
+**R8 verdict: APPROVE corrected final archive integrity, concrete dependency correction and reviewed activation safeguards for the matching product tree.** Old archives remain blocked. This closes the native metadata finding; it does not authorize deploying to corrupt targets or establish hosted CI, licensing/release, reboot persistence or packet-forwarding acceptance. Hardware installation/activation/reboot remains BLOCKED pending clean offline recovery and network prerequisites. The manifest's review/CI status fields were recorded before this review and are not independent evidence of readiness; use the exact receipt and applicable hosted result.

@@ -8,7 +8,7 @@
 - Owned remote target: `root@172.30.110.211`; no changes to the other target or shared development host.
 - Authorization: owner requests package installation, tests, all interfaces except management/routing, and reboot if necessary. Management access and routing must remain functional.
 - Constraints: exact manager-provided product payload; independent installation review; no replacing OS, mounted filesystem repair, blind nftables baseline/flush, management PCI rebinding, unsafe VFIO/no-IOMMU, secrets in evidence, or developer-host VPP changes.
-- Current phase: actual RAM soft-reboot and positive offline guard/audit completed; persistentPTY and freshSSH2222/network preserved. Read-only fsck aborts12 on corruption; metadata-Q fails1 on invalid extent, so valid preservation/correction gate remains unmet. No repair, normal return reboot or installation yet.
+- Current phase: actual RAM soft-reboot and positive offline guard/audit completed; persistentPTY and freshSSH2222/network preserved. Read-only fsck aborts12; metadata-Q fails1, but native scoped metadata plus five raw blocks now durably preserved and capped undo preflight passes. Conditional correction awaits final R7 applicability/fresh full audit. No repair, normal return reboot or installation yet.
 - Runtime publication: commit coherent evidence and publish immediately to own branch; report actual remote SHA to manager.
 - Acceptance: SSH and exact management routes preserved; packages installed from verified payload; firstboot/services/HTTPS/auth; 17 data interfaces persisted through API and present in VPP; routing/NAT/ACL/FRR and recovery/reboot tests with actual evidence where hardware links allow.
 

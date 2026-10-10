@@ -238,6 +238,11 @@ step3_agent() {
   ip -n "$NS_WAN" -6 route replace "$CPFX" via "$WAN6_GW" || return 1
   "$BIN/ngfw-vpp-preflight" | tee -a "$LOG" || die "V19 preflight failed"
   say "vppctl show map domain (ours):"; show_domains | tee -a "$LOG"
+  local server_fib; server_fib=$(V show ip6 fib "$SRV64") || die "server FIB readback failed"
+  grep -Fq "$SRV64" <<< "$server_fib" || die "owned server route missing before packets"
+  say "vppctl show ip6 fib $SRV64 (owned server route before packets):"
+  printf '%s\n' "$server_fib" | tee -a "$LOG"
+  printf '%s\n' "$server_fib" > "$EVID/server-fib-before.txt"
   say "vppctl show interface features $LAN_IF / $WAN_IF (map-t):"
   V show interface features "$LAN_IF" | grep -E 'map-t' | sed "s/^/  $LAN_IF /" | tee -a "$LOG"
   V show interface features "$WAN_IF" | grep -E 'map-t' | sed "s/^/  $WAN_IF /" | tee -a "$LOG"
@@ -315,6 +320,8 @@ EOF
   local idx; idx=$(show_domains | sed -nE 's/^\[([0-9]+)\].*/\1/p' | head -1)
   [[ -n $idx ]] && V show map domain index "$idx" counters | tee -a "$LOG"
   cp "$RUN/tcpdump6.txt" "$EVID/step4-tcpdump-wan6.txt"
+  say "vppctl show ip6 fib $SRV64 (owned route after packets):"
+  V show ip6 fib "$SRV64" | tee "$EVID/server-fib-after.txt" | tee -a "$LOG"
   nres "after step 4"
 }
 

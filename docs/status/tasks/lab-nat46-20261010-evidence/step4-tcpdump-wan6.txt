@@ -1,11 +1,11 @@
 tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
 listening on w17w1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
-09:20:52.710146 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], seq 3684410908, win 64240, options [mss 1460,sackOK,TS val 3365977044 ecr 0,nop,wscale 13], length 0
-09:20:52.710221 IP6 fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [S.], seq 4155212509, ack 3684410909, win 64260, options [mss 1440,sackOK,TS val 2914975743 ecr 3365977044,nop,wscale 13], length 0
-09:20:52.711035 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [.], ack 1, win 8, options [nop,nop,TS val 3365977046 ecr 2914975743], length 0
-09:20:52.711560 IP6 fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [P.], seq 1:15, ack 1, win 8, options [nop,nop,TS val 2914975744 ecr 3365977046], length 14
-09:20:52.711610 IP6 fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [F.], seq 15, ack 1, win 8, options [nop,nop,TS val 2914975744 ecr 3365977046], length 0
-09:20:52.712013 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [.], ack 15, win 8, options [nop,nop,TS val 3365977047 ecr 2914975744], length 0
+09:31:15.856093 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], seq 536166460, win 64240, options [mss 1460,sackOK,TS val 3366600190 ecr 0,nop,wscale 13], length 0
+09:31:15.856163 IP6 fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [S.], seq 1006965937, ack 536166461, win 64260, options [mss 1440,sackOK,TS val 2915598889 ecr 3366600190,nop,wscale 13], length 0
+09:31:15.856930 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [.], ack 1, win 8, options [nop,nop,TS val 3366600191 ecr 2915598889], length 0
+09:31:15.857418 IP6 fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [P.], seq 1:15, ack 1, win 8, options [nop,nop,TS val 2915598890 ecr 3366600191], length 14
+09:31:15.857469 IP6 fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [F.], seq 15, ack 1, win 8, options [nop,nop,TS val 2915598890 ecr 3366600191], length 0
+09:31:15.859093 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [.], ack 15, win 8, options [nop,nop,TS val 3366600193 ecr 2915598890], length 0
 6 packets captured
 8 packets received by filter
 0 packets dropped by kernel

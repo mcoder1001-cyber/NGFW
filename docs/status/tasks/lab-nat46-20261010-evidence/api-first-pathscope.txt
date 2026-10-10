@@ -1,0 +1,19 @@
+DISPOSABLE_VPP pid=3660059 runtime=/root/ngfw-wt/lab-nat46-20261010/.scratch/isolated-vpp-3660050
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-nat46-20261010/docs/status/tasks/lab-nat46-20261010-api.py", line 24, in <module>
+    result=api.call('POST','/config/commit?comment=nat46-real-api');check_commit(result,baseline_warnings=warnings,changed_paths=('/interfaces','/nat'))
+                                                                    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-nat46-20261010/test/topology/traffic-b/tunnels.py", line 86, in check_commit
+    raise Refused("unsupported changed or unrecognized configuration: " + str(warning))
+scenario.Refused: unsupported changed or unrecognized configuration: {'pointer': '/nat/ipfix', 'message': 'nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))', 'rule': 'agent.unsupported-field'}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-nat46-20261010/docs/status/tasks/lab-nat46-20261010-api.py", line 53, in <module>
+    rolled=api.call('POST',f'/config/rollback/{revision}?comment=nat46-real-api-rollback');check_commit(rolled,baseline_warnings=warnings,changed_paths=('/interfaces','/nat'))
+                                                                                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-nat46-20261010/test/topology/traffic-b/tunnels.py", line 86, in check_commit
+    raise Refused("unsupported changed or unrecognized configuration: " + str(warning))
+scenario.Refused: unsupported changed or unrecognized configuration: {'pointer': '/nat/ipfix', 'message': 'nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))', 'rule': 'agent.unsupported-field'}
+DISPOSABLE_VPP_STOPPED pid=3660059

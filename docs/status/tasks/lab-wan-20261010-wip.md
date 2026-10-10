@@ -1,7 +1,7 @@
 # WAN laboratory acceptance WIP
 
 Branch codex/lab-wan-20261010; base 4908716b4501312102382e6979b8fc1ded6f9311.
-Remote/local checkpoint da257065c published successfully to origin/codex/lab-wan-20261010. Owned files: envelope, WIP, PPP peer feasibility fixture, evidence and test/topology/multiwan-host-acceptance/run.py.
+Last confirmed remote/local checkpoint 1036aa0de published successfully to origin/codex/lab-wan-20261010; production checkpoint8e8eb8d3e28d4b4732d5850a308743dd4ba01cf9 independently approved. Draft PR221. Owned files: lab-wan-20261010* envelope/WIP/fixtures/evidence, test/topology/multiwan-host-acceptance/run.py, scheduler/descriptor.go and reconciler.go, NAT descriptor lifecycle, renderers/pppoe carrier_spec/hooks/peer and tests, scripts/pppoe-kernel-carrier.py/tests, agent/wan_routes.go/tests, multiwan Runtime configured-group snapshot/tests, descriptors/pppoe readback/tests. Current failure: extended fullAPI10 explicit pool collides with automatic interface pool; fixture-only canonical automatic-pool correctionc4349 awaits parent review. Next: approved extended formalAPI195/250, fresh current-source final MultiWAN1000/PBR/retained-session bothhosts, unchanged complete quick and exact hostedCI, archive/D112/mainintegration. Both host rows remain OPEN until criteria and gates pass.
 
 Completed: parameterize MultiWAN fixture staging to assigned slot20 rather than hardcoded slot7; preserve exact existing assertions and default slot7.
 Actual audit .250: ngfw-agent/ngfw-api/vpp active; installed agent/API package source 4c8d1b247c6b, VPP26.06-release+ngfw3; HTTPS health status ok. No pppd/pppoe-server/accel-pppd installed.

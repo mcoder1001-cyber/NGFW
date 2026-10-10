@@ -4286,7 +4286,7 @@ tasks:
       envelope /root/ngfw-wt/F-global-blocking-host.envelope.md, base main@f1f885a6 | done f6b4aebb CI PASSED after R2/R7 round 1 (all items addressed); docs-only → merge after a quick
       R7 verify | merged 689be665 (squash a901aca3, branch gate green)'
     worker_status: "active acceptance and verification"
-    acceptance_receipt_20261010: "Actual both-host small policy, counters, real browser, 200k commit and kernel same-list enforcement PASS. Incremental API timeout/cancellation and 250 flood loss retained. Independently reviewed idle-gateway resync fix and paced exact-2000 packet reruns in progress; PR222 not Done."
+    acceptance_receipt_20261010: "Actual final250 Global Blocking all packet/API200k/cost/counters/browser/nft/incremental commit/rollback acceptance PASS. Fresh195 incremental API commit PASS89.541s end-to-end, Apply43s with production phase budgets unchanged, but owned agent OOM-killed before rollback; original failure retained and same-source rerun pending after owned build-cache cleanup. PR222 not Done."
   - template: ''
     parked_on: ""
     branch: "codex/lab-wan-20261010"
@@ -4316,7 +4316,7 @@ tasks:
     worker_status: "active acceptance and verification"
     completion_receipt_20261008: "Kernel-carrier, exclusive raw-parent transport, distinct logical transit identity, PD LAN application and WAN readiness integration actively being implemented on published isolated checkpoints. PR210 lifecycle source staged in PR214; not lab-only and not complete."
     completion_receipt_20261009: "Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
-    acceptance_receipt_20261010: "Actual both-host PAP/IPCP, state, genuine broker Configure and VPP mirror established after reviewed fixes. LAN forwarding 0/3 FAIL retained and under diagnosis. Full agent Apply, IPv6/MSS/NAT, reconnect/restart, password evidence and browser acceptance remain open. PR221 not Done."
+    acceptance_receipt_20261010: "Actual current native PPP195/250 PASS: genuine PAP/IPCP, state, original broker Configure, exact transit local policy, VPP mirror, LAN IPv4 forwarding3/3 and real reconnect renegotiation. All temporary original assets cleaned; shared VPP unchanged. Full Wiring/agent Apply/API, IPv6/MSS/NAT, peer-loss/wrong-password/password evidence and browser acceptance remain open. PR221 not Done."
   - template: ''
     parked_on: ''
     branch: task/F-dashboard-prom-alarms-host-codex

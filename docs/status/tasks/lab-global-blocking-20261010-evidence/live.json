@@ -208,5 +208,89 @@
         }
       ]
     }
+  },
+  {
+    "case": "gb-10000-real-commit",
+    "atUTC": "2026-10-10T10:13:40Z",
+    "seconds": 2.6882099820068106,
+    "revision": 4
+  },
+  {
+    "case": "lookup-10000",
+    "atUTC": "2026-10-10T10:13:45Z",
+    "startedUTC": "2026-10-10T10:13:40Z",
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 2000,
+      "vectors": 2000,
+      "clocksPerVector": 7730.0
+    },
+    "vectorsDelta": 2000,
+    "ip4LookupReference": {
+      "calls": 4000,
+      "vectors": 4000,
+      "clocksPerVector": 3490.0
+    },
+    "aclCost": 7730.0,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "gb-200000-real-commit",
+    "atUTC": "2026-10-10T10:14:21Z",
+    "seconds": 32.77797470893711,
+    "revision": 5
+  },
+  {
+    "case": "lookup-200000",
+    "atUTC": "2026-10-10T10:14:28Z",
+    "startedUTC": "2026-10-10T10:14:24Z",
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 1998,
+      "vectors": 2000,
+      "clocksPerVector": 8890.0
+    },
+    "vectorsDelta": 2000,
+    "ip4LookupReference": {
+      "calls": 3986,
+      "vectors": 4000,
+      "clocksPerVector": 3710.0
+    },
+    "aclCost": 8890.0,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "api-error",
+    "atUTC": "2026-10-10T10:15:41Z",
+    "status": 504,
+    "problem": {
+      "type": "https://ngfw.dev/problems/agent-timeout",
+      "title": "Agent timeout",
+      "status": 504,
+      "detail": "agent: Deadline exceeded after 30.001s,metadata filters: 0.027s,remote_addr=/run/ngfw-test/w17tb/agent.sock",
+      "instance": "/api/v1/config/commit"
+    }
+  },
+  {
+    "case": "rollback",
+    "atUTC": "2026-10-10T10:16:35Z",
+    "noOwnedACL": true
+  },
+  {
+    "case": "cleanup",
+    "atUTC": "2026-10-10T10:16:45Z",
+    "sharedIdentityUnchanged": true
   }
 ]

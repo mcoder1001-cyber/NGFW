@@ -1,0 +1,40 @@
+{
+  "txnId": "ctl-1791627273453670992",
+  "ok": true,
+  "plan": [
+    {
+      "key": "acl.config/global-blocking",
+      "op": "APPLY_OPERATION_UPDATE",
+      "pointer": "/acl/globalBlocking",
+      "subsystem": "acl"
+    },
+    {
+      "key": "acl.acl/_gb.proof.i39",
+      "op": "APPLY_OPERATION_UPDATE",
+      "pointer": "/acl/globalBlocking/lists/proof",
+      "subsystem": "acl"
+    },
+    {
+      "key": "acl.acl/_gb.proof.i61",
+      "op": "APPLY_OPERATION_UPDATE",
+      "pointer": "/acl/globalBlocking/lists/proof",
+      "subsystem": "acl"
+    },
+    {
+      "key": "acl.acl/_gb.proof.o39",
+      "op": "APPLY_OPERATION_UPDATE",
+      "pointer": "/acl/globalBlocking/lists/proof",
+      "subsystem": "acl"
+    },
+    {
+      "key": "acl.acl/_gb.proof.o61",
+      "op": "APPLY_OPERATION_UPDATE",
+      "pointer": "/acl/globalBlocking/lists/proof",
+      "subsystem": "acl"
+    }
+  ],
+  "summary": {
+    "updated": 5,
+    "unchanged": 126
+  }
+}

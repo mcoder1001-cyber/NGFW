@@ -1,14 +1,14 @@
-DISPOSABLE_VPP pid=3855965 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-3855963
+DISPOSABLE_VPP pid=3864462 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-3864456
 PRODUCT_COUNTERS_ENABLE_PRIVATE_ONLY_PASS
 
-gb-interfaces {"seconds": 0.6269201210234314, "revision": 2}
+gb-interfaces {"seconds": 0.5684152109315619, "revision": 2}
 baseline-selected-in {"allowed": true, "icmp": true, "tcp": true}
 baseline-selected-out {"allowed": true, "icmp": true, "tcp": true}
 baseline-unselected {"allowed": true, "icmp": true, "tcp": true}
 baseline-local-in {"allowed": true, "icmp": true, "tcp": false}
-lookup-0 {"before": null, "after": null, "vectorsDelta": null, "scope": "bounded diagnostic clocks; no throughput claim"}
+lookup-0 {"startedUTC": "2026-10-10T10:13:00Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "vectorsDelta": 0, "ip4LookupReference": {"calls": 4000, "vectors": 4000, "clocksPerVector": 3580.0}, "aclCost": null, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
 upload-preview {"preview": {"list": "proof", "dryRun": true, "lines": 3, "entries": 2, "added": 2, "removed": 0, "unchanged": 0, "normalised": 0, "collapsed": 0, "invalidCount": 1, "invalid": [{"line": 2, "text": "invalid-address", "reason": "not an IPv4 or IPv6 address"}], "addedSample": ["10.17.1.2/32", "198.18.17.2/32"], "removedSample": [], "staged": false}}
-gb-upload-confirmed {"seconds": 0.6778987119905651, "revision": 3}
+gb-upload-confirmed {"seconds": 0.634551307070069, "revision": 3}
 counter-before {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 0, "dataplaneBytes": 0, "hostPackets": 0}}]}}
 selected-in-drop {"allowed": false, "icmp": true, "tcp": true}
 selected-out-drop {"allowed": false, "icmp": true, "tcp": true}
@@ -18,26 +18,37 @@ listed-unselected-pass {"allowed": true, "icmp": true, "tcp": true}
 listed-unselected-local-pass {"allowed": true, "icmp": true, "tcp": false}
 counter-after {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 12, "dataplaneBytes": 934, "hostPackets": 0}}]}}
 GLOBAL_BLOCKING_BROWSER_EN_FA_PASS
-gb-10000-real-commit {"seconds": 2.514882461982779, "revision": 4}
-lookup-10000 {"before": {"calls": 20, "vectors": 23, "clocksPerVector": 17300.0}, "after": {"calls": 2020, "vectors": 2023, "clocksPerVector": 8620.0}, "vectorsDelta": 2000, "scope": "bounded diagnostic clocks; no throughput claim"}
-gb-200000-real-commit {"seconds": 33.50840564200189, "revision": 5}
-lookup-200000 {"before": {"calls": 2020, "vectors": 2023, "clocksPerVector": 8620.0}, "after": {"calls": 4016, "vectors": 4023, "clocksPerVector": 9120.0}, "vectorsDelta": 2000, "scope": "bounded diagnostic clocks; no throughput claim"}
+gb-10000-real-commit {"seconds": 2.6882099820068106, "revision": 4}
+lookup-10000 {"startedUTC": "2026-10-10T10:13:40Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 2000, "vectors": 2000, "clocksPerVector": 7730.0}, "vectorsDelta": 2000, "ip4LookupReference": {"calls": 4000, "vectors": 4000, "clocksPerVector": 3490.0}, "aclCost": 7730.0, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+gb-200000-real-commit {"seconds": 32.77797470893711, "revision": 5}
+lookup-200000 {"startedUTC": "2026-10-10T10:14:24Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 1998, "vectors": 2000, "clocksPerVector": 8890.0}, "vectorsDelta": 2000, "ip4LookupReference": {"calls": 3986, "vectors": 4000, "clocksPerVector": 3710.0}, "aclCost": 8890.0, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+api-error {"status": 504, "problem": {"type": "https://ngfw.dev/problems/agent-timeout", "title": "Agent timeout", "status": 504, "detail": "agent: Deadline exceeded after 30.001s,metadata filters: 0.027s,remote_addr=/run/ngfw-test/w17tb/agent.sock", "instance": "/api/v1/config/commit"}}
 rollback {"noOwnedACL": true}
 cleanup {"sharedIdentityUnchanged": true}
 Traceback (most recent call last):
-  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 110, in <module>
-    assert secret
-    
-  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 16, in run
-    def run(*argv,timeout=40):return subprocess.check_output(argv,text=True,stderr=subprocess.STDOUT,timeout=timeout)
-                                     ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.14/subprocess.py", line 473, in check_output
-    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
-           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-               **kwargs).stdout
-               ^^^^^^^^^
-  File "/usr/lib/python3.14/subprocess.py", line 578, in run
-    raise CalledProcessError(retcode, process.args,
-                             output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '('/tmp/ngfw-lab-nat46-20261010-bin/ngfw-agentctl', '-s', '/run/ngfw-test/w17tb/agent.sock', 'dryrun', '/run/ngfw-test/w17tb/gb-incremental.json', '-subsystems', 'acl')' returned non-zero exit status 1.
-DISPOSABLE_VPP_STOPPED pid=3855965
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 122, in <module>
+    commit('gb-one-entry-real-commit');assert request(api,'GET','/security/global-blocking')['lists'][0]['runningEntries']==200000
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 86, in commit
+    start=time.monotonic();result=request(api,'POST','/config/commit?comment='+label,{})
+                                  ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 25, in request
+    with urllib.request.urlopen(req,timeout=180) as response:return json.load(response)
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 504: Gateway Timeout
+DISPOSABLE_VPP_STOPPED pid=3864462

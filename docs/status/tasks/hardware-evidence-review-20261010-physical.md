@@ -169,3 +169,34 @@ all seven still kernel, protected L3/DNS/sysctls/foreignNFT/storage preservation
 No manual revision, physical apply, binding or reboot is performed by these sources.
 The .211 physical EAL failure does not affect the unchanged noPCI .37 startup.
 Actual .37 phase/seed receipts are pending; source approval is not hardware PASS.
+
+## Actual .37 native seven-NIC seed and noPCI runtime
+
+Root-owned0600/fsynced actual ordered receipts, independently exact-hash verified:
+seed inputs5058B64b6719cfdd190ae9e04952e74f7d15c227c667b42a0583545a86269dba001be,
+original guard restore9281B0afcd8f5c6445e45f82be92bc1c1662262c47d134abc3923b95d8cd0405a6cdb,
+readonly runtime inspect12429B88f2da3766a14ba79b632ceb4d29b47cfd6eb1d902b531c295a93b00f9c91dd0.
+Proof links match; all L3 snapshots equal; original policy/mask absence restored,
+sibling seed record retained; seven kernel entries/nr1024. This justified the
+separately released initial runtime89fd.
+
+Actual manager-host37-initial-runtime-start-20261010T144323Z.json323390B0600,
+SHA256 ba5439fcb0a7b2ccce59c1cf3b09f177e76e8de8cb1fe4e75d12840743b659ea,
+outer SSH0/empty stderr. Independent selected assertions/output:
+
+```text
+native revision1 + actual system.seed-defaults event
+seven original name/PCI/builtIn/dataplane physical rows; managementPCI exactly0c
+seven matching device/whitelist mappings; candidate equal; pending=null
+six subprocess commands all exit0; six config/state HTTP responses200
+VPP7820/agent7848/API7887/nginx9669 active/NRestarts0
+network_before==after, inventory_before==after; all7 still igc
+DNS/sysctls/kernel unchanged; ioerr unchanged; new_storage_errors=[]
+actual_pool_total=16784; minimum7168 satisfied; native_seed7_PASS=true
+```
+
+These assertions directly inspect actual running document/events and compare
+before/after structures, beyond accepting producer booleans. Verdict: actual native
+seed/runtime phase PASS. Physical binding/application, forwarding and postbinding
+reboot remain incomplete. .37 physical startup is held for the corrected native
+renderer; the successful noPCI runtime does not cure the .211 EAL failure.

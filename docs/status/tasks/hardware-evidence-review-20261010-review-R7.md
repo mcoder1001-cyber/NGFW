@@ -172,3 +172,29 @@ optional NIT. R7-1 is closed. Mandatory final-head quick/T1 and other applicable
 review receipts remain required before merge; this reviewer does not claim their
 PASS. Both hardware targets remain blocked on offline recovery with acceptance
 NOT RUN. Any later product/docs change needs applicable review of its delta.
+
+## PR226 mandatory correction follow-up — 14:46 UTC
+
+The preceding verdict and hardware status are historical PR217 evidence. Current
+PR226 candidate97ae88ee5b6aaf304f78547abed39e80bbeac5e1 / tree449ea85e5111ad946245200dbf8f6a3490c5353a
+was independently read and source applicability APPROVE; detailed commands/output,
+source references and exact real failed physical rollback are in eal.md.
+
+**BLOCKER R7-226-1:** docs/status/tasks/hardware-manager-20261010-eal-fix-wip.md:10
+claims root Go tests PASS0.435/0.274 without exact commands and pasted stdout.
+The completed lightweight check14s also lacks pasted evidence. This violates
+mandatory R7 item1. Fix: append the existing exact command/output and source/CI
+identity before final merge; no new tests or product change are required. Root
+accepted the finding and is preserving the clean97ae native build source first.
+
+No other R7 scope/decision issue: D246 records actual EAL conflict, selected closed
+allowlist and rejected management-validation removal; affected renderer docs are
+updated, tests/goldens keep noPCI output unchanged, CI/native/physical acceptance
+remain explicitly pending. No host privilege boundary or unrelated task is added.
+
+**Current R7 verdict: BLOCK** for candidate97ae on this evidence item only.
+Source applicability APPROVE remains separate. Own focused Go command/output
+PASS0.092s is pasted in eal.md; actual .37 native seven-NIC seed/runtime ba5439 PASS
+is corroborated in physical.md. Physical .211 failure cannot be marked complete
+or deferred. Final-head full hosted quick and corrected native/runtime evidence
+are still required before physical retry and merge.

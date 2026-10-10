@@ -47,3 +47,41 @@ at3363c2293510a907184b176e0d1ed44150faf690; reviewer independently used the prim
 sources above and actual receipt, not just that worker conclusion. Current .211
 VPP is rolled back to noPCI; buffers65536 remains stored but not enforced. Physical
 enumeration/forwarding/reboot acceptance remains incomplete.
+
+## Independent exact correction source review
+
+PR226 candidate97ae88ee5b6aaf304f78547abed39e80bbeac5e1 is one commit on
+d1f3f19d4837de3f7a36bfffcbd3c70593bea307, tree449ea85e5111ad946245200dbf8f6a3490c5353a.
+Actual remote readback matches. All11 declared files read; product correction
+source applicability APPROVE. The template branches on a nonempty validated
+device list, emits the closed explicit data allowlist plus management-exclusion
+comments, and uses literal blacklist/no-pci only without devices. buildDevices
+still rejects every protected management PCI in whitelist/devices. Canonical apply
+still independently discovers management interfaces/PCI and snapshots their drivers
+at deploy/vpp/apply-startup.sh939–943. No contract, privilege or VPP-version change.
+
+Exact independent focused command/output, executed read-only against root's
+isolated correction source checkout, not presented as this reviewer's product edit:
+
+```text
+CWD=/dev/shm/ngfw-hardware-firstboot-integration-20261010/apps/agent
+go test ./internal/renderers/vppstartup -run 'Test(DPDKDeviceSelectionDoesNotMixEALAllowAndBlockLists|ManagementFromHost|ManagementPaths|SixNICSample|Golden)$' -count=1
+ok  ngfw/agent/internal/renderers/vppstartup 0.092s
+git status --short
+<empty after root's coherent commit>
+git ls-remote origin refs/heads/codex/hardware-eal-fix-20261010 refs/heads/main
+97ae88ee5b6aaf304f78547abed39e80bbeac5e1 refs/heads/codex/hardware-eal-fix-20261010
+d1f3f19d4837de3f7a36bfffcbd3c70593bea307 refs/heads/main
+gh run view 38061027648 --json status,conclusion,headSha
+{"conclusion":"","headSha":"97ae88ee5b6aaf304f78547abed39e80bbeac5e1","status":"in_progress"}
+```
+
+R7-1 BLOCKER: eal-fix-wip.md10 claims the root's Go package tests passed0.435/0.274
+without exact command/pasted stdout; the completed check14s also lacks pasted
+output in the candidate. Mandatory R7 requires command/output evidence, not only
+prose. Root accepted the finding and will append existing output once immutable
+97ae native preparation completes; no new test is requested. R7 current verdict
+BLOCK for this documentation item, separate from the source applicability APPROVE.
+Pending complete hosted quick/native/runtime results are correctly kept pending.
+Decision D246 records closed allowlist, rejected mixing and retained management
+validation. Scope stays within the owner's existing hardware correction campaign.

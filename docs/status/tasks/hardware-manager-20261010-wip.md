@@ -1,3 +1,40 @@
+# Actual .211 reference-count/preservation phase — 2026-10-10 10:32 UTC
+
+New259594 user-home cache directory0700/UIDGID1000/4096B/links2/block15505492
+was concretely classified via private7e4dde9c; username/path remain private.
+Only that block was added to V3 allowlist, source published203ea2a84bf410117ef5a2b354388c0be98d4dd0.
+Actual source/offhost4096B0600/fsync ALLZERO/ad7facb2 captured a281c91e; paused
+own fsck13880/fd3 solewriter, kernel exactbefore/after equal/ioerr18 stable.
+R7/root specifically approved reconstruction; individual one-byte answers done.
+Actual pass3 correct parent relationships: usercache259594->31; rootcache259599
+and rootconfig259602->152; classified orphan259603 preservation-connected to
+lost+found. Unknown original259603 name remains unknown. Subsequent pass4 counts
+2:14->18,31:5->4,152:9->7 corrected individually under reviewed consistency class.
+
+Unattached zero-length259595 Clear was explicitly declined n. Root independently
+read c06cbc16:2sections/exit0, regular0644uidgid1000,size0/links1/blocks0/noextents,
+unknown old name. An initial manager receipt parser assumed dict instead of actual
+list and failed; corrected list parser PASS, not a target diagnostic failure.
+R7 actual type acknowledgement and source-backed preserving Connect/count verdict
+is durably published/readback dce5a27f68300072988fc15d7ebac2bda4f62cb5.
+Same valid-REGULAR class needs actual stat/type/size/owner and original-native inode
+evidence, then preserving lost+found Connect/counts; no redundant new per-object
+permission wait. Arbitrary Clear/deletion or new special type remains held.
+Next259600 root-owned emptyregular also declined Clear; actual/native stat exactly
+equal and private de647628/1496B establish class; operator continues preserving
+Connect without redundant round trip. No userdata deletion claimed/permitted.
+
+Actual midrepair40ca5554:kernel equality/ioerr18stable, undo57344B/0600/root/RAM46.
+Root independent fresh2222 readonly stat earlier10:21 PASS undo32768B/0600/dev46.
+Controller capacity is measured privileged f_bfree (ordinary f_bavail0); current
+~1.955GB still fits cap1GiB+512MiB margin, actual undo remains tiny. Do not delete
+other tasks' files or mistake cap for actual backup size. Root87cf6cec096f080e27449e5739a073e2ef830b95
+remote readback PASS; this checkpoint immediately publishes. .37 original22 plus
+heldRAMPTY retained; fixed own stage/source prep still awaits sourcecheck/publication.
+Remaining exact action: finish reviewed per-prompt preservation/counts/pass5;
+clean offline-f-n0; durable actual undo/transcript; readonly/noload boot/auth/network
+integrity and separate normal-return release. No completed repair/reboot/install yet.
+
 # Actual single-byte continuation and classified new directory — 2026-10-10 10:18 UTC
 
 Controller-only helper e6b6d00e is published worker87cc97e7, R7 focused APPROVE;

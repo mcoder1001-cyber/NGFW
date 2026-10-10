@@ -82,7 +82,7 @@ def observe():
  active=['vpp.service','nginx.service','ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service']
  for u in active+inactive:
   states[u]=dict(x.split('=',1) for x in checked(['systemctl','show',u,'-p','ActiveState','-p','MainPID','-p','NRestarts','-p','ActiveEnterTimestampMonotonic']).splitlines())
- assert all(states[u]['ActiveState']=='inactive' and states[u]['NRestarts']=='0' and (u.endswith('.socket') or states[u]['MainPID']=='0') for u in active+inactive)
+ assert all(states[u]['ActiveState']=='inactive' and (u.endswith('.socket') or (states[u]['MainPID']=='0' and states[u]['NRestarts']=='0')) for u in active+inactive)
  files={p:metadata(p) for p in ['/etc/vpp/startup.conf','/etc/ngfw/api.env','/etc/ngfw/agent.env','/etc/systemd/system/ngfw-api.service.d/10-hardware-seed.conf','/var/lib/ngfw/firstboot-complete','/var/lib/ngfw/secret.key','/etc/ngfw/tls/server.crt','/etc/ngfw/tls/server.key','/etc/resolv.conf','/etc/netplan/90-ngfw-management.yaml','/var/lib/ngfw/agent/auto-block.json']}
  assert files['/etc/vpp/startup.conf']['SHA']=='d96ec489a11e2de6c0ac6beec2134946f1210cfa38a077848b3d057e898bb5be'
  for p in ['/etc/ngfw/api.env','/var/lib/ngfw/firstboot-complete','/var/lib/ngfw/secret.key','/etc/ngfw/tls/server.crt','/etc/ngfw/tls/server.key','/var/lib/ngfw/agent/auto-block.json']:

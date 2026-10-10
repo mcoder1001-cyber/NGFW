@@ -1,0 +1,66 @@
+Scope: all 8 workspace projects
+✓ Lockfile passes supply-chain policies (verified 4d ago)
+Lockfile is up to date, resolution step is skipped
+Already up to date
+.../node_modules/@swc/core postinstall$ node postinstall.js
+.../node_modules/protobufjs postinstall$ node scripts/postinstall
+.../node_modules/protobufjs postinstall: Done
+.../node_modules/@swc/core postinstall: Done
+
+devDependencies:
++ eslint 9.39.5
++ globals 16.5.0
++ prettier 3.9.8
++ turbo 2.11.2
++ typescript 5.9.3
++ typescript-eslint 8.70.1
+
+Done in 22.8s using pnpm v12.5.1
+• turbo 2.11.2
+
+   • Packages in scope: @ngfw/api, @ngfw/web
+   • Running build in 2 packages
+   • Remote caching disabled, using shared worktree cache
+
+@ngfw/schema:gen: cache bypass, force executing a6a5f32cc067702f
+@ngfw/ui-kit:gen: cache bypass, force executing 58303f132ba807db
+@ngfw/schema:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/ui-kit:gen: $ echo 'ui-kit: nothing to generate'
+@ngfw/ui-kit:gen: ui-kit: nothing to generate
+@ngfw/ui-kit:build: cache hit, replaying logs 9b56f0191234ddff
+@ngfw/ui-kit:build: $ tsc -p tsconfig.build.json
+@ngfw/schema:gen: schema: wrote root + 14 domain schemas + openapi components
+@ngfw/schema:build: cache hit, replaying logs 1dcfde4246a4588d
+@ngfw/schema:build: $ tsc -p tsconfig.json
+@ngfw/proto:gen: cache bypass, force executing 5f06d9246d219a86
+@ngfw/yang:gen: cache bypass, force executing e19382725d26438d
+@ngfw/proto:gen: $ bash ./gen.sh
+@ngfw/yang:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/proto:gen: proto: generated Go → apps/agent/gen (ngfw/v1 + ngfw/model), TS → packages/proto/gen/ts (ngfw/v1)
+@ngfw/proto:build: cache hit, replaying logs 7991f9dcfe69bd1b
+@ngfw/proto:build: $ tsc -p tsconfig.build.json
+@ngfw/yang:gen: yang: wrote 14 modules to generated/
+@ngfw/yang:build: cache hit, replaying logs 2b039e736b977070
+@ngfw/yang:build: $ tsc -p tsconfig.json
+@ngfw/api:gen: cache bypass, force executing 4b8ac048acea4258
+@ngfw/api:gen: $ echo 'api: nothing to generate'
+@ngfw/api:gen: api: nothing to generate
+@ngfw/api:build: cache hit, replaying logs e2a81ae5d7ad701f
+@ngfw/api:build: $ tsc -p tsconfig.build.json
+@ngfw/api-client:gen: cache bypass, force executing 2d21481135982a98
+@ngfw/api-client:gen: $ pnpm --filter @ngfw/api openapi:built && openapi-typescript openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts
+@ngfw/api-client:gen: Error: ERR_PNPM_UNSAFE_TASK_RUN_STATE_PATH
+@ngfw/api-client:gen: 
+@ngfw/api-client:gen:   × Refusing to use task run state directory at /root/ngfw-wt/lab-nat46-
+@ngfw/api-client:gen:   │ 20261010/node_modules/.pnpm-task-run-state-v1 because it is a symbolic
+@ngfw/api-client:gen:   │ link or not a directory
+@ngfw/api-client:gen: 
+@ngfw/api-client:gen: [ELIFECYCLE] Command failed with exit code 1.
+@ngfw/api-client#gen:  ERROR  command (/root/ngfw-wt/lab-nat46-20261010/packages/api-client) /usr/bin/pnpm run gen exited (1)
+
+ Tasks:    10 successful, 11 total
+Cached:    5 cached, 11 total
+  Time:    1m30.163s 
+Failed:    @ngfw/api-client#gen
+
+ ERROR  run failed: command  exited (1)

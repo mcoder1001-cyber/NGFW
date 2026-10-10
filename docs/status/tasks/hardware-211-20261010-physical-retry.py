@@ -4,7 +4,7 @@ import argparse,ast,datetime,hashlib,json,os,pathlib,re,stat,subprocess
 OUTPUT=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware')
 ROLLBACK_SHA='d1ca0e834fef7d00c265ff64e4f1c6a42c834d96eecbe9bbdeb4db21f82afbaa'
 REMOTE=r'''
-import hashlib,json,os,pathlib,re,socket,stat,subprocess,time
+import fcntl,hashlib,json,os,pathlib,re,socket,stat,subprocess,time
 RECORD=pathlib.Path('/var/lib/ngfw-install-recovery/hardware-manager-20261010-data-211')
 OLD='367ead293aefd84d4b3f85f882d3dac33834bda9129467c9a1578f7223a39184'
 RETRY=pathlib.Path('/var/lib/ngfw-install-recovery/hardware-manager-20261010-data-211-retry97ae')
@@ -135,7 +135,23 @@ try:
    text=result['hardware'][n];m=re.search(r'address\s+([0-9a-f]{4}):([0-9a-f]{2}):([0-9a-f]{2})\.([0-9a-f]{1,2})',text,re.I);assert m and ':'.join(m.group(i).lower() for i in [1,2,3])+'.'+str(int(m.group(4),16))==q['PCI']
   timer=read(w/'deadman-unit').decode().strip();assert re.fullmatch(r'ngfw-startup-apply-deadman-[0-9]{8}-[0-9]{6}-[0-9]+',timer)
   t=run(['systemctl','show',timer+'.timer','-p','LoadState','-p','ActiveState','-p','Result']);props=dict(x.split('=',1) for x in t['stdout'].splitlines() if '=' in x);assert props.get('ActiveState')=='inactive','dead-man timer not observed inactive'
-  time.sleep(2);assert state('vpp.service')==v;result['stable_VPP']=v;result['after']=protected(NEW);result['native_committed17_PASS']=True
+  time.sleep(2);assert state('vpp.service')==v;result['stable_VPP']=v;result['after']=protected(NEW)
+  terminal=dict(x.split('=',1) for x in checked(['systemctl','show',unit,'-p','LoadState','-p','ActiveState','-p','Result','-p','ExecMainStatus']).splitlines())
+  result['native_terminal_unit']=terminal
+  assert terminal.get('ActiveState')=='inactive' and terminal.get('Result')=='success' and terminal.get('ExecMainStatus')=='0','native run not observed successfully terminal'
+  # Existing files only, no create or write; exclusive nonblocking flock
+  # proves that the native holder/run/dead-man released both canonical locks.
+  locks=[];result['canonical_lock_checks']=[]
+  try:
+   for name in ['/run/lock/ngfw-vpp.lock','/run/lock/ngfw-lab.lock']:
+    trusted(pathlib.Path(name).parent);fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_CLOEXEC);locks.append(fd);s=os.fstat(fd)
+    assert stat.S_ISREG(s.st_mode) and s.st_uid==s.st_gid==0 and s.st_nlink==1 and not s.st_mode&0o022
+    fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    result['canonical_lock_checks'].append({'path':name,'dev':s.st_dev,'inode':s.st_ino,'mode':stat.S_IMODE(s.st_mode),'exclusive_nonblocking_acquired':True,'no_file_create_or_write':True})
+   result['canonical_locks_released']=True
+  finally:
+   for fd in reversed(locks):os.close(fd)
+  result['native_committed17_PASS']=True
  else:
   result['before']=protected(OLD);assert state('vpp.service')=={'ActiveState':'active','MainPID':'72599','NRestarts':'0'}
   checked(['/usr/lib/ngfw/bin/ngfw-vppcheck','--timeout','10s','version']);checked(['/usr/lib/ngfw/bin/ngfw-vppcheck','--timeout','10s','bootid']);checked(['/usr/lib/ngfw/bin/ngfw-vppcheck','--timeout','10s','ifaces','local0'])

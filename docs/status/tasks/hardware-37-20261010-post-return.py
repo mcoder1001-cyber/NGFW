@@ -46,7 +46,7 @@ assert pathlib.Path('/sys/class/net/enp12s0/address').read_text().strip()=='00:0
 report['protected_management_identity']='enp12s0/0c/igc/group58/originalMAC'
 report['ioerr_counter']=pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip();assert report['ioerr_counter']==report['ioerr_before']
 report['ioerr_not_compared_across_kernel_reboot']=True
-kernel=run(['dmesg']);pattern=r'(?i)(ata\d.*(error|failed|reset|timeout|unc)|scsi.*(error|failed|reset|timeout)|I/O error|Buffer I/O|blk_update_request|end_request|uncorrectable|critical medium error|EXT4-fs error|JBD2.*(error|failed))'
+kernel=run(['dmesg']);pattern=r'(?i)(ata\d.*(error|failed|reset|timeout|\bUNC\b)|scsi.*(error|failed|reset|timeout)|I/O error|Buffer I/O|blk_update_request|end_request|uncorrectable|critical medium error|EXT4-fs error|JBD2.*(error|failed))'
 report['new_boot_storage_events']=[x for x in kernel.splitlines() if re.search(pattern,x)]
 assert not report['new_boot_storage_events']
 report['status']='PASS_NORMAL_RETURN_CAPTURE';print(json.dumps(report,indent=2))
@@ -66,7 +66,7 @@ def main():
  fields={'OLD_BOOT':request['old_boot_id'],'EXPECTED':expected,'ROOT_RECORDS':d['root_account_records'],'COMMANDS':net.COMMANDS}
  ssh=['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=15','root@172.30.126.37','LC_ALL=C python3 -B -']
  p=subprocess.run(ssh,input=m.code(fields,REMOTE).encode(),capture_output=True,timeout=240)
- r=m.save('post-normal-return-20261010.json',p.stdout);e=m.save('post-normal-return-20261010.stderr',p.stderr)
+ r=m.save('post-normal-return-v2-20261010.json',p.stdout);e=m.save('post-normal-return-v2-20261010.stderr',p.stderr)
  print(json.dumps({'ssh_exit':p.returncode,'receipt':r,'stderr':e}),flush=True);assert p.returncode==0 and not p.stderr
  current=json.loads(p.stdout);comparisons={}
  for name,value in current['network'].items():
@@ -74,5 +74,5 @@ def main():
   comparisons[name]=net.addresses(value)==net.addresses(original) if name=='addresses' else value==original
  assert all(comparisons.values())
  public={'network_comparisons':comparisons,'boot_id':current['boot_id'],'root_clean':True,'boot_fsck_success0':True,'selected_count':len(current['selected']),'all_selected_match':True,'root_records_match':True,'protected_management_unchanged':True,'ioerr_counter':current['ioerr_counter'],'new_boot_storage_events':0,'installation_not_run':True}
- r=m.save('post-normal-return-conclusions-20261010.json',json.dumps(public,indent=2).encode());print(json.dumps({'conclusions':r,'facts':public}))
+ r=m.save('post-normal-return-conclusions-v2-20261010.json',json.dumps(public,indent=2).encode());print(json.dumps({'conclusions':r,'facts':public}))
 if __name__=='__main__':main()

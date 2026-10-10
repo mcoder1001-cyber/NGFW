@@ -54,3 +54,67 @@ Current reviewer evidence is primary matching-source research and sanitized work
 reports only. No target root mount, transition, repair, reboot or firmware operation
 was performed by this reviewer. A second userspace return is a separate proposal
 requiring its own mount/runtime/SSH lifetime review.
+
+## Actual .211 normal-return readiness verdict
+
+APPROVE the exact reviewed single-force normal reboot under the parent's release.
+This verdict concerns return readiness, not an observed successful original boot.
+No target operation was performed by this reviewer.
+
+Private post-repair-selected-integrity.json62147 B/0600
+SHA25614af90cc4bc922c3e607dea8d190619bcc3af410e60870cbfa1c198d5e4078e1
+independently verified:52 current metadata/hash/link comparisons pass. Reviewer
+reconstructed the9 expected boot records directly from original-boot-config-baseline
+and43 auth/config records from the preserved original-auth.tar.gz (unchanged
+SHA256bf00f6dbd3ddcf7177322f8b3d9df3d2bd971221e2cf7e58b9613d59f9e0fccc),
+then parsed raw NGFW_RECORD stat/hash/link outputs:46files,5directories,1symlink
+all match. Original baseline octal mode strings were normalized to integers;
+there is no permission mismatch. Credentials and backup contents were not printed.
+All22 commands exit0/stderr empty; originalroot mount actually ro,norecovery,
+nosuid,nodev,noexec and EFI mountro; both ordinary unmounts exit0. Actual fstab,
+GRUB, kernel/initrd, commandline/root/EFI identities and firmware boot variables
+are recorded privately, not claimed as exhaustive firmware validation.
+
+Reviewer independently parses current six network JSON command outputs and the
+immediate pre-transition-baseline.json: all six compare exactly equal, including
+28addresses/28links/7IPv4routes/4IPv6routes/3IPv4rules/2IPv6rules. This is the actual
+maintenance comparison baseline, distinct from older archival capture filenames.
+
+Private post-repair-return-readiness.json29501 B/0600
+SHA2569569441fa385f370b4f65414497324590d35c3a6a23e2234ff62289fc88b37e5
+independently parsed: all8 commands exit0/stderr empty; root/PID1 root/executable,
+systemd/executor/shutdown allRAMdev46. Reviewer independently matches all three
+runtime binary hashes to the116-entry staged manifest:
+
+```text
+systemd          e547e7b09809e63fdaaef2a6a703f4db97d4a1f8c790d67c4d2438e6c7227228
+systemd-executor d254a2e199cec12e63188f78bd073bafe89dc29fbe3c860c2d626fce2563bbf5
+systemd-shutdown 8c02ee0ac53416b5e42f5cee603db1efd648961fb9449d759cbe448eaf5d52ac
+Version=259.5-0ubuntu3
+SystemState=degraded
+rescue ActiveState=active SubState=running MainPID=6421 Result=success
+runtime helper ActiveState=active SubState=exited Result=success
+```
+
+Actual loader-list resolves eight shutdown library/loader paths with no missing
+dependency; subsequent stat confirms every pathRAMdev46. No destructive shutdown
+binary test was executed. The responsive matching manager and successful minimal
+rescue/helper support the reviewed manager Reboot dispatch despite the minimal
+RAM system's degraded aggregate state; no concrete reboot failure was observed.
+Originalroot/EFI ordinary-unmount and exact nextroot absence are confirmed, sync0.
+Final audit259processes/93FDs/nsfs0/races0/failures0, finalguard0; additional guard0
+after all helper and loader-path stat processes finish. Scoped completed repair,
+five-pass readonly clean0, stable18 counter/exact kernel sample and independently
+verified offhost metadata/undo/transcript are in the preservation report.
+
+Operator/root received the actual verdict before publication so the prepared
+target need not wait for another review cycle. Exact approved return command:
+
+```text
+SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1 SYSTEMCTL_SKIP_AUTO_KEXEC=1 systemctl reboot --force
+```
+
+No double-force or second userspace return is approved here. Required next actual
+check is authenticated original22 SSH, normal disk root/boot ID, management and
+routing, filesystem/kernel health and private backup durability. Package
+installation/activation/NIC-binding/hardware acceptance remain pending.

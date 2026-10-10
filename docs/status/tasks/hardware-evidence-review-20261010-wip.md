@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`8962f434566c5291663cffe311fc1c513ddd48ef` (preserving orphans/allocation accounting review; matching
+`0437b3fb565330f06e5aebdac44205a3da4059fb` (completed211 repair/clean validation review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -410,3 +410,18 @@ expected mountedBUSY3 after cap/probe, localewarning97 B explicit. V3sourcef505
 hash/AST2PASS scoped RAM-only applicability approved after publication; no37crossing.
 Last verified remote8962f434 above. Next actual .211 return-integrity receipt and
 separate return verdict, then actual original boot/management/FS health verification.
+
+Actual .211 normal-return APPROVE delivered promptly under parent's phase release.
+Selected14af90cc62147 B/0600 independently52/52: original9boot baseline plus43
+auth archive metadata/content digests reconstructed privately, raw current stat/
+hash/link comparisons match; all22 commands0/empty stderr, rootro,norecovery and
+EFIro, both ordinaryunmount0. Six current JSONnetwork sections independently
+exactequal immediate pretransition baseline. Final9569441f29501 B/0600 independently
+all8commands0/empty, root/PID1/runtimeRAM46, three runtime hashes match staged
+manifest,8 actual loader pathsRAM46, responsive259.5 manager/rescue/helpersuccess,
+nextrootabsent/sync0/full audit259proc93FDs/nsfs0/races0/fails0/guard0 plus final
+guard0 after helpers. Minimal SystemState=degraded recorded, no fabricatedboot
+guarantee or optional new gate. Exact bothSKIPenv/singleforce reboot approved;
+actual original boot22/network/FShealth still pending, install/acceptance NOTRUN.
+Last verified remote0437b3fb above; next reviewer action inspect actual normal
+boot receipt and .37 applicability/phase evidence after parent's release.

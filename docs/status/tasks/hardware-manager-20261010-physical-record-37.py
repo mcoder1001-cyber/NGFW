@@ -76,6 +76,7 @@ def main():
  b=private(a.preflight,WORKER_PRIVATE);assert hashlib.sha256(b).hexdigest()==a.preflight_sha;pre=json.loads(b)
  doc=private(a.document,PRIVATE);assert hashlib.sha256(doc).hexdigest()==a.document_sha==pre['document_SHA']
  sb=private(a.seed,PRIVATE);assert hashlib.sha256(sb).hexdigest()==a.seed_sha;seed=json.loads(sb);assert seed['seeded7_exact'] and seed['all7_still_kernel'] and seed['failure'] is None and seed['network_equal'] and seed['new_storage_errors']==[]
+ assert json.loads(doc)==seed['running']['data']
  assert seed['network_after']==pre['network_before']
  states=seed['unit_states'];assert set(states)=={'vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service'} and all(x['ActiveState']=='active' and x['NRestarts']=='0' and x['MainPID'].isdigit() and int(x['MainPID'])>1 for x in states.values());pids={u:x['MainPID'] for u,x in states.items()}
  files={}

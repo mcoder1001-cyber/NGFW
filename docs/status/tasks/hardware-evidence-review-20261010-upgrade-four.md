@@ -294,3 +294,56 @@ separate. An initial reviewer metadata selector used /var/lib/ngfw/tls; correcte
 to actual /etc/ngfw/tls and passed. No target failure or gate relaxation follows.
 Copied generic header still describes the211 active runtime; root has the
 nonblocking documentation NIT. No37 worker is claimed live; root owns this phase.
+
+## Actual root-owned .37 fixed upgrade and firstboot preparation
+
+Independent read-only hashes/private metadata and selected JSON assertions:
+
+| Phase | Bytes | SHA256 |
+| --- | ---: | --- |
+| prepare | 220442 | 637cc812b81e20e69f7313c59fee2faea7e4532df2f58c706fe69581117566fa |
+| upload | 219901 | 8fc8bfcd9ef1e42b2aa31d773b483a6298855ebac90dce80f9fc2883ef78fd56 |
+| simulate | 210488 | 5881fceb6c449e37d54938e1216942d0b2fdb301dc5fd1e9422c611ce1137ad6 |
+| install | 225576 | aafb9fb0256262e200cdf7f8728f970adb37bd04a79010caeebbf70b8cc9c819 |
+
+All receipts are0600 in root's owned hardware parent, with empty outer stderr.
+Prepare creates only the private identity record and preserves existing policy101,
+persistent mask and e275 original-state record. Simulation0 selected output has
+exactly4 Inst rows (meta/api/web/agent old2045 to ee202), zero removals. Actual
+installation0 has exact four configured versions, installeda909 and dpkg audit0
+with empty stdout/stderr. Direct assertions over the actual installation JSON:
+
+```text
+python3 <independent selected metadata/JSON assertions>
+actual_native_37_INSTALL=PASS
+protected_sections_equal=8 # network/units/files/api_env_keys/sysctls/DNS/ioerr/NFT
+inactive_units=21; ioerr=0x6; nr_hugepages=0
+audit_empty=true; agent_a909_match=true; new_storage_errors=[]
+```
+
+No firstboot/runtime/cache/startup/driver operation is inferred from this install.
+Root-owned firstboot source exact
+`27328b7c27bce7cf31972cfdbb85e8f45c7e0937febb6b43d5da257d7865d13c`,
+published e307751eff77b08bf4bd34293df936dd9561304d, was fully read and compared
+to the previously approved .37 c1ea source. Outer and REMOTE AST parses PASS2.
+Changes are root-owned output/credential/target record paths, exact new four-package
+version/a909 checks, seven fixed packaged helper/asset identities, and required
+three-plugin noPCI postpredicate. Existing canonical firstboot protections remain:
+trusted normal root, protected0c58/L3, empty effective NFT and owned table only,
+six localhost dependencies, only explicit nr1024 change, policy/mask and fifteen
+other units inactive. No global sysctl application or VPP/agent/API/nginx start.
+
+Verdict APPROVE **read-only preflight source applicability**; actual preflight and
+root's separate execution phase remain required for firstboot. This source review
+does not claim .37 firstboot, native seed or physical acceptance PASS.
+
+Actual root read-only firstboot preflight then PASS:
+`manager-firstboot37-preflight-20261010T140952Z.json`,15519B0600,
+SHA b20cb8c92afede242bc92fb51018feee2d00d9b6854eaab5222afafc6d69e714.
+Independent hash/private metadata and direct selectors prove all21 inactive,
+network equal to own original postboot baseline, empty NFT, nr0/group0/2MiB pages,
+MemAvailable15370868KiB, PostgreSQL localhost and ioerr0x6. Successful exact source
+preflight also checked fixed helper/asset hashes, masks/policy/e275, effective owned
+NFT units, normal clean root and protected management before any firstboot mutation.
+This justifies root's separate canonical firstboot phase; actual firstboot results
+remain required, with only nr1024 and six owned dependencies expected.

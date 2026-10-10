@@ -7,8 +7,13 @@ Both logical filesystems/normal protected boot and original native installations
 PASS. .211 firstboot and canonical noPCI plugin correction PASS; actual four-package
 fixed upgrade, exact empty-cache recovery, stable runtime and native revision1 seed
 of17 original data NICs PASS. The earlier owner-cache crash was corrected and its
-failed receipts retained. .37 firstboot NOT RUN; root now owns its fixed-upgrade
-preparation while its original worker is departed. No PCI binding, forwarding or
+failed receipts retained. .37 fixed four-package upgrade now independently PASS;
+firstboot NOT RUN, with root-owned source and actual read-only preflight approved
+for its separate canonical phase. .211 actual native confirmed resource2 PASS;
+buffers65536 stored, live pool16784/startup unchanged. Read-only data preflight and
+finite physical record sources approved; live buffer enforcement/binding remain
+pending phases. The original .37 worker is departed.
+No PCI binding, forwarding or
 post-binding reboot acceptance. Root alone performs reviewed real startup/binding.
 
 
@@ -18,7 +23,14 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`60bad94d1e80c6410e350a39bf57701b27367797` (matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`415d02af23b1934f2cdfd91d3aa7db5969b9ccf5` (matching CLI push/readback;
+actual own documentation check19s PASS). Source approval checkpoint65ca4275 remains historical.
+
+Latest actual review details are in upgrade-four.md and resource.md. Own documentation
+check after these source/receipt additions exited0 (18s). Main complete quick
+38057527122 independently observed completedSUCCESS on exact
+d1f3f19d4837de3f7a36bfffcbd3c70593bea307. Source correction/merge is green; the
+hardware installation/physical acceptance task remains Running.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,

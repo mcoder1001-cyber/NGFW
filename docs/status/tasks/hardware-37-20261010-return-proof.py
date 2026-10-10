@@ -28,10 +28,10 @@ def readonly_mount(source,target,fstype,options,dev):
     report['mounts'].append(str(target))
     m=json.loads(command(['/usr/bin/findmnt','-J','-n','-T',str(target),'-o','TARGET,SOURCE,FSTYPE,OPTIONS']))['filesystems'][0]
     assert m['target']==str(target) and m['source']==source and m['fstype']==fstype
-    assert 'ro' in m['options'].split(',') and os.stat(target).st_dev==dev
+    assert {'ro','nosuid','nodev','noexec'}<=set(m['options'].split(',')) and os.stat(target).st_dev==dev
     assert os.statvfs(target).f_flag&os.ST_RDONLY
     if fstype=='ext4':assert {'noload','norecovery'}&set(m['options'].split(','))
-def original_path(name):
+def original_path(name,follow_final=True):
     # Resolve symlinks as inside the original root, never against RAM /boot or /etc.
     pending=name;links=0
     while True:
@@ -41,7 +41,7 @@ def original_path(name):
         logical='/boot/efi' if current==efi else ''
         for index,piece in enumerate(pieces):
             current=current/piece;logical+='/'+piece
-            if current.is_symlink():
+            if current.is_symlink() and (follow_final or index<len(pieces)-1):
                 links+=1;assert links<=40
                 link=os.readlink(current)
                 base=link if link.startswith('/') else str(pathlib.PurePosixPath(logical).parent/link)
@@ -52,14 +52,17 @@ try:
     audit();report['health_before']=health()
     assert int(pathlib.Path('/sys/class/block/sda1/size').read_text())*512==511705088
     assert os.stat('/dev/sda1').st_rdev==2049
-    readonly_mount('/dev/sda2',root,'ext4','ro,noload',2050)
-    readonly_mount('/dev/sda1',efi,'vfat','ro',2049)
+    readonly_mount('/dev/sda2',root,'ext4','ro,noload,nosuid,nodev,noexec',2050)
+    readonly_mount('/dev/sda1',efi,'vfat','ro,nosuid,nodev,noexec',2049)
     for item in EXPECTED:
-        p=original_path(item['path']);st=p.stat()
-        assert stat.S_ISREG(st.st_mode)
-        got={'path':item['path'],'bytes':st.st_size,'sha256':checksum(p)}
-        got['matches']=got['bytes']==item['bytes'] and got['sha256']==item['sha256']
-        report['selected'].append(got);assert got['matches'],'selected original-file mismatch'
+        p=original_path(item['path'],item.get('follow_final',True))
+        st=p.stat() if item.get('follow_final',True) else p.lstat()
+        kind='file' if stat.S_ISREG(st.st_mode) else ('directory' if stat.S_ISDIR(st.st_mode) else ('symlink' if stat.S_ISLNK(st.st_mode) else 'other'))
+        got={'path':item['path'],'kind':kind,'uid':st.st_uid,'gid':st.st_gid,'mode':stat.S_IMODE(st.st_mode)}
+        if kind=='file':got.update({'bytes':st.st_size,'sha256':checksum(p)})
+        if kind=='symlink':got['target']=os.readlink(p)
+        got['matches']=all(got[key]==item[key] for key in ['kind','uid','gid','mode','bytes','sha256','target'] if key in item)
+        report['selected'].append(got);assert got['matches'],'selected original-file or metadata mismatch'
     # EFI had no pre-repair file baseline: record current boot artifacts, do not claim equality.
     report['efi_files']=[]
     for p in sorted(efi.rglob('*')):
@@ -138,15 +141,22 @@ def main():
         assert hashlib.sha256((PRIVATE/name).read_bytes()).hexdigest()==digest
     spec=importlib.util.spec_from_file_location('preserve',source)
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-    expected={x['path']:x for x in json.loads((PRIVATE/'readonly-boot-baseline-20261010.json').read_text())['boot_files']}
+    expected={}
+    for x in json.loads((PRIVATE/'readonly-boot-baseline-20261010.json').read_text())['boot_files']:
+        expected[x['path']]={'path':x['path'],'kind':'file','bytes':x['bytes'],'sha256':x['sha256'],'mode':int(x['mode'],0),'follow_final':True}
     for filename,digest in [('auth-return-private-20261010.tar','2a57558ae6a6c7c2694b2034249e301d209bb0b5b8bc69076e77710725cd45c9'),('network-config.tar','ddfcd92c7df9dc4f67f85445f1793b6280984d1f7acda89cbcbce5c1e4cbce1f')]:
         archive=PRIVATE/filename;assert hashlib.sha256(archive.read_bytes()).hexdigest()==digest
         with tarfile.open(archive,'r:') as tar:
             for member in tar.getmembers():
                 assert not pathlib.PurePosixPath(member.name).is_absolute() and '..' not in pathlib.PurePosixPath(member.name).parts
+                path='/'+member.name.lstrip('./')
+                kind='file' if member.isfile() else ('directory' if member.isdir() else ('symlink' if member.issym() else 'other'))
+                assert kind!='other'
+                item={'path':path,'kind':kind,'uid':member.uid,'gid':member.gid,'mode':member.mode,'follow_final':False}
                 if member.isfile():
-                    data=tar.extractfile(member).read();path='/'+member.name.lstrip('./')
-                    expected[path]={'path':path,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}
+                    data=tar.extractfile(member).read();item.update({'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
+                if member.issym():item['target']=member.linkname
+                expected[path]=item
     ram=json.loads((PRIVATE/'ram-selected-integrity-capacity-20261010.json').read_text())['selected_files']
     fields={'REMOTE_PARENT':m.REMOTE_PARENT,'EXPECTED':list(expected.values()),'RAM_EXPECTED':ram,'COMMANDS':COMMANDS}
     p=subprocess.run(m.SSH+['LC_ALL=C /usr/bin/python3 -B -'],input=m.code(fields,m.IDENTITY+REMOTE).encode(),capture_output=True,timeout=900)

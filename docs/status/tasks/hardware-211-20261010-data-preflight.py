@@ -45,6 +45,11 @@ for name,pci in EXPECTED.items():
 assert len(nics)==17 and hashlib.sha256(pathlib.Path('/usr/sbin/driverctl').read_bytes()).hexdigest()=='dfbdd15cb664676b035fe30b1314604a5a0cd1ae1f994adf7c01803c341f47fe'
 unsafe=pathlib.Path('/sys/module/vfio/parameters/enable_unsafe_noiommu_mode')
 assert not unsafe.exists() or unsafe.read_text().strip()=='N'
+module_config=checked(['modprobe','-c'])
+vfio_options=[x for x in module_config.splitlines() if re.match(r'^(options|install)\s+vfio(?:[-_]|\s|$)',x)]
+vfio_cmdline=[x for x in pathlib.Path('/proc/cmdline').read_text().split() if 'vfio' in x]
+assert vfio_options==[] and vfio_cmdline==[],'global VFIO module ID/options/install configuration requires concrete review'
+module_dryrun=run(['modprobe','--dry-run','--verbose','--ignore-install','vfio-pci','ids=']);assert module_dryrun['exit']==0
 units={u:checked(['systemctl','show',u,'-p','ActiveState','-p','NRestarts']) for u in ['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service']}
 assert all('ActiveState=active\n' in x and 'NRestarts=0\n' in x for x in units.values())
 with socket.create_connection(('172.30.126.195',22),timeout=5):pass
@@ -54,6 +59,7 @@ assert render['exit']==0,'actual startup generation failed'
 rendered=render['stdout'].encode();render_sha=hashlib.sha256(rendered).hexdigest();live=pathlib.Path('/etc/vpp/startup.conf').read_bytes();live_sha=hashlib.sha256(live).hexdigest()
 rows=re.findall(r'^\s*dev\s+([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-7])(?:\s|\{)',render['stdout'],re.M)
 assert len(rows)==17 and set(rows)==set(EXPECTED.values()) and 'blacklist 0000:04:00.0' in render['stdout']
+for plugin in ['linux_cp_plugin.so','linux_nl_plugin.so','npt66_plugin.so']:assert 'plugin '+plugin+' { enable }' in render['stdout']
 fd=os.memfd_create('ngfw-reviewed-seed-document',os.MFD_CLOEXEC);os.write(fd,document);os.lseek(fd,0,os.SEEK_SET)
 try:
  # A seekable anonymous descriptor makes repeated render/diff reads possible
@@ -61,7 +67,7 @@ try:
  dry=run(['/usr/lib/ngfw/apply-startup.sh','--mode','product','--doc','/proc/'+str(os.getpid())+'/fd/'+str(fd),'--approve-rendering',render_sha,'--expect-sha256',live_sha,'--expect-new-sha256',render_sha,'--mgmt-if','enp4s0','--mgmt-peer','172.30.126.195','--mgmt-probe','tcp:172.30.126.195:22'])
 finally:os.close(fd)
 assert before==l3(),'network changed during read-only preflight'
-result={'native_seed_proof_SHA':PROOF_SHA,'network_before':before,'network_equal':True,'protected_PCI':'0000:04:00.0','protected_driver':'igc','protected_group':'28','data_nics':nics,'links':links,'driverctl_list_overrides':run(['driverctl','list-overrides']),'driverctl_list_persisted':run(['driverctl','list-persisted']),'unsafe_noiommu':unsafe.read_text().strip() if unsafe.exists() else 'module-not-loaded','units':units,'live_SHA':live_sha,'document_SHA':hashlib.sha256(document).hexdigest(),'render_SHA':render_sha,'render':render,'dryrun':dry,'no_target_config_module_network_driver_service_or_startup_mutation':True}
+result={'native_seed_proof_SHA':PROOF_SHA,'network_before':before,'network_equal':True,'protected_PCI':'0000:04:00.0','protected_driver':'igc','protected_group':'28','data_nics':nics,'links':links,'driverctl_list_overrides':run(['driverctl','list-overrides']),'driverctl_list_persisted':run(['driverctl','list-persisted']),'unsafe_noiommu':unsafe.read_text().strip() if unsafe.exists() else 'module-not-loaded','vfio_module_options':vfio_options,'vfio_cmdline_options':vfio_cmdline,'vfio_module_readonly_dryrun':module_dryrun,'units':units,'live_SHA':live_sha,'document_SHA':hashlib.sha256(document).hexdigest(),'render_SHA':render_sha,'render':render,'dryrun':dry,'no_target_config_module_network_driver_service_or_startup_mutation':True}
 print(json.dumps(result,indent=2));raise SystemExit(0 if dry['exit']==0 else 2)
 '''
 def save(p,raw):
@@ -71,9 +77,9 @@ def save(p,raw):
  return {'file':str(p),'bytes':len(raw),'SHA':hashlib.sha256(raw).hexdigest()}
 def main():
  os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--proof',required=True);p.add_argument('--proof-sha256',required=True);a=p.parse_args()
- proof=pathlib.Path(a.proof).resolve();assert proof.parent==PRIVATE and proof.stat().st_uid==0 and stat.S_IMODE(proof.stat().st_mode)==0o600
+ original=pathlib.Path(a.proof);assert not original.is_symlink();proof=original.resolve();assert proof.parent==PRIVATE and proof.stat().st_uid==0 and stat.S_IMODE(proof.stat().st_mode)==0o600
  raw=proof.read_bytes();assert hashlib.sha256(raw).hexdigest()==a.proof_sha256;d=json.loads(raw)
- assert d['failure'] is None and d['seeded17_exact'] and d['candidate_equal_running'] and d['no_pending_commit'] and d['state_RPC_HTTP_PASS'] and d['network_equal'] and d['all17_still_kernel'] and d['sysctls_equal'] and d['DNS_network_files_equal'] and d['foreign_nft_unchanged'] and d['new_storage_errors']==[] and d['ioerr_before']==d['ioerr_after']
+ assert d['mode']=='after' and d['observation_PASS'] and d['revision_expectation_PASS'] and d['required_plugins_loaded'] and d['manager_runtime_replaced'] and d['seeded17_exact'] and d['candidate_equal_running'] and d['no_pending_commit'] and d['state_RPC_HTTP_PASS'] and d['network_equal'] and d['all17_still_kernel'] and d['sysctls_equal'] and d['DNS_equal'] and d['foreign_nft_unchanged'] and d['new_storage_errors']==[] and d['ioerr_before']==d['ioerr_after']
  fields={'PROOF_SHA':a.proof_sha256,'NETWORK_BASELINE':d['network_after'],'EXPECTED':{name:q['PCI'] for name,q in d['inventory_after'].items()},'DOCUMENT':d['running']['data']}
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  r=subprocess.run(SSH+['python3 -'],input=code.encode(),capture_output=True);stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')

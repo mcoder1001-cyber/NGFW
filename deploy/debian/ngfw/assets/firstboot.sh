@@ -68,7 +68,9 @@ NGFW_SECRET_KEY_FILE=$(sed -n 's/^NGFW_SECRET_KEY_FILE=//p' /etc/ngfw/api.env)
 export NGFW_DATABASE_URL NGFW_SECRET_KEY_FILE NODE_ENV=production
 (cd /usr/lib/ngfw/api && runuser --preserve-environment -u ngfw -- /usr/bin/node bootstrap-db.mjs)
 /usr/lib/ngfw/tls-bootstrap.sh
-printf '%s\n' '{"dataplane":{}}' > /var/lib/ngfw/initial-dataplane.json
+# The appliance base policy needs LCP before the first configuration commit.
+# An empty device list still renders no-pci and protects management NICs.
+install -m 0600 /usr/lib/ngfw/initial-dataplane.json /var/lib/ngfw/initial-dataplane.json
 /usr/lib/ngfw/bin/ngfw-startupgen -o /etc/vpp/startup.conf /var/lib/ngfw/initial-dataplane.json
 # Later startup changes use the separately gated apply-startup.sh, never this tool.
 if [[ -e /etc/nginx/sites-enabled/ngfw || -L /etc/nginx/sites-enabled/ngfw ]]; then

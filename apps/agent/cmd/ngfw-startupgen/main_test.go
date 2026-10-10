@@ -51,6 +51,48 @@ func TestRenderToStdoutMatchesGolden(t *testing.T) {
 	}
 }
 
+// Exercise the shipped appliance bootstrap through the real generator. With no
+// current startup file, the policy plugins must be enabled before the first
+// agent commit, while every physical PCI device remains outside the dataplane.
+func TestApplianceFirstbootPolicyPluginsWithoutPCI(t *testing.T) {
+	doc, err := os.ReadFile("../../../../deploy/debian/ngfw/assets/initial-dataplane.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := append(hostFlags(t), "--current", "none")
+	code, out, stderr := runCLI(t, string(doc), args...)
+	if code != 0 {
+		t.Fatalf("firstboot exit %d: %s", code, stderr)
+	}
+	for _, plugin := range []string{"linux_cp_plugin.so", "linux_nl_plugin.so", "npt66_plugin.so"} {
+		if !strings.Contains(out, "plugin "+plugin+" { enable }") {
+			t.Fatalf("firstboot policy dependency %s not enabled:\n%s", plugin, out)
+		}
+	}
+	if !strings.Contains(out, "  no-pci\n") || !strings.Contains(out, "  blacklist 0000:0b:00.0\n") {
+		t.Fatalf("firstboot must not claim PCI devices and must protect management:\n%s", out)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "dev ") && !strings.HasPrefix(line, "dev default ") {
+			t.Fatalf("firstboot unexpectedly configured physical device: %s", line)
+		}
+	}
+	// A package missing the LCP dependency must fail before startup publication.
+	for i, arg := range args {
+		if arg == "--plugin-dir" {
+			if err := os.Remove(filepath.Join(args[i+1], "linux_cp_plugin.so")); err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+	code, _, stderr = runCLI(t, string(doc), args...)
+	if code != 2 || !strings.Contains(stderr, "linux_cp_plugin.so") {
+		t.Fatalf("missing firstboot policy plugin accepted: exit %d: %s", code, stderr)
+	}
+}
+
 func TestStdinAndOutputFile(t *testing.T) {
 	doc, err := os.ReadFile(filepath.Join(fixtures, "cases", "host-equivalent.json"))
 	if err != nil {

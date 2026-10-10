@@ -309,3 +309,45 @@ func TestAutoBlockInactivePublicationStillClearsRetainedEntries(t *testing.T) {
 		t.Fatal("enabled empty protection lost its reconciliation authority")
 	}
 }
+
+// The API may omit owner on an empty authoritative publication. Restart must
+// accept the persisted effective owner without accepting foreign ownership.
+func TestAutoBlockOmittedOwnerSurvivesRestart(t *testing.T) {
+	v := coretest.New()
+	dir := t.TempDir()
+	s, _ := newACLSvc(t, v, dir, false)
+	req := &ngfwv1.AutoBlockSetRequest{}
+	if _, err := s.AutoBlockSet(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if req.GetOwner() != "" {
+		t.Fatal("caller request mutated")
+	}
+	cacheFS := os.DirFS(dir)
+	before, err := fs.ReadFile(cacheFS, "auto-block.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AutoBlockSet(context.Background(), &ngfwv1.AutoBlockSetRequest{Owner: "foreign"}); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("foreign owner accepted: %v", err)
+	}
+	after, err := fs.ReadFile(cacheFS, "auto-block.json")
+	if err != nil || string(before) != string(after) {
+		t.Fatal("rejected request changed cache", err)
+	}
+	s.Close()
+	s2, err := NewService(ServiceConfig{Owner: testOwner, VPP: v, Scheduler: s.sched, StateDir: dir, BeforeTxn: s.beforeTxn, Now: s.now})
+	if err != nil {
+		t.Fatal("ownerless publication prevented restart", err)
+	}
+	defer s2.Close()
+	if len(s2.autoBlock.entries) != 0 || !s2.autoBlock.dirty {
+		t.Fatal("empty snapshot not replayed")
+	}
+	if err := os.WriteFile(dir+"/auto-block.json", []byte(`{"owner":"foreign"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s2.loadAutoBlock(); err == nil {
+		t.Fatal("foreign persisted owner accepted")
+	}
+}

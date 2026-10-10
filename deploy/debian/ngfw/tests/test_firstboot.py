@@ -18,6 +18,8 @@ class Firstboot(unittest.TestCase):
         credentials = root / 'etc/ngfw/bootstrap.env'
         credentials.write_text('bootstrap fixture; no real credentials\n')
         credentials.chmod(0o600)
+        (root / 'usr/lib/ngfw/initial-dataplane.json').write_bytes(
+            (SOURCE / 'assets/initial-dataplane.json').read_bytes())
         def command(path, script):
             file = root / path
             file.write_text('#!/usr/bin/env bash\nset -eu\n' + script + '\n')

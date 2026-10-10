@@ -1,0 +1,7 @@
+6
+before 0 before_preserved 0 owned_new 6
+after_original_preserved 0 remaining_owned_new 0
+ActiveState=active
+MainPID=8102
+NRestarts=0
+54ee98014cd8813f0a2f13aa2e829f7b5160ab6442e5fed9e0b10fd2c2094bbe  /tmp/ngfw-lab-wan250-20261010/bin/ethtool

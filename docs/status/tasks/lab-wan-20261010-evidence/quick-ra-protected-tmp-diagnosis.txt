@@ -1,0 +1,7 @@
+--- FAIL: TestTargetsOpenFileReadbackProtectsOwnedFile (0.00s)
+    namespace_target_config_test.go:57: remote-access: verified engine lifecycle unavailable
+--- FAIL: TestObserverOpenFileReadbackProtectsOwnedFile (0.00s)
+    namespace_unit_observer_config_test.go:86: remote-access: verified engine lifecycle unavailable
+FAIL
+FAIL	ngfw/agent/internal/ra_vpn	0.053s
+FAIL

@@ -1,0 +1,4 @@
+ok  	ngfw/agent/internal/descriptors/natcommon	1.070s [no tests to run]
+ok  	ngfw/agent/internal/multiwan	1.199s
+ok  	ngfw/agent/internal/scheduler	1.118s [no tests to run]
+ok  	ngfw/agent/internal/subsystems	1.288s

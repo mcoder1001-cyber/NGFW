@@ -192,6 +192,8 @@ class CarrierTests(unittest.TestCase):
             for interface, priority, table in [('ppp0', '10', '100'), (TRANSIT, '20', '101')]:
                 self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', priority, 'iif', interface, 'lookup', table], commands)
             self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', '100', 'lookup', 'local'], commands)
+            local = c.record['transit']['local' + family[1:]].split('/')[0] + ('/32' if family == '-4' else '/128')
+            self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', '6', 'iif', TRANSIT, 'to', local, 'lookup', 'local'], commands)
         self.assertTrue(result['configured'])
         self.assertNotIn('ready', result)
         self.assertEqual(c.calls[0][1], carrier.nft_policy(False, TOKEN))
@@ -525,6 +527,116 @@ class CarrierTests(unittest.TestCase):
         argv, kwargs = calls[0]
         self.assertEqual(argv[:3], [carrier.NSENTER, '--net=/proc/self/fd/42', '--'])
         self.assertEqual(kwargs['pass_fds'], (42,))
+
+
+class KernelFallbackControls(unittest.TestCase):
+    def fallback(self, name='gre0'):
+        kinds = {
+            'gre0': ('gre', 'gre', 1476, {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
+            'gretap0': ('gretap', 'ether', 1462, {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
+            'erspan0': ('erspan', 'ether', 1450, {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False, 'okey': '0.0.0.0', 'erspan_index': 0, 'erspan_ver': 1}),
+            'ip6tnl0': ('ip6tnl', 'tunnel6', 1452, {'proto': 'ip6ip6', 'remote': 'any', 'local': 'any', 'ttl': 0, 'encap_limit': 0, 'tclass': '0x00', 'flowlabel': '0x00000'})}
+        kind, link_type, mtu, data = kinds[name]
+        return {'ifname': name, 'ifindex': 9, 'link_type': link_type, 'mtu': mtu,
+                'netns-immutable': True, 'operstate': 'DOWN',
+                'flags': ['NOARP'] if link_type in ('gre', 'tunnel6') else ['BROADCAST', 'MULTICAST'],
+                'link': None, 'group': 'default', 'promiscuity': 0, 'allmulti': 0,
+                'addr_info': [], 'linkinfo': {'info_kind': kind, 'info_data': data}}
+
+    def test_typed_pristine_implicit_links_only(self):
+        import copy
+        for name in ('gre0', 'gretap0', 'erspan0', 'ip6tnl0'):
+            self.assertTrue(carrier.pristine_kernel_fallback(self.fallback(name)), name)
+        mutations = [{'ifname': 'usergre'}, {'netns-immutable': False}, {'flags': ['UP']},
+                     {'flags': ['LOWER_UP']}, {'flags': None}, {'operstate': 'UNKNOWN'},
+                     {'mtu': 1200}, {'ifalias': 'foreign'}, {'link': 2}, {'master': 'br0'},
+                     {'group': 'other'}, {'promiscuity': 1}, {'allmulti': 1}, {'allmulti': False},
+                     {'addr_info': [{'local': '192.0.2.1'}]}, {'link_type': 'ether'},
+                     {'linkinfo': {'info_kind': 'veth', 'info_data': {}}},
+                     {'linkinfo': {'info_kind': 'gre', 'info_data': {'remote': '192.0.2.1'}}}]
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                link = copy.deepcopy(self.fallback()); link.update(mutation)
+                self.assertFalse(carrier.pristine_kernel_fallback(link))
+        for field in ('addr_info', 'netns-immutable', 'linkinfo', 'flags', 'mtu'):
+            link = self.fallback(); del link[field]
+            self.assertFalse(carrier.pristine_kernel_fallback(link), field)
+        link = self.fallback(); link['linkinfo']['info_data']['ikey'] = '0.0.0.1'
+        self.assertFalse(carrier.pristine_kernel_fallback(link))
+
+    def test_complete_address_identity_and_foreign_link_rejection(self):
+        fallback = self.fallback()
+        class NativeRows(MemoryCarrier):
+            def inside(self, fd, argv, data=None, timeout=20):
+                if argv[-2:] == ['address', 'show']:
+                    return json.dumps([fallback])
+                return super().inside(fd, argv, data, timeout)
+        c = NativeRows(); c.extra = [dict(fallback)]
+        c.extra[0].pop('addr_info')  # detailed link read does not carry addresses
+        self.assertEqual(c.links(42, TOKEN, c.record, True)['ppp0'], 4)
+        fallback['ifindex'] = 99
+        with self.assertRaises(ValueError):
+            c.links(42, TOKEN, c.record, True)
+        fallback['ifindex'] = 9; fallback['addr_info'] = [{'local': '192.0.2.9'}]
+        with self.assertRaises(ValueError):
+            c.links(42, TOKEN, c.record, True)
+        fallback['addr_info'] = []; c.extra[0]['operstate'] = 'UP'
+        with self.assertRaises(ValueError):
+            c.links(42, TOKEN, c.record, True)
+
+
+class PolicyReadbackControls(unittest.TestCase):
+    def rows(self):
+        return [dict(priority=4,src='all',iif='ppp0',ipproto='udp',sport=547,sport_mask='0xffff',dport=546,dport_mask='0xffff',table='local'),
+                dict(priority=5,src='all',dst='fe80::',dstlen=10,table='local'),
+                dict(priority=5,src='all',dst='ff00::',dstlen=8,table='local'),
+                dict(priority=6,src='all',dst='fd00:6e67:6677::2',iif=TRANSIT,table='local'),
+                dict(priority=10,src='all',iif='ppp0',table='100'),
+                dict(priority=20,src='all',iif=TRANSIT,table='101'),
+                dict(priority=100,src='all',table='local'),dict(priority=32766,src='all',table='main')]
+
+    def check(self, rows):
+        c=MemoryCarrier()
+        with mock.patch.object(c,'inside',return_value=json.dumps(rows)):
+            c.policy_rules(42,6,TOKEN,c.record)
+
+    def test_actual_iproute_full_masks_and_separate_prefix_lengths(self):
+        self.check(self.rows())
+        rows=self.rows();rows[0].update(sport_mask=65535,dport_mask=65535);rows[1].update(dst='fe80::/10',dstlen=10);self.check(rows)
+
+    def test_ipv4_transit_local_exception_is_exact_and_required(self):
+        c=MemoryCarrier()
+        rows=[dict(priority=6,src='all',dst='169.254.254.2/32',iif=TRANSIT,table='local'),
+              dict(priority=10,src='all',iif='ppp0',table='100'),dict(priority=20,src='all',iif=TRANSIT,table='101'),
+              dict(priority=100,src='all',table='local'),dict(priority=32766,src='all',table='main')]
+        with mock.patch.object(c,'inside',return_value=json.dumps(rows)):
+            c.policy_rules(42,4,TOKEN,c.record)
+        for label,changed in [('missing',rows[1:]),('broader',[dict(rows[0],dst='169.254.254.0/30'),*rows[1:]]),
+                              ('foreign-interface',[dict(rows[0],iif='foreign'),*rows[1:]]),
+                              ('negotiated-address',[dict(rows[0],dst='192.0.2.10/32'),*rows[1:]])]:
+            with self.subTest(label=label),mock.patch.object(c,'inside',return_value=json.dumps(changed)):
+                with self.assertRaises(ValueError):c.policy_rules(42,4,TOKEN,c.record)
+
+    def test_partial_masks_and_unknown_destination_selectors_fail_closed(self):
+        for label,mutate in {
+            'partial-mask':lambda rows:rows[0].update(sport_mask='0xfffe'),
+            'boolean-mask':lambda rows:rows[0].update(sport_mask=True),
+            'null-mask':lambda rows:rows[0].update(sport_mask=None),
+            'orphan-mask':lambda rows:rows[4].update(sport_mask='0xffff'),
+            'null-destination':lambda rows:rows[1].update(dst=None),
+            'boolean-destination':lambda rows:rows[1].update(dst=True),
+            'boolean-length':lambda rows:rows[1].update(dstlen=True),
+            'null-length':lambda rows:rows[1].update(dstlen=None),
+            'negative-length':lambda rows:rows[1].update(dstlen=-1),
+            'oversized-length':lambda rows:rows[1].update(dstlen=129),
+            'mismatch-length':lambda rows:rows[1].update(dst='fe80::/10',dstlen=11),
+            'orphan-length':lambda rows:rows[4].update(dstlen=10),
+            'foreign-selector':lambda rows:rows[1].update(oif='foreign'),
+            'wrong-family':lambda rows:rows[1].update(dst='192.0.2.0',dstlen=24),
+        }.items():
+            with self.subTest(label=label):
+                rows=self.rows();mutate(rows)
+                with self.assertRaises(ValueError):self.check(rows)
 
 
 if __name__ == '__main__':

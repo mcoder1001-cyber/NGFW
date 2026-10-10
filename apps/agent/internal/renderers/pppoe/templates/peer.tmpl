@@ -6,6 +6,9 @@ rp_pppoe_service {{quoted .ServiceName}}
 {{- end}}
 user {{quoted .Username}}
 remotename {{ident .Remotename}}
+{{- if .Carrier}}
+ipparam {{ident .Remotename}}
+{{- end}}
 mtu {{.MTU}}
 mru {{.MTU}}
 noipdefault

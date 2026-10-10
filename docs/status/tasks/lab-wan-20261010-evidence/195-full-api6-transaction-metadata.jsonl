@@ -1,0 +1,36 @@
+{"level": "INFO", "mode": "resync", "msg": "reconcile start", "time": "2026-10-10T11:59:35.010561402Z"}
+{"duration": 1018523547, "level": "INFO", "mode": "resync", "msg": "reconcile done", "reapplied": 0, "status": "APPLY_STATUS_APPLIED", "summary": "", "time": "2026-10-10T11:59:36.029285171Z"}
+{"level": "INFO", "msg": "resync finished", "status": "APPLY_STATUS_APPLIED", "summary": "", "time": "2026-10-10T11:59:36.02938586Z", "why": "connect"}
+{"level": "INFO", "msg": "dynamic source started", "source": "pppoe-delegation", "time": "2026-10-10T11:59:36.029626182Z"}
+{"level": "INFO", "msg": "dynamic source started", "source": "pppoe-watch", "time": "2026-10-10T11:59:36.029697091Z"}
+{"level": "INFO", "msg": "dynamic source started", "source": "multiwan", "time": "2026-10-10T11:59:36.029748333Z"}
+{"level": "INFO", "mode": "auto-block", "msg": "reconcile start", "time": "2026-10-10T11:59:40.902177023Z"}
+{"duration": 960231967, "level": "INFO", "mode": "auto-block", "msg": "reconcile done", "reapplied": 0, "status": "APPLY_STATUS_APPLIED", "summary": "created:1", "time": "2026-10-10T11:59:41.862393859Z"}
+{"level": "INFO", "mode": "apply", "msg": "reconcile start", "time": "2026-10-10T11:59:46.772010883Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T11:59:51.771966651Z"}
+{"duration": 9144647055, "level": "INFO", "mode": "apply", "msg": "reconcile done", "reapplied": 0, "status": "APPLY_STATUS_APPLIED", "summary": "created:14 unchanged:11", "time": "2026-10-10T11:59:55.916757066Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T11:59:56.772740734Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:01.774643402Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:06.775696841Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:09.050257431Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:14.051323868Z"}
+{"level": "INFO", "mode": "resync", "msg": "reconcile start", "time": "2026-10-10T12:00:16.305766702Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:19.052370436Z"}
+{"duration": 6894718692, "level": "INFO", "mode": "resync", "msg": "reconcile done", "reapplied": 12, "status": "APPLY_STATUS_APPLIED", "summary": "unchanged:25", "time": "2026-10-10T12:00:23.200457295Z"}
+{"level": "INFO", "msg": "resync finished", "status": "APPLY_STATUS_APPLIED", "summary": "unchanged:25", "time": "2026-10-10T12:00:23.200569752Z", "why": "requested"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:24.053664343Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:29.054428748Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:34.057648577Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:39.058061168Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:44.067102865Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:49.070556335Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:54.074139251Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:00:59.07649718Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:01:04.08123236Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:01:09.085445979Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:01:14.08920835Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "time": "2026-10-10T12:01:19.093142473Z"}
+{"level": "INFO", "msg": "dynamic source stopped", "source": "pppoe-watch", "time": "2026-10-10T12:01:19.428226599Z"}
+{"level": "INFO", "msg": "dynamic source stopped", "source": "pppoe-delegation", "time": "2026-10-10T12:01:19.428301189Z"}
+{"duration": 344419300, "level": "INFO", "mode": "sync", "msg": "reconcile done", "source": "multiwan", "status": "APPLY_STATUS_FAILED", "summary": "", "time": "2026-10-10T12:01:19.43780163Z"}
+{"level": "INFO", "msg": "dynamic source stopped", "source": "multiwan", "time": "2026-10-10T12:01:19.437858689Z"}

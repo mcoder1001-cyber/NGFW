@@ -3,8 +3,8 @@
 # serializes state publication and returns setup/shutdown failures.
 set -eu
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
-[ "${PPP_IPPARAM:-}" = {{quoted .Remotename}} ] || exit 0
-iface="${PPP_IFACE:-}"
+[ "${6:-}" = {{quoted .Remotename}} ] || exit 0
+iface="${1:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
 # Capture admission before waiting for the helper action lock. Reopening a
 # transition rotates this token, so a queued old hook cannot become admitted.

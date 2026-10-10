@@ -1,3 +1,70 @@
+# Actual .37 preservation/correction release and .211 solver — 2026-10-10 11:12 UTC
+
+.37 ordinarysofttransition SSH0, heldPTY30565/shell3940 retained; initialfresh2222
+reset45B retained, helperautomaticallycompleted/success and fresh2222SSH0 later.
+Actual42330B3d83a5ff provesPID1/root/exeRAM51, sameSSH3866/helperexitedsuccess,
+/run/sshd0:0/0755, ownednextrootremoved, all5L3 address/routes/rules exactTrue
+(addresslifetime counters excluded). Firstcompleteaudit3b1c0352 both449proc/98FDs/
+nsfs0/races0/failures0/finalguard0, kernel equal/counter9stable. Readonly-f-n851d42ac
+exit12 confirms uncorrected errors/abortedpass2; actualdiagnostic not acceptance.
+
+Actualpreservation532992B/c072d1d3 PASS:20commands0/nineactualinodeclassifications,
+native986808320Bnominal/10096640allocated/fullSHA822fc9507eb42c47fcd1529e9f0b939511f07d00f04f1b2307768ed367a7ae83;
+offhostgzip1707875B/d3b05aa7c3f1e49363acdd5aae4c28d30e76c818bf53aa753c2a6b978c74cda1
+full decompressed size/hash equal0600/file+directoryfsync. Seven4096B externalblocks
+allzero/ad7facb2 independentlyrereadbyroot/R7; transferlist3108B/696c0e48.
+Journalregular259596/597/598 actual0640/rootgid999/8MiB; dirs259594UIDGID1000,
+259599/602/603root0700/4KiB/actualsevenallowlistedblocks classified from THISdevice;
+zero-lengthregular259595UID1000 and259600root actual0644/noextents/blocks0 retained.
+Unknownoriginalorphan names remainunknown. Root receipt parser initiallyassumed
+transferdict instead of actual list; corrected listparsePASS before using evidence.
+Finiteundoactual703B/491fb024 preflightSSH0/stderr0:hard+soft1073741824, private1MiB
+0600 write/fsync/unlink, RAM51parent0700/undoabsent/exclusiveguard0. Controlleractual
+free1.775GB atR7check exceeds cap+512MiBmargin. No actualundo/repair success yet.
+
+R7 independently fullstreamednative/all7blocks/classification/preflight and exact
+wrapper0c76f5cb(Bashn0)/fixedonebyte driver5f45bf37(AST0) APPROVE; coherent reviewer
+checkpointff6af9a5c2bfaa2152ede025d44402a6d9ad0149 published/readback. Root RELEASES
+.37 target correction after workeractualcheckpointpublication and refreshedwhole
+offlineaudit/finalguard0. Exact-f-Efixes_only,nodiscard-z; individuallypreapproved
+journalinvalidETBclear/accounting, fourclassifiedALLZEROdirsalvage/dots/temporary
+ROOTdotdot then actualparent/preservinglost+foundConnect, zero-lengthClear=n then
+preservingREGULARConnect/counts, consequentialknownparent/bitmap/group/globalcounts.
+Nooptimization/-y/-D/arbitraryunknownClear/specialtype; holdnewoutsideactualclass.
+No redundant managerroundtrip withinreviewedclasses. Subsequentclean-f-n0,
+durableactualundo/transcript, readonlyboot/auth/networkintegrity and matchingRAM
+shutdown/unmount/marker/sync/guard precede separate normalreturn release.
+
+.211 reviewedfinalstartguards2530bc53 and packageinpute5c7a1c9 on published/readback
+6bdf80b8: actualbothoriginalsABSENT/privatebaseline4905B/c45e00df. Durabletargetroot8:2
+0700taskmarker600/fsync before101policy+persistentVPPmask; identitycheckedpartial
+restore. Root/R7conditionalPREPARE+exact11RAMupload/apt-srelease nowACTUALexecuted:
+prepare10002B/49b10501 SSH0/L3equal/UTCclockset-only/noRTC/NTPsettingschange,
+independentfresh22guard474B/80f0d37b confirms10119B0755/root+VPPmaskedinactive,
+marker443B0600/root8:2/146f4683,offset0.503s/newbootioerr6.
+Actualsolver21634B/07d88eb3 exit0/emptystderr:114Inst=3upgrades+111new,0removals,
+33held, exact11versions plusnamedjq/pciutils/driverctl/curl/nftables. ONLYexisting
+upgradesperl-base+sameABIOpenSSLprovider/libsslsecuritypatch; nosystemd/SSH/libc/kernel/
+bootloader/netplan/iproutechange. Root independentlyreadfullplan/parsedexactupgrades;
+R7 actualplan corroborated. Needrestartactual486B/f92b1e0b package/fivepaths/hooks
+ABSENT, absentall114Inst, independentlyverified; no new hypotheticalrestart blocker.
+Actual2GiBhugepagebudget9ffdef94:MemAvailable31484040KiB/pagesize2048/nr0/NUMA0;
+allocation andinstallation notyetexecuted. Exactinstallsource preserves101+mask,
+recheckssameInstplan/payload/actualhooks and management; review/publication precedes
+actualinstall release. Restoreguards with originalkernelNICs+VPPinactive AFTERsafe
+canonicalnoPCI firstboot but BEFOREVPP/APIactivation and anydataPCIbind.
+
+Freshhourlyreportposted successfully:
+https://github.com/mcoder1001-cyber/NGFW/pull/217#issuecomment-6096897048.
+Freshboardblobfca789c5 unchanged212=205merged+7parked; main ded86076 completequick
+38044587907SUCCESS; unrelated219testmerged,218/220/221/222/223open (220green,
+221quickfailure,othersrunning atreadback), no newhardwareproductmerge. Fourlivechat
+roles verifiedrunning; widerinventoryunverifiable. Rootprior4756ca5412f4713e6186123903f35bfed71bcf97
+push/readbackPASS; thiscoherentcheckpointimmediatelypublishes. Exactnext: worker37
+actualreviewedcorrection/clean/offhostundo and worker211 reviewedinstallsource/plan.
+Originalinstallation/exact7+17persistedNICactivation and actualservice/packet/restart/
+rebootacceptance remainrequired; no packageinstall/NICbind/forwardingclaim yet.
+
 # Actual .211 full return PASS and .37 transition release — 2026-10-10 10:56 UTC
 
 Root independently inspected complete .211 postreturn152238B/baf2aad81531abdd0af13ed223d976de4aefb483d36473476e436c86148a1f51

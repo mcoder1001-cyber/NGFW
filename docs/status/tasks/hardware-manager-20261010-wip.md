@@ -1,3 +1,48 @@
+# Latest owner steering — 2026-10-10 disk recovery
+
+Owner explicitly accepts .37 SSD wear and says to repair. Root answered that
+wear pertains to172.30.126.37, and filesystem corruption affects both hosts.
+Replacement availability question is resolved for this task: wear alone is NOT
+an approval/replacement blocker. Continue verified offline logical recovery on
+both, sequentially, then original NGFW installation/tests. Preserve backups and
+accurate physical findings; do not claim software rejuvenates NAND endurance.
+
+Both RAM-only authenticated management SSH/PTY stages now pass, original22 and
+all captured network state remain unchanged, nextroot absent. .211 runtime active
+PID6421/persistentRAMshell6459; .37 read-only convergence resolved initialstart
+race, lastvalidated3866/persistentRAMshell3940. R7 independently read .211 full
+actualruntime/properties/map/fd/cgroup/namespace/parser receipts. .211 staticguard
+mounted-negative exit3 exact02a2270a verified;8GiBRAMfree~8.46GiB afterallocation,
+metadata/offhostcompressedsize stillunmeasured. .37 actualloader/unit/guard/runtime
+checks and authenticated PTY+owned restart tests PASS; source/receiptpublication
+continues. No transition/fsck/install/NIC binding/reboot yet.
+
+Actual signed RAM SMART queries: both official7.5-2 deb664482bytes matches signed
+ab211f171a9595f6b9686caaec44ca07a623c4605923caae756e2446e055e0ff.
+.211 Samsung870EVO250GB SMARTexit0/pass, all reported media counters0; historical
+CRC1003. SCSI ioerr rose0x6→0x9 during SMART preparation; no filteredrecentkernel
+ATA reset/I/O/UNC events and SMART errorlog0. Classify optional command rejections
+versus block reads with bounded pure256MiB direct readonly read and repeatSMART
+before declaring any stability. .37 Samsung860PRO256GB SMARTexit0/pass, endurance
+used126%/wearnormalized1/raw2648,2remapped/runtimebad, program/erase/UNC/CRC0.
+Owner explicitly accepts .37wear forrepair, actualhealthlimitations documented.
+
+Current next phase: finalindependent .211 TRANSITION-ONLY/read-only offline review,
+keep persistentRAMPTY, exactnextroot+softreboot, then positiveexclusiveglobal/nsfs/
+root/cwd/exe/maps/fd audit. ONLYafterofflineproof, readonlyfsckdiagnostic/e2image
+metadata/offhostverifiedcompression; repeatblock-I/O/CRC/kernelhealth afterreads.
+No correctivewrites until actualdiagnosticsprompt/undo/preservation review. .37
+remainsup while211firstphase completes. Auth/bootbaselines private hashverified.
+Normalreturnsingleforce reboot aftercleanofflinechecks/originalboot/auth/network
+readonlyintegrity, offhostundo/logs, exactmarkerremoval andskipauto flagsreviewed.
+
+Managerlatestpublished/readback08c986bece4a5a17cf02cb433f5d263a933e72fc.
+Hourly freshstatuspostedPR217comment6096002213: remote main4908716b,3gatesgreen,
+noopenPR,board212=205merged+7parked,4liveinchatroles/externalinventoryunverifiable.
+No new productmerge inrecoveryphase. Thischeckpoint is immediatelypublished.
+
+Earlier recovery checkpoints/history follow:
+
 # Resumed disk recovery — 2026-10-10 08:59 UTC
 
 Owner now explicitly asks to fix the disk problem. Root resumed existing host37,

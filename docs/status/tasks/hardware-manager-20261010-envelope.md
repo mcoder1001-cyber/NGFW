@@ -46,3 +46,13 @@ alone is insufficient. No automatic destructive repair or mounted-root fsck.
 Configuration copies are not full data backup. A metadata snapshot/undo strategy
 must disclose its limits and preserve available evidence before corrective writes.
 Hardware goal remains unfinished; installation follows successful root recovery.
+
+Owner follow-up after actual SMART results (2026-10-10):
+"تعمیر کن فرسودگی مهم نیست. این مشکل روی کدام ماشین است؟"
+Meaning: repair it; SSD wear is not a blocker. Root clarified: wear126%/two
+remapped blocks pertains to172.30.126.37; filesystem corruption affects BOTH.
+The owner explicitly accepts that wear for logical filesystem recovery. Do not
+ask again for replacement/repair permission or park .37 for wear alone. Preserve
+scoped backups/metadata/undo and verify offline root as planned. New actual media
+read/uncorrectable/reset failures still require diagnosis before corrective writes.
+Original package installation/testing objective remains active after both repairs.

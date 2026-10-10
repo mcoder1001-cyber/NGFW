@@ -51,3 +51,7 @@
 - Parent/R7 authorize exactf5057224 V3RAM-only staging afterpublication, sourceb764/staticd8d8 separatefilename; invalid2/mountedguard3 only, novalidread/crossing. Actual37OFFLINEinode/blockmapping and native/offhost/undo gates mandatory after211normalreturn.
 
 - ActualV3RAM-only SSH0: private860B/0600receipt0fd8ebb3789d10eac379b6edd3e3b197517f793c5b2eea1c3e72d079c085aeaf; invalid2/mountedguardBUSY3, novalidrawcapture/noext4write. Sourcepublished320f1e49d; sameRAM51/rescue3866/held3940/nextrootabsent.
+
+- Source-only offline-preserve.py bdb2a28a prepares firstRAMaudit/f-n/native9inode7raw/fullnominaloffhostverification under separate rootphase; AST3PASS/R7exactsourceAPPROVEafterpublication+phase/no targetexecution. No .37 transition/correction release yet;211normalpostbootproof pending. Latestpublishedactual24a5859d.
+
+- Newoffline-source RAM Python requiredimports actualchroot-B test0/root51/emptystderr; R7exactbdb2 APPROVE conditional on durablepublication/rootphase. No transition/correction performed.

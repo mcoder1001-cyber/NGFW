@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -110,6 +111,13 @@ func waitReady(t *testing.T, c ngfwv1.DataplaneClient) *ngfwv1.HealthResponse {
 			return h
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+	stacks := make([]byte, 1<<20)
+	n := runtime.Stack(stacks, true)
+	for _, stack := range strings.Split(string(stacks[:n]), "\n\n") {
+		if strings.Contains(stack, "(*Service).syncLocked") {
+			t.Logf("in-progress dynamic reconciliation stack:\n%s", stack)
+		}
 	}
 	t.Fatalf("agent not ready within 30 s: last health=%s error=%v", protojson.Format(last), lastErr)
 	return nil

@@ -1,3 +1,25 @@
+# Actual targeted prerequisites approved — 2026-10-10 10:04 UTC
+
+R7 formal actual APPROVE received for wrapper61e40215/PTYdriver0186e5ab and
+known-scope correction. Manager independently read undo-preflight-1g.json
+18059dfd050ab8bfe15fd1f8f3e243beeb0197bd31cabf5f35d941fbd654cefe:
+exit0/stderr0, actual soft+hard RLIMIT_FSIZE1073741824B, private1MiB0600 write/sync
+test, new undo absent, RAMdev46/private0700/uid0,8254240KiB available and controller
+actual free2707152896B. Earlier4GiB preflight is historical; final1GiB cap fits
+current offhost capacity plus512MiB margin. Native/offhost/five-block preservation
+PASS. Health timing proved SMART15->18 BEFORE five pure block reads; subsequent
+ioerr18 stable, kernel storage-event equality PASS. Not a complete health certificate.
+Refreshed full offline audit/finalguard0 and worker coherent source publication
+precede exact authorized interactive command. No further manager/user permission
+wait for known journal clears/accounting and cache/config salvage/checksum.
+Worker remote74a0db35428e380ab0323ee503aa41c6d89110ee independently read back;
+R7 formal-verdict publication is underway, prior remote40315bab independently read.
+Actual correction completion has not yet been observed. Return is still held.
+
+Root latest published/readback a72f44472e55a4cac0ada4272de489fff26b1299;
+this actual approval checkpoint is immediately published. Exact next command:
+worker's approved interactive fsck, then clean offline-f-n and durable undo/logs.
+
 # Conditional targeted correction release — 2026-10-10 10:02 UTC
 
 Manager released known-scope interactive correction CONDITIONALLY to exclusive211

@@ -2,7 +2,7 @@
 
 Installation task state: **blocked on offline root-filesystem recovery**. Installation and hardware acceptance: **NOT RUN**. Management, routing, netplan, SSH and target disk contents were left unchanged. Hardware deployment role remains **awaiting resume**. Manager will resume the same branch/worktree when recovery is available.
 
-Separate verified live role resumed by manager on 2026-10-10: independent R1 reviewer/T1 tester for the API native shared-library dependency correction `2045ab8`, with no target operations. Actual20 unchanged packaging/PPPoE fixtures, slot-check and exact-source assertion pass; staged Argon2 native dependencies independently inspected. Final archive/build and final-PR mandatory hosted quick are pending. Review/test receipts are owned in this worktree; no product code changes.
+Separate verified live role resumed by manager on 2026-10-10: independent R1 reviewer/T1 tester for the API native shared-library dependency correction `2045ab8`, with no target operations. Actual20 unchanged packaging/PPPoE fixtures, slot-check and exact-source assertion pass; staged Argon2 native dependencies independently inspected. Final API archive full-read, native-content and exact dependency regression assertion PASS; SHA256 `47683ec5b2194ea360c656648718f48943cb04480717cf59804e5ff6ec6309a0`. Final PR217 HEAD `bde83bc87ae817a61bbc70e4029f76109ae77c35` independently verified product-identical to2045. Mandatory quick run38033113750/job114157962736 pending completion; no PASS claimed. Review/test receipts checkpoint `4c2ac762f316a4147c008f4fc79c775dc1c1776d` was successfully published and read back from GitHub. Review/test receipts are owned in this worktree; no product code changes.
 
 ## Ownership and checkpoints
 

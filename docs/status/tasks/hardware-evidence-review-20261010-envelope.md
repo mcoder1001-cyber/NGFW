@@ -35,3 +35,10 @@ source/main-CI distinction, private ready configuration-snapshot metadata and
 candidate exclusion. Inspect no secret values; never print/commit backup contents.
 No product/target edits or duplicate full quick. Owned addendum:
 `hardware-evidence-review-20261010-postmerge.md`. Source APPROVE remains separate.
+
+Resumed for owner-authorized filesystem repair feasibility and independent safety
+review. New owned report: `hardware-evidence-review-20261010-ram-recovery.md`.
+Read-only research/host-worker evidence only; no target staging, services, network,
+root repair, pivot/switchroot, kexec or reboot. Review concrete RAM maintenance
+preparation versus verified offline device/recovery/data preservation requirements;
+do not confuse missing capability evidence with missing owner authorization.

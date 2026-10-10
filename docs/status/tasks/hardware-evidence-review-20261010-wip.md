@@ -100,3 +100,40 @@ manager docs SHA before extending this scoped approval. Reviewer ends this follo
 after publication and is awaiting resume; no persistent worker service is claimed.
 Own-doc check before publication: `tools/ci.sh check --base origin/main` exited0,
 `check PASSED (0m14s)`; no duplicate full quick ran.
+
+## Owner-authorized root recovery safety review — 08:32 UTC
+
+Operational role resumed: independent read-only reviewer, not target installer.
+Last own published checkpoint at resume0eb7036450d410b7540e05a786205c72bd814acf.
+Owner now explicitly authorized repairing disk/root filesystem; old "awaits owner
+input" wording above is historical. Current open requirements concern verified
+technical recovery and data preservation, not repeated authorization.
+
+Completed: read current recovery runbook; reviewed sanitized fresh worker reports;
+checked matching primary systemd259.5 docs/source and kernel/e2fsck/open manuals.
+Concrete supported candidate: executable RAM root plus independently authenticated
+RAM-only survivor SSH, then supported userspace soft reboot with unchanged kernel.
+Direct switch-root is initrd-only. Stock soft reboot internally uses lazy detach;
+SSH reconnection/mountinfo alone cannot certify ext4 offline. Proposed validation
+includes a separately vetted read-only O_EXCL device-busy probe and all-namespace/
+old-reference audit; no helper/test/target transition is currently claimed.
+
+Current execution verdict BLOCK until survivor/rehearsal/offline-device proof and
+measured metadata/image/data-recovery plan are established. Detailed proposed safe preparation,
+actual evidence attribution and exact alternative external inputs are recorded in
+owned `hardware-evidence-review-20261010-ram-recovery.md`. Immutable fresh host
+diagnostic receipts pending. Existing backups remain private; no contents read or
+published in this follow-up. No product/target changes or duplicate full quick.
+
+Next command: fetch published worker branches once fresh receipt SHAs arrive,
+read sanitized receipts, and compare each proposed capability with recorded actual
+commands/output before finalizing this independent review. Manager may assign
+RAM preparation to installers only after exact plan review; this reviewer owns docs.
+
+Preparation checkpoint validation: git diff --check exited0; unchanged required
+tools/ci.sh check --base origin/main exited0, check PASSED (0m13s). Manager proposed
+metadata e2image plus undo with explicit limits; full59GiB image is an option,
+not a universal requirement. .37 mounted-negative exclusivity probe reports EBUSY;
+pending positive/lazy-pinned tests remain explicit. Controller measured free space
+31,129,600 bytes; no preservation capacity PASS. All target preparation remains
+installer-owned and pending exact staged-artifact review.

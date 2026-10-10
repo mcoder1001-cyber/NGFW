@@ -1,5 +1,14 @@
 # Hardware installation task envelope
 
+Owner resume, 2026-10-10 12:34 UTC (16:04 Asia/Tehran): complete this one
+hardware task and mark it Done only after its required acceptance. Do not start
+unrelated board work. The pause below is superseded. Root owns the necessary
+firstboot fix files assets/firstboot.sh, assets/initial-dataplane.json and
+debian/ngfw-meta.install under deploy/debian/ngfw, its tests/test_firstboot.py,
+and apps/agent/cmd/ngfw-startupgen/main_test.go. Existing host211 operator and R7
+reviewer resume within this same task; host37 remains paused until ordered phase.
+No unrelated task is marked Done without actual reviewed complete evidence.
+
 Owner pause, 2026-10-10 12:28 UTC: "تسکهایی که تا الان دان کردی رو اعلام کن و فعلا تسکت رو متوقف کن".
 Task is explicitly PAUSED. All historical phase releases and next execution
 commands are suspended until explicit owner resume. Workers acknowledged no

@@ -1,3 +1,44 @@
+# RESUMED: one hardware task — 2026-10-10 12:34 UTC / 16:04 Asia/Tehran
+
+Owner resumed this task, requests complete acceptance then Done, and only one
+active task. Prior PAUSED execution restriction below is superseded; all host
+privilege, exclusive ownership and management protections remain.
+
+Completed steps explicitly DONE: both scoped offline filesystem repairs and
+clean checks/off-host undo; both normal boot/originalSSH/protected-network checks;
+both11 native packages installed/configured/audit clean; nativeAPI dependency
+fix PR217 integrated with required complete quick and independent reviews.
+Hardware task overall RUNNING, not Done: real .211 plugin/seed validation failure,
+.37 firstboot/runtime, persistent7/17 data ports and final acceptance remain.
+
+Fresh GitHub main bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3, complete mandatory
+quick38051133842 SUCCESS. Board212=205merged+7parked; hardware is this existing
+operational task, not a newly started feature/WBS item. Existing PR223 board
+closeout is OPEN and mandatoryquick38052668421 FAILURE, review not yet present;
+no proposed new board Done transition is approved here. Other PR221/224 remain
+owned by their existing managers; no new unrelated task is started.
+
+Exactly one campaign: root manager implements narrow firstboot bootstrap plugin
+correction, host211 operator refreshes/read-only canonical preview, independent
+R7 reviews the same task. .37 operator remains paused until211 path passes.
+No direct DB revision or early bind workaround. Root alone owns actual guarded
+startup apply/binding; existing user authorization covers repair/install/test/
+reboot and all nonmanagement ports. Fresh state and exactreviewed rendering are
+required before execution. Required-plugin source failures are not lab deferrals.
+
+Branch/worktree unchanged codex/hardware-manager-20261010, own root WT.
+Previous published pause82c5ab72cbfbfc3aa80c6822e1f15a8b4c722cec; host211
+c14db5f5dd2338d13af239e0006a633807927173, host37
+6072ef8ba95ec420067c220a3d344983ca9a2853, R7
+f6c5e8e1d9129dafdfbf2b14ffc15fb4f3ae9e8d. Fresh12:34 operator actual SSH/L3/
+17kernel/sameboot/fourPIDs/protected04igc28/cleanroot/ioerr6 PASS reported;
+readonly source4a63 approved by R7, actual canonical preview pending.
+Root additional owned product files declared in envelope before implementation.
+Exact next: review actual noPCI plugin dryrun; root guarded apply only on PASS;
+implement firstboot default plugin input + real renderer regression, review and
+unchanged complete quick CI before final product integration/Done.
+
+
 # USER PAUSED — 2026-10-10 12:28 UTC
 
 Owner explicitly requested: list completed tasks and stop the task for now.

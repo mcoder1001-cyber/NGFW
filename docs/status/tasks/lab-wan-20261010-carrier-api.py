@@ -15,6 +15,8 @@ pristine=(ROOT/'test/topology/traffic-b/stack.py').read_text()
 edits=(("ROOT=Path(__file__).resolve().parents[3]",'ROOT=Path('+repr(str(ROOT))+')'),
        ("NGFW_GLOBALS_OWNER='0'","NGFW_GLOBALS_OWNER='1'"),
        ("NGFW_KEA_MODE='off'","NGFW_KEA_MODE='off',NGFW_FRR='off'"))
+if os.environ.get('NGFW_WAN_DIAG')=='1':
+ edits+=(("NGFW_LOG_LEVEL='info'","NGFW_LOG_LEVEL='debug'"),)
 source=pristine
 for old,new in edits:
  assert source.count(old)==1,'original stack literal changed or ambiguous'

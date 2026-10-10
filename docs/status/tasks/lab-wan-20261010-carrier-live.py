@@ -7,6 +7,7 @@ for owned in (ROOT,BASE):
  assert owned.is_absolute() and owned.is_dir() and not owned.is_symlink()
  info=owned.stat();assert info.st_uid==0 and info.st_mode&0o022==0
 TOKEN='ngp-'+hashlib.sha256(b'w20\0w20ppp').hexdigest()[:12]
+CARRIER_ROOT=Path('/var/lib/ngfw/agent/pppoe-carrier')/TOKEN
 INVENTORY='ngp-'+hashlib.sha256(b'inventory\0w20').hexdigest()[:12]
 def run(*args,check=True):return subprocess.run(args,check=check,capture_output=True,text=True)
 if len(sys.argv)>1:
@@ -36,12 +37,18 @@ if len(sys.argv)>1:
      target.mkdir(mode=0o755)
     info=private_etc.stat();assert info.st_uid==0 and info.st_mode&0o022==0
     owned_mount('--bind',str(private_etc),'/etc')
+    carrier_alias=d/'carrier-root';carrier_alias.mkdir(mode=0o700)
+    assert [CARRIER_ROOT.stat().st_dev,CARRIER_ROOT.stat().st_ino]==json.loads(os.environ['NGFW_WAN_CARRIER_ROOT_IDENTITY'])
+    owned_mount('--bind',str(CARRIER_ROOT),str(carrier_alias))
     owned_mount('-t','tmpfs','-o','mode=755,size=8m','tmpfs','/var/lib')
     # Use the exact package provisioning implementation, within these private mounts.
     runpy.run_path(str(ROOT/'deploy/debian/ngfw/assets/provision-system-identity.py'))['provision']()
     assert (os.stat('/etc').st_dev,os.stat('/etc').st_ino)==(info.st_dev,info.st_ino)
     mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
     assert any(row[4]=='/var/lib' and row[row.index('-')+1]=='tmpfs' for row in mounts)
+    CARRIER_ROOT.mkdir(mode=0o700,parents=True)
+    owned_mount('--bind',str(carrier_alias),str(CARRIER_ROOT))
+    assert [CARRIER_ROOT.stat().st_dev,CARRIER_ROOT.stat().st_ino]==json.loads(os.environ['NGFW_WAN_CARRIER_ROOT_IDENTITY'])
     os.environ['NGFW_WAN_PRIVATE_ETC_IDENTITY']=json.dumps([info.st_dev,info.st_ino])
     print('PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS',flush=True)
    peer_password=os.environ['NGFW_WAN_PEER_PASSWORD'];assert len(peer_password)==48 and all(c in '0123456789abcdef' for c in peer_password)
@@ -88,7 +95,7 @@ exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -tes
      marker='exec '+str(BASE)+'/bin/carrier-live.test'
      assert native.count(marker)==1
      # Actual owned AFPacket ports precede Agent.Start, as physical NICs do.
-     wrapper.write_text(native[:native.index(marker)]+'vppctl show interface\nvppctl show interface tag\nexec python3 '+str(ROOT/'docs/status/tasks/lab-wan-20261010-carrier-api.py')+'\n');wrapper.chmod(0o700)
+     wrapper.write_text(native[:native.index(marker)]+'vppctl show interface\nvppctl show interface tag host-w20raw\nvppctl show interface tag host-w20lan\nexec python3 '+str(ROOT/'docs/status/tasks/lab-wan-20261010-carrier-api.py')+'\n');wrapper.chmod(0o700)
     result=subprocess.call(['python3',str(ROOT/'test/topology/hardware-smoke/isolated-vpp.py'),str(wrapper)])
     if os.environ.get('NGFW_WAN_FULL_API')=='1':print('CHILD_UTS_AFTER '+json.dumps({'namespace':os.readlink('/proc/self/ns/uts'),'hostname':os.uname().nodename}),flush=True)
    finally:
@@ -124,12 +131,20 @@ assert not Path('/run/netns',TOKEN).exists() and not Path('/run/ngfw-pppoe-carri
 before=run('systemctl','show','vpp','-p','MainPID','-p','NRestarts').stdout
 hashes={}
 relay=None
+carrier_root_identity=None
 identity_files=('/etc/hostname','/etc/issue','/etc/issue.net','/etc/motd')
 host_identity={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in identity_files}
 host_hostname=os.uname().nodename
 host_uts=os.readlink('/proc/self/ns/uts')
 print('ROOT_HOST_IDENTITY_BEFORE '+json.dumps({'uts':host_uts,'hostname':host_hostname,'public_file_sha256':host_identity}),flush=True)
 try:
+ if os.environ.get('NGFW_WAN_FULL_API')=='1':
+  for parent in CARRIER_ROOT.parents:
+   info=parent.lstat();assert parent.is_dir() and not parent.is_symlink() and info.st_uid==0 and info.st_mode&0o022==0
+  assert not os.path.lexists(CARRIER_ROOT),'refuse existing carrier render token'
+  CARRIER_ROOT.mkdir(mode=0o700)
+  info=CARRIER_ROOT.stat();carrier_root_identity=[info.st_dev,info.st_ino]
+  os.environ['NGFW_WAN_CARRIER_ROOT_IDENTITY']=json.dumps(carrier_root_identity)
  for dest,source in assets.items():
   dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,dest);dest.chmod(0o644 if dest.suffix=='.service' else 0o755);hashes[dest]=hashlib.sha256(dest.read_bytes()).hexdigest();print('TEMP_ORIGINAL_ASSET '+str(dest)+' sha256='+hashes[dest],flush=True)
  run('systemctl','daemon-reload')
@@ -168,6 +183,21 @@ finally:
   for area in ('requests','results'):
    p=Path('/run/ngfw/pppoe-broker')/area/(token+'.json')
    if p.exists():assert json.loads(p.read_text())['token']==token;p.unlink()
+ if carrier_root_identity is not None:
+  assert run('systemctl','is-active','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False).stdout.strip()!='active'
+  assert [CARRIER_ROOT.stat().st_dev,CARRIER_ROOT.stat().st_ino]==carrier_root_identity
+  snapshots=[]
+  for path in CARRIER_ROOT.rglob('*'):
+   info=path.lstat();assert info.st_uid==0 and not path.is_symlink()
+   assert path.is_dir() or (path.is_file() and info.st_nlink==1)
+   digest=hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+   snapshots.append((path,info.st_dev,info.st_ino,digest))
+  for path,device,inode,digest in sorted(snapshots,key=lambda item:(item[3] is None,-len(item[0].parts))):
+   info=path.lstat();assert (info.st_dev,info.st_ino)==(device,inode) and not path.is_symlink()
+   if digest is None:path.rmdir()
+   else:assert hashlib.sha256(path.read_bytes()).hexdigest()==digest;path.unlink()
+  assert [CARRIER_ROOT.stat().st_dev,CARRIER_ROOT.stat().st_ino]==carrier_root_identity
+  CARRIER_ROOT.rmdir();print('OWNED_RENDER_TOKEN_REMOVED PASS',flush=True)
  for dest,digest in hashes.items():
   assert hashlib.sha256(dest.read_bytes()).hexdigest()==digest;dest.unlink()
  run('systemctl','daemon-reload')

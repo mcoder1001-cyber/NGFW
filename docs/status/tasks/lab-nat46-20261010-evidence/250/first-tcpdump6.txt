@@ -1,0 +1,11 @@
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on w17w1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+13:13:37.959137 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], seq 2271090465, win 64240, options [mss 1460,sackOK,TS val 4099411812 ecr 0,nop,wscale 10], length 0
+13:13:38.986197 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], seq 2271090465, win 64240, options [mss 1460,sackOK,TS val 4099412839 ecr 0,nop,wscale 10], length 0
+13:13:40.010262 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], seq 2271090465, win 64240, options [mss 1460,sackOK,TS val 4099413863 ecr 0,nop,wscale 10], length 0
+13:13:41.034081 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], seq 2271090465, win 64240, options [mss 1460,sackOK,TS val 4099414887 ecr 0,nop,wscale 10], length 0
+13:13:42.058168 IP6 fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], seq 2271090465, win 64240, options [mss 1460,sackOK,TS val 4099415911 ecr 0,nop,wscale 10], length 0
+
+5 packets captured
+5 packets received by filter
+0 packets dropped by kernel

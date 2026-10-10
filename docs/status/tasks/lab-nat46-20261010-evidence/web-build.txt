@@ -1,0 +1,366 @@
+• turbo 2.11.2
+
+   • Packages in scope: @ngfw/web
+   • Running build in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@ngfw/schema:gen: cache bypass, force executing a6a5f32cc067702f
+@ngfw/ui-kit:gen: cache bypass, force executing 58303f132ba807db
+@ngfw/schema:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/ui-kit:gen: $ echo 'ui-kit: nothing to generate'
+@ngfw/ui-kit:gen: ui-kit: nothing to generate
+@ngfw/ui-kit:build: cache hit, replaying logs 9b56f0191234ddff
+@ngfw/ui-kit:build: $ tsc -p tsconfig.build.json
+@ngfw/schema:gen: schema: wrote root + 14 domain schemas + openapi components
+@ngfw/schema:build: cache hit, replaying logs 1dcfde4246a4588d
+@ngfw/schema:build: $ tsc -p tsconfig.json
+@ngfw/yang:gen: cache bypass, force executing e19382725d26438d
+@ngfw/proto:gen: cache bypass, force executing 5f06d9246d219a86
+@ngfw/yang:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/proto:gen: $ bash ./gen.sh
+@ngfw/yang:gen: yang: wrote 14 modules to generated/
+@ngfw/yang:build: cache hit, replaying logs 2b039e736b977070
+@ngfw/yang:build: $ tsc -p tsconfig.json
+@ngfw/proto:gen: proto: generated Go → apps/agent/gen (ngfw/v1 + ngfw/model), TS → packages/proto/gen/ts (ngfw/v1)
+@ngfw/proto:build: cache hit, replaying logs 7991f9dcfe69bd1b
+@ngfw/proto:build: $ tsc -p tsconfig.build.json
+@ngfw/api:gen: cache bypass, force executing 4b8ac048acea4258
+@ngfw/api:gen: $ echo 'api: nothing to generate'
+@ngfw/api:gen: api: nothing to generate
+@ngfw/api:build: cache hit, replaying logs e2a81ae5d7ad701f
+@ngfw/api:build: $ tsc -p tsconfig.build.json
+@ngfw/api-client:gen: cache bypass, force executing 2d21481135982a98
+@ngfw/api-client:gen: $ pnpm --filter @ngfw/api openapi:built && openapi-typescript openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts
+@ngfw/api-client:gen: $ node dist/openapi.js ../../packages/api-client/openapi.json
+@ngfw/api-client:gen: api: OpenAPI written to ../../packages/api-client/openapi.json
+@ngfw/api-client:gen: ✨ openapi-typescript 7.13.0
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1state~1captures~1{id}/delete/responses
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1start/get/responses
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1callback/get/responses
+@ngfw/api-client:gen: 🚀 openapi.json → src/generated/schema.d.ts [3.1s]
+@ngfw/api-client:gen: src/generated/schema.d.ts 15695ms
+@ngfw/api-client:build: cache hit, replaying logs 99138a050ba48e53
+@ngfw/api-client:build: $ tsc -p tsconfig.json && node scripts/copy-types.mjs
+@ngfw/api-client:build: api-client: copied src/generated/schema.d.ts → dist/generated/schema.d.ts
+@ngfw/web:gen: cache bypass, force executing 58b1d9e85fa5795f
+@ngfw/web:gen: $ echo 'web: nothing to generate'
+@ngfw/web:gen: web: nothing to generate
+@ngfw/web:build: cache hit, replaying logs b0acf9e6ae2c4bcf
+@ngfw/web:build: $ tsc -p tsconfig.json --noEmit && vite build && node scripts/bundle-budget.mjs && node scripts/check-no-dev-routes.mjs
+@ngfw/web:build: vite v7.3.6 building client environment for production...
+@ngfw/web:build: transforming...
+@ngfw/web:build: ../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/regexes.js (74:0): A comment
+@ngfw/web:build: 
+@ngfw/web:build: "/** Anchors a pattern source. The interpolation lives here rather than at the call site because
+@ngfw/web:build:  * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it
+@ngfw/web:build:  * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */"
+@ngfw/web:build: 
+@ngfw/web:build: in "../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/regexes.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+@ngfw/web:build: ../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/util.js (400:0): A comment
+@ngfw/web:build: 
+@ngfw/web:build: "// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle."
+@ngfw/web:build: 
+@ngfw/web:build: in "../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/util.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+@ngfw/web:build: ✓ 2259 modules transformed.
+@ngfw/web:build: rendering chunks...
+@ngfw/web:build: computing gzip size...
+@ngfw/web:build: dist/index.html                                    0.38 kB │ gzip:   0.26 kB
+@ngfw/web:build: dist/assets/Download-CvUki_GS.js                   0.18 kB │ gzip:   0.18 kB │ map:     0.69 kB
+@ngfw/web:build: dist/assets/Delete-D2F5xfDV.js                     0.21 kB │ gzip:   0.20 kB │ map:     0.71 kB
+@ngfw/web:build: dist/assets/Close-C9Kl13Vx.js                      0.24 kB │ gzip:   0.20 kB │ map:     0.74 kB
+@ngfw/web:build: dist/assets/UploadFile-BQMXKv-I.js                 0.29 kB │ gzip:   0.25 kB │ map:     0.81 kB
+@ngfw/web:build: dist/assets/Key-BdwD6rI0.js                        0.30 kB │ gzip:   0.25 kB │ map:     0.80 kB
+@ngfw/web:build: dist/assets/Refresh-BiKMg8Y9.js                    0.33 kB │ gzip:   0.27 kB │ map:     0.84 kB
+@ngfw/web:build: dist/assets/DeleteForever-c0h7UO5I.js              0.34 kB │ gzip:   0.26 kB │ map:     0.86 kB
+@ngfw/web:build: dist/assets/StatusChip-ytCMBKx9.js                 0.34 kB │ gzip:   0.28 kB │ map:     1.36 kB
+@ngfw/web:build: dist/assets/AaaTab-BiN5H1gl.js                     0.36 kB │ gzip:   0.28 kB │ map:     1.15 kB
+@ngfw/web:build: dist/assets/PathsView-HoenqJ3W.js                  0.39 kB │ gzip:   0.29 kB │ map:     1.53 kB
+@ngfw/web:build: dist/assets/TableContainer-yXC9lIwa.js             0.59 kB │ gzip:   0.39 kB │ map:     4.64 kB
+@ngfw/web:build: dist/assets/RoutingObjectsPage-pFQe3DrN.js         0.61 kB │ gzip:   0.39 kB │ map:     1.16 kB
+@ngfw/web:build: dist/assets/ExpiryChip-fL9Xfx_I.js                 0.62 kB │ gzip:   0.44 kB │ map:     2.22 kB
+@ngfw/web:build: dist/assets/TableHead-U-ogkAdZ.js                  0.70 kB │ gzip:   0.45 kB │ map:     5.01 kB
+@ngfw/web:build: dist/assets/queries-D3GdtYBe.js                    0.76 kB │ gzip:   0.43 kB │ map:     4.03 kB
+@ngfw/web:build: dist/assets/MapTab-3jtHJarE.js                     0.82 kB │ gzip:   0.50 kB │ map:     1.05 kB
+@ngfw/web:build: dist/assets/PnatTab-BVFE1VX6.js                    0.82 kB │ gzip:   0.50 kB │ map:     1.05 kB
+@ngfw/web:build: dist/assets/rates-2HGRhLaV.js                      0.94 kB │ gzip:   0.56 kB │ map:     4.72 kB
+@ngfw/web:build: dist/assets/DomainTabsPage-BLLYH0xx.js             0.95 kB │ gzip:   0.58 kB │ map:     4.24 kB
+@ngfw/web:build: dist/assets/DomainPlaceholderPage-DNQwt8YA.js      1.00 kB │ gzip:   0.57 kB │ map:     3.83 kB
+@ngfw/web:build: dist/assets/queries-wMxSa0EG.js                    1.03 kB │ gzip:   0.50 kB │ map:     3.59 kB
+@ngfw/web:build: dist/assets/api-Cq2B6I_M.js                        1.13 kB │ gzip:   0.61 kB │ map:     5.99 kB
+@ngfw/web:build: dist/assets/common-C3JFvtDM.js                     1.14 kB │ gzip:   0.66 kB │ map:     4.10 kB
+@ngfw/web:build: dist/assets/queries-hLOhY4iP.js                    1.19 kB │ gzip:   0.55 kB │ map:     4.74 kB
+@ngfw/web:build: dist/assets/AlarmsCard-CCqbpFd8.js                 1.21 kB │ gzip:   0.67 kB │ map:     3.59 kB
+@ngfw/web:build: dist/assets/SubtreeForm-DdWdtwBC.js                1.31 kB │ gzip:   0.77 kB │ map:     5.56 kB
+@ngfw/web:build: dist/assets/InterfacesTab-yaHgBI9r.js              1.47 kB │ gzip:   0.81 kB │ map:     3.92 kB
+@ngfw/web:build: dist/assets/InputAdornment-CrLo2MlP.js             1.90 kB │ gzip:   0.98 kB │ map:    10.11 kB
+@ngfw/web:build: dist/assets/model-CopsWM-M.js                      1.94 kB │ gzip:   0.99 kB │ map:     8.29 kB
+@ngfw/web:build: dist/assets/RoutingPage-CszbxjnS.js                1.95 kB │ gzip:   0.87 kB │ map:     2.12 kB
+@ngfw/web:build: dist/assets/queries-qK0lk5CW.js                    1.98 kB │ gzip:   0.78 kB │ map:     8.14 kB
+@ngfw/web:build: dist/assets/ListEditor-1FAe7S-X.js                 2.01 kB │ gzip:   1.05 kB │ map:     8.57 kB
+@ngfw/web:build: dist/assets/ManagementPage-PR7Uq1fj.js             2.03 kB │ gzip:   0.87 kB │ map:     2.72 kB
+@ngfw/web:build: dist/assets/BgpPage-Dw-zqPaS.js                    2.05 kB │ gzip:   0.88 kB │ map:     1.76 kB
+@ngfw/web:build: dist/assets/Nptv6Tab-BnRgN5Ud.js                   2.06 kB │ gzip:   0.90 kB │ map:     5.49 kB
+@ngfw/web:build: dist/assets/schemaPath-Dl5ITwX4.js                 2.09 kB │ gzip:   0.94 kB │ map:    10.92 kB
+@ngfw/web:build: dist/assets/SubtreeForm-COKTr3Wn.js                2.10 kB │ gzip:   1.21 kB │ map:    10.25 kB
+@ngfw/web:build: dist/assets/model-Ccxoa-Nh.js                      2.15 kB │ gzip:   1.14 kB │ map:     9.64 kB
+@ngfw/web:build: dist/assets/Nat66Tab-DGc5SyTs.js                   2.21 kB │ gzip:   0.99 kB │ map:     5.96 kB
+@ngfw/web:build: dist/assets/NsimPage-KtetysKR.js                   2.25 kB │ gzip:   1.16 kB │ map:     7.29 kB
+@ngfw/web:build: dist/assets/VpnPage-BLTaElxo.js                    2.29 kB │ gzip:   0.94 kB │ map:     2.92 kB
+@ngfw/web:build: dist/assets/CnatTab-B84Cij5h.js                    2.33 kB │ gzip:   1.07 kB │ map:     6.23 kB
+@ngfw/web:build: dist/assets/PingTab-Bx7zx-4r.js                    2.45 kB │ gzip:   1.19 kB │ map:     7.90 kB
+@ngfw/web:build: dist/assets/PolicyTab-DjLtSS9N.js                  2.50 kB │ gzip:   1.21 kB │ map:     7.43 kB
+@ngfw/web:build: dist/assets/ObjectPicker-D5W5sRE0.js               2.56 kB │ gzip:   1.20 kB │ map:    11.52 kB
+@ngfw/web:build: dist/assets/Nat46Tab-B7tXZNaf.js                   2.66 kB │ gzip:   1.39 kB │ map:     9.43 kB
+@ngfw/web:build: dist/assets/queries-ZOuSxpzG.js                    2.67 kB │ gzip:   1.20 kB │ map:    12.26 kB
+@ngfw/web:build: dist/assets/RestconfYangPage-D6pdFtIu.js           2.70 kB │ gzip:   1.17 kB │ map:     9.06 kB
+@ngfw/web:build: dist/assets/PoolsTab-wqMT78Mt.js                   2.82 kB │ gzip:   1.34 kB │ map:     6.88 kB
+@ngfw/web:build: dist/assets/useMpls-Uab5LnB0.js                    2.83 kB │ gzip:   1.35 kB │ map:    13.23 kB
+@ngfw/web:build: dist/assets/FibTab-CXAvChBE.js                     2.85 kB │ gzip:   1.48 kB │ map:     8.75 kB
+@ngfw/web:build: dist/assets/TableCell-eLW8bPhk.js                  2.89 kB │ gzip:   1.30 kB │ map:    14.43 kB
+@ngfw/web:build: dist/assets/ServicesPage-Dn61Fsvx.js               2.94 kB │ gzip:   1.14 kB │ map:     3.47 kB
+@ngfw/web:build: dist/assets/TableRow-C49H4rAx.js                   2.96 kB │ gzip:   1.18 kB │ map:    18.56 kB
+@ngfw/web:build: dist/assets/AlarmsPage-CJYIOyxW.js                 2.96 kB │ gzip:   1.29 kB │ map:    10.39 kB
+@ngfw/web:build: dist/assets/model-7o4MMTyJ.js                      3.00 kB │ gzip:   1.53 kB │ map:    14.54 kB
+@ngfw/web:build: dist/assets/WanGroupsPage-B3mYONzF.js              3.03 kB │ gzip:   1.25 kB │ map:    10.01 kB
+@ngfw/web:build: dist/assets/queries-BDKRy40c.js                    3.06 kB │ gzip:   1.47 kB │ map:    15.16 kB
+@ngfw/web:build: dist/assets/MappingsTab-DzS_9sbY.js                3.11 kB │ gzip:   1.29 kB │ map:     8.07 kB
+@ngfw/web:build: dist/assets/TunnelsTab-Df6TrKaF.js                 3.12 kB │ gzip:   1.56 kB │ map:     8.98 kB
+@ngfw/web:build: dist/assets/ToggleButton-C9rCF12U.js               3.16 kB │ gzip:   1.21 kB │ map:    16.80 kB
+@ngfw/web:build: dist/assets/queries-tCKIEhaA.js                    3.19 kB │ gzip:   1.37 kB │ map:    15.47 kB
+@ngfw/web:build: dist/assets/OutboundTab-DbBCU6_C.js                3.24 kB │ gzip:   1.53 kB │ map:    10.16 kB
+@ngfw/web:build: dist/assets/Nat64Tab-DwgtGVR3.js                   3.29 kB │ gzip:   1.50 kB │ map:     8.99 kB
+@ngfw/web:build: dist/assets/RecordEditor-BDkL1ZN0.js               3.39 kB │ gzip:   1.68 kB │ map:    15.48 kB
+@ngfw/web:build: dist/assets/LabelRoutesTab-DXuY5bl9.js             3.41 kB │ gzip:   1.38 kB │ map:     9.53 kB
+@ngfw/web:build: dist/assets/ListSection-BFz8lMX0.js                3.43 kB │ gzip:   1.67 kB │ map:    14.36 kB
+@ngfw/web:build: dist/assets/SrTab-CMkVcoES.js                      3.74 kB │ gzip:   1.59 kB │ map:    11.23 kB
+@ngfw/web:build: dist/assets/model-CsVDMI_s.js                      3.89 kB │ gzip:   1.79 kB │ map:    16.52 kB
+@ngfw/web:build: dist/assets/LldpPage-BzKNkVzo.js                   3.97 kB │ gzip:   1.75 kB │ map:    11.72 kB
+@ngfw/web:build: dist/assets/FibTab-C5A8YtlQ.js                     4.03 kB │ gzip:   1.83 kB │ map:    12.97 kB
+@ngfw/web:build: dist/assets/OspfPage-XhlWz3iL.js                   4.03 kB │ gzip:   1.45 kB │ map:    12.85 kB
+@ngfw/web:build: dist/assets/NotificationsTab-CWjTKh22.js           4.04 kB │ gzip:   1.61 kB │ map:    12.11 kB
+@ngfw/web:build: dist/assets/MulticastPage-B_QnBgyW.js              4.05 kB │ gzip:   1.22 kB │ map:    13.63 kB
+@ngfw/web:build: dist/assets/TlsTab-JRLNwWqM.js                     4.22 kB │ gzip:   1.90 kB │ map:    14.24 kB
+@ngfw/web:build: dist/assets/AdlPage-DDrWJXi7.js                    4.28 kB │ gzip:   1.82 kB │ map:    15.11 kB
+@ngfw/web:build: dist/assets/IsisRipPage-CnLqtgjo.js                4.34 kB │ gzip:   1.67 kB │ map:    14.31 kB
+@ngfw/web:build: dist/assets/UpgradePage-CfFV4_ak.js                4.47 kB │ gzip:   1.89 kB │ map:    14.22 kB
+@ngfw/web:build: dist/assets/MirroringPage-1DzfR192.js              4.47 kB │ gzip:   1.86 kB │ map:    15.74 kB
+@ngfw/web:build: dist/assets/LdpTab-CDMAviWT.js                     4.50 kB │ gzip:   1.55 kB │ map:    14.54 kB
+@ngfw/web:build: dist/assets/queries-n-mkTHcG.js                    4.52 kB │ gzip:   2.06 kB │ map:    19.76 kB
+@ngfw/web:build: dist/assets/LicensingPage-D1n1xcBi.js              4.63 kB │ gzip:   1.68 kB │ map:    14.41 kB
+@ngfw/web:build: dist/assets/AutoBlockPage-CC9VdszJ.js              4.65 kB │ gzip:   1.85 kB │ map:    16.31 kB
+@ngfw/web:build: dist/assets/model-DDtTmz8u.js                      4.68 kB │ gzip:   1.94 kB │ map:    24.17 kB
+@ngfw/web:build: dist/assets/CgnatTab-yf-QvFm9.js                   4.89 kB │ gzip:   1.59 kB │ map:    15.12 kB
+@ngfw/web:build: dist/assets/SystemIdentityPage-hD4alPzu.js         4.89 kB │ gzip:   1.92 kB │ map:    16.53 kB
+@ngfw/web:build: dist/assets/VrfsPage-BB7vkbr-.js                   4.99 kB │ gzip:   2.19 kB │ map:    15.83 kB
+@ngfw/web:build: dist/assets/NeighborsTab-BvaR89n1.js               5.20 kB │ gzip:   2.06 kB │ map:    16.44 kB
+@ngfw/web:build: dist/assets/NatPage-CF6v9kez.js                    5.30 kB │ gzip:   1.57 kB │ map:     5.93 kB
+@ngfw/web:build: dist/assets/schema-utils-DJO1Kz5j.js               5.42 kB │ gzip:   2.22 kB │ map:    22.92 kB
+@ngfw/web:build: dist/assets/AaaPage-BEuIJJ4f.js                    5.42 kB │ gzip:   1.85 kB │ map:    17.56 kB
+@ngfw/web:build: dist/assets/queries-DzLVyQpx.js                    5.60 kB │ gzip:   2.42 kB │ map:    23.43 kB
+@ngfw/web:build: dist/assets/EiTab-CB2ZuKeb.js                      5.79 kB │ gzip:   2.43 kB │ map:    20.29 kB
+@ngfw/web:build: dist/assets/LispTab-B01-iLIG.js                    5.86 kB │ gzip:   2.51 kB │ map:    21.22 kB
+@ngfw/web:build: dist/assets/HostStackTab-D6hZA4m-.js               5.89 kB │ gzip:   2.07 kB │ map:    21.17 kB
+@ngfw/web:build: dist/assets/model-BkJKVYDG.js                      6.08 kB │ gzip:   2.58 kB │ map:    30.86 kB
+@ngfw/web:build: dist/assets/SessionsTab-gXrfaydf.js                6.11 kB │ gzip:   2.41 kB │ map:    20.05 kB
+@ngfw/web:build: dist/assets/MplsPage-Ceek2hqi.js                   6.14 kB │ gzip:   2.38 kB │ map:    16.86 kB
+@ngfw/web:build: dist/assets/CapturePage-DZYKcyTU.js                6.15 kB │ gzip:   2.46 kB │ map:    22.38 kB
+@ngfw/web:build: dist/assets/TablePagination-iPobJX9u.js            6.36 kB │ gzip:   2.42 kB │ map:    38.91 kB
+@ngfw/web:build: dist/assets/InterfacesPage-BbeAPQlm.js             7.10 kB │ gzip:   2.88 kB │ map:    22.62 kB
+@ngfw/web:build: dist/assets/LoggingTab-DRnIle4I.js                 7.20 kB │ gzip:   2.89 kB │ map:    24.62 kB
+@ngfw/web:build: dist/assets/ObjectsPage-CCR_VI1R.js                7.28 kB │ gzip:   3.19 kB │ map:    24.94 kB
+@ngfw/web:build: dist/assets/NtpTab-CDkyFLEg.js                     7.59 kB │ gzip:   3.10 kB │ map:    40.37 kB
+@ngfw/web:build: dist/assets/RaVpnPage-Cy_aHEW7.js                  7.60 kB │ gzip:   3.06 kB │ map:    27.63 kB
+@ngfw/web:build: dist/assets/BackupRestorePage-dsjMHPZ8.js          7.67 kB │ gzip:   3.21 kB │ map:    27.25 kB
+@ngfw/web:build: dist/assets/DnsTab-C6rkMZ1-.js                     7.72 kB │ gzip:   2.92 kB │ map:    26.80 kB
+@ngfw/web:build: dist/assets/PkiInventoryPanel-DYa9veU5.js          7.84 kB │ gzip:   2.86 kB │ map:    29.72 kB
+@ngfw/web:build: dist/assets/BfdRedistributionPage-D2Mw0wd4.js      7.94 kB │ gzip:   2.89 kB │ map:    27.47 kB
+@ngfw/web:build: dist/assets/StaticRoutesTab-D4RRwzpO.js            8.34 kB │ gzip:   3.65 kB │ map:    40.99 kB
+@ngfw/web:build: dist/assets/RevisionsPage-CjQUlEHr.js              8.47 kB │ gzip:   3.49 kB │ map:    29.18 kB
+@ngfw/web:build: dist/assets/PbrPage-BSuREYl4.js                    8.47 kB │ gzip:   2.82 kB │ map:    30.07 kB
+@ngfw/web:build: dist/assets/NeighborsPage-Dz0WDr9R.js              8.64 kB │ gzip:   3.57 kB │ map:    33.54 kB
+@ngfw/web:build: dist/assets/DataplanePage-C-Dz8lAK.js              8.89 kB │ gzip:   2.94 kB │ map:    31.76 kB
+@ngfw/web:build: dist/assets/LbPage-EaJl_Cf6.js                     8.98 kB │ gzip:   3.41 kB │ map:    36.25 kB
+@ngfw/web:build: dist/assets/ProtocolForm-nJCK4yz_.js               9.16 kB │ gzip:   3.78 kB │ map:    22.87 kB
+@ngfw/web:build: dist/assets/HaPage-CF-lQtD0.js                     9.60 kB │ gzip:   3.04 kB │ map:    34.06 kB
+@ngfw/web:build: dist/assets/SnmpTab-CFdAzjXB.js                    9.72 kB │ gzip:   2.99 kB │ map:    35.23 kB
+@ngfw/web:build: dist/assets/parts-ldzNnXS3.js                     10.65 kB │ gzip:   3.73 kB │ map:    51.89 kB
+@ngfw/web:build: dist/assets/AdvancedEditorPage-DxT8bo0X.js        11.00 kB │ gzip:   4.54 kB │ map:    53.92 kB
+@ngfw/web:build: dist/assets/ImportDialog-0fEIk79N.js              11.28 kB │ gzip:   4.13 kB │ map:    44.73 kB
+@ngfw/web:build: dist/assets/UsersPage-BA_hWTvk.js                 12.50 kB │ gzip:   4.32 kB │ map:    45.09 kB
+@ngfw/web:build: dist/assets/IpsecPage-BuFU1eM9.js                 12.83 kB │ gzip:   4.52 kB │ map:    49.78 kB
+@ngfw/web:build: dist/assets/FlowExportTab-Cnrr15Mq.js             12.89 kB │ gzip:   4.05 kB │ map:    49.43 kB
+@ngfw/web:build: dist/assets/GlobalBlockingPage-CFxah_6d.js        13.33 kB │ gzip:   4.85 kB │ map:    47.73 kB
+@ngfw/web:build: dist/assets/InterfaceDrawer-DuZ1Gr1w.js           13.86 kB │ gzip:   5.00 kB │ map:    56.53 kB
+@ngfw/web:build: dist/assets/WireguardPage-BzMB0RvF.js             14.06 kB │ gzip:   5.09 kB │ map:    54.10 kB
+@ngfw/web:build: dist/assets/BondsPage-DwE0jCvU.js                 14.62 kB │ gzip:   5.45 kB │ map:    53.71 kB
+@ngfw/web:build: dist/assets/HostAclPage-CcxV8hAJ.js               15.38 kB │ gzip:   4.86 kB │ map:    56.67 kB
+@ngfw/web:build: dist/assets/Tab-1JKfy3cO.js                       15.82 kB │ gzip:   5.51 kB │ map:    79.01 kB
+@ngfw/web:build: dist/assets/SetupWizardPage-_FO6GbK2.js           16.27 kB │ gzip:   5.56 kB │ map:    74.09 kB
+@ngfw/web:build: dist/assets/BridgingPage-CNauw4Eg.js              17.45 kB │ gzip:   5.76 kB │ map:    65.89 kB
+@ngfw/web:build: dist/assets/TunnelsPage-MYXNP9rO.js               20.83 kB │ gzip:   8.06 kB │ map:   101.33 kB
+@ngfw/web:build: dist/assets/Srv6Page-DvLhunR0.js                  21.59 kB │ gzip:   6.40 kB │ map:    84.24 kB
+@ngfw/web:build: dist/assets/DhcpPage-BnYt1tox.js                  23.23 kB │ gzip:   6.95 kB │ map:    90.91 kB
+@ngfw/web:build: dist/assets/Autocomplete-BwM1f2Qe.js              25.70 kB │ gzip:   9.00 kB │ map:   137.56 kB
+@ngfw/web:build: dist/assets/DashboardPage-DXkKO8YH.js             26.43 kB │ gzip:   8.60 kB │ map:    94.72 kB
+@ngfw/web:build: dist/assets/QosPage-DzCc2AD2.js                   30.60 kB │ gzip:   9.30 kB │ map:   122.28 kB
+@ngfw/web:build: dist/assets/AclPage-FZZi2k7t.js                   41.01 kB │ gzip:  11.13 kB │ map:   153.71 kB
+@ngfw/web:build: dist/assets/SchemaForm-pvopZi44.js               125.58 kB │ gzip:  41.65 kB │ map:   590.99 kB
+@ngfw/web:build: dist/assets/ServerDataGrid-ClrMyqjk.js           429.90 kB │ gzip: 130.32 kB │ map: 2,217.74 kB
+@ngfw/web:build: dist/assets/index-CwMbz_Od.js                  1,768.42 kB │ gzip: 534.45 kB │ map: 5,902.73 kB
+@ngfw/web:build: 
+@ngfw/web:build: (!) Some chunks are larger than 500 kB after minification. Consider:
+@ngfw/web:build: - Using dynamic import() to code-split the application
+@ngfw/web:build: - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+@ngfw/web:build: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+@ngfw/web:build: ✓ built in 28.88s
+@ngfw/web:build: bundle-budget: gzipped sizes (I = loaded on first paint, L = lazy route/vendor chunk)
+@ngfw/web:build:   I    521.2 kB  (raw  1727.0 kB)  assets/index-CwMbz_Od.js
+@ngfw/web:build:   L    127.0 kB  (raw   419.8 kB)  assets/ServerDataGrid-ClrMyqjk.js
+@ngfw/web:build:   L     40.7 kB  (raw   122.6 kB)  assets/SchemaForm-pvopZi44.js
+@ngfw/web:build:   L     10.8 kB  (raw    40.0 kB)  assets/AclPage-FZZi2k7t.js
+@ngfw/web:build:   L      9.1 kB  (raw    29.9 kB)  assets/QosPage-DzCc2AD2.js
+@ngfw/web:build:   L      8.8 kB  (raw    25.1 kB)  assets/Autocomplete-BwM1f2Qe.js
+@ngfw/web:build:   L      8.4 kB  (raw    25.8 kB)  assets/DashboardPage-DXkKO8YH.js
+@ngfw/web:build:   L      7.9 kB  (raw    20.3 kB)  assets/TunnelsPage-MYXNP9rO.js
+@ngfw/web:build:   L      6.8 kB  (raw    22.7 kB)  assets/DhcpPage-BnYt1tox.js
+@ngfw/web:build:   L      6.2 kB  (raw    21.1 kB)  assets/Srv6Page-DvLhunR0.js
+@ngfw/web:build:   L      5.6 kB  (raw    17.0 kB)  assets/BridgingPage-CNauw4Eg.js
+@ngfw/web:build:   L      5.4 kB  (raw    15.9 kB)  assets/SetupWizardPage-_FO6GbK2.js
+@ngfw/web:build:   L      5.4 kB  (raw    15.4 kB)  assets/Tab-1JKfy3cO.js
+@ngfw/web:build:   L      5.3 kB  (raw    14.3 kB)  assets/BondsPage-DwE0jCvU.js
+@ngfw/web:build:   L      5.0 kB  (raw    13.7 kB)  assets/WireguardPage-BzMB0RvF.js
+@ngfw/web:build:   L      4.9 kB  (raw    13.5 kB)  assets/InterfaceDrawer-DuZ1Gr1w.js
+@ngfw/web:build:   L      4.7 kB  (raw    15.0 kB)  assets/HostAclPage-CcxV8hAJ.js
+@ngfw/web:build:   L      4.7 kB  (raw    13.0 kB)  assets/GlobalBlockingPage-CFxah_6d.js
+@ngfw/web:build:   L      4.4 kB  (raw    10.7 kB)  assets/AdvancedEditorPage-DxT8bo0X.js
+@ngfw/web:build:   L      4.4 kB  (raw    12.5 kB)  assets/IpsecPage-BuFU1eM9.js
+@ngfw/web:build:   L      4.2 kB  (raw    12.2 kB)  assets/UsersPage-BA_hWTvk.js
+@ngfw/web:build:   L      4.0 kB  (raw    11.0 kB)  assets/ImportDialog-0fEIk79N.js
+@ngfw/web:build:   L      3.9 kB  (raw    12.6 kB)  assets/FlowExportTab-Cnrr15Mq.js
+@ngfw/web:build:   L      3.7 kB  (raw     8.9 kB)  assets/ProtocolForm-nJCK4yz_.js
+@ngfw/web:build:   L      3.6 kB  (raw    10.4 kB)  assets/parts-ldzNnXS3.js
+@ngfw/web:build:   L      3.6 kB  (raw     8.1 kB)  assets/StaticRoutesTab-D4RRwzpO.js
+@ngfw/web:build:   L      3.5 kB  (raw     8.4 kB)  assets/NeighborsPage-Dz0WDr9R.js
+@ngfw/web:build:   L      3.4 kB  (raw     8.3 kB)  assets/RevisionsPage-CjQUlEHr.js
+@ngfw/web:build:   L      3.3 kB  (raw     8.8 kB)  assets/LbPage-EaJl_Cf6.js
+@ngfw/web:build:   L      3.1 kB  (raw     7.5 kB)  assets/BackupRestorePage-dsjMHPZ8.js
+@ngfw/web:build:   L      3.1 kB  (raw     7.1 kB)  assets/ObjectsPage-CCR_VI1R.js
+@ngfw/web:build:   L      3.0 kB  (raw     7.4 kB)  assets/NtpTab-CDkyFLEg.js
+@ngfw/web:build:   L      3.0 kB  (raw     7.4 kB)  assets/RaVpnPage-Cy_aHEW7.js
+@ngfw/web:build:   L      3.0 kB  (raw     9.4 kB)  assets/HaPage-CF-lQtD0.js
+@ngfw/web:build:   L      2.9 kB  (raw     9.5 kB)  assets/SnmpTab-CFdAzjXB.js
+@ngfw/web:build:   L      2.9 kB  (raw     8.7 kB)  assets/DataplanePage-C-Dz8lAK.js
+@ngfw/web:build:   L      2.8 kB  (raw     7.5 kB)  assets/DnsTab-C6rkMZ1-.js
+@ngfw/web:build:   L      2.8 kB  (raw     7.0 kB)  assets/LoggingTab-DRnIle4I.js
+@ngfw/web:build:   L      2.8 kB  (raw     7.8 kB)  assets/BfdRedistributionPage-D2Mw0wd4.js
+@ngfw/web:build:   L      2.8 kB  (raw     6.9 kB)  assets/InterfacesPage-BbeAPQlm.js
+@ngfw/web:build:   L      2.8 kB  (raw     7.7 kB)  assets/PkiInventoryPanel-DYa9veU5.js
+@ngfw/web:build:   L      2.8 kB  (raw     8.3 kB)  assets/PbrPage-BSuREYl4.js
+@ngfw/web:build:   L      2.5 kB  (raw     5.9 kB)  assets/model-BkJKVYDG.js
+@ngfw/web:build:   L      2.5 kB  (raw     5.7 kB)  assets/LispTab-B01-iLIG.js
+@ngfw/web:build:   L      2.4 kB  (raw     6.0 kB)  assets/CapturePage-DZYKcyTU.js
+@ngfw/web:build:   L      2.4 kB  (raw     5.7 kB)  assets/EiTab-CB2ZuKeb.js
+@ngfw/web:build:   L      2.4 kB  (raw     5.5 kB)  assets/queries-DzLVyQpx.js
+@ngfw/web:build:   L      2.4 kB  (raw     6.2 kB)  assets/TablePagination-iPobJX9u.js
+@ngfw/web:build:   L      2.4 kB  (raw     6.0 kB)  assets/SessionsTab-gXrfaydf.js
+@ngfw/web:build:   L      2.3 kB  (raw     6.0 kB)  assets/MplsPage-Ceek2hqi.js
+@ngfw/web:build:   L      2.2 kB  (raw     5.3 kB)  assets/schema-utils-DJO1Kz5j.js
+@ngfw/web:build:   L      2.1 kB  (raw     4.9 kB)  assets/VrfsPage-BB7vkbr-.js
+@ngfw/web:build:   L      2.0 kB  (raw     5.8 kB)  assets/HostStackTab-D6hZA4m-.js
+@ngfw/web:build:   L      2.0 kB  (raw     5.1 kB)  assets/NeighborsTab-BvaR89n1.js
+@ngfw/web:build:   L      2.0 kB  (raw     4.4 kB)  assets/queries-n-mkTHcG.js
+@ngfw/web:build:   L      1.9 kB  (raw     4.6 kB)  assets/model-DDtTmz8u.js
+@ngfw/web:build:   L      1.9 kB  (raw     4.8 kB)  assets/SystemIdentityPage-hD4alPzu.js
+@ngfw/web:build:   L      1.8 kB  (raw     4.1 kB)  assets/TlsTab-JRLNwWqM.js
+@ngfw/web:build:   L      1.8 kB  (raw     4.4 kB)  assets/UpgradePage-CfFV4_ak.js
+@ngfw/web:build:   L      1.8 kB  (raw     4.4 kB)  assets/MirroringPage-1DzfR192.js
+@ngfw/web:build:   L      1.8 kB  (raw     4.5 kB)  assets/AutoBlockPage-CC9VdszJ.js
+@ngfw/web:build:   L      1.8 kB  (raw     5.3 kB)  assets/AaaPage-BEuIJJ4f.js
+@ngfw/web:build:   L      1.8 kB  (raw     3.9 kB)  assets/FibTab-C5A8YtlQ.js
+@ngfw/web:build:   L      1.8 kB  (raw     4.2 kB)  assets/AdlPage-DDrWJXi7.js
+@ngfw/web:build:   L      1.8 kB  (raw     3.8 kB)  assets/model-CsVDMI_s.js
+@ngfw/web:build:   L      1.7 kB  (raw     3.9 kB)  assets/LldpPage-BzKNkVzo.js
+@ngfw/web:build:   L      1.6 kB  (raw     3.3 kB)  assets/RecordEditor-BDkL1ZN0.js
+@ngfw/web:build:   L      1.6 kB  (raw     4.5 kB)  assets/LicensingPage-D1n1xcBi.js
+@ngfw/web:build:   L      1.6 kB  (raw     3.3 kB)  assets/ListSection-BFz8lMX0.js
+@ngfw/web:build:   L      1.6 kB  (raw     4.2 kB)  assets/IsisRipPage-CnLqtgjo.js
+@ngfw/web:build:   L      1.6 kB  (raw     3.9 kB)  assets/NotificationsTab-CWjTKh22.js
+@ngfw/web:build:   L      1.6 kB  (raw     3.7 kB)  assets/SrTab-CMkVcoES.js
+@ngfw/web:build:   L      1.5 kB  (raw     4.8 kB)  assets/CgnatTab-yf-QvFm9.js
+@ngfw/web:build:   L      1.5 kB  (raw     5.2 kB)  assets/NatPage-CF6v9kez.js
+@ngfw/web:build:   L      1.5 kB  (raw     3.0 kB)  assets/TunnelsTab-Df6TrKaF.js
+@ngfw/web:build:   L      1.5 kB  (raw     4.4 kB)  assets/LdpTab-CDMAviWT.js
+@ngfw/web:build:   L      1.5 kB  (raw     2.9 kB)  assets/model-7o4MMTyJ.js
+@ngfw/web:build:   L      1.5 kB  (raw     3.2 kB)  assets/OutboundTab-DbBCU6_C.js
+@ngfw/web:build:   L      1.5 kB  (raw     3.2 kB)  assets/Nat64Tab-DwgtGVR3.js
+@ngfw/web:build:   L      1.4 kB  (raw     2.8 kB)  assets/FibTab-CXAvChBE.js
+@ngfw/web:build:   L      1.4 kB  (raw     3.0 kB)  assets/queries-BDKRy40c.js
+@ngfw/web:build:   L      1.4 kB  (raw     3.9 kB)  assets/OspfPage-XhlWz3iL.js
+@ngfw/web:build:   L      1.4 kB  (raw     2.6 kB)  assets/Nat46Tab-B7tXZNaf.js
+@ngfw/web:build:   L      1.3 kB  (raw     3.3 kB)  assets/LabelRoutesTab-DXuY5bl9.js
+@ngfw/web:build:   L      1.3 kB  (raw     3.1 kB)  assets/queries-tCKIEhaA.js
+@ngfw/web:build:   L      1.3 kB  (raw     2.8 kB)  assets/useMpls-Uab5LnB0.js
+@ngfw/web:build:   L      1.3 kB  (raw     2.7 kB)  assets/PoolsTab-wqMT78Mt.js
+@ngfw/web:build:   L      1.3 kB  (raw     2.8 kB)  assets/TableCell-eLW8bPhk.js
+@ngfw/web:build:   L      1.3 kB  (raw     2.9 kB)  assets/AlarmsPage-CJYIOyxW.js
+@ngfw/web:build:   L      1.3 kB  (raw     3.0 kB)  assets/MappingsTab-DzS_9sbY.js
+@ngfw/web:build:   L      1.2 kB  (raw     3.0 kB)  assets/WanGroupsPage-B3mYONzF.js
+@ngfw/web:build:   L      1.2 kB  (raw     4.0 kB)  assets/MulticastPage-B_QnBgyW.js
+@ngfw/web:build:   L      1.2 kB  (raw     2.4 kB)  assets/PolicyTab-DjLtSS9N.js
+@ngfw/web:build:   L      1.2 kB  (raw     2.0 kB)  assets/SubtreeForm-COKTr3Wn.js
+@ngfw/web:build:   L      1.2 kB  (raw     3.1 kB)  assets/ToggleButton-C9rCF12U.js
+@ngfw/web:build:   L      1.2 kB  (raw     2.6 kB)  assets/queries-ZOuSxpzG.js
+@ngfw/web:build:   L      1.2 kB  (raw     2.5 kB)  assets/ObjectPicker-D5W5sRE0.js
+@ngfw/web:build:   L      1.2 kB  (raw     2.4 kB)  assets/PingTab-Bx7zx-4r.js
+@ngfw/web:build:   L      1.1 kB  (raw     2.9 kB)  assets/TableRow-C49H4rAx.js
+@ngfw/web:build:   L      1.1 kB  (raw     2.6 kB)  assets/RestconfYangPage-D6pdFtIu.js
+@ngfw/web:build:   L      1.1 kB  (raw     2.2 kB)  assets/NsimPage-KtetysKR.js
+@ngfw/web:build:   L      1.1 kB  (raw     2.1 kB)  assets/model-Ccxoa-Nh.js
+@ngfw/web:build:   L      1.1 kB  (raw     2.9 kB)  assets/ServicesPage-Dn61Fsvx.js
+@ngfw/web:build:   L      1.0 kB  (raw     2.3 kB)  assets/CnatTab-B84Cij5h.js
+@ngfw/web:build:   L      1.0 kB  (raw     2.0 kB)  assets/ListEditor-1FAe7S-X.js
+@ngfw/web:build:   L      1.0 kB  (raw     2.2 kB)  assets/Nat66Tab-DGc5SyTs.js
+@ngfw/web:build:   L      1.0 kB  (raw     1.9 kB)  assets/model-CopsWM-M.js
+@ngfw/web:build:   L      1.0 kB  (raw     1.9 kB)  assets/InputAdornment-CrLo2MlP.js
+@ngfw/web:build:   L      0.9 kB  (raw     2.0 kB)  assets/schemaPath-Dl5ITwX4.js
+@ngfw/web:build:   L      0.9 kB  (raw     2.2 kB)  assets/VpnPage-BLTaElxo.js
+@ngfw/web:build:   L      0.9 kB  (raw     2.0 kB)  assets/Nptv6Tab-BnRgN5Ud.js
+@ngfw/web:build:   L      0.9 kB  (raw     2.0 kB)  assets/BgpPage-Dw-zqPaS.js
+@ngfw/web:build:   L      0.8 kB  (raw     1.9 kB)  assets/RoutingPage-CszbxjnS.js
+@ngfw/web:build:   L      0.8 kB  (raw     2.0 kB)  assets/ManagementPage-PR7Uq1fj.js
+@ngfw/web:build:   L      0.8 kB  (raw     1.4 kB)  assets/InterfacesTab-yaHgBI9r.js
+@ngfw/web:build:   L      0.8 kB  (raw     1.9 kB)  assets/queries-qK0lk5CW.js
+@ngfw/web:build:   L      0.8 kB  (raw     1.3 kB)  assets/SubtreeForm-DdWdtwBC.js
+@ngfw/web:build:   L      0.7 kB  (raw     1.2 kB)  assets/AlarmsCard-CCqbpFd8.js
+@ngfw/web:build:   L      0.6 kB  (raw     1.1 kB)  assets/common-C3JFvtDM.js
+@ngfw/web:build:   L      0.6 kB  (raw     1.1 kB)  assets/api-Cq2B6I_M.js
+@ngfw/web:build:   L      0.6 kB  (raw     0.9 kB)  assets/DomainTabsPage-BLLYH0xx.js
+@ngfw/web:build:   L      0.6 kB  (raw     1.0 kB)  assets/DomainPlaceholderPage-DNQwt8YA.js
+@ngfw/web:build:   L      0.5 kB  (raw     0.9 kB)  assets/rates-2HGRhLaV.js
+@ngfw/web:build:   L      0.5 kB  (raw     1.2 kB)  assets/queries-hLOhY4iP.js
+@ngfw/web:build:   L      0.5 kB  (raw     1.0 kB)  assets/queries-wMxSa0EG.js
+@ngfw/web:build:   L      0.5 kB  (raw     0.8 kB)  assets/PnatTab-BVFE1VX6.js
+@ngfw/web:build:   L      0.5 kB  (raw     0.8 kB)  assets/MapTab-3jtHJarE.js
+@ngfw/web:build:   L      0.4 kB  (raw     0.7 kB)  assets/TableHead-U-ogkAdZ.js
+@ngfw/web:build:   L      0.4 kB  (raw     0.6 kB)  assets/ExpiryChip-fL9Xfx_I.js
+@ngfw/web:build:   L      0.4 kB  (raw     0.7 kB)  assets/queries-D3GdtYBe.js
+@ngfw/web:build:   L      0.4 kB  (raw     0.6 kB)  assets/TableContainer-yXC9lIwa.js
+@ngfw/web:build:   L      0.4 kB  (raw     0.6 kB)  assets/RoutingObjectsPage-pFQe3DrN.js
+@ngfw/web:build:   L      0.3 kB  (raw     0.4 kB)  assets/PathsView-HoenqJ3W.js
+@ngfw/web:build:   L      0.3 kB  (raw     0.3 kB)  assets/AaaTab-BiN5H1gl.js
+@ngfw/web:build:   L      0.3 kB  (raw     0.3 kB)  assets/StatusChip-ytCMBKx9.js
+@ngfw/web:build:   L      0.3 kB  (raw     0.3 kB)  assets/Refresh-BiKMg8Y9.js
+@ngfw/web:build:   L      0.3 kB  (raw     0.3 kB)  assets/DeleteForever-c0h7UO5I.js
+@ngfw/web:build:   L      0.2 kB  (raw     0.3 kB)  assets/UploadFile-BQMXKv-I.js
+@ngfw/web:build:   L      0.2 kB  (raw     0.3 kB)  assets/Key-BdwD6rI0.js
+@ngfw/web:build:   L      0.2 kB  (raw     0.2 kB)  assets/Delete-D2F5xfDV.js
+@ngfw/web:build:   L      0.2 kB  (raw     0.2 kB)  assets/Close-C9Kl13Vx.js
+@ngfw/web:build:   L      0.2 kB  (raw     0.2 kB)  assets/Download-CvUki_GS.js
+@ngfw/web:build: bundle-budget: initial   521.2 kB gzipped of   600.0 kB budget; 141 lazy chunk(s)
+@ngfw/web:build: bundle-budget: OK
+@ngfw/web:build: check-no-dev-routes: OK (143 files, no /dev routes, dev nav or demo chunks)
+
+ Tasks:    14 successful, 14 total
+Cached:    7 cached, 14 total
+  Time:    2m15.407s 
+

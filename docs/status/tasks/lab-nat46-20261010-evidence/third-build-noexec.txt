@@ -1,0 +1,3 @@
+fork/exec /tmp/g-w17/go-build3489599260/b001/nat46.test: permission denied
+FAIL	ngfw/agent/internal/descriptors/nat46	0.001s
+FAIL

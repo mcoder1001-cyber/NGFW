@@ -1,0 +1,153 @@
+DISPOSABLE_VPP pid=460534 runtime=/tmp/ngfw-lab-nat46-20261010-250/.scratch/isolated-vpp-460532
+13:13:23 shared lab lock held (fd 9)
+13:13:23 === step 0: host facts (run start 2026-10-10T13:13:23+03:30, slot 17 prefix w17, path: af_packet) ===
+13:13:23 NRestarts before: NRestarts=0
+13:13:23 load: 0.51 0.33 0.26
+13:13:23 vpp: vpp v26.06-release+ngfw3 built by root on ubuntu-26.04 at 2026-06-21T14:02:56
+13:13:23 map plugin:  41. map_plugin.so                            26.06-release+ngfw3              Mapping of Address and Port (MAP)
+13:13:23 map domains of w17 before: 0
+13:13:23 === step 1: TestNat46OnHost (descriptor level, NGFW_INTEGRATION=1, shared lab lock) ===
+13:13:23 NRestarts before step 1: NRestarts=0
+13:13:24 vppctl show map domain (ours, while the test holds the domain):
+[0] tag {w17:nat46-w17-web} ip4-pfx 10.17.46.10/32 ip6-pfx fd00:11::4610/128 ip6-src fd00:11:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 1500 
+13:13:24 vppctl show map domain index <ours> counters:
+[0] tag {w17:nat46-w17-web} ip4-pfx 10.17.46.10/32 ip6-pfx fd00:11::4610/128 ip6-src fd00:11:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 1500   TX: 0/0  RX: 0/0
+13:13:24 interfaces with map-t (show interface features, ours):
+  ip6-map-t
+  ip4-map-t
+13:13:25 go test rc=0:
+=== RUN   TestNat46OnHost
+    nat46_integration_test.go:46: plan for map.domain after re-apply: empty (1 objects converged)
+    nat46_integration_test.go:48: plan for map.interface after re-apply: empty (2 objects converged)
+    nat46_integration_test.go:50: NAT46 domain accepted: 10.17.46.10 → fd00:11::4610 (IPv4 client 192.0.2.33 appears as fd00:11:4646::c000:221)
+    nat46_integration_test.go:55: plan for map.domain after re-apply: empty (0 objects converged)
+    nat46_integration_test.go:56: plan for map.interface after re-apply: empty (0 objects converged)
+--- PASS: TestNat46OnHost (1.36s)
+PASS
+13:13:25 map domains of w17 after the test: 0
+13:13:25 NRestarts after step 1: NRestarts=0
+13:13:25 === step 2: rig up w17 (af_packet) + IPv6-only server side ===
+13:13:25 NRestarts before step 2: NRestarts=0
+rig up w17 (slot 17, path af_packet, VPP /run/vpp/cli.sock)
+  create netns ns-w17-lan
+  create veth w17l0 <-> ns-w17-lan:w17l1
+warning: rig: could not disable tx offload on ns-w17-lan:w17l1
+  create vpp host-w17l0 (af_packet on w17l0)
+  reset  ip/ip6 classify host-w17l0 (table-index ~0)
+  set    addr host-w17l0 10.17.1.1/24
+  create netns ns-w17-wan
+  create veth w17w0 <-> ns-w17-wan:w17w1
+warning: rig: could not disable tx offload on ns-w17-wan:w17w1
+  create vpp host-w17w0 (af_packet on w17w0)
+  reset  ip/ip6 classify host-w17w0 (table-index ~0)
+  set    addr host-w17w0 10.17.2.1/24
+rig: up
+prefix: w17
+slot: 17
+path: af_packet
+lan_ns: ns-w17-lan
+lan_veth: w17l1
+lan_ip: 10.17.1.2/24
+lan_gw: 10.17.1.1
+vpp_lan_if: host-w17l0
+vpp_lan_addr: 10.17.1.1/24 
+wan_ns: ns-w17-wan
+wan_veth: w17w1
+wan_ip: 10.17.2.2/24
+wan_gw: 10.17.2.1
+vpp_wan_if: host-w17w0
+vpp_wan_addr: 10.17.2.1/24 
+ping: ip netns exec ns-w17-lan ping -c 3 10.17.2.2
+13:13:29 ns ns-w17-wan: inet6 fd00:11:2::46/64 scope global nodad · route: fd00:11:4646::/96 via fd00:11:2::1 dev w17w1 metric 1024 pref medium
+13:13:29 ns ns-w17-lan: inet 10.17.1.2/24 scope global w17l1 · route: default via 10.17.1.1 dev w17l1
+handoff: removed unowned VPP host-w17l0 index1; Linux veth retained
+handoff: removed unowned VPP host-w17w0 index2; Linux veth retained
+13:13:29 NRestarts after step 2: NRestarts=0
+13:13:29 === step 3: agent apply nat.nat46 → Retrieve == canonical, idempotent re-apply, vppctl show map domain ===
+13:13:29 NRestarts before step 3: NRestarts=0
+13:13:29 agent started pid 461008
+13:13:31 apply full.json: {"txnId":"nat46-1","status":"APPLY_STATUS_APPLIED","results":[{"key":"af-packet.host-interface/host-w17l0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"af-packet.host-interface/host-w17w0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface/host-w17l0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface-ip/host-w17l0/10.17.1.1/24","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface.admin-state/host-w17l0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface/host-w17w0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface-ip/host-w17w0/10.17.2.1/24","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface-ip/host-w17w0/fd00:11:2::1/64","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"ip.route/0/fd00:11:46::/64","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface.admin-state/host-w17w0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"map.domain/nat46-web","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"map.interface/host-w17l0/map-t","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"map.interface/host-w17w0/map-t","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"}],"errors":null}
+13:13:31 Retrieve nat: {"nat46":{"clientPrefix":"fd00:11:4646::/96","interfaces":["host-w17l0","host-w17w0"],"mappings":[{"ipv4":"10.17.46.10","ipv6":"fd00:11:46::a11:2e0a","name":"web"}]}}
+13:13:31 canonical  : {"nat46":{"clientPrefix":"fd00:11:4646::/96","interfaces":["host-w17l0","host-w17w0"],"mappings":[{"ipv4":"10.17.46.10","ipv6":"fd00:11:46::a11:2e0a","name":"web"}]}}
+13:13:31 Retrieve == canonical: OK
+13:13:31 re-apply full.json: {"status":"APPLY_STATUS_APPLIED","results":null}
+V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+13:13:31 vppctl show map domain (ours):
+[0] tag {w17:nat46-web} ip4-pfx 10.17.46.10/32 ip6-pfx fd00:11:46::/64 ip6-src fd00:11:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 0 
+13:13:32 vppctl show ip6 fib fd00:11:46::/64 (owned server route before packets):
+ipv6-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, ]
+fd00:11:46::/64 fib:0 index:7 locks:2
+  API refs:1 src-flags:added,contributing,active,
+    path-list:[16] locks:2 flags:shared, uPRF-list:31 len:1 itfs:[1, ]
+      path:[28] pl-index:16 ip6 weight=1 pref=0 attached-nexthop:  oper-flags:resolved,
+        fd00:11:2::46 host-w17w0
+      [@0]: arp-ipv6: via fd00:11:2::46 host-w17w0
+
+ forwarding:   unicast-ip6-chain
+  [@0]: dpo-load-balance: [proto:ip6 index:9 buckets:1 uRPF:31 to:[0:0]]
+    [0] [@3]: arp-ipv6: via fd00:11:2::46 host-w17w0
+13:13:32 vppctl show interface features host-w17l0 / host-w17w0 (map-t):
+  host-w17l0   ip6-map-t
+  host-w17l0   ip4-map-t
+  host-w17w0   ip6-map-t
+  host-w17w0   ip4-map-t
+13:13:32 vppctl show interface addr (ours):
+host-w17w0 (up):
+  L3 10.17.2.1/24
+  L3 fd00:11:2::1/64
+13:13:32 NRestarts after step 3: NRestarts=0
+13:13:32 === step 4: packet test IPv4 client 10.17.1.2 → 10.17.46.10:11746 ⇒ IPv6-only server [fd00:11:46::a11:2e0a]:11746 (path: af_packet) ===
+13:13:32 NRestarts before step 4: NRestarts=0
+13:13:33 ping 10.17.46.10 from ns-w17-lan (ICMP → ICMPv6 → ICMP):
+13:13:37 PING 10.17.46.10 (10.17.46.10) 56(84) bytes of data.
+64 bytes from 10.17.46.10: icmp_seq=1 ttl=63 time=2.11 ms
+64 bytes from 10.17.46.10: icmp_seq=2 ttl=63 time=0.843 ms
+64 bytes from 10.17.46.10: icmp_seq=3 ttl=63 time=0.707 ms
+
+--- 10.17.46.10 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+rtt min/avg/max/mdev = 0.707/1.221/2.113/0.633 ms
+13:13:43 FAIL: IPv4-to-IPv6 TCP failed: Traceback (most recent call last):
+  File "/run/ngfw-test/w17/nat46/client4.py", line 6, in <module>
+    c.connect((sys.argv[3], int(sys.argv[4])))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+13:13:43 === cleanup ===
+13:13:43 owned object cleanup: {
+  "txnId": "nat46-cleanup",
+  "status": "APPLY_STATUS_APPLIED",
+  "results": [
+    {
+      "key": "map.interface/host-w17w0/map-t",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "nat"
+    },
+    {
+      "key": "map.interface/host-w17l0/map-t",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "nat"
+    },
+    {
+      "key": "map.domain/nat46-web",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "nat"
+    },
+    {
+      "key": "ip.route/0/fd00:11:46::/64",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "routing"
+    }
+  ],
+  "summary": {
+    "deleted": 4
+  },
+  "appliedAt": "2026-10-10T09:43:43.468735258Z"
+}
+13:13:46 leftover map domains of w17: 0 · rig: 
+13:13:46 NRestarts after cleanup: NRestarts=0
+13:13:46 run end 2026-10-10T13:13:46+03:30
+DISPOSABLE_VPP_STOPPED pid=460534

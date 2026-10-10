@@ -11,6 +11,7 @@ INVENTORY='ngp-'+hashlib.sha256(b'inventory\0w20').hexdigest()[:12]
 def run(*args,check=True):return subprocess.run(args,check=check,capture_output=True,text=True)
 if len(sys.argv)>1:
  assert os.readlink('/proc/self/ns/net')!=os.environ['NGFW_WAN_HOST_NETNS']
+ assert os.readlink('/proc/self/ns/mnt') not in (os.environ['NGFW_WAN_HOST_MNT'],os.readlink('/proc/1/ns/mnt'))
  processes=[]
  with tempfile.TemporaryDirectory(prefix='native-carrier-',dir=BASE) as directory:
   d=Path(directory);owned_mounts=[]
@@ -105,6 +106,7 @@ exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -tes
   finally:
    # Child-only mounts must be gone before TemporaryDirectory traverses the copied /etc.
    assert os.readlink('/proc/self/ns/net')!=os.environ['NGFW_WAN_HOST_NETNS']
+   assert os.readlink('/proc/self/ns/mnt') not in (os.environ['NGFW_WAN_HOST_MNT'],os.readlink('/proc/1/ns/mnt'))
    for target,mount_id,device,inode in reversed(owned_mounts):
     rows=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
     row=next(row for row in reversed(rows) if row[4]==target)
@@ -144,7 +146,7 @@ try:
  receipt=json.loads(run('python3','-I','/usr/lib/ngfw/pppoe-carrier.py','broker-result',TOKEN,nonce).stdout)
  assert receipt['ok'] and all(receipt[key]==queued[key] for key in ('token','nonce','boot','expires','request_sha256'))
  print('REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS',flush=True)
- env=dict(os.environ,NGFW_WAN_HOST_NETNS=os.readlink('/proc/self/ns/net'),NGFW_WAN_HOST_UTS=host_uts,NGFW_WAN_PEER_PASSWORD=secrets.token_hex(24),NGFW_WAN_NATIVE_CARRIER='1',NGFW_INTEGRATION='1',NGFW_OWNER='w20',NGFW_TEST_PREFIX='w20',NGFW_SLOT='20',NGFW_VPP_ID_RANGE='all')
+ env=dict(os.environ,NGFW_WAN_HOST_MNT=os.readlink('/proc/self/ns/mnt'),NGFW_WAN_HOST_NETNS=os.readlink('/proc/self/ns/net'),NGFW_WAN_HOST_UTS=host_uts,NGFW_WAN_PEER_PASSWORD=secrets.token_hex(24),NGFW_WAN_NATIVE_CARRIER='1',NGFW_INTEGRATION='1',NGFW_OWNER='w20',NGFW_TEST_PREFIX='w20',NGFW_SLOT='20',NGFW_VPP_ID_RANGE='all')
  command=['unshare','--net','--mount','--propagation','private']
  if env.get('NGFW_WAN_FULL_API')=='1':
   sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))

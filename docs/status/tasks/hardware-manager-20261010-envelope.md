@@ -1,5 +1,15 @@
 # Hardware installation task envelope
 
+Owner pause, 2026-10-10 12:28 UTC: "تسکهایی که تا الان دان کردی رو اعلام کن و فعلا تسکت رو متوقف کن".
+Task is explicitly PAUSED. All historical phase releases and next execution
+commands are suspended until explicit owner resume. Workers acknowledged no
+in-flight host mutation; only durable evidence checkpoints are being published.
+Both logical repairs and all11 installed/configured package audits PASS.
+.211 initial service/TLS start PASS but native seed remains revision0/FAIL;
+missing loaded LCP/plugin dependency is observed and no correction applied.
+.37 firstboot is NOT executed. Neither7 nor17 data ports are bound/imported.
+See current paused wip/status for actual state, evidence and resume command.
+
 Owner request (2026-10-10): install NGFW packages on root@172.30.126.37 and
 root@172.30.110.211, test them, preserve management and routing, add the remaining
 physical interfaces, reboot if necessary.

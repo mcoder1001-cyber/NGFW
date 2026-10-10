@@ -1,3 +1,82 @@
+# USER PAUSED — 2026-10-10 12:28 UTC
+
+Owner explicitly requested: list completed tasks and stop the task for now.
+This supersedes every historical execution release and next command below.
+No new target mutation, testing, development, rendering, binding, restart or
+reboot is authorized while paused. Only current evidence/document checkpoints
+are being published; workers have acknowledged no in-flight host mutation.
+
+Completed:
+- BOTH targets: scoped offline ext4 repairs, complete five-pass read-only clean
+  checks, durable off-host raw undo, normal kernel return and fresh original
+  SSH22. Protected management/default routing and DNS checks passed. This repairs
+  logical corruption; .37 SSD wear126% remains and was accepted by the owner.
+- BOTH targets: all11 exact NGFW/VPP packages installed and configured;
+  dpkg --audit exit0/empty, current protected network and storage guards PASS.
+  .37 actual270474B0600 package-install receipt SHA
+  51861660d6b82f5bd3576d2228b2754c706766acd415f047271a31f42fc4c696
+  independently PASS by R7. Earlier .211 native configuration actual PASS retained.
+- Native API dependency correction PR217 merged; applicable independent reviews,
+  package checks and unchanged complete hosted quick gate passed.
+- .211: canonical firstboot, seed-input files and identity-checked original
+  startguard restoration actual PASS. VPP/agent/API/nginx started, same VPP7359
+  ready; TLS admin login HTTP200 and four active units/NRestarts0 observed.
+- .37: actual readonly firstboot readiness PASS, not firstboot execution:
+  15519B0600 receipt 9d070142142c2997c77c2094688e032f17eae75886babcc181cb74b9e8c49d94,
+  exact published c1ea source on ff0c1a0ec7103b45b00de5f185a45b6c8dc81b79
+  independently reviewed against its own 6cf installed baseline.
+
+Incomplete REAL failure, not a deferred lab acceptance:
+.211 continuation 371137B0600 SHA
+98b516a17a02cc82a8b6e26b3ac81d3e1ea8b3cf28fb73b1c0a68bd41b9376fe
+kept revision0/events empty after22 successful HTTP polls; actual native seed
+failed. Existing readonly49788B0600 diagnostic SHA
+41dcecbe3e9f47e96a8ab9d9ecd5c0e5ca2b5e0668cd1e112f728fa6e932f383
+shows installed linux_cp_plugin.so absent from loaded plugins, canonical initial
+startup has no plugins section, API SeedDefaultNics warns agent validation failed,
+and agent reports unknown lcp_itf_pair_get/punt-interface dependency failure.
+The plugin/default-startup correction is NOT implemented or applied. No manual
+revision, DB bypass or early PCI binding occurred.
+
+Actual pause target state from last completed captures and worker acknowledgments:
+- .211: VPP7359/agent7477/API7481/nginx9281 active/NRestarts0, firstboot
+  PG/Valkey/owned nft dependencies active; all17 data NICs still kernel-owned,
+  protected enp4s0/PCI04igc28 and L3/DNS preserved, current ioerr6 stable.
+  No startup --apply, physical binding, boot enable or final appliance reboot.
+- .37: all21 installation-guarded units inactive, original root/SSH22 working;
+  policy-rc.d101 and persistent VPP mask retained, hugepages0/native nft0.
+  Protected enp12s0/PCI0cigc58/current L3 and ioerr6 stable.
+  Firstboot never executed; no VPP/agent/API/nginx start or PCI binding.
+- Remaining user objective: fix real initial plugin/seed failure, complete .37
+  firstboot/runtime, persistently add7/.37 and17/.211 DATA ports, then actual
+  reconcile/service/reboot and available physical traffic acceptance. No ports
+  are claimed added, no full appliance/forwarding/throughput PASS.
+
+All host37/host211/independent R7 workers acknowledged PAUSED, checkpoints
+published/read back, no in-flight host operation. Root only finishes this record.
+Departed install_review not counted live; no persistent supervisor or new hourly
+report/testing loop is running. Root controls startup --apply and binding; these
+permissions are suspended until explicit owner resume.
+
+Durability:
+Root previous local/remote exact1c149b1a28da457f81e256fdc914e279196a03a6;
+this pause commit is on codex/hardware-manager-20261010 and will be pushed/read
+back before handoff. Current commit identity is recoverable with git rev-parse HEAD
+and git ls-remote origin refs/heads/codex/hardware-manager-20261010.
+Actual paused host211 push/readback c14db5f5dd2338d13af239e0006a633807927173;
+actual paused host37 push/readback6072ef8ba95ec420067c220a3d344983ca9a2853;
+reviewer paused push/readbackf6c5e8e1d9129dafdfbf2b14ffc15fb4f3ae9e8d.
+Owned root files remain
+hardware-manager-20261010* plus earlier debian/control; no foreign worktree writes.
+
+Exact next READ ONLY command ONLY AFTER explicit owner resume:
+git -C /root/ngfw-wt/hardware-211-20261010 status --short
+Then read that worker's hardware-211-20261010-wip.md and the private actual
+diagnostic above; refresh protected host readiness before selecting a reviewed
+canonical no-PCI required-plugin startup correction or a real product fix.
+No queued command auto-runs on this checkpoint or agent wakeup.
+
+
 # Actual protected normal boots and .211 firstboot PASS — 2026-10-10 12:10 UTC
 
 Root independently full-parsed .37 actual178158B0600 post-normal-return-v2 receipt

@@ -12,7 +12,7 @@ EVID=ROOT/'docs/status/tasks/lab-global-blocking-20261010-evidence'
 BIN=Path('/tmp/ngfw-lab-nat46-20261010-bin')
 events=[]
 def record(case,**data):
- events.append(dict(case=case,**data));(EVID/'live.json').write_text(json.dumps(events,indent=2)+'\n');print(case,json.dumps(data),flush=True)
+ events.append(dict(case=case,atUTC=time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),**data));(EVID/'live.json').write_text(json.dumps(events,indent=2)+'\n');print(case,json.dumps(data),flush=True)
 def run(*argv,timeout=40):return subprocess.check_output(argv,text=True,stderr=subprocess.STDOUT,timeout=timeout)
 def peer(side,*argv):return run('ip','netns','exec','ns-w17-'+side,*argv)
 def vpp(label,*argv):
@@ -38,18 +38,26 @@ def traffic(case,side,src,dst,allow,tcp=True):
   assert (t.returncode==0)==allow,(case,t.stderr)
  record(case,allowed=allow,icmp=True,tcp=tcp)
 
-def runtime(label):return vpp(label,'show','runtime')
+def runtime(label):return vpp(label,'show','runtime','verbose')
 def lookup(label):
+ private_identity()
+ vpp(label+'-runtime-clear','clear','runtime')
  before=runtime(label+'-runtime-before')
+ started=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
  p=peer('lan','ping','-n','-q','-f','-c','2000','-I','10.17.1.3','10.17.2.2')
  assert '2000 packets transmitted, 2000 received' in p,p
  (EVID/(label+'-burst.txt')).write_text(p);after=runtime(label+'-runtime-after')
- def node(text):
+ def node(text,name):
   for line in text.splitlines():
-   if line.strip().startswith('acl-plugin-in-ip4-fa'):
+   if line.strip().startswith(name+' '):
     cols=line.split();return {'calls':int(cols[2]),'vectors':int(cols[3]),'clocksPerVector':float(cols[5])}
   return None
- a,b=node(before),node(after);record(label,before=a,after=b,vectorsDelta=None if not a or not b else b['vectors']-a['vectors'],scope='bounded diagnostic clocks; no throughput claim')
+ a,b=node(before,'acl-plugin-in-ip4-fa'),node(after,'acl-plugin-in-ip4-fa')
+ ref=node(after,'ip4-lookup')
+ delta=None if not a or not b else b['vectors']-a['vectors']
+ if label!='lookup-0':assert a is not None and b is not None and delta>=2000,(label,a,b)
+ else:assert b is not None and b['vectors']==0 and ref is not None and ref['vectors']>=2000,(b,ref)
+ record(label,startedUTC=started,packetsTransmitted=2000,packetsReceived=2000,before=a,after=b,vectorsDelta=delta,ip4LookupReference=ref,aclCost=None if label=='lookup-0' else b['clocksPerVector'],scope='own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A')
 
 private_identity()
 assert os.environ.get('NGFW_TEST_PREFIX')=='w17'

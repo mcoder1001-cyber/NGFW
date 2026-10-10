@@ -210,6 +210,11 @@ try:
 finally:
  if relay:relay.close()
  run('systemctl','stop','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False)
+ unit='ngfw-pppoe-carrier@'+TOKEN+'.service'
+ status=dict(line.split('=',1) for line in run('systemctl','show',unit,'-p','Id','-p','MainPID','-p','ActiveState').stdout.splitlines())
+ assert status['Id']==unit and status['MainPID']=='0' and status['ActiveState'] in ('inactive','failed')
+ assert run('systemctl','show',unit,'-p','Id','-p','MainPID','-p','ActiveState').stdout==''.join(k+'='+v+'\n' for k,v in status.items())
+ run('systemctl','reset-failed',unit,check=False)
  ledger=Path('/run/ngfw-pppoe-carrier')/(TOKEN+'.json')
  if ledger.exists():
   record=json.loads(ledger.read_text());assert record['owner']=='w20' and record['logical']=='w20ppp'

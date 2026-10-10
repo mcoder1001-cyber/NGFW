@@ -26,7 +26,7 @@ assert not os.path.lexists('/usr/sbin/policy-rc.d') and not os.path.lexists('/et
 assert hashlib.sha256(pathlib.Path('/usr/sbin/ngfw-agent').read_bytes()).hexdigest()=='b3c7cc10671abcab6d11c7dce12323f284c64822a15cfda1c46ba78803283744'
 assert hashlib.sha256(pathlib.Path('/usr/lib/ngfw/bin/ngfw-startupgen').read_bytes()).hexdigest()=='55e490bad1c302505231df105a1d516cb074678b38b85e28740c399020aac619'
 packages=checked(['dpkg-query','-W','-f','${binary:Package}\t${Version}\t${db:Status-Status}\n','ngfw-agent','ngfw-api','ngfw-web','ngfw-meta']);assert len(packages.splitlines())==4 and all(x.split('\t')[1:]==['0.1.0~dev+97ae88ee5b6a','installed'] for x in packages.splitlines())
-assert int(pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip(),16)==6
+ioerr_before=pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip();assert int(ioerr_before,16)==6
 kernel_before=checked(['dmesg','--color=never'])
 assert not os.path.lexists('/run/nextroot') and not os.path.exists('/run/ngfwrescue')
 before=l3();assert before==NETWORK_BASELINE
@@ -89,8 +89,9 @@ assert nft(json.loads(checked(['nft','-j','list','ruleset'])))==nft(nft_before)
 assert {k:(pathlib.Path('/proc/sys')/k.replace('.','/')).read_text().strip() for k in SYSCTLS}==SYSCTLS
 assert {p:{'SHA':hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest(),'realpath':str(pathlib.Path(p).resolve()),'link':os.readlink(p) if pathlib.Path(p).is_symlink() else None} for p in DNS}==DNS
 result={'native_seed_proof_SHA':PROOF_SHA,'confirmed_native_revision':1,'buffers_per_numa_rendered':None,'vfio_ids_observation':ids_observation,'network_before':before,'network_equal':True,'protected_PCI':'0000:0c:00.0','protected_driver':'igc','protected_group':'58','data_nics':nics,'links':links,'driverctl_list_overrides':run(['driverctl','list-overrides']),'driverctl_list_persisted':run(['driverctl','list-persisted']),'unsafe_noiommu':unsafe.read_text().strip() if unsafe.exists() else 'module-not-loaded','vfio_module_options':vfio_options,'vfio_cmdline_options':vfio_cmdline,'vfio_module_readonly_dryrun':module_dryrun,'units':units,'unit_states':unit_states,'nft':nft_before,'live_SHA':live_sha,'document_SHA':hashlib.sha256(document).hexdigest(),'render_SHA':render_sha,'render':render,'dryrun':dry,'no_target_config_module_network_driver_service_or_startup_mutation':True}
-kernel_after=checked(['dmesg','--color=never']);assert kernel_after.startswith(kernel_before);new=kernel_after[len(kernel_before):].splitlines();bad=[x for x in new if re.search(r'EXT4-fs error|I/O error|Buffer I/O|hard resetting link|failed command',x,re.I)];assert not bad
-result.update(kernel_before=kernel_before,kernel_after=kernel_after,new_storage_errors=bad,storage_ioerr='0x6',fixed_native_version='0.1.0~dev+97ae88ee5b6a',seeded7_exact=True)
+kernel_after=checked(['dmesg','--color=never']);assert kernel_after.startswith(kernel_before);new=kernel_after[len(kernel_before):].splitlines();bad=[x for x in new if re.search(r'EXT4-fs error|I/O error|Buffer I/O|blk_update_request|\bUNC\b|hard resetting link|failed command|ata\d.*(?:error|reset)|sd\s+\S+.*(?:error|fail)',x,re.I)];assert not bad
+ioerr_after=pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip();assert ioerr_after==ioerr_before and int(ioerr_after,16)==6
+result.update(kernel_before=kernel_before,kernel_after=kernel_after,new_storage_errors=bad,storage_ioerr=ioerr_after,ioerr_before=ioerr_before,ioerr_after=ioerr_after,fixed_native_version='0.1.0~dev+97ae88ee5b6a',seeded7_exact=True)
 print(json.dumps(result,indent=2));raise SystemExit(0 if dry['exit']==0 else 2)
 '''
 

@@ -60,6 +60,31 @@ A chroot or auxiliary bind mount does not release these references. A read-only 
 
 Management was rechecked through the existing controller route; the protected interface/address/default gateway are unchanged from the private network capture and task envelope. No management port, NIC ownership, route, address or network-daemon action was altered. No secondary rescue or BMC path is currently verified.
 
+Independent reviewer requested an additional read-only namespace/mount/network-manager probe. Root device major:minor is `8:2`. Five visible mount namespaces were found; four contain the old root device (counts 1, 1, 1 and 4), one kernel namespace has no such mount. The main PID 1 namespace still mounts old root once. This confirms that an unmount check limited to the calling shell's namespace would be insufficient.
+
+Selected actual `systemctl show run.mount tmp.mount` output:
+
+```text
+Id=run.mount
+ActiveState=inactive
+SubState=dead
+FragmentPath=
+Where=
+What=
+Options=
+
+Id=tmp.mount
+ActiveState=active
+SubState=mounted
+FragmentPath=/usr/lib/systemd/system/tmp.mount
+SourcePath=/proc/self/mountinfo
+Where=/tmp
+What=tmpfs
+Options=rw,nosuid,nodev,size=16313080k,nr_inodes=1048576,inode64,usrquota
+```
+
+The live `/run` tmpfs is observed by findmnt despite its inactive/nonconfigured mount-unit object; its actual flags include noexec. `systemd-networkd.service` is active/running, Restart=on-failure, KillMode=control-group, PrivateMounts=no, no RootDirectory. No explicit `KeepConfiguration=` declaration was found in current `/run/systemd/network/*.network` or `/etc/systemd/network/*.network`. This is not proof that a transition preserves addresses/routes; no stop or transition was tested. Current networkctl output is retained privately without exposing configuration contents.
+
 ## Durable command/output records
 
 Actual read-only probes used fixed SSH options `BatchMode=yes`, `StrictHostKeyChecking=yes`, `ConnectTimeout=10`, with existing target tools: findmnt/lsblk/systemctl/journalctl/dumpe2fs/dmesg/date/IP route, sysfs/proc metadata, systemd-detect-virt, command availability, capsh, ldd, lsinitramfs and existing BusyBox `--list`. No service action or package installer was invoked. The detailed fixed-stdin Python collectors stream directly to private controller files:
@@ -68,5 +93,6 @@ Actual read-only probes used fixed SSH options `BatchMode=yes`, `StrictHostKeyCh
 |---|---:|---:|---|---|
 | maintenance-preflight.json | 0 | 17310 | `572740c23c8b46d9b1887d3bf23ee30d4f941bbab933ee05af7153a3cf6f0f66` | empty |
 | maintenance-tool-preflight.json | 0 | 1924 | `fdb313e180ffcfe2846ecbe1083a65e5177272abc4524b5364bd559acd551e2a` | empty |
+| maintenance-ns-network.json | 0 | 11113 | `f742327b2b860f84126fe2ca692d358e31c32916abc134299c87d0d851b2b9a0` | empty |
 
-Both diagnostic files and their error outputs are 0600 under the existing private host-211 controller directory. Public evidence is limited to nonsecret capability/disk facts and selected diagnostic outputs above. Independent recovery-safety reviewer received sanitized facts and private filenames for review. Current outcome: **RAM maintenance not verified; repair/install/reboot NOT RUN**. Preserve branch/worktree for the manager's reviewed next step.
+All diagnostic files and their error outputs are 0600 under the existing private host-211 controller directory. Public evidence is limited to nonsecret capability/disk facts and selected diagnostic outputs above. Independent recovery-safety reviewer received sanitized facts and private filenames for review. Current outcome: **RAM maintenance not verified; repair/install/reboot NOT RUN**. Preserve branch/worktree for the manager's reviewed next step.

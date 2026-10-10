@@ -1,0 +1,2 @@
+START baseline
+END baseline 0 ['DISPOSABLE_VPP pid=458899 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-458896', '=== RUN   TestAgentOnHost', '--- PASS: TestAgentOnHost (12.08s)', '=== RUN   TestDataplaneRuntimeOnHost', '--- PASS: TestDataplaneRuntimeOnHost (1.35s)', '=== RUN   TestHostNicsOnHost', '--- PASS: TestHostNicsOnHost (1.11s)', '=== RUN   TestWireguardOnHost', '--- PASS: TestWireguardOnHost (2.26s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=458899']

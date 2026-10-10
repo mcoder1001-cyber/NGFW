@@ -1,0 +1,42 @@
+=== RUN   TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI
+    daemon_integration_test.go:73: private fixture link name=lo kind=
+    daemon_integration_test.go:73: private fixture link name=ip6tnl0 kind=ip6tnl
+    daemon_integration_test.go:73: private fixture link name=gre0 kind=gre
+    daemon_integration_test.go:73: private fixture link name=gretap0 kind=gretap
+    daemon_integration_test.go:73: private fixture link name=erspan0 kind=erspan
+    daemon_integration_test.go:73: private fixture link name=outer0 kind=dummy
+    daemon_integration_test.go:73: private fixture link name=inner0 kind=dummy
+    daemon_integration_test.go:93: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-c4c7fe743680d72ad6545f7dcb38a3ac/af0dd31379caa2f623cd3fa17e1a0750684d9db7347c5e31a9bce7116e74facf-startup.log
+--- FAIL: TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI (15.17s)
+=== RUN   TestIntegrationPrivateEAPNegotiationAndObservedDisconnect
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-2773a4b56e33f2c74998e3399b8f652d/3871f75aa352cf5af5a06ffd87a9c94e9bf71d4e1bac5c594e7f6bbf8fb55b30-startup.log
+--- FAIL: TestIntegrationPrivateEAPNegotiationAndObservedDisconnect (15.28s)
+=== RUN   TestIntegrationPrivateEAPBadPasswordRefused
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-0da15c1ef1a0e8997d7f461def869f84/3871f75aa352cf5af5a06ffd87a9c94e9bf71d4e1bac5c594e7f6bbf8fb55b30-startup.log
+--- FAIL: TestIntegrationPrivateEAPBadPasswordRefused (15.29s)
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/valid
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-37a0f61cf806b6f3333960fb31a433fa/3871f75aa352cf5af5a06ffd87a9c94e9bf71d4e1bac5c594e7f6bbf8fb55b30-startup.log
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/revoked
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-6624c8905807e5dc360bc2c27cf5b3fc/3871f75aa352cf5af5a06ffd87a9c94e9bf71d4e1bac5c594e7f6bbf8fb55b30-startup.log
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/foreign
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-ceddec6f5b13cb9c6554c7e9cf2c99a3/3871f75aa352cf5af5a06ffd87a9c94e9bf71d4e1bac5c594e7f6bbf8fb55b30-startup.log
+--- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance (45.92s)
+    --- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance/valid (15.31s)
+    --- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance/revoked (15.31s)
+    --- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance/foreign (15.30s)
+FAIL
+FAIL	ngfw/agent/internal/ra_vpn	91.726s
+FAIL

@@ -1,0 +1,145 @@
+{
+  "host": "172.30.126.250",
+  "source": "4908716b4501312102382e6979b8fc1ded6f9311",
+  "before": "MainPID=8102\nNRestarts=0\n",
+  "after": "MainPID=8102\nNRestarts=0\n",
+  "shared_unchanged": true,
+  "results": [
+    {
+      "case": "baseline",
+      "exit": 1,
+      "elapsed": 15.19,
+      "outcomes": [
+        "DISPOSABLE_VPP pid=457986 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-457983",
+        "=== RUN   TestAgentOnHost",
+        "--- FAIL: TestAgentOnHost (8.83s)",
+        "=== RUN   TestDataplaneRuntimeOnHost",
+        "--- PASS: TestDataplaneRuntimeOnHost (1.19s)",
+        "=== RUN   TestHostNicsOnHost",
+        "--- PASS: TestHostNicsOnHost (1.00s)",
+        "=== RUN   TestWireguardOnHost",
+        "--- PASS: TestWireguardOnHost (2.03s)",
+        "FAIL",
+        "DISPOSABLE_VPP_STOPPED pid=457986"
+      ],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host-fixed.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^Test(AgentOnHost|HostNicsOnHost|DataplaneRuntimeOnHost|WireguardOnHost)$"
+      ]
+    },
+    {
+      "case": "tunnels",
+      "exit": 0,
+      "elapsed": 8.31,
+      "outcomes": [
+        "DISPOSABLE_VPP pid=458027 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-458024",
+        "=== RUN   TestTunnelsOnDisposableVPP",
+        "--- PASS: TestTunnelsOnDisposableVPP (5.29s)",
+        "PASS",
+        "DISPOSABLE_VPP_STOPPED pid=458027"
+      ],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host-fixed.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestTunnelsOnDisposableVPP$"
+      ]
+    },
+    {
+      "case": "mpls",
+      "exit": 0,
+      "elapsed": 7.55,
+      "outcomes": [
+        "DISPOSABLE_VPP pid=458069 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-458066",
+        "=== RUN   TestMplsOnHost",
+        "--- PASS: TestMplsOnHost (4.58s)",
+        "PASS",
+        "DISPOSABLE_VPP_STOPPED pid=458069"
+      ],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host-fixed.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestMplsOnHost$"
+      ]
+    },
+    {
+      "case": "srv6",
+      "exit": 0,
+      "elapsed": 9.36,
+      "outcomes": [
+        "DISPOSABLE_VPP pid=458109 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-458106",
+        "=== RUN   TestSrv6OnHost",
+        "--- PASS: TestSrv6OnHost (4.78s)",
+        "=== RUN   TestSrv6GlobalsOnHost",
+        "--- PASS: TestSrv6GlobalsOnHost (1.50s)",
+        "PASS",
+        "DISPOSABLE_VPP_STOPPED pid=458109"
+      ],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host-fixed.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestSrv6(OnHost|GlobalsOnHost)$"
+      ]
+    },
+    {
+      "case": "lb",
+      "exit": 0,
+      "elapsed": 73.12,
+      "outcomes": [
+        "DISPOSABLE_VPP pid=458167 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-458164",
+        "=== RUN   TestLbOnHost",
+        "--- PASS: TestLbOnHost (4.98s)",
+        "=== RUN   TestLbGarbageCollectOnHost",
+        "--- PASS: TestLbGarbageCollectOnHost (65.07s)",
+        "PASS",
+        "DISPOSABLE_VPP_STOPPED pid=458167"
+      ],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host-fixed.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestLb(OnHost|GarbageCollectOnHost)$"
+      ]
+    },
+    {
+      "case": "wireguard-packets",
+      "exit": 0,
+      "elapsed": 7.75,
+      "outcomes": [
+        "DISPOSABLE_VPP pid=458325 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-458322",
+        "=== RUN   TestWireguardHandshakeOnHost",
+        "--- PASS: TestWireguardHandshakeOnHost (4.39s)",
+        "PASS",
+        "DISPOSABLE_VPP_STOPPED pid=458325"
+      ],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host-fixed.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestWireguardHandshakeOnHost$"
+      ]
+    }
+  ]
+}

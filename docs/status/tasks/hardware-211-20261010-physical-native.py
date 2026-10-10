@@ -25,7 +25,7 @@ def raw(p,mode=None,limit=134217728):
   s=os.fstat(f.fileno());assert stat.S_ISREG(s.st_mode) and s.st_uid==s.st_gid==0 and s.st_nlink==1 and (os.major(s.st_dev),os.minor(s.st_dev))==(8,2) and (mode is None or stat.S_IMODE(s.st_mode)==mode)
   b=f.read(limit+1);assert len(b)<=limit;return b
 def digest(b):return hashlib.sha256(b).hexdigest()
-def state(u):return dict(x.split('=',1) for x in checked(['systemctl','show',u,'-p','ActiveState','-p','MainPID','-p','NRestarts']).splitlines())
+def state(u,timeout=30):return dict(x.split('=',1) for x in checked(['systemctl','show',u,'-p','ActiveState','-p','MainPID','-p','NRestarts'],timeout).splitlines())
 def l3():return {'addresses':{x['ifname']:x.get('addr_info',[]) for x in json.loads(checked(['ip','-j','addr']))},'routes4':json.loads(checked(['ip','-j','-4','route','show','table','all'])),'routes6':json.loads(checked(['ip','-j','-6','route','show','table','all'])),'rules4':json.loads(checked(['ip','-j','-4','rule'])),'rules6':json.loads(checked(['ip','-j','-6','rule']))}
 def nft(d):
  if isinstance(d,dict):return {k:nft({a:b for a,b in v.items() if a not in ['packets','bytes']}) if k=='counter' and isinstance(v,dict) else nft(v) for k,v in d.items() if k!='metainfo' and not(POSTBOOT and k=='handle')}
@@ -57,14 +57,31 @@ def protect():
  else:assert state('vpp.service')==COMMITTED['stable_VPP'] and state('nginx.service')=={'ActiveState':'active','MainPID':'9281','NRestarts':'0'}
  return {'boot_id':EXPECTED_BOOT,'network':now,'allowed_empty_data_map_removals':sorted(names-set(now['addresses'])),'VFIO_devices':devices,'global_ids':status,'sysctls':sysctls,'DNS':dns,'nft':rules,'ioerr':hex(EXPECTED_IOERR)}
 ctx=ssl.create_default_context(cafile='/etc/ngfw/tls/server.crt')
-def request(path,method='GET',data=None,token=None):
+def request(path,method='GET',data=None,token=None,timeout=15):
  headers={'Content-Type':'application/json'}
  if token:headers['Authorization']='Bearer '+token
  req=urllib.request.Request('https://localhost'+path,data=None if data is None else json.dumps(data).encode(),headers=headers,method=method)
  try:
-  with urllib.request.urlopen(req,context=ctx,timeout=15) as r:
+  with urllib.request.urlopen(req,context=ctx,timeout=timeout) as r:
    b=r.read(4194305);assert len(b)<=4194304;return {'status':r.status,'revision':r.headers.get('x-ngfw-revision'),'data':json.loads(b) if r.headers.get('Content-Type','').startswith('application/json') else None,'bytes':len(b)}
  except urllib.error.HTTPError as e:return {'status':e.code,'bytes':len(e.read(65536))}
+def interface_rows(response,expected,rows):
+ assert response['status']==200
+ items=response['data']['items'];assert isinstance(items,list);mapped={q['name']:q for q in items};assert len(mapped)==len(items),'duplicate native interface name'
+ admin={}
+ for name,d in expected.items():
+  row=rows[name];p=row['physical'];assert p['pci']==d['PCI'] and p['owner']=='dataplane' and p['builtIn'] is True and isinstance(row['enabled'],bool)
+  q=mapped[name];assert q['state'] is not None and q['state']['vppName']==name and q.get('awaitingDataplane') is False and q.get('inventoryOnly') is False and q.get('hasPendingChange') is False and q['physical']['pci']==d['PCI'] and q['builtIn'] is True
+  assert isinstance(q['state']['adminUp'],bool);admin[name]=q['state']['adminUp']
+ return mapped,admin
+def vpp_admin_rows(text,expected):
+ states={}
+ for line in text.splitlines():
+  m=re.match(r'^\s*(\S+)\s+\d+\s+(up|down)\s+',line)
+  if m:
+   name=m.group(1);assert name not in states,'duplicate VPP interface name';states[name]=m.group(2)=='up'
+ assert set(expected)<=set(states),'missing VPP interface administrative-state row'
+ return {n:states[n] for n in expected}
 def main():
  assert COMMITTED['native_committed17_PASS'] and COMMITTED['PASS'] and COMMITTED['new_storage_errors']==[] and COMMITTED['actual_pool_total']>=65536
  assert re.fullmatch(r'/var/lib/ngfw/startup-apply/[0-9]{8}-[0-9]{6}-[0-9]+',COMMITTED['work']);w=pathlib.Path(COMMITTED['work']);trusted(w)
@@ -102,11 +119,23 @@ def main():
  assert result['revision2']['data']['id']==2 and result['revision2']['data']['parentId']==1 and result['revision2']['data']['kind']=='commit' and result['revision2']['data']['payload']==DOCUMENT
  assert any(e.get('code')=='system.seed-defaults' for e in result['events']['data']['items']) and result['system']['data']['agent']['reachable'] is True and result['system']['data']['sync']['state']=='in-sync'
  expected=RECORD['manifest']['data_nics'];rows={n:q for n,q in DOCUMENT['interfaces'].items() if q.get('physical')};assert set(rows)==set(expected)
- items=result['interfaces']['data']['items'];mapped={q['name']:q for q in items};result['interface_acceptance']={}
+ desired={n:rows[n]['enabled'] for n in expected};assert all(isinstance(v,bool) for v in desired.values());result['desired_physical_admin']=desired
+ deadline=time.monotonic()+45;result['physical_admin_poll']=[]
+ while True:
+  current={}
+  for u in units:
+   remaining=deadline-time.monotonic();assert remaining>0,'physical administrative state deadline reached';current[u]=state(u,min(5,remaining))
+  assert current==result['unit_states_after_start'],'runtime identity changed while polling administrative state'
+  remaining=deadline-time.monotonic();assert remaining>0,'physical administrative state deadline reached'
+  response=request('/api/v1/state/interfaces',token=token,timeout=min(15,remaining));result['interfaces']=response;mapped,admin=interface_rows(response,expected,rows)
+  result['physical_admin_poll'].append({'status':response['status'],'adminUp':admin,'matches_desired':admin==desired})
+  assert time.monotonic()<=deadline,'physical administrative state deadline reached'
+  if admin==desired:break
+  assert time.monotonic()<deadline,'physical administrative state did not converge';time.sleep(1)
+ result['interface_acceptance']={}
  for name,d in expected.items():
-  row=rows[name];p=row['physical'];assert p['pci']==d['PCI'] and p['owner']=='dataplane' and p['builtIn'] is True
-  q=mapped[name];assert q['state'] is not None and q['state']['vppName']==name and q.get('awaitingDataplane') is False and q.get('inventoryOnly') is False and q.get('hasPendingChange') is False and q['physical']['pci']==d['PCI'] and q['builtIn'] is True
-  result['interface_acceptance'][name]={'PCI':d['PCI'],'state':q['state'],'link_and_counters_recorded_no_packet_throughput_claim':True}
+  q=mapped[name];result['interface_acceptance'][name]={'PCI':d['PCI'],'desired_enabled':desired[name],'state':q['state'],'link_and_counters_recorded_no_packet_throughput_claim':True}
+ result['VPP_interface_table']=checked(['vppctl','show','interface']);result['VPP_physical_admin']=vpp_admin_rows(result['VPP_interface_table'],expected);assert result['VPP_physical_admin']==desired,'VPP administrative state differs from desired document';result['physical_admin_converged']=True
  result['plugins']=checked(['vppctl','show','plugins']);assert all(re.search(r'\b'+re.escape(n)+r'\b',result['plugins']) for n in ['linux_cp_plugin.so','linux_nl_plugin.so','npt66_plugin.so'])
  result['buffers']=checked(['vppctl','show','buffers']);pools=re.findall(r'^\s*default-numa-0\s+\d+\s+0\s+\d+\s+\d+\s+(\d+)\s+',result['buffers'],re.M);assert len(pools)==1 and int(pools[0])>=65536;result['actual_pool_total']=int(pools[0]);total_rx=0;result['hardware']={}
  for name,d in expected.items():
@@ -137,7 +166,7 @@ def main():
  if postboot:
   assert not a.resume_runtime and all([a.postboot_proof,a.postboot_sha,a.preboot_proof,a.preboot_sha]),'postboot requires four immutable inputs and READONLY mode'
   preboot=load(a.preboot_proof,OUTPUT,a.preboot_sha);boot=load(a.postboot_proof,OUTPUT,a.postboot_sha)
-  assert preboot['native2_physical17_PASS'] and preboot['PASS'] and preboot['stage']=='complete' and preboot['unit_identity_stable'] and preboot['new_storage_errors']==[]
+  assert preboot['native2_physical17_PASS'] and preboot['physical_admin_converged'] is True and preboot['PASS'] and preboot['stage']=='complete' and preboot['unit_identity_stable'] and preboot['new_storage_errors']==[]
   assert preboot.get('mode')!='observe-postboot' and preboot['committed_proof_SHA']==a.commit_sha and preboot['expected_startup_SHA']==a.expected_startup_sha and preboot['expected_agent_SHA']==a.expected_agent_sha and preboot['expected_package_version']==a.expected_version
   assert preboot['seed1_proof_SHA']=='bc1262d1f2d5b35cb21a7e2ff2b007d6faacc33ab13fe286f684d8f7ca19f138' and preboot['resource2_proof_SHA']=='b3fcfa09afc1d79bd0c76ca237015fb18bf61802cc88cdc642646c7ff835c8f9'
   assert boot['mode']=='observe-boot' and boot['host']=='211' and boot['PASS'] and boot['stage']=='complete' and boot['new_boot_observed'] and boot['storage_counter_epoch']=='fresh-boot' and boot['new_storage_errors']==[] and boot['native_proof_SHA']==a.preboot_sha

@@ -48,7 +48,7 @@ def protect():
  sysctls={k:(pathlib.Path('/proc/sys')/k.replace('.','/')).read_text().strip() for k in BASELINE['sysctls']};assert sysctls==BASELINE['sysctls']
  dns={p:{'SHA':digest(pathlib.Path(p).read_bytes()),'realpath':str(pathlib.Path(p).resolve()),'link':os.readlink(p) if pathlib.Path(p).is_symlink() else None} for p in BASELINE['DNS']};assert dns==BASELINE['DNS']
  rules=json.loads(checked(['nft','-j','list','ruleset']));assert nft(rules)==nft(BASELINE['nft']) and int(pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip(),16)==6
- assert state('vpp.service')==COMMITTED['stable_VPP'] and state('nginx.service')=={'ActiveState':'active','MainPID':'9281','NRestarts':'0'}
+ assert state('vpp.service')==COMMITTED['stable_VPP'] and state('nginx.service')=={'ActiveState':'active','MainPID':RECORD['record_before']['expected_unit_PIDs']['nginx.service'],'NRestarts':'0'}
  return {'network':now,'allowed_empty_data_map_removals':sorted(names-set(now['addresses'])),'VFIO_devices':devices,'global_ids':status,'sysctls':sysctls,'DNS':dns,'nft':rules,'ioerr':'0x6'}
 ctx=ssl.create_default_context(cafile='/etc/ngfw/tls/server.crt')
 def request(path,method='GET',data=None,token=None):

@@ -1,4 +1,4 @@
-Time .1, 10.000000 sec internal node vector rate 1.17 loops/sec 122969.64
+Time .1, 10.000000 sec internal node vector rate 1.18 loops/sec 148012.75
   vector rates in 0.0000e0, out 0.0000e0, drop 0.0000e0, punt 0.0000e0
              Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
 abf-input-ip4                    active                  0               0               0          0.00e0            0.00
@@ -33,7 +33,7 @@ ah6-decrypt                      active                  0               0      
 ah6-encrypt-handoff              active                  0               0               0          0.00e0            0.00
 ah6-encrypt                      active                  0               0               0          0.00e0            0.00
 api-rx-from-node                 active                  0               0               0          0.00e0            0.00
-api-rx-from-ring               "any wait"                0               0               1          7.52e4            0.00
+api-rx-from-ring               "any wait"                0               0               0          0.00e0            0.00
 appsl-rx-mqs-input              disabled                 0               0               0          0.00e0            0.00
 arp-disabled                     active                  0               0               0          0.00e0            0.00
 arp-input                        active                  0               0               0          0.00e0            0.00
@@ -222,7 +222,7 @@ ip4-full-reass-custom-hoff       active                  0               0      
 ip4-full-reass-feature-hoff      active                  0               0               0          0.00e0            0.00
 ip4-full-reassembly              active                  0               0               0          0.00e0            0.00
 ip4-full-reassembly-custom       active                  0               0               0          0.00e0            0.00
-ip4-full-reassembly-expire-wal "any wait"                0               0               3          8.03e3            0.00
+ip4-full-reassembly-expire-wal "any wait"                0               0               2          2.07e4            0.00
 ip4-full-reassembly-feature      active                  0               0               0          0.00e0            0.00
 ip4-full-reassembly-handoff      active                  0               0               0          0.00e0            0.00
 ip4-geneve-bypass                active                  0               0               0          0.00e0            0.00
@@ -320,7 +320,7 @@ ip6-full-reass-custom-hoff       active                  0               0      
 ip6-full-reass-feature-hoff      active                  0               0               0          0.00e0            0.00
 ip6-full-reassembly              active                  0               0               0          0.00e0            0.00
 ip6-full-reassembly-custom       active                  0               0               0          0.00e0            0.00
-ip6-full-reassembly-expire-wal "any wait"                0               0               3          1.77e4            0.00
+ip6-full-reassembly-expire-wal "any wait"                0               0               2          9.72e3            0.00
 ip6-full-reassembly-feature      active                  0               0               0          0.00e0            0.00
 ip6-full-reassembly-handoff      active                  0               0               0          0.00e0            0.00
 ip6-geneve-bypass                active                  0               0               0          0.00e0            0.00
@@ -357,7 +357,7 @@ ip6-mcast-midchain               active                  0               0      
 ip6-mfib-forward-lookup          active                  0               0               0          0.00e0            0.00
 ip6-mfib-forward-rpf             active                  0               0               0          0.00e0            0.00
 ip6-midchain                     active                  0               0               0          0.00e0            0.00
-ip6-mld-process                "any wait"                0               0               1          1.27e4            0.00
+ip6-mld-process                "any wait"                0               0               0          0.00e0            0.00
 ip6-mpls-label-disposition-pip   active                  0               0               0          0.00e0            0.00
 ip6-mpls-label-disposition-uni   active                  0               0               0          0.00e0            0.00
 ip6-mpls-label-imposition-pipe   active                  0               0               0          0.00e0            0.00
@@ -382,7 +382,7 @@ ip6-pvti-bypass                  active                  0               0      
 ip6-qos-mark                     active                  0               0               0          0.00e0            0.00
 ip6-qos-record                   active                  0               0               0          0.00e0            0.00
 ip6-qos-store                    active                  0               0               0          0.00e0            0.00
-ip6-ra-process                 "any wait"                0               0               1          5.20e3            0.00
+ip6-ra-process                 "any wait"                0               0               0          0.00e0            0.00
 ip6-receive                      active                  0               0               0          0.00e0            0.00
 ip6-replicate                    active                  0               0               0          0.00e0            0.00
 ip6-rewrite                      active                  0               0               0          0.00e0            0.00
@@ -632,7 +632,7 @@ sasc-lookup-ip4-4tuple           active                  0               0      
 sasc-lookup-ip6                  active                  0               0               0          0.00e0            0.00
 sasc-packet-stats                active                  0               0               0          0.00e0            0.00
 sasc-pcap                        active                  0               0               0          0.00e0            0.00
-sasc-session-expiry            "suspended"               0               0               1          2.06e4            0.00
+sasc-session-expiry            "suspended"               0               0               0          0.00e0            0.00
     events pending, 
 send-dhcp6-client-message-proc "any wait"                0               0               0          0.00e0            0.00
 send-dhcp6-pd-client-message-p "any wait"                0               0               0          0.00e0            0.00
@@ -665,7 +665,7 @@ sfdp-snort-output                active                  0               0      
 sfdp-tcp-check                   active                  0               0               0          0.00e0            0.00
 sflow-drop                       active                  0               0               0          0.00e0            0.00
 sflow-egress                     active                  0               0               0          0.00e0            0.00
-sflow-process-samples          "any wait"                0               0               1          4.67e3            0.00
+sflow-process-samples          "any wait"                0               0               0          0.00e0            0.00
 sflow                            active                  0               0               0          0.00e0            0.00
 sir-to-ila                       active                  0               0               0          0.00e0            0.00
 snap-input                       active                  0               0               0          0.00e0            0.00
@@ -760,8 +760,8 @@ udp6-input-nolookup              active                  0               0      
 udp6-output                      active                  0               0               0          0.00e0            0.00
 udp6o4-encap                     active                  0               0               0          0.00e0            0.00
 udp6o6-encap                     active                  0               0               0          0.00e0            0.00
-unix-cli-new-session           "any wait"                0               0               2          9.39e3            0.00
-unix-cli-process-0              "running"                1               0               2          1.45e6            0.00
+unix-cli-new-session           "any wait"                0               0               2          8.80e3            0.00
+unix-cli-process-0              "running"                1               0               2          1.26e6            0.00
 vhost-user-input                disabled                 0               0               0          0.00e0            0.00
 vhost-user-process             "any wait"                0               0               0          0.00e0            0.00
 vhost-user-send-interrupt-proc "any wait"                0               0               0          0.00e0            0.00
@@ -797,7 +797,7 @@ vxlan4-input                     active                  0               0      
 vxlan6-encap                     active                  0               0               0          0.00e0            0.00
 vxlan6-gpe-input                 active                  0               0               0          0.00e0            0.00
 vxlan6-input                     active                  0               0               0          0.00e0            0.00
-wg-timer-manager               "any wait"                0               0              13          1.07e4            0.00
+wg-timer-manager               "any wait"                0               0              11          1.00e4            0.00
 wg4-handshake-handoff            active                  0               0               0          0.00e0            0.00
 wg4-input                        active                  0               0               0          0.00e0            0.00
 wg4-input-data-handoff           active                  0               0               0          0.00e0            0.00

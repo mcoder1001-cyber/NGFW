@@ -1,10 +1,10 @@
-Time .1, 10.000000 sec internal node vector rate 0.00 loops/sec 162168.98
+Time .1, 10.000000 sec internal node vector rate 1.00 loops/sec 166017.62
   vector rates in 0.0000e0, out 0.0000e0, drop 0.0000e0, punt 0.0000e0
              Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
 abf-input-ip4                    active                  0               0               0          0.00e0            0.00
 abf-input-ip6                    active                  0               0               0          0.00e0            0.00
-acl-plugin-fa-cleaner-process  "any wait"                0               0               1          1.92e4            0.00
-acl-plugin-fa-worker-cleaner-pinterrupt wa               1               0               0          2.21e4            0.00
+acl-plugin-fa-cleaner-process  "any wait"                0               0               0          0.00e0            0.00
+acl-plugin-fa-worker-cleaner-pinterrupt wa               0               0               0          0.00e0            0.00
 acl-plugin-in-ip4-fa             active                  0               0               0          0.00e0            0.00
 acl-plugin-in-ip4-l2             active                  0               0               0          0.00e0            0.00
 acl-plugin-in-ip6-fa             active                  0               0               0          0.00e0            0.00
@@ -222,7 +222,7 @@ ip4-full-reass-custom-hoff       active                  0               0      
 ip4-full-reass-feature-hoff      active                  0               0               0          0.00e0            0.00
 ip4-full-reassembly              active                  0               0               0          0.00e0            0.00
 ip4-full-reassembly-custom       active                  0               0               0          0.00e0            0.00
-ip4-full-reassembly-expire-wal "any wait"                0               0               2          1.91e4            0.00
+ip4-full-reassembly-expire-wal "any wait"                0               0               3          3.40e4            0.00
 ip4-full-reassembly-feature      active                  0               0               0          0.00e0            0.00
 ip4-full-reassembly-handoff      active                  0               0               0          0.00e0            0.00
 ip4-geneve-bypass                active                  0               0               0          0.00e0            0.00
@@ -320,7 +320,7 @@ ip6-full-reass-custom-hoff       active                  0               0      
 ip6-full-reass-feature-hoff      active                  0               0               0          0.00e0            0.00
 ip6-full-reassembly              active                  0               0               0          0.00e0            0.00
 ip6-full-reassembly-custom       active                  0               0               0          0.00e0            0.00
-ip6-full-reassembly-expire-wal "any wait"                0               0               2          1.07e4            0.00
+ip6-full-reassembly-expire-wal "any wait"                0               0               3          9.35e3            0.00
 ip6-full-reassembly-feature      active                  0               0               0          0.00e0            0.00
 ip6-full-reassembly-handoff      active                  0               0               0          0.00e0            0.00
 ip6-geneve-bypass                active                  0               0               0          0.00e0            0.00
@@ -760,8 +760,8 @@ udp6-input-nolookup              active                  0               0      
 udp6-output                      active                  0               0               0          0.00e0            0.00
 udp6o4-encap                     active                  0               0               0          0.00e0            0.00
 udp6o6-encap                     active                  0               0               0          0.00e0            0.00
-unix-cli-new-session           "any wait"                0               0               2          7.85e3            0.00
-unix-cli-process-0              "running"                1               0               2          2.19e6            0.00
+unix-cli-new-session           "any wait"                0               0               2          5.99e3            0.00
+unix-cli-process-0              "running"                1               0               2          1.38e6            0.00
 vhost-user-input                disabled                 0               0               0          0.00e0            0.00
 vhost-user-process             "any wait"                0               0               0          0.00e0            0.00
 vhost-user-send-interrupt-proc "any wait"                0               0               0          0.00e0            0.00
@@ -797,7 +797,7 @@ vxlan4-input                     active                  0               0      
 vxlan6-encap                     active                  0               0               0          0.00e0            0.00
 vxlan6-gpe-input                 active                  0               0               0          0.00e0            0.00
 vxlan6-input                     active                  0               0               0          0.00e0            0.00
-wg-timer-manager               "any wait"                0               0              12          1.11e4            0.00
+wg-timer-manager               "any wait"                0               0              12          8.65e3            0.00
 wg4-handshake-handoff            active                  0               0               0          0.00e0            0.00
 wg4-input                        active                  0               0               0          0.00e0            0.00
 wg4-input-data-handoff           active                  0               0               0          0.00e0            0.00

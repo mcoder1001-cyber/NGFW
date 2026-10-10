@@ -1,3 +1,7 @@
+## Current — 2026-10-10 14:45 UTC — same hardware campaign RUNNING
+
+Original logical disk recovery and first corrected native installation remain actual PASS on both appliances. New .211 physical VPP execution FAILED at EAL init; native automatic rollback restored noPCI runtime and intact management. No hardware Done/deferred EAL claim. Source-derived cause is simultaneous DPDK allow/block options. Same-campaign closed-allowlist correction published97ae88ee5b6aaf304f78547abed39e80bbeac5e1 in attached draftPR226; independent code review APPROVE, docs evidence addendum and complete hosted quick/native rebuild pending. Four fixed native ee202 packages currently installed on both; do not claim97ae installed. .211 true native17seed1/resource2/17VFIO binding PASS but physical packet engine acceptance FAILED/rollback; VPP72599/noPCI/agentAPIheld. .37 firstboot/native7seed1/runtime/TLS/in-sync PASS, four units active0/7kernel/management0c protected; physical binding/reboot not run. Both original management SSH22 and L3 preserved. Only this existing two-host hardware task is being executed.
+
 # Current hardware task — 2026-10-10 14:12 UTC / 17:42 Asia/Tehran
 
 Overall: RUNNING, exactly the existing owner-requested two-host campaign.

@@ -1,6 +1,6 @@
 # T1 verification — API native-library package dependencies
 
-Date: 2026-10-10. Independent tester `/root/host_37`; no slot required; no target operations. Source under review `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`; final [PR217](https://github.com/mcoder1001-cyber/NGFW/pull/217) SHA `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, mandatory quick [run38033766837/job114159912573](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38033766837/job/114159912573) pending completion. Lightweight unchanged fixtures ran at own checkout `86a2f06eafc6406e3e5395769d923a09bbfa60aa`, with test-file and full product/CI tree identity against final reviewed source confirmed by git diff. PR integration candidate readback `8a15d644c53cc3ef4abde339efd3b2a0331221a5`. Earlier bde83bc/run38033113750 was superseded/canceled after a documentation-only amendment and is not counted as PASS or as a product-test failure.
+Date: 2026-10-10. Independent tester `/root/host_37`; no slot required; no target operations. Source under review `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`; final [PR217](https://github.com/mcoder1001-cyber/NGFW/pull/217) SHA `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, mandatory quick [run38033766837/job114159912573](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38033766837/job/114159912573) completed success. Lightweight unchanged fixtures ran at own checkout `86a2f06eafc6406e3e5395769d923a09bbfa60aa`, with test-file and full product/CI tree identity against final reviewed source confirmed by git diff. Actual hosted checkout `8a15d644c53cc3ef4abde339efd3b2a0331221a5`, exactly the independently verified PR integration tree. Earlier bde83bc/run38033113750 was superseded/canceled after a documentation-only amendment and is not counted as PASS or as a product-test failure.
 
 | Scenario | Expected | Observed | Result |
 |---|---|---|---|
@@ -12,7 +12,7 @@ Date: 2026-10-10. Independent tester `/root/host_37`; no slot required; no targe
 | Git integration candidate tree | Merge of current main and final head has exactly the reviewed tree | Remote Git tree equals local final-head tree; both parents verified | PASS |
 | Latest-head hosted packaging fixtures | Completed job and actual no-skip fixture output | Run38033766825 success;7+81 tests OK | PASS |
 | Latest-head hosted provisioning fixtures | Completed job and actual fixed-suite output | Run38033766876 success;46+23+11+18 tests OK | PASS |
-| Final PR unchanged mandatory quick | Full job success and `CI GATE PASSED`, exact final source/integration SHA | Final HEAD verified; repository gate currently running in exact final-HEAD run | PENDING |
+| Final PR unchanged mandatory quick | Full job success and `CI GATE PASSED`, exact final source/integration SHA | Exact-head run completed success; actual checkout8a15d644 and literal final gate output read back | PASS |
 | Target installation, reboot and hardware acceptance | Healthy storage and protected management prerequisite | Offline filesystem recovery still required; no target operations | NOT RUN |
 
 Actual output from commands run in own worktree:
@@ -68,8 +68,40 @@ Validate portable Debian export fixtures: Ran 18 tests in 34.868s
 OK
 ```
 
-These fixture results do not substitute for the pending mandatory quick run38033766837, whose metadata still reports `in_progress` and no conclusion.
+These fixture results were not substituted for mandatory quick run38033766837. The required complete gate has now independently completed success on the same final source SHA.
 
-No complete local quick gate was run: manager envelope directs hosted final-HEAD evidence and prohibits duplicating a broad build on the nearly full root disk. Next: retrieve completed mandatory hosted quick run and its real output before revising the verdict. No prior green run is substituted for the pending final-SHA gate.
+## Completed mandatory quick evidence
 
-Verdict: **BLOCKED-ENV — awaiting mandatory hosted quick completion**. No failing test is being waived or reported as PASS.
+Commands ran in this independent tester's own worktree: `gh api repos/mcoder1001-cyber/NGFW/actions/jobs/114159912573/logs` (captured into root-only `/tmp/hardware-37-20261010-ci/job-114159912573.log`) and `gh run view 38033766837 --repo mcoder1001-cyber/NGFW --json headSha,status,conclusion,jobs,url`. Actual REST result: `REST job log download exit=0 bytes=60874`. Actual metadata: `headSha=5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, `status=completed`, `conclusion=success`; job114159912573 and every step success, completion `2026-10-10T07:36:18Z`.
+
+Actual log excerpts, preserving checkout identity and complete gate summary:
+
+```text
+2026-10-10T07:15:22.6958486Z HEAD is now at 8a15d644 Merge 5bd7e8b545fc765fd2babd8dda15175d6f33af1b into d2d55984d74fa1d06c32e8271886f11f16375407
+2026-10-10T07:15:22.7055712Z 8a15d644c53cc3ef4abde339efd3b2a0331221a5
+2026-10-10T07:15:59.4316703Z branch    HEAD @ 8a15d644   (base: origin/main)
+2026-10-10T07:25:54.8326964Z Tasks:    35 successful, 35 total Cached:    6 cached, 35 total Time:    8m50.903s  
+2026-10-10T07:36:11.4197063Z apply-startup harness: green (2 shards; 149 checks passed in the parallel run)
+2026-10-10T07:36:11.4209437Z == summary (quick) ==
+2026-10-10T07:36:11.4210542Z   contract guard: HEAD vs origin/main                0m00s
+2026-10-10T07:36:11.4211397Z   tools (golangci-lint, gitleaks)                    0m01s
+2026-10-10T07:36:11.4212208Z   install (pnpm --frozen-lockfile --prefer-offline)   0m05s
+2026-10-10T07:36:11.4212843Z   generate + generated-output gate                   0m53s
+2026-10-10T07:36:11.4213323Z   forbidden patterns (+ gitleaks)                    0m03s
+2026-10-10T07:36:11.4214117Z   packet-trace ban on the shared VPP (D-128)         0m01s
+2026-10-10T07:36:11.4214647Z   ip classify reset after every shell interface create (D-185)   0m01s
+2026-10-10T07:36:11.4215180Z   slot resource scheme (1..32, no collisions)        0m00s
+2026-10-10T07:36:11.4215897Z   lint · typecheck · unit tests · build (turbo)   8m51s
+2026-10-10T07:36:11.4216361Z   apps/agent: make lint test build                   7m52s
+2026-10-10T07:36:11.4216806Z   apps/cli: make lint test build                     0m13s
+…
+2026-10-10T07:36:11.4227158Z   deploy/vpp: shellcheck + apply-startup fake-host harness   1m43s
+…
+2026-10-10T07:36:11.4241589Z CI GATE PASSED
+```
+
+The omitted test/Go-modules summary line reports unit-mode vet/tests/build across every listed test module in0m29s; integration is not run by this quick gate. All gates and fixtures are unchanged from the reviewed source; no test option or workflow was weakened.
+
+No complete local quick gate was run: manager envelope directs hosted final-HEAD evidence and prohibits duplicating a broad build on the nearly full root disk. Completed exact final-head hosted gate and its real output were independently obtained instead. This PASS applies to the package/source correction, not target installation or physical data forwarding.
+
+Verdict: **PASS** on final source `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, actual hosted integration checkout `8a15d644c53cc3ef4abde339efd3b2a0331221a5`, tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2`. No failing test was waived. Hardware installation/forwarding/reboot acceptance remains NOT RUN pending offline disk recovery.

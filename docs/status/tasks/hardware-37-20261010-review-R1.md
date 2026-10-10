@@ -6,7 +6,7 @@ Date: 2026-10-10. Independent reviewer `/root/host_37`, worktree `/root/ngfw-wt/
 
 The only product diff adds `${shlibs:Depends}` to `Package: ngfw-api` in `deploy/debian/ngfw/debian/control:18`. Existing Node22 bounds, interpreter/system-user dependencies and all other package stanzas are unchanged. `dh binary` already runs `dh_shlibdeps` and `dh_gencontrol`; consuming their generated substitution variable is the appropriate correction for native Argon2's missing runtime library dependencies. Contracts, transaction semantics, API behavior, generated files, tests, CI/workflows and security boundaries are unchanged.
 
-No source correctness BLOCKER/MAJOR/MINOR findings. Final actual API archive inspection and regression assertion now PASS. Required validation is still pending: the unchanged complete mandatory hosted quick gate must pass on the final PR/integration SHA. Prior green runs are not acceptance evidence for the new final SHA.
+No source correctness BLOCKER/MAJOR/MINOR findings. Final actual API archive inspection and regression assertion PASS. The unchanged complete mandatory hosted quick gate completed success on the final PR/integration SHA, with actual checkout identity and final output independently verified. Prior green runs were not substituted for final-SHA evidence.
 
 ## Actual independent evidence
 
@@ -55,8 +55,19 @@ PASS final archive: libc6/libgcc-s1 declared; original archive reproduces missin
 
 Fixed archive inspected: `/dev/shm/ngfw-api_0.1.0~dev+2045ab8b3d2f_amd64.deb`. Original reproducer: `/root/Documents/Codex/2026-10-10/hardware/runtime/ngfw-api_0.1.0~dev+cc80be66edcf_amd64.deb`. Generated substvars independently read back: `shlibs:Depends=libc6 (>= 2.34), libgcc-s1 (>= 4.2)`.
 
-The manager explicitly forbids a broad duplicate local quick build on the nearly full root disk (939MiB observed free). Full quick is pending hosted completion on final PR HEAD. Independently retrieved fresh [run38033766837/job114159912573](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38033766837/job/114159912573): source HEAD `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, status `in_progress`. PR integration candidate readback `8a15d644c53cc3ef4abde339efd3b2a0331221a5`; completed checkout/gate logs remain to be inspected. Earlier run38033113750 on bde83bc was canceled/superseded and is not counted as PASS or as a product-test failure. No test/CI weakening was observed in the source diff.
+The manager explicitly forbids a broad duplicate local quick build on the nearly full root disk (939MiB observed free). Independently retrieved completed fresh [run38033766837/job114159912573](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38033766837/job/114159912573): source HEAD `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, `status=completed`, `conclusion=success`, job completed `2026-10-10T07:36:18Z`. Read-only REST job log download from own worktree succeeded (60874 bytes) into protected `/tmp/hardware-37-20261010-ci/job-114159912573.log`; no raw auth URLs or credentials were printed. Actual hosted checkout is `8a15d644c53cc3ef4abde339efd3b2a0331221a5`, merging final5bd7e8b into current maind2d55984. Earlier run38033113750 on bde83bc was canceled/superseded and is not counted as PASS or as a product-test failure. No test/CI weakening was observed in the source diff.
 
-Independent remote Git-tree/parent assertion confirms candidate integration commit8a15d644 has current main d2d55984 and final source5bd7e8b as parents, and tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2` exactly equals local final-head tree. Independently retrieved completed latest-head packaging run38033766825 and provisioning run38033766876 metadata/logs: both success on5bd7e8b;7+81 and46+23+11+18 tests respectively report OK. Full command/output evidence is in this task's T1 receipt. These results do not waive final mandatory quick.
+Independent remote Git-tree/parent assertion confirms tested integration commit8a15d644 has current main d2d55984 and final source5bd7e8b as parents, and tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2` exactly equals local final-head tree. Independently retrieved completed latest-head packaging run38033766825 and provisioning run38033766876 metadata/logs: both success on5bd7e8b;7+81 and46+23+11+18 tests respectively report OK. Full command/output evidence is in this task's T1 receipt.
 
-Verdict: **BLOCK pending final-SHA mandatory quick evidence**. This is a validation hold, not a source-code or archive defect finding.
+Actual completed mandatory quick log excerpts (full gate, no check removed):
+
+```text
+2026-10-10T07:15:22.6958486Z HEAD is now at 8a15d644 Merge 5bd7e8b545fc765fd2babd8dda15175d6f33af1b into d2d55984d74fa1d06c32e8271886f11f16375407
+2026-10-10T07:25:54.8326964Z Tasks:    35 successful, 35 total Cached:    6 cached, 35 total Time:    8m50.903s  
+2026-10-10T07:36:11.4197063Z apply-startup harness: green (2 shards; 149 checks passed in the parallel run)
+2026-10-10T07:36:11.4241589Z CI GATE PASSED
+```
+
+The hosted `tools/ci.sh quick --base origin/main` gate covers contract/generated output, security/forbidden patterns, lint/typecheck/unit/build, agent/CLI lint/test/build, all test Go modules in unit mode and the VPP startup fake-host harness. This is package/source correctness evidence; physical installation, live dataplane and reboot acceptance remain NOT RUN because root storage recovery is required.
+
+Verdict: **APPROVE** on final source `5bd7e8b545fc765fd2babd8dda15175d6f33af1b` and tested integration tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2`. No source correctness findings. Hardware installation acceptance remains blocked offline filesystem recovery and is not included in this approval.

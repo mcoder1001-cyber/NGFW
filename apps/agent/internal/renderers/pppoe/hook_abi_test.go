@@ -67,3 +67,24 @@ func TestIPv6HookSixArgumentABIReachesOwnershipGuard(t *testing.T) {
 		t.Fatal("departed daemon published IPv6 state")
 	}
 }
+
+func TestCarrierPeerProvidesHookIdentityToFixedDialer(t *testing.T) {
+	spec, err := NewCarrierSpec("ngfw", "pppwan", "wan", 1492)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := minimalSession()
+	session.Carrier = &spec
+	session.Iface = spec.Logical
+	session.HostIf = spec.RawHost()
+	session.MTU = spec.MTU
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	files, err := r.RenderCarrier(session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := files[filepath.Join(r.paths.PeersDir, "carrier")].Content
+	if !strings.Contains(string(data), "\nipparam "+session.Remotename()+"\n") {
+		t.Fatal("fixed carrier dialer cannot pass hook identity")
+	}
+}

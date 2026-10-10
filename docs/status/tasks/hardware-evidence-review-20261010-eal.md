@@ -415,3 +415,73 @@ Exact new source e2a0d066f5635b69ae38e84dc99f8713aef5a6ab09302240ff5d10f2dd3d4ea
 independent outer/REMOTE AST PASS, diff exactly one line, remote root b162adaea
 includes correction. Conditional source APPROVE after actual sealed COMMITTED7,
 new package/binary/record proof; no native/reboot execution acceptance inferred.
+
+## Actual corrected upgrade and main gate completion
+
+ROOT exact6da8 preservation and fresh both-host simulations independently PASS;
+then actual both-host installation PASS. All receipts original controller parent,
+root-owned0600/fsynced by producer, independently rehashed and parsed:
+
+| Receipt basename | Bytes | SHA256 |
+| --- | ---: | --- |
+| manager-eal-upgrade211-preserve-failed-attempt-20261010T152246Z.json | 336122 | 63703fe4c2fb9a73502cd437c0f1ee9aaffd06d4945567aa6966a35a3a29319c |
+| manager-eal-upgrade211-simulate-20261010T152320Z.json | 312569 | 7c0cf51e209f69c6ef9ae96eeca09c920b8f801c53d89670fa6cd1e0670bea30 |
+| manager-eal-upgrade37-simulate-20261010T152400Z.json | 220600 | 78505d6449ad102d0d3f7c54653ff9d88f192d96888600bfcf5fce08b7a24ec0 |
+| manager-eal-upgrade211-install-20261010T152426Z.json | 342361 | c4f2f2e2e60571dc8741968a71bfda718c1e444980b404047dd2d6c1c44440cf |
+| manager-eal-upgrade37-install-20261010T152527Z.json | 246850 | ababf4cc5984a5a7b286c438a27d5d0bd57e1e62ffcebff0c44f059008e88437 |
+
+Actual preservation requires both old log hashes, disk copy/fsync and only the two
+owned input files removed. Guards/protection retained, storage errors empty. Fresh
+plans each simulation0/exact same four Inst/zero Remv/allow-downgrades flag; no
+extra package change. Both actual installations nativeAPT0, stdout retained and
+empty stderr, all four exact0.1.0~dev+97ae88ee5b6a configured, dpkg-audit0/empty.
+Installed agentb3c7 exact37049584B/root0755 and startupgen55e verified. Eleven
+protected before/after sections are identical: whole network, original data
+driver/group scope, files/cache/config/crypto/firstboot, unit identities,16sysctls,
+DNS, NFT, loaded IDs and storage6. New storage events empty. .211 retains
+VPP72599/nginx9281; .37 retains VPP7820/nginx9669; both API and agent held inactive.
+Attempt logs are unique private disk-record files, old failure100 remains retained.
+Restore-only source applicability APPROVE with each actual immutable install proof;
+actual guard restoration and subsequent physical/native acceptance still pending.
+
+Actual independently executed selected commands/output:
+
+```text
+sha256sum /root/Documents/Codex/2026-10-10/hardware/manager-eal-upgrade211-preserve-failed-attempt-20261010T152246Z.json /root/Documents/Codex/2026-10-10/hardware/manager-eal-upgrade211-simulate-20261010T152320Z.json /root/Documents/Codex/2026-10-10/hardware/manager-eal-upgrade37-simulate-20261010T152400Z.json /root/Documents/Codex/2026-10-10/hardware/manager-eal-upgrade211-install-20261010T152426Z.json /root/Documents/Codex/2026-10-10/hardware/manager-eal-upgrade37-install-20261010T152527Z.json
+exit0; five exact SHA values in table above
+gh run view 38062974117 --json headSha,status,conclusion,jobs --jq '{headSha,status,conclusion,jobs:[.jobs[]|{name,status,conclusion,steps:[.steps[]|select(.status!="completed" or .conclusion!="success")|{name,status,conclusion}]}]}'
+{"conclusion":"success","headSha":"0c21e65eea8b2d2cfb61f57ec9f6b57a0e6c55f3","jobs":[{"conclusion":"success","name":"Mandatory quick gate","status":"completed","steps":[]}],"status":"completed"}
+tools/ci.sh check --base origin/main  # own published8005bd09 checkpoint
+check PASSED (0m14s); gitleaks348.54KB/no leaks; board212 valid
+```
+
+Exact merged product tree/main mandatory gate PASS is now observed separately
+from final48af branch gate. Hardware physical/control/post-binding boot acceptance
+remains unfinished; source CI and package configuration do not claim that result.
+
+## Terminal-lock and reboot epoch findings
+
+Worker observer cfac7c5e267ba7ce0f33205e1d39c325ee237471d7d628aeb0ff9330933e1f25
+at4a3e0ab40895c8a4a4f0eda9f73031462fb006ec adds native unit inactive/success/0
+and nonblocking existing-lock evidence. Its recursive private-parent check also
+rejects the actual canonical /run/lock mode1777. ROOT supplied readonly metadata
+cf9db50adf14a35c4cfcb66b3f72b2185128ad6973b7a3a39821f140866d2160/362B
+(.211), ceea26988992ff431bf0efd3ae18e05894d0c103d1b976730092de74f1afeaa4/258B
+(.37); both independently rehashed/parsed: /run root:root0755, /run/lock
+root:root1777. Existing .211 lock files root:root0644/single link; .37 locks
+absent before its first canonical physical launch. No chmod or lock-file creation
+by reviewer. Worker accepted narrow sticky-parent source correction; acceptance
+closure pending exact delta. Default inspect/stage/launch scope is unaffected.
+
+ROOT boot source dd8baa0b75825fd2670e9264eb2b88f57753f7efc7fe364c058d3f7ed5d93803
+full read/outer+REMOTE AST PASS. Conditional scope: after actual native physical
+proof, inspect current21 units, enable only owned VPP/agent/API without --now,
+durable private original states/offhost proof, then one owner-authorized normal
+reboot; no foreign service/network/driver/startup operation. Observe-boot currently
+requires ioerr6 across the kernel restart. Concrete finding: this device counter
+has a fresh boot epoch, previously proven during both original-root returns.
+New-boot actual value/stability plus new kernel storage-error scan are required;
+old6 must remain only same-boot precondition, not a postboot equality assertion.
+ROOT notified for narrow correction before observer acceptance. Fresh timezone
+metadata, full protected management/runtime/PCI/native control after reboot remain
+actual checks, with no extra console/full-image prerequisite introduced.

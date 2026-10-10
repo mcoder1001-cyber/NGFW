@@ -27,7 +27,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`51e60b66fa313eeb95dbe5811a8a8274e92669ca` (matching CLI push/readback;
+`8005bd09e072180165804e3f3e531b84bf9470b7` (matching CLI push/readback;
 actual own post-commit documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
@@ -61,10 +61,14 @@ all four still ee202, dpkg-audit empty, guards/protection retained. Bounded exac
 four-artifact flag/log-preservation correction6da8 is independently APPROVE at
 published83f39e7, now ancestor of3045ba12. Exact retained268/72-byte logs and
 controller-only generated651258-byte source verified; no target contact. ROOT may
-preserve the two exact logs and obtain fresh both-host simulations. Actual new
-plans/install/guard restoration remain pending. No corrected physical retry has
-occurred. Next action: inspect those fresh actual phase receipts; close worker
-retry observer's native-unit/lock evidence gap before terminal acceptance.
+preserve the two exact logs and obtain fresh both-host simulations. Actual
+preservation63703, fresh plans7c0cf/78505 and both installationsc4f2/abab PASS,
+all four new97ae configured/agentb3c7/audit0/protected/no errors. Guard restore
+source applicability APPROVE; actual restoration still pending. No corrected
+physical retry has occurred. Main completequick38062974117 independently SUCCESS
+on exact merge0c21. Next action: inspect guard restores/fresh physical predicates;
+close worker observer sticky1777-parent finding and root postboot counter-epoch
+finding. Native-unit/lock checks added source-only, actual correction not yet run.
 No repeat launch or target writes by this reviewer.
 Published542bf docs checkpoint post-check FAILED on two historical prose strings
 copied into this report; no credential/config change. Remote archive542bf preserved

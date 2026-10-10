@@ -22,7 +22,7 @@ try:
  raw=subprocess.check_output(ssh+[shlex.join(['cat',transport])],timeout=180)
  payload=json.loads(raw)
  out=root/'docs/status/tasks/lab-global-blocking-20261010-evidence/250';out.mkdir(exist_ok=True)
- subprocess.run(['node',str(root/'docs/status/tasks/lab-global-blocking-20261010-shots.mjs')],input=json.dumps({'password':payload['password']}).encode(),check=True,cwd=root,timeout=150,env=dict(os.environ,NGFW_GB_BROWSER_API_PORT='11790',NGFW_GB_BROWSER_OUTPUT=str(out)))
+ subprocess.run(['node',str(root/'docs/status/tasks/lab-global-blocking-20261010-shots.mjs')],input=json.dumps({'password':payload['password']}).encode(),check=True,cwd=root,timeout=150,env=dict(os.environ,NGFW_GB_BROWSER_API_PORT='11790',NGFW_GB_BROWSER_WEB_PORT='15790',NGFW_GB_BROWSER_OUTPUT=str(out)))
  result=str(Path(transport).with_name('result'))
  # Structured stdin avoids shell expansion and secret-bearing command arguments.
  script="import json,sys; x=json.load(sys.stdin); open(x['path'],'w').write(json.dumps(x['reply'])+'\\n')"

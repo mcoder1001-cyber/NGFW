@@ -100,7 +100,7 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  api.call('PATCH','/config/interfaces',config)
  extended_api=os.environ.get('NGFW_WAN_API_EXTENDED')=='1'
  if extended_api:
-  api.call('PATCH','/config/nat',{'enabled':True,'mode':'ed','sessionLimit':4096,'inside':['host-w20lan'],'outside':['w20ppp'],'pools':[{'name':'w20-ppp-native','range':'100.64.20.10'}]})
+  api.call('PATCH','/config/nat',{'enabled':True,'mode':'ed','sessionLimit':4096,'inside':['host-w20lan'],'outside':['w20ppp'],'pools':[]})
  paths=('/interfaces',)+tuple('/nat/'+field for field in ('enabled','mode','sessionLimit','inside','outside','pools')) if extended_api else ('/interfaces',)
  result,warnings=commit(api,paths)
  assert (namespace.stat().st_dev,namespace.stat().st_ino)==namespace_identity,'pre-existing carrier namespace was replaced'

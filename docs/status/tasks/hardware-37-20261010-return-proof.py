@@ -22,7 +22,11 @@ def command(args,timeout=180):
     p=run(args,timeout);report['commands'].append(entry(args,p));assert p.returncode==0
     return p.stdout.decode(errors='replace')
 def readonly_mount(source,target,fstype,options,dev):
-    assert not os.path.lexists(target);target.mkdir(mode=0o700)
+    if os.path.lexists(target):
+        st=target.lstat()
+        assert stat.S_ISDIR(st.st_mode) and st.st_uid==0 and st.st_gid==0 and stat.S_IMODE(st.st_mode)==0o700 and st.st_dev==51
+        assert not list(target.iterdir()),'refuse nonempty existing owned mountpoint'
+    else:target.mkdir(mode=0o700)
     assert os.stat(target).st_dev==51
     command(['/usr/bin/mount','-t',fstype,'-o',options,source,str(target)])
     report['mounts'].append(str(target))
@@ -63,6 +67,17 @@ try:
         if kind=='symlink':got['target']=os.readlink(p)
         got['matches']=all(got[key]==item[key] for key in ['kind','uid','gid','mode','bytes','sha256','target'] if key in item)
         report['selected'].append(got);assert got['matches'],'selected original-file or metadata mismatch'
+    report['root_account_records']=[]
+    for item in ROOT_RECORDS:
+        p=original_path(item['path'],False);st=p.lstat()
+        assert stat.S_ISREG(st.st_mode) and st.st_uid==0 and not st.st_mode&0o027
+        lines=[line.rstrip(b'\r\n')+b'\n' for line in p.read_bytes().splitlines(keepends=True) if line.startswith(b'root:')]
+        assert len(lines)==1
+        got={'path':item['path'],'record_selector':'root:','bytes':len(lines[0]),'sha256':hashlib.sha256(lines[0]).hexdigest(),
+             'current_file_uid':st.st_uid,'current_file_gid':st.st_gid,'current_file_mode':stat.S_IMODE(st.st_mode),
+             'original_file_metadata_baseline_available':False}
+        got['matches']=got['bytes']==item['bytes'] and got['sha256']==item['sha256']
+        report['root_account_records'].append(got);assert got['matches'],'selected root-account record mismatch'
     # EFI had no pre-repair file baseline: record current boot artifacts, do not claim equality.
     report['efi_files']=[]
     for p in sorted(efi.rglob('*')):
@@ -88,12 +103,16 @@ try:
     assert '7.0.0-22-generic' in report['boot_configuration']['/boot/grub/grub.cfg']
     report['root_uuid_fstab_grub_match']=True
     report['block_inventory']=command(['/usr/bin/lsblk','-J','-b','-o','NAME,MAJ:MIN,FSTYPE,UUID,SIZE'])
+except Exception as exc:
+    report['status']='REFUSE';report['failure']=str(exc);report['traceback']=traceback.format_exc()
 finally:
     # Ordinary unmount only; no lazy/force detach, no persistent mount configuration.
     for target in reversed(report['mounts']):
         command(['/usr/bin/umount',target])
         assert os.stat(target).st_dev==51
     report['ordinary_unmounts_complete']=True
+if report.get('status')=='REFUSE':
+    print(json.dumps(report,indent=2));raise SystemExit(1)
 try:
     report['network']={name:json.loads(command(args)) for name,args in COMMANDS.items()}
     nic=pathlib.Path('/sys/class/net/enp12s0');pci=(nic/'device').resolve()
@@ -141,7 +160,7 @@ def main():
         assert hashlib.sha256((PRIVATE/name).read_bytes()).hexdigest()==digest
     spec=importlib.util.spec_from_file_location('preserve',source)
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-    expected={}
+    expected={};root_records=[]
     for x in json.loads((PRIVATE/'readonly-boot-baseline-20261010.json').read_text())['boot_files']:
         expected[x['path']]={'path':x['path'],'kind':'file','bytes':x['bytes'],'sha256':x['sha256'],'mode':int(x['mode'],0),'follow_final':True}
     for filename,digest in [('auth-return-private-20261010.tar','2a57558ae6a6c7c2694b2034249e301d209bb0b5b8bc69076e77710725cd45c9'),('network-config.tar','ddfcd92c7df9dc4f67f85445f1793b6280984d1f7acda89cbcbce5c1e4cbce1f')]:
@@ -149,6 +168,13 @@ def main():
         with tarfile.open(archive,'r:') as tar:
             for member in tar.getmembers():
                 assert not pathlib.PurePosixPath(member.name).is_absolute() and '..' not in pathlib.PurePosixPath(member.name).parts
+                if member.name in ['return/root-shadow.record','return/root-gshadow.record']:
+                    assert member.isfile()
+                    data=tar.extractfile(member).read();assert data.startswith(b'root:') and data.count(b'\n')==1
+                    target='/etc/shadow' if member.name=='return/root-shadow.record' else '/etc/gshadow'
+                    root_records.append({'path':target,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
+                    continue
+                assert not member.name.startswith('return/'),'unknown generated archive selector'
                 path='/'+member.name.lstrip('./')
                 kind='file' if member.isfile() else ('directory' if member.isdir() else ('symlink' if member.issym() else 'other'))
                 assert kind!='other'
@@ -157,10 +183,11 @@ def main():
                     data=tar.extractfile(member).read();item.update({'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
                 if member.issym():item['target']=member.linkname
                 expected[path]=item
+    assert {x['path'] for x in root_records}=={'/etc/shadow','/etc/gshadow'}
     ram=json.loads((PRIVATE/'ram-selected-integrity-capacity-20261010.json').read_text())['selected_files']
-    fields={'REMOTE_PARENT':m.REMOTE_PARENT,'EXPECTED':list(expected.values()),'RAM_EXPECTED':ram,'COMMANDS':COMMANDS}
+    fields={'REMOTE_PARENT':m.REMOTE_PARENT,'EXPECTED':list(expected.values()),'ROOT_RECORDS':root_records,'RAM_EXPECTED':ram,'COMMANDS':COMMANDS}
     p=subprocess.run(m.SSH+['LC_ALL=C /usr/bin/python3 -B -'],input=m.code(fields,m.IDENTITY+REMOTE).encode(),capture_output=True,timeout=900)
-    receipt=m.save('post-repair-return-readiness-20261010.json',p.stdout);error=m.save('post-repair-return-readiness-20261010.stderr',p.stderr)
+    receipt=m.save('post-repair-return-readiness-v2-20261010.json',p.stdout);error=m.save('post-repair-return-readiness-v2-20261010.stderr',p.stderr)
     print(json.dumps({'ssh_exit':p.returncode,'receipt':receipt,'stderr':error}),flush=True)
     assert p.returncode==0 and not p.stderr
     d=json.loads(p.stdout);comparisons={}
@@ -168,9 +195,9 @@ def main():
         baseline=json.loads((PRIVATE/(name+'.json')).read_text())
         comparisons[name]=addresses(current)==addresses(baseline) if name=='addresses' else current==baseline
     assert all(comparisons.values())
-    public={'all_selected_match':all(x['matches'] for x in d['selected']),'selected_count':len(d['selected']),
+    public={'root_account_records_match':all(x['matches'] for x in d['root_account_records']),'all_selected_match':all(x['matches'] for x in d['selected']),'selected_count':len(d['selected']),
             'all47_ram_runtime_match':len(d['runtime'])==47 and all(x['matches'] for x in d['runtime']),
             'network_comparisons':comparisons,'normal_reboot_not_run':True}
-    m.save('post-repair-return-conclusions-20261010.json',json.dumps(public,indent=2).encode());print(json.dumps(public))
+    m.save('post-repair-return-conclusions-v2-20261010.json',json.dumps(public,indent=2).encode());print(json.dumps(public))
 
 if __name__=='__main__':main()

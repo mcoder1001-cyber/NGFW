@@ -1,5 +1,5 @@
 """Remaining genuine PPP acceptance; only original owned peer and real API."""
-import json, os, pathlib, signal, subprocess, time
+import contextlib, json, os, pathlib, signal, subprocess, time
 
 def guarded_peer(record):
  proc=pathlib.Path('/proc')/str(record['pid'])
@@ -11,6 +11,7 @@ def guarded_peer(record):
  assert [ns.st_dev,ns.st_ino]==record['namespace']==[expected.st_dev,expected.st_ino]
  return stat[0]
 
+@contextlib.contextmanager
 def lifecycle(api,runtime,config,password,state,wait_up,commit,command,packets,Refused):
  record=json.loads(os.environ['NGFW_WAN_PEER_RECORD'])
  assert guarded_peer(record)!='Z'
@@ -89,6 +90,8 @@ def lifecycle(api,runtime,config,password,state,wait_up,commit,command,packets,R
    data=path.read_bytes()
    if password.encode() in data or bad.encode() in data:raise Refused('plaintext credential in genuine original peer/RA raw log')
   print('REAL_API_CORRECT_AND_WRONG_PASSWORD_LOG_CONFIG_AUDIT_ABSENCE PASS',flush=True)
+  # Keep the real peer alive while the caller removes committed PPP config.
+  yield
  finally:
   if peer.poll() is None:
    assert (proc/'stat').read_text().split(') ',1)[1].split()[19]==started_identity and os.getpgid(peer.pid)==peer.pid

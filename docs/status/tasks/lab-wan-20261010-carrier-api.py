@@ -1,5 +1,5 @@
 """Real product agent/API consumer in the reviewed private carrier fixture."""
-import hashlib, json, os, pathlib, sys, time, types, subprocess, signal, re
+import contextlib, hashlib, json, os, pathlib, sys, time, types, subprocess, signal, re
 ROOT=pathlib.Path(os.environ.get('NGFW_WAN_NATIVE_ROOT','/root/ngfw-wt/lab-wan-20261010'))
 BASE=pathlib.Path(os.environ.get('NGFW_WAN_NATIVE_BASE','/tmp/ngfw-lab-wan-20261010'))
 sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
@@ -146,10 +146,12 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  for route in ('/config','/config/candidate','/config/diff'):
   if password in json.dumps(api.call('GET',route)):raise Refused('plaintext in config response')
  print('REAL_AGENT_API_CONFIG_LOG_PASSWORD_ABSENCE PASS',flush=True)
+ lifecycle=contextlib.nullcontext()
  if extended_api:
   scope={};exec(compile((ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py').read_text(),str(ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py'),'exec'),scope)
-  scope['lifecycle'](api,runtime,config,password,state,wait_up,commit,command,packets,Refused)
+  lifecycle=scope['lifecycle'](api,runtime,config,password,state,wait_up,commit,command,packets,Refused)
+ with lifecycle:
   if nat_api:api.call('PATCH','/config/nat',baseline['nat'])
- api.call('PATCH','/config/interfaces',{name:None for name in config})
- commit(api,paths,warnings)
- print('REAL_API_CURRENT_WIRING_SCOPED_CLEANUP PASS',flush=True)
+  api.call('PATCH','/config/interfaces',{name:None for name in config})
+  commit(api,paths,warnings)
+  print('REAL_API_CURRENT_WIRING_SCOPED_CLEANUP PASS',flush=True)

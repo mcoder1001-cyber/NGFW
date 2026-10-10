@@ -1,0 +1,5 @@
+Read-only build sharing from NAT46 worker; source4908716b4501312102382e6979b8fc1ded6f9311, no product modifications. Worker observed Turbo14/14 API/webbuildPASS. Native ESM imports resolve original source workspace's apps/api/node_modules. Own checkout only symlinks ignored/generated binaries.
+API path /root/ngfw-wt/lab-nat46-20261010/apps/api/dist/main.js SHA25627bfd88933101b58826a9f9d0ee3960c00276cddb4f350edc2f05d5e516b9a7f.
+Agent path /tmp/ngfw-lab-nat46-20261010-bin/ngfw-agent SHA2561f0dd500be7e66fa26223852dc1919771f1cef23d75e94d17c2a8554e2f072fc.
+27bfd88933101b58826a9f9d0ee3960c00276cddb4f350edc2f05d5e516b9a7f  /root/ngfw-wt/lab-nat46-20261010/apps/api/dist/main.js
+1f0dd500be7e66fa26223852dc1919771f1cef23d75e94d17c2a8554e2f072fc  /tmp/ngfw-lab-nat46-20261010-bin/ngfw-agent

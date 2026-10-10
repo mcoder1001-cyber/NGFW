@@ -1,0 +1,17 @@
+/usr/lib/x86_64-linux-gnu/frr/libfrr.so.0 DIFF
+/usr/lib/x86_64-linux-gnu/libyang.so.3 MATCH
+/usr/lib/x86_64-linux-gnu/libjson-c.so.5 MATCH
+/usr/lib/x86_64-linux-gnu/libc.so.6 MATCH
+/usr/lib/x86_64-linux-gnu/libcap.so.2 DIFF
+/usr/lib/x86_64-linux-gnu/libcrypt.so.1 MATCH
+/usr/lib/x86_64-linux-gnu/libpcre2-posix.so.3 MISSING
+/usr/lib/x86_64-linux-gnu/libm.so.6 MATCH
+/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0 MATCH
+/usr/lib/x86_64-linux-gnu/libxxhash.so.0 MATCH
+/usr/lib/x86_64-linux-gnu/frr/libmgmt_be_nb.so.0 DIFF
+/usr/lib/x86_64-linux-gnu/libreadline.so.8 MATCH
+/usr/lib/x86_64-linux-gnu/libpam.so.0 DIFF
+/usr/lib/x86_64-linux-gnu/libpam_misc.so.0 DIFF
+/usr/lib/x86_64-linux-gnu/libtinfo.so.6 MATCH
+/usr/lib/x86_64-linux-gnu/libaudit.so.1 MATCH
+/usr/lib/x86_64-linux-gnu/libcap-ng.so.0 DIFF

@@ -512,9 +512,9 @@ func (e *p12Env) checkRootFIB() {
 		}
 	}
 	if out, _ := e.cmd("systemctl", "is-active", "frr"); strings.TrimSpace(out) == "active" {
-		e.t.Fatalf("%s=root: the system frr unit is active", EnvP12FIB)
+		requireForeignSystemFRR(e.t)
 	}
-	e.t.Logf("%s=root preconditions: VPP %s, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:\n%s", EnvP12FIB, vppSocket(), lcp)
+	e.t.Logf("%s=root preconditions: VPP %s, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive or independently foreign; show lcp:\n%s", EnvP12FIB, vppSocket(), lcp)
 }
 
 // requirePrivateP12Root independently verifies the runner's namespace and private
@@ -655,7 +655,13 @@ func TestP12TopologyOnHost(t *testing.T) {
 	}
 
 	// V19 preflight (D-095) before any packet crosses the rig
-	pre, err := e.cmd("go", "-C", filepath.Join(e.repo, "apps", "agent"), "run", "./cmd/ngfw-vpp-preflight")
+	var pre string
+	var err error
+	if binary := os.Getenv("NGFW_ROUTING_PREFLIGHT_BIN"); binary != "" {
+		pre, err = e.cmd(binary)
+	} else {
+		pre, err = e.cmd("go", "-C", filepath.Join(e.repo, "apps", "agent"), "run", "./cmd/ngfw-vpp-preflight")
+	}
 	t.Logf("ngfw-vpp-preflight: %v\n%s", err, pre)
 	if err != nil {
 		t.Fatal("V19 preflight failed: no packet may cross the rig")

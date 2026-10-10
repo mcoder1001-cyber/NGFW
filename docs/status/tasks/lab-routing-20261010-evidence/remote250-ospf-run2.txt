@@ -1,0 +1,92 @@
+HOST_NETNS=net:[4026531833]
+PRIVATE_FIB_NETNS=net:[4026532747]
+OSPF_OUTER_LINK_INVENTORY=[{"addr_info": [{"family": "inet", "label": "lo", "local": "127.0.0.1", "preferred_life_time": 4294967295, "prefixlen": 8, "scope": "host", "valid_life_time": 4294967295}, {"family": "inet6", "local": "::1", "preferred_life_time": 4294967295, "prefixlen": 128, "protocol": "kernel_lo", "scope": "host", "valid_life_time": 4294967295}], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "00:00:00:00:00:00", "flags": ["LOOPBACK", "UP", "LOWER_UP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 1, "ifname": "lo", "link_type": "loopback", "max_mtu": 0, "min_mtu": 0, "mtu": 65536, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "UNKNOWN", "promiscuity": 0, "qdisc": "noqueue", "tso_max_segs": 65535, "tso_max_size": 524280, "txqlen": 1000}]
+DISPOSABLE_VPP pid=469044 runtime=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-469041
+run.sh: 2026-10-10T13:47:00 VPP NRestarts=0 before, mode root
+=== RUN   TestOSPFTopologyOnHost
+    ospf_topology_integration_test.go:723: waiting for the exclusive globals lock /run/lock/ngfw-globals.lock …
+    ospf_topology_integration_test.go:727: globals window open at 2026-10-10T13:47:01+03:30
+    ospf_topology_integration_test.go:734: systemctl show vpp -p NRestarts (before) = 0
+2026/10/10 13:47:01 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ospf_topology_integration_test.go:754: system FRR remains foreign: cgroup=/system.slice/frr.service main=4575 members=4 host=net:[4026531833] private=net:[4026532747]
+    ospf_topology_integration_test.go:754: NGFW_OSPF_FIB=root preconditions: no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive or independently foreign; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    ospf_topology_integration_test.go:765: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    ospf_topology_integration_test.go:770: rig up w6 (slot 6, path af_packet, VPP /run/vpp/cli.sock)
+          create netns ns-w6-lan
+          create veth w6l0 <-> ns-w6-lan:w6l1
+        warning: rig: could not disable tx offload on ns-w6-lan:w6l1
+          create vpp host-w6l0 (af_packet on w6l0)
+          reset  ip/ip6 classify host-w6l0 (table-index ~0)
+          set    addr host-w6l0 10.6.1.1/24
+          create netns ns-w6-wan
+          create veth w6w0 <-> ns-w6-wan:w6w1
+        warning: rig: could not disable tx offload on ns-w6-wan:w6w1
+          create vpp host-w6w0 (af_packet on w6w0)
+          reset  ip/ip6 classify host-w6w0 (table-index ~0)
+          set    addr host-w6w0 10.6.2.1/24
+        rig: up
+        prefix: w6
+        slot: 6
+        path: af_packet
+        lan_ns: ns-w6-lan
+        lan_veth: w6l1
+        lan_ip: 10.6.1.2/24
+        lan_gw: 10.6.1.1
+        vpp_lan_if: host-w6l0
+        vpp_lan_addr: 10.6.1.1/24 
+        wan_ns: ns-w6-wan
+        wan_veth: w6w1
+        wan_ip: 10.6.2.2/24
+        wan_gw: 10.6.2.1
+        vpp_wan_if: host-w6w0
+        vpp_wan_addr: 10.6.2.1/24 
+        ping: ip netns exec ns-w6-lan ping -c 3 10.6.2.2
+        
+    ospf_topology_integration_test.go:785: OSPF fixture link w6l0/w6l1 in ns-w6-lan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:785: OSPF fixture link w6w0/w6w1 in ns-w6-wan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:788: rig VPP side handed to the agent: af_packet_delete w6l0 (veth down)
+    ospf_topology_integration_test.go:788: rig VPP side handed to the agent: af_packet_delete w6w0 (veth down)
+    ospf_topology_integration_test.go:793: rootFRR: [mgmtd zebra staticd ospfd] started in the root netns, pathspace w6, base /run/ngfw-test/w6/frr, pids map[mgmtd:469317 ospfd:469327 staticd:469324 zebra:469319]
+    ospf_topology_integration_test.go:800: peer apply: frr: daemon error: not converged after frr-reload.py --reload (FRR did not take these lines):
+        Lines To Delete
+        ===============
+        Lines To Add
+        ============
+        frr version 10.7.1
+    ospf_topology_integration_test.go:773: rig down: <nil>
+        rig down w6
+          delete netns ns-w6-lan (and its veth peer)
+          delete netns ns-w6-wan (and its veth peer)
+        rig: down
+        prefix: w6
+        slot: 6
+        path: af_packet
+        lan_ns: ns-w6-lan
+        lan_veth: w6l1
+        lan_ip: 10.6.1.2/24
+        lan_gw: 10.6.1.1
+        vpp_lan_if: host-w6l0
+        vpp_lan_addr: -
+        wan_ns: ns-w6-wan
+        wan_veth: w6w1
+        wan_ip: 10.6.2.2/24
+        wan_gw: 10.6.2.1
+        vpp_wan_if: host-w6w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w6-lan ping -c 3 10.6.2.2
+    ospf_topology_integration_test.go:737: systemctl show vpp -p NRestarts (after) = 0
+    ospf_topology_integration_test.go:729: globals window closed at 2026-10-10T13:47:25+03:30
+--- FAIL: TestOSPFTopologyOnHost (24.52s)
+FAIL
+required routing acceptance did not pass without skips
+run.sh: 2026-10-10T13:47:25 VPP NRestarts=0 after, exit 1
+DISPOSABLE_VPP_STOPPED pid=469044
+PRIVATE_FIB_TEST_EXIT=1
+SHARED_VPP_UNCHANGED=MainPID=8102,NRestarts=0

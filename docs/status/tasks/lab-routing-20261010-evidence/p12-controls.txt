@@ -1,0 +1,25 @@
+test_active_configured_or_impostor_defaults_rejected (__main__.self_test.<locals>.Controls.test_active_configured_or_impostor_defaults_rejected) ... ok
+test_actual_nsfs_retained_and_deduplicated (__main__.self_test.<locals>.Controls.test_actual_nsfs_retained_and_deduplicated) ... ok
+test_deleted_handle_retention_and_orphan_failure (__main__.self_test.<locals>.Controls.test_deleted_handle_retention_and_orphan_failure) ... P12_RETAINED_NAMESPACES=["net:[777]", "net:[778]"]
+P12_PRIVATE_REMAINING={"456": ["start", "net:[777]"]}
+P12_PRIVATE_PROCESSES_AFTER={}
+ok
+test_exited_inventory_producer_is_skipped (__main__.self_test.<locals>.Controls.test_exited_inventory_producer_is_skipped) ... ok
+test_host_handle_rejected (__main__.self_test.<locals>.Controls.test_host_handle_rejected) ... ok
+test_inventory_permission_error_not_empty_success (__main__.self_test.<locals>.Controls.test_inventory_permission_error_not_empty_success) ... ok
+test_inventory_producer_identity_must_remain_pinned (__main__.self_test.<locals>.Controls.test_inventory_producer_identity_must_remain_pinned) ... ok
+test_persistent_inventory_failure_closes_retained_descriptors (__main__.self_test.<locals>.Controls.test_persistent_inventory_failure_closes_retained_descriptors) ... P12_RETAINED_NAMESPACES=["net:[777]"]
+ok
+test_placeholder_never_counts (__main__.self_test.<locals>.Controls.test_placeholder_never_counts) ... ok
+test_success_without_observed_peer_scopes_rejected (__main__.self_test.<locals>.Controls.test_success_without_observed_peer_scopes_rejected) ... P12_RETAINED_NAMESPACES=[]
+P12_PRIVATE_REMAINING={}
+P12_PRIVATE_PROCESSES_AFTER={}
+P12 peer namespace retention incomplete
+ok
+test_unconfigured_kernel_fallbacks_accepted (__main__.self_test.<locals>.Controls.test_unconfigured_kernel_fallbacks_accepted) ... ok
+test_wrong_namespace_type_rejected (__main__.self_test.<locals>.Controls.test_wrong_namespace_type_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.050s
+
+OK

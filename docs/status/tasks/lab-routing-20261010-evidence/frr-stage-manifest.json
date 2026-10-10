@@ -1,0 +1,146 @@
+{
+  "extra-libs/libcap-ng.so.0": {
+    "sha256": "60c767df6642a42ee28bf9a5b8975fe7ed59d4d87372b2737ccdf1a0ef1b268f"
+  },
+  "extra-libs/libcap.so.2": {
+    "sha256": "c5b463a8136dabb152bad8b04e89bf67bd2049ef49777ed0b96bdbc6cb5b9565"
+  },
+  "extra-libs/libpam.so.0": {
+    "sha256": "fe942230acb13b5b645ecb41cfff350004a8b69f18877e1e924e643be21eee64"
+  },
+  "extra-libs/libpam_misc.so.0": {
+    "sha256": "c7595cb11c77392f644862fd83584a55813a3b5a4bd1ed14cf0681c8f1b2065a"
+  },
+  "extra-libs/libpcre2-posix.so.3": {
+    "sha256": "81cc43ea0237c8eade7c0105e25e24454aa52da4af2c31a146cf1f0d5a5aa645"
+  },
+  "usr/bin/vtysh": {
+    "sha256": "f42d8be47a51ed1eb13ac03e4b712d7d7da9da15f23524a9df090a3154f19560"
+  },
+  "usr/lib/frr/babeld": {
+    "sha256": "f32932081c5581c7fd8690e4c2d54a6eb857c6dc9b71d286890edbffcfa34a15"
+  },
+  "usr/lib/frr/bfdd": {
+    "sha256": "e60e7a65387deac63c8091879e33a9f698cab05a69073fec9a14f6dd03b55cb2"
+  },
+  "usr/lib/frr/bgpd": {
+    "sha256": "b566c35b0f1c2dae882261243c846d2f90c6d603751e2ef1498f0111a47c4c4d"
+  },
+  "usr/lib/frr/eigrpd": {
+    "sha256": "b7e013918d9d8cb2b7c551742e920bcb62817391f8d714ccfccb900e6e09172b"
+  },
+  "usr/lib/frr/fabricd": {
+    "sha256": "b80ba16efd21384a5f0f222e806dee02c64b44876a2690f4cc04168a9111bceb"
+  },
+  "usr/lib/frr/frr-reload": {
+    "sha256": "2743dd27c939956a673581b4c981713ef9bf59a958c956c29fc41dd8930d995c"
+  },
+  "usr/lib/frr/frr-reload.py": {
+    "sha256": "735d7e5332609ddf3b79944a58718cec52d53ae17d4b6b1b2996f5541da2f0c0"
+  },
+  "usr/lib/frr/frr_babeltrace.py": {
+    "sha256": "d1b8716f217f51cf8b84e97fd03be01fad2be043c032f559d54c4894d9f3f48c"
+  },
+  "usr/lib/frr/frrcommon.sh": {
+    "sha256": "3ababb7ec739ec2ab8fd97a84733575e895fabed4b82ddd2c799237142fe25ae"
+  },
+  "usr/lib/frr/frrinit.sh": {
+    "sha256": "efcd0227a31750bd1cb5827cba1a35cea34371b5fcf850587a32fe42b9d4e5b3"
+  },
+  "usr/lib/frr/generate_support_bundle.py": {
+    "sha256": "3604c4197ef29baf0f0c7402d1f34e0e573ae75ab25d2b850d0df838fb24f0d7"
+  },
+  "usr/lib/frr/isisd": {
+    "sha256": "79a29d64ec7676cfd9efa65cb6b043e12f1cb44bc182ca015f302055dd43cfac"
+  },
+  "usr/lib/frr/ldpd": {
+    "sha256": "db7d1a7e1d2ea314c7c8b3b1560a2da3c7ab8f3d819d3638987904d206c23d93"
+  },
+  "usr/lib/frr/mgmtd": {
+    "sha256": "23e0270cc38fd60125fa1746f1061be93c3a8153ab30b13b9b6338c684bedb23"
+  },
+  "usr/lib/frr/nhrpd": {
+    "sha256": "274e8c5a4174639450c359872dcac8bc25d27e24b41324fea17d30451ef4358e"
+  },
+  "usr/lib/frr/ospf6d": {
+    "sha256": "4c0d7b58e463d7ba99ab488abdc52fdf9fa758e00e86f6a4a44bf741196ae3b0"
+  },
+  "usr/lib/frr/ospfclient.py": {
+    "sha256": "af72888c010114d440652c0fb664084fd1fa273dcb4a3e7d4a0374a13f669c1d"
+  },
+  "usr/lib/frr/ospfd": {
+    "sha256": "9c38fc073fedb00bbb307ee14ed83bf44ca3d1d43a50fd2b55c738a954e6b37e"
+  },
+  "usr/lib/frr/pathd": {
+    "sha256": "d477ea886422b42096a228b55ae1a257dd9c24c436730ca112f99a958b661b18"
+  },
+  "usr/lib/frr/pbrd": {
+    "sha256": "0024d6e5f1c82b19ae3b26a7bba5b3917fc4563f565430ea294b7198810c97ff"
+  },
+  "usr/lib/frr/pim6d": {
+    "sha256": "6f8abc70085adc09e2e75212bd44c3e3f24a10a3530f2559b70c91fc4b7bcca8"
+  },
+  "usr/lib/frr/pimd": {
+    "sha256": "713151027ccee62a8c5b3785158be50f2d5ffc7e0e65a332c36a062ced66b2f0"
+  },
+  "usr/lib/frr/ripd": {
+    "sha256": "435b4bb5a819e17dff4696838c116cf511e91414bbe0500a42f7e973789dcdb8"
+  },
+  "usr/lib/frr/ripngd": {
+    "sha256": "1929bc981b6a7a3b2e68e1f6efb1fbc326a9d92440316de21255fce4f6454d83"
+  },
+  "usr/lib/frr/staticd": {
+    "sha256": "e44edd90d9506d8ef5602b0b4459fbdc63aee376094a43c2724df34d8c8ee13f"
+  },
+  "usr/lib/frr/vrrpd": {
+    "sha256": "dff44c06af080adc11d866e612d8d9dd5ceb8cedaf4c0af80d04c3ba653be243"
+  },
+  "usr/lib/frr/watchfrr": {
+    "sha256": "71a36097ca2c9449799ec287f8ed4c478d9cba4990db100be4477e744a26d251"
+  },
+  "usr/lib/frr/watchfrr.sh": {
+    "sha256": "197705941221b0d6179fc66d5df087a56c2a5cf6368630e2f611a4ec586e7d4c"
+  },
+  "usr/lib/frr/zebra": {
+    "sha256": "dc61dfac8a2f41d7feb9bc49e1a73fa9ea96b23ee962ce6a90e4738ad77ba30f"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libfrr.so.0": {
+    "link": "libfrr.so.0.0.0"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libfrr.so.0.0.0": {
+    "sha256": "77db65182ce7b138a31c2b1979b2c28f736d5fa98763185a0fd1ca566acf809f"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libfrrcares.so.0": {
+    "link": "libfrrcares.so.0.0.0"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libfrrcares.so.0.0.0": {
+    "sha256": "d3d545e51e7cfb540c1b6008edd1b7806faf527760595a25e73c7f1b0f5d11ac"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libfrrospfapiclient.so.0": {
+    "link": "libfrrospfapiclient.so.0.0.0"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libfrrospfapiclient.so.0.0.0": {
+    "sha256": "2be554e3ce2845e5dfcca7f5d30fee4943e3ecbb9b98bb9d82305df077e2b6d4"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libmgmt_be_nb.so.0": {
+    "link": "libmgmt_be_nb.so.0.0.0"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/libmgmt_be_nb.so.0.0.0": {
+    "sha256": "d6f85a076538b2173fa28c48737dea2263db52c41c851de33eb07e5e46667f43"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/modules/bgpd_bmp.so": {
+    "sha256": "9e4d4297447f96db2eb041ad8d68ab9dda4bd183d647803983ce238f953ee47f"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/modules/dplane_fpm_nl.so": {
+    "sha256": "950ac54b69f903c22f49d32da74255534a301d0f40bb0aea65194af0612f4aca"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/modules/pathd_pcep.so": {
+    "sha256": "3863775041081051cc284fa045c5c773acf3d68427eadb228a0d48e37c3c34e7"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/modules/zebra_cumulus_mlag.so": {
+    "sha256": "606ac74cce808a1998372672c7129fb4de7682b74a22642d5a05743f4fe4ab5c"
+  },
+  "usr/lib/x86_64-linux-gnu/frr/modules/zebra_fpm.so": {
+    "sha256": "23aae7d5029d13cd839ec886240b1c18ea11e9f9e66611ef1d48f9777a6ff7b5"
+  }
+}

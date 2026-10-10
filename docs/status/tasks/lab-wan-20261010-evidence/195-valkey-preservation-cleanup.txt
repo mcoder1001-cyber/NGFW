@@ -1,0 +1,7 @@
+Original DB7 keys 28
+Before cleanup preserved 28/28
+Removed only new owned ngfw:w20:acl: keys 18
+After cleanup preserved 28/28
+Remaining owned added keys 0
+No FLUSH used; other keys preserved
+PASS

@@ -1,0 +1,64 @@
+== NGFW CI gate: quick ==
+worktree  /root/ngfw-wt/lab-wan-20261010
+branch    codex/lab-wan-20261010 @ e37b47c0f   (base: origin/main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/ngfw-turbo · go /root/.cache/go-build
+logs      /tmp/ngfw-lab-wan-20261010/ci/lab-wan-20261010-20261010-101154-3865578
+WARN uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+       M test/topology/multiwan-host-acceptance/run.py
+      ?? .scratch
+      ?? docs/status/tasks/__pycache__/
+      ?? docs/status/tasks/lab-wan-20261010-carrier-live.go
+      ?? docs/status/tasks/lab-wan-20261010-carrier-live.py
+      ?? docs/status/tasks/lab-wan-20261010-evidence/195-current-carrier-attempt1.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/195-current-carrier-attempt2.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/195-current-carrier-attempt3.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/195-valkey-preservation-cleanup.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/250-current-api-layout.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/250-current-wan-prerequisites.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/250-harness-build.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/250-multiwan-extended-attempt1.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/250-multiwan-extended-attempt2.txt
+      ?? docs/status/tasks/lab-wan-20261010-evidence/250-multiwan-extended-attempt3.txt
+
+== contract guard: HEAD vs origin/main ==
+no contract files changed in the 9 commit(s) of HEAD since origin/main (4908716b4)
+
+== tools (golangci-lint, gitleaks) ==
+golangci-lint 2.13.2
+gitleaks 8.30.1
+
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+Lockfile is up to date, resolution step is skipped Done in 2.7s using pnpm v12.5.1 
+
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated packages/yang/generated apps/cli/internal/api/operations_gen.go
+
+== forbidden patterns (+ gitleaks) ==
+WARN control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+      apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+      apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+      apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+      apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+      apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: ngfwtestsecrets only in test code
+ok: gitleaks — scanned ~382653 bytes (382.65 KB) in 4.42s no leaks found 
+
+== packet-trace ban on the shared VPP (D-128) ==
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+
+== ip classify reset after every shell interface create (D-185) ==
+ok: every shell interface create is followed by an ip4/ip6 classify reset
+board valid: 212 tasks; read-only validation
+
+== slot resource scheme (1..32, no collisions) ==
+ok: 30 developer slots + CI slot 12; 964 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
+
+== lint · typecheck · unit tests · build (turbo) ==

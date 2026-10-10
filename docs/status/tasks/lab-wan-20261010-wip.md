@@ -35,3 +35,11 @@ Native current-runtime fixture built, originalhelper+broker/carrierunit+4hooks i
 Manager authorizes narrowproductionhelper correction andowns independentreview. Ownedfiles expanded scripts/pppoe-kernel-carrier.py andscripts/tests/pppoe-kernel-carrier.py. Exacttypedpristinefallbackscreen: fourfixedkernelkinds/netnsimmutabletrue/down/exactdefaultdataandtypes/exactMTU/flags/noalias/noaddresses byseparateaddressdump andmatchingindex/nolink/master/promisc. Appliesonly topologyguardssameaspreviousforeignlinkchecks; ownership/TAP/cap/firewall/ledger unchanged.30testsPASS incladdressreadback/replacedindex/up/edited/renamednegativecases. Live rerun awaitsmanagerreviewandprivatebudget (rootTCG+GBcurrently2).
 
 Mandatoryquickretry2got35/35TurboPASS thenlongTMPDIR paths exceedUnix108socketlimit; retry3uses /tmp/w20shortpath andunchangedgate.250currentfullWANprereqs present(Node/PG/Valkey/Python16Gtmp16Gshm, noGo); fullprecompiledharness transferplanned.
+
+## Draft PR checkpoint and next native blocker
+
+Helper e37b47c0f published+independentlyapproved. NativePPP retry2/3 originalbrokerpreprovisionPASS andtypedfallbackcleanupPASS; actualVPP tap_create_v3 still-1, directCLI samecandidate reports cannotfindfreeinterfaceid. CurrentTapIDs huge0x40000000..0x7fffffff exceeds existingRA8191bound; no fixtureoverride. Parent requests inspectpinnedVPPboundandproposeminimalfinitecandidatepairwithlivecollisionguards beforecode. ActualPPPnativelive NOTPASS; fullPPProw remainsopen.
+
+250current-sourcefullAPIbase/nativepreferredpacketPASS; packagingtransferprereq retries(noGo/pnpm installation): /runnoexecwrappers movedTMPDIR/tmp; owncurrentproto/yang/migrations copied. Extended firstfailsmissingethtool; privateoriginalethtoolbinary transferredwithownPATH, retry6running. Allfailedprivates stoppedandownDB/rolecleaned.
+
+Go1.26testing.TempDirusesGOTMPDIR first; /runTMPDIR with/tmpGOTMPDIR stillrootRAprotectedancestorrefuses. BothTMPDIR/GOTMPDIRnowowned /run/w20 bindmountedowned/tmp/w20 andexecflagonlyownedmount. Direct2RAreadbacktests PASS; unchangedfullquickretry5running. Nativecurrentfixture, precompiledexactMultiWANhook reviewed (rootowned/singlelink/nonwritable/protectedprivateancestor/count1/4m/exactRUN+PASS/noSKIP). No completegateclaimuntil actualexit0.

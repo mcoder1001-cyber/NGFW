@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 """Real Multi-WAN acceptance: private VPP/agent network namespace, real external API."""
-import os, json, shlex, shutil, subprocess, tempfile, hashlib, fcntl
+import os, json, shlex, shutil, subprocess, tempfile, hashlib, fcntl, stat
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 PRODUCT=Path(os.environ.get("NGFW_MULTIWAN_PRODUCT_ROOT",str(ROOT)))
 BIN=Path(os.environ["NGFW_MULTIWAN_BIN_DIR"])
+TEST_BIN=os.environ.get("NGFW_MULTIWAN_TEST_BIN")
+if TEST_BIN:
+ test_binary=Path(TEST_BIN)
+ info=test_binary.lstat()
+ if not test_binary.is_absolute() or not stat.S_ISREG(info.st_mode) or info.st_uid!=0 or info.st_nlink!=1 or info.st_mode&0o022 or not os.access(test_binary,os.X_OK):raise SystemExit("unsafe precompiled test binary")
+ parent=test_binary.parent
+ while str(parent) not in ("/", "/tmp", "/dev/shm"):
+  directory=parent.lstat()
+  if not stat.S_ISDIR(directory.st_mode) or directory.st_uid!=0 or directory.st_mode&0o022:raise SystemExit("unsafe test binary ancestor")
+  parent=parent.parent
 SLOT=int(os.environ.get("NGFW_MULTIWAN_SLOT", "7"))
 if SLOT not in (*range(1,12), *range(14,33)):
  raise SystemExit("invalid developer slot")
@@ -52,7 +62,12 @@ try:
   (stage/acceptance.name).write_text(acceptance_source)
   extension=Path(__file__).with_name("extended_test.go")
   if extension.exists():(stage/extension.name).write_text(extension.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}.").replace("IP4Address{10, 7,",f"IP4Address{{10, {SLOT},"))
-  result=subprocess.call([ROOT/"tools/heavy.sh","python3",ROOT/"test/topology/hardware-smoke/isolated-vpp.py","go","-C",tmp,"test","-v","-count=1","-timeout","4m","-run","TestMultiWANRealAPI","."],env=env)
+  command=[TEST_BIN,"-test.v","-test.count=1","-test.timeout=4m","-test.run=^TestMultiWANRealAPI$"] if TEST_BIN else ["go","-C",tmp,"test","-v","-count=1","-timeout","4m","-run","TestMultiWANRealAPI","."]
+  completed=subprocess.run([ROOT/"tools/heavy.sh","python3",ROOT/"test/topology/hardware-smoke/isolated-vpp.py",*command],env=env,capture_output=True,text=True)
+  print(completed.stdout,end="",flush=True);print(completed.stderr,end="",flush=True)
+  lines=completed.stdout.splitlines()
+  passed=any(line=="=== RUN   TestMultiWANRealAPI" for line in lines) and any(line.startswith("--- PASS: TestMultiWANRealAPI (") for line in lines) and not any("--- SKIP:" in line for line in lines)
+  result=completed.returncode or (0 if passed else 1)
 finally:
  subprocess.run(["ip","netns","del",NS],check=True)
 raise SystemExit(result)

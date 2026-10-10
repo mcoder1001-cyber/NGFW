@@ -1,0 +1,5 @@
+PING 10.17.1.1 (10.17.1.1) from 10.17.1.2 : 56(84) bytes of data.
+
+--- 10.17.1.1 ping statistics ---
+2 packets transmitted, 0 received, 100% packet loss, time 1019ms
+

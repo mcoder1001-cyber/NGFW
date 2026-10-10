@@ -1,0 +1,152 @@
+[
+  {
+    "time": "2026-10-10T10:11:49.455174987Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 65591462,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:11:49.536081629Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 79941899,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:12:51.738854047Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "auto-block",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 63334226,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:12:52.701016892Z",
+    "msg": "reconcile done",
+    "txn_id": "0d653077-9d09-4481-a59e-e82cd5879f06",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:2",
+    "duration": 119710096,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:12:53.452858335Z",
+    "msg": "reconcile done",
+    "txn_id": "7a5f1456-c90a-42da-bc90-a1f9e8f81c96",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:9 unchanged:2",
+    "duration": 365178703,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:12:53.619985552Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:11",
+    "duration": 164524928,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:13:05.421197393Z",
+    "msg": "reconcile done",
+    "txn_id": "46f0beef-de13-49ac-9174-8e4ed3460ee7",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:5 unchanged:11",
+    "duration": 352260154,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:13:40.305659258Z",
+    "msg": "reconcile done",
+    "txn_id": "e970347b-d9f2-4918-a8fa-e07e74c042ec",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:6 updated:4 unchanged:12",
+    "duration": 1486251862,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:14:18.608236514Z",
+    "msg": "reconcile done",
+    "txn_id": "bc5133c1-6fb5-4fec-a536-b86313d3cd87",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:120 updated:10 unchanged:12",
+    "duration": 21197543448,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:14:42.709892007Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142",
+    "duration": 18949074596,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:15:36.495422197Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142",
+    "duration": 20693197535,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:16:26.043028374Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142",
+    "duration": 19397214363,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:16:33.724316575Z",
+    "msg": "reconcile done",
+    "txn_id": "4ceb898a-1a31-4b8b-9a97-c3d037371e6e",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "deleted:138 unchanged:2",
+    "duration": 7680326815,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:16:34.120399798Z",
+    "msg": "reconcile done",
+    "txn_id": "",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2",
+    "duration": 140438658,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:16:35.422574502Z",
+    "msg": "reconcile done",
+    "txn_id": "c2696022-a061-4b1c-8d66-bfb6e5abd63d",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "deleted:1 unchanged:1",
+    "duration": 145870081,
+    "err": ""
+  }
+]

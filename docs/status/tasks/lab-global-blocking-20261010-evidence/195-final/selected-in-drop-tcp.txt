@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import socket; s=socket.socket(); s.settimeout(2); s.bind(("10.17.1.2",0)); s.connect(("10.17.2.2",18443)); s.sendall(b"GB-exact-payload"); assert s.recv(99)==b"GB-exact-payload"
+                                                                                ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out

@@ -1,0 +1,207 @@
+[
+  {
+    "time": "2026-10-10T10:36:41.184034536Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 171542237,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:36:41.184165077Z",
+    "msg": "resync finished",
+    "why": "connect",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": ""
+  },
+  {
+    "time": "2026-10-10T10:36:41.245833609Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 60421601,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:36:41.245944474Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": ""
+  },
+  {
+    "time": "2026-10-10T10:37:57.735123321Z",
+    "msg": "reconcile done",
+    "mode": "auto-block",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 74513410,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:37:59.130942333Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:2",
+    "duration": 234474563,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:37:59.283605563Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2",
+    "duration": 144098901,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:37:59.283744261Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2"
+  },
+  {
+    "time": "2026-10-10T10:38:00.130766511Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:9  unchanged:2",
+    "duration": 493926997,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:38:00.277294707Z",
+    "msg": "resync requested again right after a requested resync: deferred",
+    "in": 4006990230
+  },
+  {
+    "time": "2026-10-10T10:38:04.684987248Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:11",
+    "duration": 399244392,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:38:04.685108031Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:11"
+  },
+  {
+    "time": "2026-10-10T10:38:11.343019693Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:5  unchanged:11",
+    "duration": 451581484,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:38:45.788095881Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:6  updated:4  unchanged:12",
+    "duration": 1866836294,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:39:25.019908057Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:120  updated:10  unchanged:12",
+    "duration": 22524402267,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:39:52.908083234Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142",
+    "duration": 20355887380,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:39:52.90822161Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142"
+  },
+  {
+    "time": "2026-10-10T10:40:41.355809303Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142",
+    "duration": 21563610750,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:40:41.355930173Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142"
+  },
+  {
+    "time": "2026-10-10T10:41:24.413384697Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142",
+    "duration": 20242029588,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:41:24.413602513Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:142"
+  },
+  {
+    "time": "2026-10-10T10:41:31.519418075Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "deleted:138  unchanged:2",
+    "duration": 7084619849,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:41:32.155218518Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2",
+    "duration": 455048608,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T10:41:32.155324746Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2"
+  },
+  {
+    "time": "2026-10-10T10:41:33.271316828Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "deleted:1  unchanged:1",
+    "duration": 154096691,
+    "err": ""
+  }
+]

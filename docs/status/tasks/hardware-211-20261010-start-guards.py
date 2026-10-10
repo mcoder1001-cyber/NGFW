@@ -13,6 +13,9 @@ REMOTE=r'''
 import base64,hashlib,json,os,pathlib,stat,subprocess,tempfile,time
 POLICY_PATH=pathlib.Path('/usr/sbin/policy-rc.d')
 MASK_PATH=pathlib.Path('/etc/systemd/system/vpp.service')
+MARKER_PARENT=pathlib.Path('/var/lib/ngfw-install-recovery')
+MARKER_DIRECTORY=MARKER_PARENT/'hardware-211-20261010'
+MARKER_PATH=MARKER_DIRECTORY/'state.json'
 def command(args):
  p=subprocess.run(args,capture_output=True,text=True,timeout=30)
  assert p.returncode==0, (args,p.returncode)
@@ -69,6 +72,29 @@ def atomic(path,old,new):
  fd=os.open(path.parent,os.O_RDONLY|os.O_DIRECTORY)
  try:os.fsync(fd)
  finally:os.close(fd)
+def syncdir(path):
+ fd=os.open(path,os.O_RDONLY|os.O_DIRECTORY)
+ try:os.fsync(fd)
+ finally:os.close(fd)
+def marker_bytes(guarded):
+ return json.dumps({'task':'hardware-211-20261010','baseline_sha256':BASELINE_SHA256,
+                    'original':BASELINE['original'],
+                    'guarded':{k:metadata(v) for k,v in guarded.items()}},sort_keys=True).encode()
+def create_marker(data):
+ if os.path.lexists(MARKER_PARENT):
+  st=MARKER_PARENT.lstat();assert stat.S_ISDIR(st.st_mode) and st.st_uid==0 and stat.S_IMODE(st.st_mode)==0o700
+ else:
+  MARKER_PARENT.mkdir(mode=0o700);syncdir(MARKER_PARENT.parent)
+ assert (os.major(MARKER_PARENT.stat().st_dev),os.minor(MARKER_PARENT.stat().st_dev))==(8,2),'recovery record must be durable original-root storage'
+ assert not os.path.lexists(MARKER_DIRECTORY),'refuse existing recovery marker directory'
+ MARKER_DIRECTORY.mkdir(mode=0o700);syncdir(MARKER_PARENT)
+ fd=os.open(MARKER_PATH,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+ with os.fdopen(fd,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
+ syncdir(MARKER_DIRECTORY)
+def verify_marker(data):
+ st=MARKER_DIRECTORY.lstat();assert stat.S_ISDIR(st.st_mode) and st.st_uid==0 and stat.S_IMODE(st.st_mode)==0o700
+ st=MARKER_PATH.lstat();assert stat.S_ISREG(st.st_mode) and st.st_uid==0 and stat.S_IMODE(st.st_mode)==0o600
+ assert MARKER_PATH.read_bytes()==data,'refuse changed/unowned recovery record'
 before=preflight()
 original={'policy':snapshot(POLICY_PATH),'mask':snapshot(MASK_PATH)}
 clock={'epoch':time.time(),'timedatectl':command(['timedatectl','show','-p','NTP','-p','NTPSynchronized','-p','TimeUSec','-p','RTCTimeUSec'])}
@@ -78,8 +104,10 @@ else:
  assert BASELINE['network']==before,'L3 drift since baseline'
  guarded={'policy':{'type':'regular','mode':0o755,'uid':0,'gid':0,'bytes':len(POLICY),'sha256':hashlib.sha256(POLICY).hexdigest(),'base64':base64.b64encode(POLICY).decode()},
           'mask':{'type':'symlink','mode':0o777,'uid':0,'gid':0,'link':'/dev/null'}}
+ record=marker_bytes(guarded)
  if MODE=='prepare':
   assert {k:metadata(v) for k,v in original.items()}=={k:metadata(v) for k,v in BASELINE['original'].items()}
+  create_marker(record)
   atomic(POLICY_PATH,original['policy'],guarded['policy'])
   atomic(MASK_PATH,original['mask'],guarded['mask'])
   command(['systemctl','daemon-reload'])
@@ -88,16 +116,24 @@ else:
   command(['date','--set=@'+str(CONTROLLER_EPOCH),'-u'])
   assert abs(time.time()-CONTROLLER_EPOCH)<30
  else:
-  assert {k:metadata(v) for k,v in original.items()}=={k:metadata(v) for k,v in guarded.items()}
-  atomic(MASK_PATH,guarded['mask'],BASELINE['original']['mask'])
-  atomic(POLICY_PATH,guarded['policy'],BASELINE['original']['policy'])
+  verify_marker(record)
+  for key,path in [('mask',MASK_PATH),('policy',POLICY_PATH)]:
+   current=metadata(original[key]);prior=metadata(BASELINE['original'][key]);expected=metadata(guarded[key])
+   assert current in [prior,expected],'refuse unknown safeguard state during partial rollback'
+   if current!=prior:atomic(path,guarded[key],BASELINE['original'][key])
   command(['systemctl','daemon-reload'])
  after=l3();assert after==before,'L3 changed during safeguard operation'
+ if MODE=='restore':
+  assert {k:metadata(snapshot(v,False)) for k,v in [('policy',POLICY_PATH),('mask',MASK_PATH)]}=={k:metadata(v) for k,v in BASELINE['original'].items()}
+  verify_marker(record);MARKER_PATH.unlink();syncdir(MARKER_DIRECTORY)
+  MARKER_DIRECTORY.rmdir();syncdir(MARKER_PARENT)
  result={'mode':MODE,'before_clock':clock,'after_epoch':time.time(),
          'policy':snapshot(POLICY_PATH,False),'mask':snapshot(MASK_PATH,False),
          'network_before':before,'network_after':after,'network_equal':True,
          'no_package_install':True,'no_service_activation':True,
-         'time_restoration':False,'RTC_NTP_unchanged':True}
+         'time_restoration':False,'RTC_NTP_unchanged':True,
+         'recovery_marker_present':os.path.lexists(MARKER_PATH),
+         'recovery_marker_sha256':hashlib.sha256(record).hexdigest()}
 print(json.dumps(result,indent=2))
 '''
 def save(path,data):
@@ -110,13 +146,13 @@ def save(path,data):
 def main():
  os.umask(0o077)
  p=argparse.ArgumentParser();p.add_argument('mode',choices=['inspect','prepare','restore']);p.add_argument('--baseline');a=p.parse_args()
- baseline=None
+ baseline=None;baseline_sha=None
  if a.mode!='inspect':
   assert a.baseline,'private baseline required'
   path=pathlib.Path(a.baseline).resolve();assert path.parent==PRIVATE
   st=path.stat();assert st.st_uid==0 and st.st_mode&0o777==0o600
-  baseline=json.loads(path.read_bytes());assert 'original' in baseline
- fields={'MODE':a.mode,'BASELINE':baseline,'POLICY':POLICY,'CONTROLLER_EPOCH':time.time()}
+  raw=path.read_bytes();baseline=json.loads(raw);baseline_sha=hashlib.sha256(raw).hexdigest();assert 'original' in baseline
+ fields={'MODE':a.mode,'BASELINE':baseline,'POLICY':POLICY,'CONTROLLER_EPOCH':time.time(),'BASELINE_SHA256':baseline_sha}
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  run=subprocess.run(SSH+['python3 -'],input=code.encode(),capture_output=True,timeout=180)
  stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')

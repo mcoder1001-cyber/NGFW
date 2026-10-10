@@ -7,12 +7,23 @@ from scenario import private_identity, Refused
 from tunnels import check_commit
 private_identity()
 assert os.readlink('/proc/self/ns/uts') != os.readlink('/proc/1/ns/uts')
-assert os.stat('/etc').st_ino==int(os.environ['NGFW_WAN_PRIVATE_ETC_INODE'])
+assert [os.stat('/etc').st_dev,os.stat('/etc').st_ino]==json.loads(os.environ['NGFW_WAN_PRIVATE_ETC_IDENTITY'])
+mounts=[line.split() for line in pathlib.Path('/proc/self/mountinfo').read_text().splitlines()]
+assert any(row[4]=='/var/lib' and row[row.index('-')+1]=='tmpfs' for row in mounts)
 # Configure the genuine product binary; no handler, runner or helper is replaced.
-source=(ROOT/'test/topology/traffic-b/stack.py').read_text()
-source=source.replace("ROOT=Path(__file__).resolve().parents[3]",'ROOT=Path('+repr(str(ROOT))+')')
-source=source.replace("NGFW_GLOBALS_OWNER='0'","NGFW_GLOBALS_OWNER='1'")
-source=source.replace("NGFW_KEA_MODE='off'","NGFW_KEA_MODE='off',NGFW_FRR='off'")
+pristine=(ROOT/'test/topology/traffic-b/stack.py').read_text()
+edits=(("ROOT=Path(__file__).resolve().parents[3]",'ROOT=Path('+repr(str(ROOT))+')'),
+       ("NGFW_GLOBALS_OWNER='0'","NGFW_GLOBALS_OWNER='1'"),
+       ("NGFW_KEA_MODE='off'","NGFW_KEA_MODE='off',NGFW_FRR='off'"))
+source=pristine
+for old,new in edits:
+ assert source.count(old)==1,'original stack literal changed or ambiguous'
+ source=source.replace(old,new)
+roundtrip=source
+for old,new in reversed(edits):
+ assert roundtrip.count(new)==1,'unexpected stack replacement'
+ roundtrip=roundtrip.replace(new,old)
+assert roundtrip==pristine,'stack modified outside exact fixture edits'
 module=types.ModuleType('wan_private_product_stack');module.__file__=str(ROOT/'test/topology/traffic-b/stack.py')
 exec(compile(source,module.__file__,'exec'),module.__dict__)
 password=os.environ['NGFW_WAN_PEER_PASSWORD']

@@ -16,7 +16,9 @@ if len(sys.argv)>1:
   d=Path(directory)
   if os.environ.get('NGFW_WAN_FULL_API')=='1':
    assert os.environ.get('NGFW_WAN_EXTENDED')=='1'
-   assert os.readlink('/proc/self/ns/uts')!=os.readlink('/proc/1/ns/uts')
+   child_uts=os.readlink('/proc/self/ns/uts')
+   assert child_uts!=os.readlink('/proc/1/ns/uts') and child_uts!=os.environ['NGFW_WAN_HOST_UTS']
+   print('CHILD_UTS_BEFORE '+json.dumps({'namespace':child_uts,'hostname':os.uname().nodename}),flush=True)
    run('ip','link','set','lo','up')
    private_etc=d/'etc';shutil.copytree('/etc',private_etc,symlinks=True)
    # No pre-existing host-service render record is admitted into this fixture.
@@ -30,7 +32,10 @@ if len(sys.argv)>1:
    run('mount','-t','tmpfs','-o','mode=755,size=8m','tmpfs','/var/lib')
    # Use the exact package provisioning implementation, within these private mounts.
    runpy.run_path(str(ROOT/'deploy/debian/ngfw/assets/provision-system-identity.py'))['provision']()
-   os.environ['NGFW_WAN_PRIVATE_ETC_INODE']=str(os.stat('/etc').st_ino)
+   assert (os.stat('/etc').st_dev,os.stat('/etc').st_ino)==(info.st_dev,info.st_ino)
+   mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
+   assert any(row[4]=='/var/lib' and row[row.index('-')+1]=='tmpfs' for row in mounts)
+   os.environ['NGFW_WAN_PRIVATE_ETC_IDENTITY']=json.dumps([info.st_dev,info.st_ino])
    print('PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS',flush=True)
   peer_password=os.environ['NGFW_WAN_PEER_PASSWORD'];assert len(peer_password)==48 and all(c in '0123456789abcdef' for c in peer_password)
   secret=d/'secrets';secret.write_text('"w20" * "'+peer_password+'" *\n');secret.chmod(0o600)
@@ -74,6 +79,7 @@ exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -tes
    if os.environ.get('NGFW_WAN_FULL_API')=='1':
     wrapper.write_text('#!/bin/sh\nset -eu\nexec python3 '+str(ROOT/'docs/status/tasks/lab-wan-20261010-carrier-api.py')+'\n');wrapper.chmod(0o700)
    result=subprocess.call(['python3',str(ROOT/'test/topology/hardware-smoke/isolated-vpp.py'),str(wrapper)])
+   if os.environ.get('NGFW_WAN_FULL_API')=='1':print('CHILD_UTS_AFTER '+json.dumps({'namespace':os.readlink('/proc/self/ns/uts'),'hostname':os.uname().nodename}),flush=True)
   finally:
    # Original unit has the actual pppd process; stop before removing TAP/namespace names.
    run('systemctl','stop','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False)
@@ -99,6 +105,8 @@ relay=None
 identity_files=('/etc/hostname','/etc/issue','/etc/issue.net','/etc/motd')
 host_identity={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in identity_files}
 host_hostname=os.uname().nodename
+host_uts=os.readlink('/proc/self/ns/uts')
+print('ROOT_HOST_IDENTITY_BEFORE '+json.dumps({'uts':host_uts,'hostname':host_hostname,'public_file_sha256':host_identity}),flush=True)
 try:
  for dest,source in assets.items():
   dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,dest);dest.chmod(0o644 if dest.suffix=='.service' else 0o755);hashes[dest]=hashlib.sha256(dest.read_bytes()).hexdigest();print('TEMP_ORIGINAL_ASSET '+str(dest)+' sha256='+hashes[dest],flush=True)
@@ -116,7 +124,7 @@ try:
  receipt=json.loads(run('python3','-I','/usr/lib/ngfw/pppoe-carrier.py','broker-result',TOKEN,nonce).stdout)
  assert receipt['ok'] and all(receipt[key]==queued[key] for key in ('token','nonce','boot','expires','request_sha256'))
  print('REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS',flush=True)
- env=dict(os.environ,NGFW_WAN_HOST_NETNS=os.readlink('/proc/self/ns/net'),NGFW_WAN_PEER_PASSWORD=secrets.token_hex(24),NGFW_WAN_NATIVE_CARRIER='1',NGFW_INTEGRATION='1',NGFW_OWNER='w20',NGFW_TEST_PREFIX='w20',NGFW_SLOT='20',NGFW_VPP_ID_RANGE='all')
+ env=dict(os.environ,NGFW_WAN_HOST_NETNS=os.readlink('/proc/self/ns/net'),NGFW_WAN_HOST_UTS=host_uts,NGFW_WAN_PEER_PASSWORD=secrets.token_hex(24),NGFW_WAN_NATIVE_CARRIER='1',NGFW_INTEGRATION='1',NGFW_OWNER='w20',NGFW_TEST_PREFIX='w20',NGFW_SLOT='20',NGFW_VPP_ID_RANGE='all')
  command=['unshare','--net','--mount','--propagation','private']
  if env.get('NGFW_WAN_FULL_API')=='1':
   sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
@@ -145,5 +153,7 @@ finally:
  print('SHARED_VPP_BEFORE '+before.replace('\n',','));print('SHARED_VPP_AFTER '+after.replace('\n',','));assert before==after
  print('TEMP_ORIGINAL_ASSETS_REMOVED PASS')
  assert os.uname().nodename==host_hostname and all(hashlib.sha256(Path(name).read_bytes()).hexdigest()==digest for name,digest in host_identity.items()),'shared host identity changed'
+ print('ROOT_HOST_IDENTITY_AFTER '+json.dumps({'uts':os.readlink('/proc/self/ns/uts'),'hostname':os.uname().nodename,'public_file_sha256':{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in identity_files}}),flush=True)
+ assert os.readlink('/proc/self/ns/uts')==host_uts
  print('SHARED_HOST_IDENTITY_UNCHANGED PASS',flush=True)
 raise SystemExit(result)

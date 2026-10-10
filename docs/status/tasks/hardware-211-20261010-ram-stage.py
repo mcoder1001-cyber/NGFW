@@ -108,7 +108,7 @@ Options=size=8G,mode=0755,nosuid,nodev,exec
         (STAGE / relative).chmod(mode)
 
     copied = set()
-    def copy_runtime(source):
+    def copy_runtime(source, resolve=True):
         if source in copied:
             return
         assert pathlib.Path(source).is_file(), 'missing runtime ' + source
@@ -116,12 +116,16 @@ Options=size=8G,mode=0755,nosuid,nodev,exec
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target, follow_symlinks=True)
         copied.add(source)
+        if not resolve:
+            return
+        # ldd on an executable already reports its complete flattened closure.
+        # Rechecking a private library independently loses executable RUNPATH.
         p = subprocess.run(['ldd', source], capture_output=True, text=True)
         assert 'not found' not in p.stdout, 'unresolved dependency ' + source
         for line in p.stdout.splitlines():
             for token in line.split():
                 if token.startswith('/') and pathlib.Path(token).is_file():
-                    copy_runtime(token)
+                    copy_runtime(token, resolve=False)
 
     binaries = ['/usr/lib/systemd/systemd', '/usr/lib/systemd/systemd-executor',
                 '/usr/lib/systemd/systemd-shutdown', '/usr/sbin/sshd',

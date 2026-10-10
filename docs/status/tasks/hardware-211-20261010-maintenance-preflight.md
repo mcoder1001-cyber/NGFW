@@ -121,3 +121,14 @@ Ubuntu package-cache provenance read-only verification: gpgv exited0 with the Ub
 
 
 Independent R7 also blocked the initial source and required removing bootstrap WorkingDirectory= to avoid implicit mount Requires/After; chroot itself changes cwd to RAM and runtime audit must prove it. Candidate adds a private virtual-only devpts bind, alongside devtmpfs/proc, and controller authenticated PTY test. Address lifetime counters are excluded from semantic network hash; any remaining mismatch is investigated, never corrected by changing networking. This second source correction also precedes target staging.
+
+
+## First actual reversible RAM stage attempt
+
+R7 approved corrected source c4027e964/script517d789e for staging only. Exact script ran and exited1 early: standalone recursive `ldd` of private libsystemd-core loses the executable's RUNPATH and reported libsystemd-shared unresolved. Dedicated8GiB executable tmpfs exists at `/run/ngfwrescue` (rw,nosuid,nodev,relatime; no noexec); only initial binary copies exist. No credentials, virtual-device binds or rescue daemon were staged yet. This is a staging collector failure, not demonstrated source binary corruption. Correct collector uses each executable's flattened complete ldd closure, checks unresolved dependencies once at that executable, and copies every resolved library directly. Independent applicability review precedes cleanup/retry. Original22/network remain intact, nextroot absent; no transition/repair.
+
+Private first attempt `ram-stage.json`:2419bytes SHA256 `2001172ff24e6bace825e527db2d52013da751139c7a4daedb1a142bd60d8d66`, script SSH exit1/empty stderr/0600. Preserve this actual failure; do not overwrite it or claim stage PASS.
+
+Owner/manager explicitly extended backup scope to original authentication before repair. Read-only off-host `tar --acls --xattrs --numeric-owner` of `/etc/ssh`, `/root/.ssh`, account/group/shadow/NSS files and `/etc/pam.d` exited0. Private archive35240bytes SHA256 `bf00f6dbd3ddcf7177322f8b3d9df3d2bd971221e2cf7e58b9613d59f9e0fccc`;43 allowed members verified readable, empty stderr,0600, outside Git/candidate bundle. Credentials are never printed or committed. This supplements network preservation, not a full data backup; restoration is conditional on actual auth damage and separate reviewed permission.
+
+Read-only debugfs ncheck exited0: invalid extent inode259596 is a user journal file, inode259599 is `/root/.cache`; full filenames retained privately. Header has3845088×256=984342528bytes of inode tables,474 groups,64MiB internal journal. Rough metadata budget is around1GiB before directory data; actual metadata/compression/undo sizes remain unmeasured.

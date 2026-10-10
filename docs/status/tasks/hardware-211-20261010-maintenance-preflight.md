@@ -96,3 +96,18 @@ Actual read-only probes used fixed SSH options `BatchMode=yes`, `StrictHostKeyCh
 | maintenance-ns-network.json | 0 | 11113 | `f742327b2b860f84126fe2ca692d358e31c32916abc134299c87d0d851b2b9a0` | empty |
 
 All diagnostic files and their error outputs are 0600 under the existing private host-211 controller directory. Public evidence is limited to nonsecret capability/disk facts and selected diagnostic outputs above. Independent recovery-safety reviewer received sanitized facts and private filenames for review. Current outcome: **RAM maintenance not verified; repair/install/reboot NOT RUN**. Preserve branch/worktree for the manager's reviewed next step.
+
+
+## Additional read-only geometry/auth/runtime check
+
+Mounted root exclusive-open safety probe `os.open("/dev/sda2", O_RDONLY|O_EXCL)` failed with errno16/EBUSY as expected. It did not open exclusively or write any disk bytes. Filesystem geometry read from its superblock is 15505494 blocks × 4096 bytes = 63510503424 bytes, exactly the existing partition size. Reported invalid extent block15505493 is the final valid filesystem block. A read-only 4096-byte read succeeded; the entire block is zero, SHA256 `ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7`. This supports a missing/invalid extent node observation, not a diagnosis of physical-drive health.
+
+Existing `e2image` and `e2undo` executables and their linkage are available. Selected effective `sshd -T -C user=root,...,lport=22` exited0: current host uses standard `/etc/ssh/ssh_host_{rsa,ecdsa,ed25519}_key` paths, `.ssh/authorized_keys` and `.ssh/authorized_keys2`, no AuthorizedKeysCommand. No credential content was exported. Original SSH allows password authentication; a separate RAM rescue configuration must explicitly require publickey and disable password, keyboard-interactive and PAM without changing the original configuration.
+
+Configured APT offers smartmontools7.5-2 via an Ubuntu mirror. Trusted provenance still requires cached InRelease verification using the Ubuntu archive keyring and exact Packages-index/package hash validation before a RAM-only download/extract. No apt update/install or disk-health control command has run.
+
+Private `maintenance-geometry-auth.json`: SSH exit0, 55247 bytes, SHA256 `b1f9f70487bbdeebc8d3cbd527c834b38d73883cd3a6ba313d08078013bd8547`, empty capture stderr, mode0600. This contains only detailed diagnostics and selected effective SSH paths, not credential contents.
+
+## Explicitly authorized reversible RAM staging — pending execution
+
+Manager now authorizes a dedicated executable tmpfs at `/run/ngfwrescue` with an explicit mount unit `DefaultDependencies=no`, no umount.target relationship. `/run/nextroot` must remain absent. Prepare matching systemd259.5, SSH daemon/session/auth helpers, minimal local NSS/shell/repair/metadata tools and dependencies; copy credentials only on-target into RAM privately, with a separate key-only listener bound exclusively to management IP172.30.110.211:2222. Preserve original port22 and all network/disk/boot settings. The candidate default target activates only rescue SSH, with no generators, networkd, udev, firewall, fstab or disk boot units. Test authenticated chroot SSH and runtime root/exe/maps/fd metadata, unit verification and byte budget; stop exactly the test daemon/processes before any reviewed transition. Chroot testing proves staging only, not PID1 transition or old-root release. Soft reboot, root handover, KeepConfiguration alteration, reboot and fsck remain unauthorized pending concrete independent review.

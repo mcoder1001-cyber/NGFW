@@ -23,3 +23,8 @@ Manager resumed original host task solely for off-host configuration/network-sta
 ## Owner-requested root repair assessment — 2026-10-10
 
 Owner now explicitly requests fixing disk/root filesystem; original installation/testing objective remains after recovery. Worker resumes same host/branch/worktree for read-only fresh filesystem/disk identity/health, platform/rescue/BMC/tool/capability checks and private-backup verification. Assess RAM maintenance preserving SSH and truly unmounting old root. No credential reads or diagnostic package installs; do not stage target files, change services/network/bootloader/mounts, repair mounted root, stop services, reboot, kexec or pivot without a concrete independently reviewed path. Manager coordinates any transition/repair one host at a time. Own public maintenance-preflight evidence plus existing task docs and private host-211 diagnostics only.
+
+
+## Reversible RAM staging authorization
+
+Manager authorizes only dedicated executable RAM tmpfs `/run/ngfwrescue`, isolated key-only management listener2222 and complete matching minimal rescue tree/runtime tests. Keep `/run/nextroot` absent. Original SSH/network/boot/disk configuration remains unchanged. SMART package may be downloaded/extracted exclusively into RAM only after official cached signature/index/package hash verification, with read-only smartctl -x only. No apt update/install, SMART test/enable/write control, soft-reboot, KeepConfiguration application, transition or fsck is authorized. Independent reviewer receives concrete tree/unit/procedure hashes before manager coordinates next action.

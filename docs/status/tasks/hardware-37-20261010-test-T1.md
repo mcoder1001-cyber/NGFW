@@ -105,3 +105,16 @@ The omitted test/Go-modules summary line reports unit-mode vet/tests/build acros
 No complete local quick gate was run: manager envelope directs hosted final-HEAD evidence and prohibits duplicating a broad build on the nearly full root disk. Completed exact final-head hosted gate and its real output were independently obtained instead. This PASS applies to the package/source correction, not target installation or physical data forwarding.
 
 Verdict: **PASS** on final source `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, actual hosted integration checkout `8a15d644c53cc3ef4abde339efd3b2a0331221a5`, tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2`. No failing test was waived. Hardware installation/forwarding/reboot acceptance remains NOT RUN pending offline disk recovery.
+
+## Post-merge main verification — gate pending
+
+Manager extended T1 after merging PR217. Independent `gh api repos/mcoder1001-cyber/NGFW/git/commits/4908716b4501312102382e6979b8fc1ded6f9311`, `git rev-parse 5bd7e8b^{tree}` and `git ls-remote origin refs/heads/main` assertions completed successfully in this tester's own worktree. Actual output:
+
+```text
+PASS actual remote main 4908716b4501312102382e6979b8fc1ded6f9311 tree a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2 equals reviewed/tested integration tree
+Parents d2d55984d74fa1d06c32e8271886f11f16375407, 5bd7e8b545fc765fd2babd8dda15175d6f33af1b
+```
+
+PR217 metadata independently reports `state=MERGED`, expected `headRefOid=5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, actual `mergeCommit=4908716b4501312102382e6979b8fc1ded6f9311`, `mergedAt=2026-10-10T07:46:33Z`.
+
+`gh run view 38035583209 --repo mcoder1001-cyber/NGFW --json headSha,status,conclusion,event,jobs,url` independently reports main push `headSha=4908716b4501312102382e6979b8fc1ded6f9311`, `status=in_progress`, empty conclusion; [Mandatory quick gate job114165198295](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38035583209/job/114165198295) is executing `Run repository gate`. Its workflow/source is the unchanged reviewed tree. Tree/parent identity is PASS; completed post-merge main CI is **pending**, not yet PASS. Keep PR PASS distinct from this new run. Next: retrieve completed actual job log, verify main checkout and complete quick summary/literal gate pass, then publish the final receipt. No target operations.

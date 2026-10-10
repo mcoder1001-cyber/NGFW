@@ -8,7 +8,7 @@
 - Owned remote target: `root@172.30.110.211`; no changes to the other target or shared development host.
 - Authorization: owner requests package installation, tests, all interfaces except management/routing, and reboot if necessary. Management access and routing must remain functional.
 - Constraints: exact manager-provided product payload; independent installation review; no replacing OS, mounted filesystem repair, blind nftables baseline/flush, management PCI rebinding, unsafe VFIO/no-IOMMU, secrets in evidence, or developer-host VPP changes.
-- Current phase: read-only preflight and recovery/install/test planning. Manager explicitly forbids installation, reboot and filesystem repair pending console/recovery information after confirmed filesystem corruption.
+- Current phase: explicitly authorized reversible RAM staging complete, key-only management SSH2222/PTY tested; originalSSH22/network preserved. Formal transition-only review and exact manager authorization pending; no root handover, repair, reboot or installation yet.
 - Runtime publication: commit coherent evidence and publish immediately to own branch; report actual remote SHA to manager.
 - Acceptance: SSH and exact management routes preserved; packages installed from verified payload; firstboot/services/HTTPS/auth; 17 data interfaces persisted through API and present in VPP; routing/NAT/ACL/FRR and recovery/reboot tests with actual evidence where hardware links allow.
 

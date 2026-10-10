@@ -1,6 +1,6 @@
 # Host 211 root-repair maintenance preflight — read-only
 
-The owner explicitly requests disk/root-filesystem repair, with installation and testing remaining the original objective after recovery. This worker's current envelope authorizes fresh read-only diagnostics and recovery-path assessment only. No target files were staged, credentials read, packages installed, services stopped/restarted, networking/mounts/bootloader altered, or reboot/kexec/pivot/repair performed. Manager coordinates any transition or repair one host at a time after concrete independent safety review.
+The owner explicitly requests disk/root-filesystem repair, with installation and testing remaining the original objective after recovery. The initial phase below authorized only read-only diagnostics. Subsequent explicit manager authorization permits reversible RAM staging and isolated rescue SSH; actual scoped target changes and runtime tests are recorded in the final receipt below. No disk repair, root transition, reboot, original service/network change or package installation has run. Manager coordinates any transition or repair one host at a time after concrete independent safety review.
 
 ## Actual root/disk and backup evidence
 
@@ -152,3 +152,157 @@ Third stage attempt stopped on helper-path validation before SSH activation: hos
 
 
 Additional nonmutating chroot probe proves staged sshd -t and matching systemd --version each exit0; helper combined executable check fails because the trimmed initramfs BusyBox lacks chown. Exact path metadata confirms missing chown while mkdir/chmod/tty/stty links exist. Source now explicitly copies genuine host mkdir/chmod/chown executables and flattened dependencies rather than assuming these critical helper applets. Locale C is explicit in staging/rescue session/service. Private runtime-check1072B SHA256 `245c5803c4205b5678b0196780a5bece470440dcea10e256bacb679777a1dc87`; applet-path metadata SHA256 `3a2551303d4442fa995af3e712de43992b29b7b630b8f27cfff3997270b7202d`. No additional target modification or daemon activation from these probes.
+
+
+## Actual RAM staging, authentication and health receipt
+
+Exact candidate source SHA256 `e33b95eacf965361d2dc3ba05866e3ee80d9eb1cd6259679fa7d3582a34166d6` published/read back at local/remote `2ee35a45fa9ca67fb4dd556f4fc5a724d70a125d`; independent R7 approves scoped RAM-only cleanup/staging. Last stage exit0, original SSH22 authenticated exit0, separate key-only management2222 authenticated command exit0/UID0. Authenticated persistent PTY `/dev/pts/0`, shellPID6459, controller session71683 remains open under manager's survivor plan. Earlier historical stop-test-before-transition instruction is superseded by the reviewed survivor plan: preserve this tested same-cgroup RAM session for any separately authorized transition.
+
+R7 independently confirmed correct newline ordinals10/zero literal backslashes and withdrew its escaped-output interpretation at reviewer checkpoint31872b92; no source newline correction was needed.
+
+| Actual runtime property | Evidence |
+|---|---|
+| Rescue daemon | PID6421 active/running, regular runtime unit, no transient/control/drop-in override |
+| Unit survival | SurviveFinalKillSignal=yes, IgnoreOnIsolate=yes, DefaultDependencies=no |
+| Dependency closure | Requires=system.slice only; no Wants; After=basic.target/system.slice; ordinary reboot/halt/kexec/poweroff/rescue/emergency conflicts; Before=shutdown/rescue/emergency |
+| Namespace/sandbox | daemon/session helpers/bash share PID1 mnt:[4026531832]; RootDirectory empty, PrivateMounts/PrivateTmp/ProtectSystem=no |
+| Process references | Four persistent cgroup processes6421/6456/6458/6459: root/cwd/exe and all file maps RAM; old-root file descriptors/maps zero; unreadable FD count zero |
+| Logs/terminal | daemon FD1/2 point to private RAM rescue-ssh.log; PTY FDs are virtual devpts; other FDs sockets/virtual devices |
+| Runtime helper | RAM-only mkdir/chmod/chown each actual chroot exit0; helper/default target verification exit0 with empty stdout/stderr |
+| Mount | Dedicated8GiB executable tmpfs; private virtual dev/devpts/proc binds, no old-root bind |
+| Capacity after SMART/guard/auth backup |124469248 bytes allocated;8465465344 bytes available; MemAvailable31325548KiB |
+| Network | Semantic addresses/links/all-table routes/rules hash unchanged before/after: d287533c93d6c62e3c54610ec9f1547b07365754918b1f7d8eeac0e12e013836 |
+| Next root marker | `/run/nextroot` ABSENT |
+
+Actual nonsecret final tree manifest after SMART tools/new libraries, static guard and private auth preservation SHA256 `53af8f3dfd5637efa1fb1664ceeb6e839f48521a4733f72f9d8747044feefaba`; private credentials/backups/logs are excluded. Original source libs are never overwritten by the SMART stage. All private command/audit/error artifacts remain0600 under0700 host-211; no backup/auth/SMART serial contents are committed or printed.
+
+Approved static read-only guard copied into RAM and SHA256 verified `02a2270ad8e0f480efc7464b26d2216fec8a915aa12755da6339015abed0f41c`; actual `/usr/bin/block-check /dev/sda2 8 2` mounted-negative exits3: `BUSY: block device still has an exclusive holder; no repair permitted`. No positive-offline claim is made. Original auth archive is also privately copied to RAM,0600/hash matches controller baseline `bf00f6dbd3ddcf7177322f8b3d9df3d2bd971221e2cf7e58b9613d59f9e0fccc`; original files/configuration are unchanged.
+
+Signed cached Ubuntu smartmontools7.5-2 amd64 package downloaded/extracted solely in RAM,664482bytes SHA256 `ab211f171a9595f6b9686caaec44ca07a623c4605923caae756e2446e055e0ff`, full signature/index/deb chain validated; no apt update/install. RAM smartctl binary SHA256 `58afd627df25e1ccfbce81503052bfe2b921f2a083878c53d480706e12c4c5c9`. Only `smartctl -x -j /dev/sda` information query ran, exitbitmask0. Samsung870EVO250GB, firmwareSVT02B6Q: SMART statuspassed, reallocated/reserved/programfail/erasefail/runtimebad/uncorrectable/ECC counters0. CRC attribute199=1003, powerhours3953, poweron-recovery252. Extended ATA error/self-test logs count0; SATA PHY reset=false, CRC-error counters0, PhyRdy→NRdy392 and COMRESET6. These values do not establish filesystem integrity or explain existing corruption.
+
+Fresh SCSI I/O-error count is0x9 versus early baseline0x6. No filtered current-boot ATA/SCSI reset/I/O/UNC line is observed; whether this increment reflects information-query rejection or actual device errors is unverified. Manager notified immediately; **corrective writes remain held**. Repeat read-only SMART/PHY/SCSI/kernel comparison after any separately authorized offline metadata read; any new media/interface/I/O error blocks correction pending review. No counters are reset and no SMART enable/self-test command runs.
+
+Controller actual capacity:249257984 disk bytes free and1977929728 `/dev/shm` bytes available. Metadata estimate around1GiB fits dedicated RAM budget, but actual compressed off-host image size is not measured. Compressed image must be measured against current controller capacity and verified off-host before corrective writes. This is configuration/auth preservation plus planned metadata/undo, **not full system/data backup**; no image or undo exists yet.
+
+| Private actual receipt | Bytes | SHA256 |
+|---|---:|---|
+|ram-stage-complete.json|29866|`648753664f64800496978dff2b6b96886277d8e216d385e46ed37aca25a4edc6`|
+|ram-runtime-audit.json|11076|`184223796a22822088d8f0122c458f20d89e6c337dae5ac73e88b0ae7478e981`|
+|ram-final-baseline.json|20105|`ab3293c9e2403b1b659bf06b632663e7f553e3852587d087316a83a76fbe8092`|
+|smart-result.json|78124|`dbb9a1dec811c0b24d13056c55743d4a770da48f415671c6ea52a252f7ba07b9`|
+|block-check-transfer.json|320|`d9739d4ab82c60bac055c1ca8e388407b2357742a8ffdcc7fd0f58468cf51b97`|
+|original-auth-ram-transfer.json|192|`803596e7d24a88107de56790fa694f0c416985bc83c581d79f80afdd52c683e3`|
+|original-boot-config-baseline.json|4925|`2e3af5ef6c75edbbadcbb4467e798da93adff516ca9a4e3257d3cddb70a38958`|
+
+Current outcome: reversible RAM staging/authentication/runtime tests PASS; formal TRANSITION-ONLY review pending. Root remains mounted; positive offline proof, fsck/image/repair/reboot/install and hardware acceptance NOT RUN. Parent coordinates one host at a time and any exact marker/soft-reboot action; staging approval does not authorize transition or correction.
+
+Actual units from private command receipt (no credentials):
+
+mount:
+
+```ini
+[Unit]
+Description=NGFW reviewed RAM rescue staging
+DefaultDependencies=no
+
+[Mount]
+What=tmpfs
+Where=/run/ngfwrescue
+Type=tmpfs
+Options=size=8G,mode=0755,nosuid,nodev,exec
+```
+
+runtime:
+
+```ini
+[Unit]
+Description=NGFW RAM key-only management rescue SSH
+DefaultDependencies=no
+IgnoreOnIsolate=yes
+SurviveFinalKillSignal=yes
+After=basic.target
+Before=shutdown.target rescue.target emergency.target
+Conflicts=reboot.target kexec.target poweroff.target halt.target rescue.target emergency.target
+
+[Service]
+Type=exec
+KillMode=control-group
+Restart=on-failure
+RestartSec=1s
+Environment=LC_ALL=C
+ExecStart=/usr/bin/chroot /run/ngfwrescue /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config
+StandardOutput=append:/run/ngfwrescue/var/log/rescue-ssh.log
+StandardError=inherit
+```
+
+candidate:
+
+```ini
+[Unit]
+Description=NGFW RAM key-only management rescue SSH
+DefaultDependencies=no
+IgnoreOnIsolate=yes
+SurviveFinalKillSignal=yes
+After=basic.target ngfw-runtime-prepare.service
+Before=shutdown.target rescue.target emergency.target
+Conflicts=reboot.target kexec.target poweroff.target halt.target rescue.target emergency.target
+
+[Service]
+Type=exec
+KillMode=control-group
+Restart=on-failure
+RestartSec=1s
+Environment=LC_ALL=C
+WorkingDirectory=/
+RuntimeDirectory=sshd
+RuntimeDirectoryMode=0755
+ExecStart=/usr/sbin/sshd -D -e -f /etc/ssh/sshd_config
+StandardOutput=append:/var/log/rescue-ssh.log
+StandardError=inherit
+```
+
+runtime_prepare:
+
+```ini
+[Unit]
+Description=Create OpenSSH runtime after original run transfer
+DefaultDependencies=no
+Before=ngfw-rescue.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mkdir -p /run/sshd
+ExecStart=/usr/bin/chmod 0755 /run/sshd
+ExecStart=/usr/bin/chown 0:0 /run/sshd
+StandardOutput=append:/var/log/runtime-prepare.log
+StandardError=inherit
+```
+
+ngfw-rescue.target:
+
+```ini
+[Unit]
+Description=NGFW RAM maintenance target
+DefaultDependencies=no
+Requires=ngfw-runtime-prepare.service ngfw-rescue.service
+After=ngfw-runtime-prepare.service ngfw-rescue.service
+AllowIsolate=yes
+```
+
+basic.target:
+
+```ini
+[Unit]
+Description=Minimal inert RAM basic target
+DefaultDependencies=no
+```
+
+
+## Bounded read and counter classification follow-up
+
+Manager authorized bounded raw read and exact read-only SMART repeat. Existing `/usr/bin/dd` is uutils-coreutils0.8.0. Exact `dd if=/dev/sda2 of=/dev/null bs=1M count=256 iflag=direct status=none` exits1 immediately0.003s with Invalid input; I/O count9 remains9 and no new storage kernel error. This is a failed diagnostic invocation, not successful raw-read evidence. Read-only SMART-x-j repeat then exits0 and reproduces exactly+3 ioerr9→12; CRC1003/media0/extended errorlog0 and PHY baseline remain unchanged, no new kernel storage line. This supports a query-associated counter increment; the responsible optional query is not identified and physical health is not guaranteed.
+
+To test actual direct reads with an aligned buffer, existing Python opens `/dev/sda2` O_RDONLY|O_DIRECT|O_CLOEXEC and uses preadv into anonymous page-aligned RAM.256×1MiB=268435456 bytes read successfully in0.599s, exit0, ioerr12→12, no new ATA/SCSI reset/I/O/UNC/failed/timeout line. No raw bytes are printed or saved and no disk write occurs. Private bounded-direct-read.json513bytes SHA256 `844194cbfb98cc19e73d1eceeafe1e11ede7b54de9979487f570ac2c6af08b18`; source1428bytes SHA256 `5784de633c8d0e797728c61da2df437ea74be6f9bb783ebf47f6c91d0d92c6d4`; empty capture stderr. Private ioerr-classification.json682196bytes SHA256 `37844f3873bc07b07a7a09a997cb59dc6107cdc09247924fab9d6078da6d6eba`, with full SMART/kernel logs kept confidential.
+
+This scoped read supports the manager/reviewer's TRANSITION-ONLY → positive offline guard/all-namespace/holder proof → read-only fsck/metadata-image assessment. It does not authorize correction. After actual metadata read, repeat counters/CRC/media/new kernel events and compare raw-read baseline separately from SMART-query increments. Any genuine new media/interface/read/reset failure holds writes for review. Existing root corruption and original package-install objective remain unfinished.

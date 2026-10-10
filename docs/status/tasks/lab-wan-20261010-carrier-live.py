@@ -250,7 +250,7 @@ try:
        error_class=error.removeprefix('carrier operation failed: ')
        assert type(record['ok'])is bool and type(error_class)is str and len(error_class)<=64 and (not error_class or error_class.isascii() and error_class.isidentifier())
        metadata={'ok':record['ok'],'error_class':error_class}
-      print('OWNED_BROKER_METADATA '+json.dumps({'observed_monotonic':time.monotonic(),'child_pid':child.pid,'token':token,'area':area,**metadata}),flush=True)
+      print('OWNED_BROKER_METADATA '+json.dumps({'observed_monotonic':time.monotonic(),'child_pid':child.pid,'owned_namespace_scope':'carrier' if token==TOKEN else 'inventory','area':area,**metadata}),flush=True)
      except FileNotFoundError:pass
      except (AssertionError,ValueError,KeyError,TypeError):
       print('OWNED_BROKER_METADATA_REFUSED',flush=True)

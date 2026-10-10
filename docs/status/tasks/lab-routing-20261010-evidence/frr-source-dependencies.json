@@ -1,0 +1,19 @@
+{
+  "/usr/lib/x86_64-linux-gnu/frr/libfrr.so.0": "77db65182ce7b138a31c2b1979b2c28f736d5fa98763185a0fd1ca566acf809f",
+  "/usr/lib/x86_64-linux-gnu/frr/libmgmt_be_nb.so.0": "d6f85a076538b2173fa28c48737dea2263db52c41c851de33eb07e5e46667f43",
+  "/usr/lib/x86_64-linux-gnu/libaudit.so.1": "3d3026858a33b73d7b8cf3a311468ad8559545d8cc6f8e328a76948d9657637f",
+  "/usr/lib/x86_64-linux-gnu/libc.so.6": "a3947513a02831ec692ebf13053c07614882ab54a2101fb91a1b15724062ed0c",
+  "/usr/lib/x86_64-linux-gnu/libcap-ng.so.0": "60c767df6642a42ee28bf9a5b8975fe7ed59d4d87372b2737ccdf1a0ef1b268f",
+  "/usr/lib/x86_64-linux-gnu/libcap.so.2": "c5b463a8136dabb152bad8b04e89bf67bd2049ef49777ed0b96bdbc6cb5b9565",
+  "/usr/lib/x86_64-linux-gnu/libcrypt.so.1": "212437df8afcd4004965550cb6df2d0eeb8cad736f7a13a89dcec455182429a6",
+  "/usr/lib/x86_64-linux-gnu/libjson-c.so.5": "0b83602213f02deb548671b43d27354cdd434b08f793f92d752add94b0ca55f6",
+  "/usr/lib/x86_64-linux-gnu/libm.so.6": "beea4eeacfcfa2cd96011b959a826c97cf4a774017e214f6a34d7eea3d49cd88",
+  "/usr/lib/x86_64-linux-gnu/libpam.so.0": "fe942230acb13b5b645ecb41cfff350004a8b69f18877e1e924e643be21eee64",
+  "/usr/lib/x86_64-linux-gnu/libpam_misc.so.0": "c7595cb11c77392f644862fd83584a55813a3b5a4bd1ed14cf0681c8f1b2065a",
+  "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0": "4a6b6b2078685b074869d75cb068664d7da6b3036df7bca0442b1bbbd4ac7e65",
+  "/usr/lib/x86_64-linux-gnu/libpcre2-posix.so.3": "81cc43ea0237c8eade7c0105e25e24454aa52da4af2c31a146cf1f0d5a5aa645",
+  "/usr/lib/x86_64-linux-gnu/libreadline.so.8": "d2e865b97bc4631f9eec46a202d69f5407695734a3bbaeb8c838a93d1bfe5902",
+  "/usr/lib/x86_64-linux-gnu/libtinfo.so.6": "085dbbe5dc38619276bdd0af37ae588969b1308baded09a2990ce8824a602912",
+  "/usr/lib/x86_64-linux-gnu/libxxhash.so.0": "eae56344ba81fd5d25c6976028b33a53d3303848c382b04f3d5746549fb25228",
+  "/usr/lib/x86_64-linux-gnu/libyang.so.3": "b39fb3ec76a0e60993f26796a08e457169d8b625994dedb2d8089f062e1f2257"
+}

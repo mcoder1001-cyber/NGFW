@@ -1,0 +1,22 @@
+== NGFW CI gate: quick ==
+worktree  /root/ngfw-wt/lab-routing-20261010
+branch    codex/lab-routing-20261010 @ 252a9b453   (base: origin/main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/ngfw-turbo · go /root/.cache/go-build
+logs      /root/ngfw-wt/logs/ci/lab-routing-20261010-20261010-101359-3871954
+WARN uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick7.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick8.txt
+      ?? test/topology/frr-linuxcp/__pycache__/
+
+== contract guard: HEAD vs origin/main ==
+no contract files changed in the 15 commit(s) of HEAD since origin/main (4908716b4)
+
+== tools (golangci-lint, gitleaks) ==
+golangci-lint 2.13.2
+gitleaks 8.30.1
+
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+Lockfile is up to date, resolution step is skipped Done in 237ms using pnpm v12.5.1 
+
+== generate + generated-output gate ==

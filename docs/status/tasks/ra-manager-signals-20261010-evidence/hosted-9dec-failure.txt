@@ -1,0 +1,96 @@
+Mandatory quick gate	Run repository gate	﻿2026-10-10T11:35:51.2304992Z ##[group]Run set -euo pipefail
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2305482Z [36;1mset -euo pipefail[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2305956Z [36;1margs=(quick)[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2306724Z [36;1mif [[ $EVENT_NAME == pull_request ]]; then[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2307379Z [36;1m  args+=(--base "origin/$BASE_REF")[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2307989Z [36;1melif [[ $REF_NAME != main ]]; then[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2308555Z [36;1m  args+=(--base origin/main)[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2309064Z [36;1mfi[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2309452Z [36;1mtools/ci.sh "${args[@]}"[0m
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2379416Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2379780Z env:
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2379966Z   CI: 1
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2380155Z   GOTOOLCHAIN: local
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2380378Z   GOMAXPROCS: 2
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2380597Z   GOFLAGS: -p=2
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2380800Z   NGFW_CI_APPLY_SHARDS: 2
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2381036Z   NGFW_CI_TASK_CONCURRENCY: 2
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2381323Z   NGFW_CI_TOOLS_DIR: /home/runner/work/_temp/ngfw-tools
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2381697Z   NGFW_CI_LOG_DIR: /home/runner/work/_temp/ngfw-ci
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2381992Z   EVENT_NAME: pull_request
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2382210Z   BASE_REF: main
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2382404Z   REF_NAME: 224/merge
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2382606Z ##[endgroup]
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2663749Z == NGFW CI gate: quick ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2664404Z worktree  /home/runner/work/NGFW/NGFW
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2665216Z branch    HEAD @ a57707be   (base: origin/main)
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.2974011Z tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.3128678Z caches    pnpm store /home/runner/.local/share/pnpm/store/v11 · turbo /home/runner/.cache/ngfw-turbo · go /home/runner/.cache/go-build
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.3129890Z logs      /home/runner/work/_temp/ngfw-ci/NGFW-20261010-113551-3879
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.4387319Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.4392825Z == contract guard: HEAD vs origin/main ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.4498892Z no contract files changed in the 8 commit(s) of HEAD since origin/main (7c28b192)
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.4542507Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.4542941Z == tools (golangci-lint, gitleaks) ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.5273449Z golangci-lint 2.13.2
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.7983831Z gitleaks 8.30.1
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.7994764Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:51.7995261Z == install (pnpm --frozen-lockfile --prefer-offline) ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:56.6223645Z Progress: resolved 604, reused 0, downloaded 604, added 604, done Done in 4.8s using pnpm v12.5.1 
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:56.6233266Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:35:56.6233632Z == generate + generated-output gate ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1128700Z clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated packages/yang/generated apps/cli/internal/api/operations_gen.go
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1139000Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1139820Z == forbidden patterns (+ gitleaks) ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1923947Z WARN control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1926175Z       apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1930143Z       apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1932716Z       apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1936340Z       apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1940484Z       apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1943844Z       apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1946742Z       apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1948587Z       apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.1949698Z ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.2109891Z ok: no Dockerfile/compose files
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:50.9093974Z ok: no kill-by-pattern in scripts
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:52.2014674Z ok: no secret-shaped strings
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:52.2351221Z ok: ngfwtestsecrets only in test code
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:52.6925468Z ok: gitleaks — scanned ~176443 bytes (176.44 KB) in 173ms no leaks found 
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:52.6935289Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:52.6935792Z == packet-trace ban on the shared VPP (D-128) ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:53.9354042Z ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:53.9365452Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:53.9365938Z == ip classify reset after every shell interface create (D-185) ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:54.1509764Z ok: every shell interface create is followed by an ip4/ip6 classify reset
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:54.5891996Z board valid: 212 tasks; read-only validation
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:54.5970962Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:54.5971692Z == slot resource scheme (1..32, no collisions) ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:55.1023379Z ok: 30 developer slots + CI slot 12; 964 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:55.1034742Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:36:55.1035460Z == lint · typecheck · unit tests · build (turbo) ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:45:46.7886340Z Tasks:    35 successful, 35 total Cached:    6 cached, 35 total Time:    8m51.628s  
+Mandatory quick gate	Run repository gate	2026-10-10T11:45:46.7897749Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:45:46.7898015Z == apps/agent: make lint test build ==
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9336276Z 
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9337634Z CI GATE FAILED — apps/agent lint/test/build failed
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9339446Z --- last 60 lines of /home/runner/work/_temp/ngfw-ci/NGFW-20261010-113551-3879/10-agent.log ---
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9349336Z $ make -C apps/agent lint test build
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9349901Z make: Entering directory '/home/runner/work/NGFW/NGFW/apps/agent'
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9350869Z NGFW_TIMING BEGIN agent.vet 2026-10-10T11:45:46.793417552Z
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9351476Z go vet ./...
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9352112Z NGFW_TIMING END agent.vet 2026-10-10T11:46:50.283824485Z
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9353081Z NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-10T11:46:50.285414493Z
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9374320Z ##[error]internal/ra_vpn/namespace_openfile_manager_dbus_signals_test.go:214:20: Error return value of `file.Close` is not checked (errcheck)
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9383046Z 			defer file.Close()
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9383399Z 			                ^
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9384271Z ##[error]internal/ra_vpn/namespace_openfile_manager_dbus_wire.go:379:6: QF1001: could apply De Morgan's law (staticcheck)
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9385525Z 		if !(b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '_') {
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9385908Z 		   ^
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9386107Z 2 issues:
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9386307Z * errcheck: 1
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9387130Z * staticcheck: 1
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9387453Z make: *** [Makefile:15: lint] Error 1
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9387914Z make: Leaving directory '/home/runner/work/NGFW/NGFW/apps/agent'
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9388456Z logs: /home/runner/work/_temp/ngfw-ci/NGFW-20261010-113551-3879
+Mandatory quick gate	Run repository gate	2026-10-10T11:47:47.9390852Z ##[error]Process completed with exit code 1.

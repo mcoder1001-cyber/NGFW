@@ -1,0 +1,6 @@
+=== RUN   TestManagerDBusActualPID1SingleReadOnlyVersion
+=== RUN   TestManagerDBusActualPID1SingleReadOnlyVersion/112713.643883929
+    namespace_openfile_manager_dbus_pid1_probe_test.go:106: read-only fixed replies=1 signals=0 counted-bytes=163 limit=16384 query-budget=2s
+--- PASS: TestManagerDBusActualPID1SingleReadOnlyVersion (0.01s)
+    --- PASS: TestManagerDBusActualPID1SingleReadOnlyVersion/112713.643883929 (0.01s)
+PASS

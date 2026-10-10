@@ -1,0 +1,18 @@
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112552.332542205
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=40 signals=0 counted-bytes=3946 limit=16384 query-budget=2s
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112553.996336688
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=40 signals=0 counted-bytes=3946 limit=16384 query-budget=2s
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112555.659479136
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=40 signals=0 counted-bytes=3946 limit=16384 query-budget=2s
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112557.324646988
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=40 signals=0 counted-bytes=3946 limit=16384 query-budget=2s
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112558.987384498
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=40 signals=0 counted-bytes=3946 limit=16384 query-budget=2s
+--- PASS: TestManagerDBusActualPID1ReadOnlyVersion (8.31s)
+    --- PASS: TestManagerDBusActualPID1ReadOnlyVersion/112552.332542205 (1.66s)
+    --- PASS: TestManagerDBusActualPID1ReadOnlyVersion/112553.996336688 (1.66s)
+    --- PASS: TestManagerDBusActualPID1ReadOnlyVersion/112555.659479136 (1.66s)
+    --- PASS: TestManagerDBusActualPID1ReadOnlyVersion/112557.324646988 (1.66s)
+    --- PASS: TestManagerDBusActualPID1ReadOnlyVersion/112558.987384498 (1.66s)
+PASS

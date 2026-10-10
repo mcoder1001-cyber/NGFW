@@ -269,7 +269,11 @@ StandardOutput=append:/var/log/runtime-prepare.log
 StandardError=inherit
 '''
     for name in ['mkdir', 'chmod', 'chown']:
-        assert (STAGE / 'usr/bin' / name).exists()
+        # Absolute applet symlinks resolve inside the new root, not the host.
+        assert os.path.lexists(STAGE / 'usr/bin' / name)
+    command([CHROOT, str(STAGE), '/usr/bin/mkdir', '-p', '/run/sshd'])
+    command([CHROOT, str(STAGE), '/usr/bin/chmod', '0755', '/run/sshd'])
+    command([CHROOT, str(STAGE), '/usr/bin/chown', '0:0', '/run/sshd'])
     write('/etc/systemd/system/ngfw-runtime-prepare.service', runtime_prepare)
     write('/etc/systemd/system/basic.target', '''[Unit]
 Description=Minimal inert RAM basic target

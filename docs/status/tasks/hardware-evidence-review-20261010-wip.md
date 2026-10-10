@@ -212,3 +212,13 @@ repair despite known wear; do not manufacture another replacement/full-image
 approval blocker. Actual new read/reset/uncorrectable failures remain stop conditions;
 .37 transition is not approved by .211's phase verdict. Own docs check PASS14s,
 no target commands/product edits/full-quick duplication.
+
+09:14 classification addendum: formal phase review45b08eab2e9bab83e8327c58951acfbc4e2d8190
+published/readback. Independent actual private37844f38/844194cb receipts show uutils
+dd direct option failed EINVAL/counterunchanged, separate aligned preadv256MiB PASS0
+ioerr12→12/no new storage errors; repeated SMART query reproduces +3 with unchanged
+CRC/media/ATA evidence. Upstream7.0 SCSI/ATA completion sources support possible
+CHECK_CONDITION query association; exact command causality/downstream equivalence
+not claimed. Transition/read-only approval unchanged; full metadata read still
+monitored before correction review. Next command: fetch worker's actual public
+receipt and inspect posttransition RAM/runtime/offline guard evidence once ready.

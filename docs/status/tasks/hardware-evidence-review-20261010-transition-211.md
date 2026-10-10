@@ -107,3 +107,37 @@ Reviewer performed no target operation; all target execution above is attributed
 to the host worker's actual evidence. Own documentation check on the preceding
 checkpoint exited0: `tools/ci.sh check --base origin/main`, `check PASSED (0m14s)`.
 No duplicate full quick was run.
+
+## Additional counter classification before transition
+
+Reviewer independently parsed ready private ioerr-classification.json682196B,
+SHA25637844f3873bc07b07a7a09a997cb59dc6107cdc09247924fab9d6078da6d6eba,
+and bounded-direct-read.json513B,
+SHA256844194cbfb98cc19e73d1eceeafe1e11ede7b54de9979487f570ac2c6af08b18;
+both0600. Actual first command:
+
+```text
+/usr/bin/dd if=/dev/sda2 of=/dev/null bs=1M count=256 iflag=direct status=none
+uutils coreutils0.8.0: exit1 Invalid input; ioerr0x9→0x9
+repeat smartctl -x: exit0; ioerr0x9→0xc; new selected storage errors0
+aligned anonymous mmap + os.open(O_RDONLY|O_DIRECT|O_CLOEXEC), os.preadv:
+ block1048576B ×256; bytes268435456; exit0; elapsed0.5985337769961916s
+ ioerr0xc→0xc; new selected storage errors0
+```
+
+The failed dd invocation is preserved as a software/option validation failure;
+it is not a completed direct-read or demonstrated media read failure. The separate
+real aligned256MiB read passed. The SMART query reproduced the counter delta while
+CRC1003/media counts0/ATA error log0 remained unchanged, qualifying the earlier
+unexplained6→9 observation as query-associated evidence.
+
+Upstream Linux7.0 increments the SCSI counter for a nonzero command result before
+disposition. Its ATA pass-through completion can intentionally return CHECK_CONDITION
+for requested CK_COND even on successful ATA completion. These sources provide a
+plausible mechanism; the exact commands were not traced, and Ubuntu downstream
+patch equivalence is not claimed. Thus this is an inference supported by the repeat
+and bounded-read evidence, not proof that every counter increase is harmless.
+[SCSI completion counter](https://raw.githubusercontent.com/torvalds/linux/v7.0/drivers/scsi/scsi_lib.c),
+[ATA pass-through completion](https://raw.githubusercontent.com/torvalds/linux/v7.0/drivers/ata/libata-scsi.c).
+The transition/read-only verdict is unchanged; use the latest actual0xc baseline
+and continue monitoring the full metadata read before any correction review.

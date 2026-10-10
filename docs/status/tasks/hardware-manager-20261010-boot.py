@@ -3,7 +3,7 @@
 import argparse,datetime,hashlib,json,os,pathlib,re,stat,subprocess
 OUTPUT=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware')
 REMOTE=r'''
-import hashlib,json,os,pathlib,re,socket,stat,subprocess,time,datetime,zoneinfo
+import hashlib,json,os,pathlib,re,socket,stat,subprocess,time,datetime,zoneinfo,grp
 UNITS=['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service','ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','snmpd.service','keepalived.service','chrony.service','rsyslog.service','apply-executor.socket','ngfw-ra-openfile.socket','ngfw-ra-namespace-broker.socket']
 OWNED=['vpp.service','ngfw-agent.service','ngfw-api.service']
 RECORD=pathlib.Path('/var/lib/ngfw-install-recovery')/('hardware-manager-20261010-boot-'+HOST)
@@ -58,12 +58,20 @@ def protect(postboot=False):
  binder=state('ngfw-hardware-'+HOST+'-bind.service');assert binder['ActiveState']=='active'
  desired=NATIVE['running']['data']['system']['timezone'];assert re.fullmatch(r'[A-Za-z0-9_+/-]+',desired) and '..' not in desired and not desired.startswith('/')
  expected_zone=pathlib.Path('/usr/share/zoneinfo')/desired;zone=pathlib.Path('/etc/localtime');assert zone.resolve(strict=True)==expected_zone.resolve(strict=True) and zone.read_bytes()==expected_zone.read_bytes();time.tzset();assert time.strftime('%z')==datetime.datetime.now(zoneinfo.ZoneInfo(desired)).strftime('%z')
+ metadata={'source':'native desired zone plus fresh canonical bytes and glibc offset','timedated_label':None,'timedated_managed_indirection_supported':None}
  if postboot:
-  label=checked(['timedatectl','show','-p','Timezone','--value']);assert re.fullmatch(r'[A-Za-z0-9_+/-]+',label) and '..' not in label and not label.startswith('/')
-  assert (pathlib.Path('/usr/share/zoneinfo')/label).resolve(strict=True)==expected_zone.resolve(strict=True)
+  label=checked(['timedatectl','show','-p','Timezone','--value']);metadata['timedated_label']=label
+  if label:
+   assert re.fullmatch(r'[A-Za-z0-9_+/-]+',label) and '..' not in label and not label.startswith('/')
+   assert (pathlib.Path('/usr/share/zoneinfo')/label).resolve(strict=True)==expected_zone.resolve(strict=True);metadata['timedated_managed_indirection_supported']=True
+  else:
+   outer=zone.lstat();managed=pathlib.Path('/var/lib/ngfw-system-identity/localtime');inner=managed.lstat()
+   assert stat.S_ISLNK(outer.st_mode) and outer.st_uid==outer.st_gid==0 and os.readlink(zone)==str(managed)
+   assert stat.S_ISLNK(inner.st_mode) and inner.st_uid==0 and inner.st_gid==grp.getgrnam('ngfw').gr_gid and os.readlink(managed)==str(expected_zone)
+   metadata.update(timedated_managed_indirection_supported=False,compatibility_limit='systemd259.5 immediate readlink does not recognize managed two-hop chain')
  plugins=checked(['vppctl','show','plugins']);assert all(re.search(r'\b'+re.escape(n)+r'\b',plugins) for n in ['linux_cp_plugin.so','linux_nl_plugin.so','npt66_plugin.so'])
  assert checked(['dpkg','--audit'])==''
- return {'boot_id':boot,'network':network,'sysctls':sysctls,'DNS':dns,'nft':rules,'storage_ioerr':io,'units':units,'binder':binder,'VFIO_devices':devices,'startup_SHA':STARTUP,'timezone':str(zone.resolve()),'offset':time.strftime('%z')}
+ return {'boot_id':boot,'network':network,'sysctls':sysctls,'DNS':dns,'nft':rules,'storage_ioerr':io,'units':units,'binder':binder,'VFIO_devices':devices,'startup_SHA':STARTUP,'timezone':str(zone.resolve()),'offset':time.strftime('%z'),'timezone_metadata':metadata}
 def main():
  result['before']=protect(MODE=='observe-boot');kernel=checked(['dmesg','--color=never']);result['kernel_before']=kernel;result['stage']='protected'
  if MODE=='enable-boot':

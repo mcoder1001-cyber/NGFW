@@ -3,6 +3,15 @@
 Owner resume, 2026-10-10 12:34 UTC (16:04 Asia/Tehran): complete this one
 hardware task and mark it Done only after its required acceptance. Do not start
 unrelated board work. The pause below is superseded. Root owns the necessary
+setup documentation in docs/install/bare-metal.md. A small final integration
+branch codex/hardware-firstboot-fix-20261010 is prepared by the same root manager
+in an isolated own tmpfs worktree /dev/shm/ngfw-hardware-firstboot-integration-20261010,
+because controller root has under0.5GiB free. This is D112 integration of the
+same hardware correction, not another development task. Operational checkpoints
+remain on the existing manager branch and worktree; no main history rewrite.
+The old root-owned prepared build tree may be removed only after all four
+immutable native archives and their exact hashes are verified as retained.
+It is reproducible build cache, not recovery/private data or Git history.
 firstboot fix files assets/firstboot.sh, assets/initial-dataplane.json and
 debian/ngfw-meta.install under deploy/debian/ngfw, its tests/test_firstboot.py,
 and apps/agent/cmd/ngfw-startupgen/main_test.go. Existing host211 operator and R7

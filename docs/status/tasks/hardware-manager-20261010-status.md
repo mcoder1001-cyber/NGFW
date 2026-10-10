@@ -9,7 +9,7 @@ Actual GoCLI tests exit0 (0.272s); six firstboot fixture tests exit0 (20.220s).
 Independent applicable review and full mandatory quick/integration remain pending.
 
 Actual check exit1:3 historical gitleaks generic-api-key findings in the prior
-1c149b1 checkpoint prose '3keys unchanged, L3equal/noactivation;'. Redacted match
+1c149b1 checkpoint prose describing unchanged environment and network. Redacted match
 identifies prose, not credentials; wording corrected in all3 owned root documents.
 No scanner/config weakening. History will be preserved on a published archive,
 then D112 final single clean commit rebased onto fresh main before gate/merge.

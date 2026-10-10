@@ -3,9 +3,13 @@ package ravpn
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/godbus/dbus/v5"
+	"golang.org/x/sys/unix"
 )
 
 // Encode the real public systemd signal signatures with the pinned SDK; only
@@ -134,6 +138,109 @@ func TestManagerDBusSignalRejectsForeignMetadataAndFraming(t *testing.T) {
 			}
 			if err := validateManagerDBusSignalFrame(f); err != ErrBoundary {
 				t.Fatalf("malformed signal accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestManagerDBusSignalBeforePendingReply(t *testing.T) {
+	client, server := managerDBusOwnedPair(t)
+	transport := &managerDBusTransport{conn: client, binary: true, pending: map[uint32]bool{7: true}}
+	signal := managerDBusSignalFixture(t, "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "Reloading", []any{true}, nil, binary.LittleEndian)
+	reply := managerDBusReplyFixture(t, "marker")
+	done := make(chan error, 1)
+	go func() { _, err := server.Write(append(signal, reply...)); done <- err }()
+	got := make([]byte, len(reply))
+	if _, err := io.ReadFull(transport, got); err != nil {
+		t.Fatal("lawful signal killed pending property reply", err)
+	}
+	if !bytes.Equal(got, reply) || transport.pending[7] || transport.read != len(signal)+len(reply) {
+		t.Fatal("signal leaked, consumed reply authority, or escaped original budget")
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget(t *testing.T) {
+	signal := managerDBusSignalFixture(t, "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "Reloading", []any{true}, nil, binary.LittleEndian)
+	for _, name := range []string{"flood", "orphan-reply", "unknown-metadata", "count-limit"} {
+		t.Run(name, func(t *testing.T) {
+			client, server := managerDBusOwnedPair(t)
+			transport := &managerDBusTransport{conn: client, binary: true, pending: map[uint32]bool{8: true}}
+			var wire []byte
+			switch name {
+			case "flood":
+				wire = bytes.Repeat(signal, managerDBusLimit/len(signal)+1)
+			case "orphan-reply":
+				wire = append(append([]byte(nil), signal...), managerDBusReplyFixture(t, "marker")...)
+			case "unknown-metadata":
+				wire = managerDBusSignalFixture(t, "/org/freedesktop/systemd1", "org.foreign.Manager", "Reloading", []any{true}, nil, binary.LittleEndian)
+			case "count-limit":
+				transport.signals = 1024
+				wire = signal
+			}
+			done := make(chan error, 1)
+			go func() { _, err := server.Write(wire); done <- err }()
+			var dst [1]byte
+			if n, err := transport.Read(dst[:]); n != 0 || err != ErrBoundary {
+				t.Fatalf("%s bypassed boundary: n=%d err=%v", name, n, err)
+			}
+			if !transport.pending[8] || len(transport.buffer) != 0 {
+				t.Fatal("discard mutated pending authority, delivered bytes, or enlarged read budget")
+			}
+			// The unchanged rawRead counts the refused final fixed header too;
+			// no frame/body past the original connection budget is admitted.
+			if name == "flood" && (transport.read <= managerDBusLimit-len(signal) || transport.read > managerDBusLimit+16) {
+				t.Fatal("flood did not stop at original read budget", transport.read)
+			}
+			if err := <-done; err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody(t *testing.T) {
+	for _, atBody := range []bool{false, true} {
+		t.Run(fmt.Sprint(atBody), func(t *testing.T) {
+			client, server := managerDBusOwnedPair(t)
+			transport := &managerDBusTransport{conn: client, binary: true, pending: map[uint32]bool{7: true}}
+			frame := managerDBusSignalFixture(t, "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "Reloading", []any{true}, nil, binary.LittleEndian)
+			file, err := os.Open("/dev/null")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			before, err := os.ReadDir("/proc/self/fd")
+			if err != nil {
+				t.Fatal(err)
+			}
+			done := make(chan error, 1)
+			go func() {
+				if atBody {
+					if _, err := server.Write(frame[:16]); err != nil {
+						done <- err
+						return
+					}
+					frame = frame[16:]
+				}
+				_, _, err := server.WriteMsgUnix(frame, unix.UnixRights(int(file.Fd())), nil)
+				done <- err
+			}()
+			var dst [1]byte
+			if n, err := transport.Read(dst[:]); n != 0 || err != ErrBoundary {
+				t.Fatal("signal rights accepted", n, err)
+			}
+			if err := <-done; err != nil {
+				t.Fatal(err)
+			}
+			after, err := os.ReadDir("/proc/self/fd")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(before) != len(after) || !transport.pending[7] {
+				t.Fatal("signal rights leaked or consumed pending serial")
 			}
 		})
 	}

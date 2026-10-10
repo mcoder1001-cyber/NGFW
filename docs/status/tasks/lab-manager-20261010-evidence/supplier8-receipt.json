@@ -1,5 +1,5 @@
 {
-  "source": "b1e16141a49a40a38f393cbbdb281d31f3314da9",
+  "source": "27256405964bf12bc1117169db30a499f0924b60",
   "scope": "Supplemental supplier-only guest. Historical firstboot/nft no-op fixture units remain; not full appliance acceptance.",
   "binaries": {
     "ngfw-agent": "77b841af51c07d3f35bc6990a73ecedbe9ab672d65f474549b934478ba40797f",
@@ -517,118 +517,119 @@
       "sha256": "197786d0e86982cd9fa783e171a7682765b94c21718875f4f11ec171c0a93254"
     }
   ],
+  "identity_utc_zone_sha256": "8b85846791ab2c8a5463c83a5be3c043e2570d7448434d41398969ed47e3e6f2",
+  "identity_provisioner_sha256": "66b4554b0f6c2eddc18226ce729f18d2dc792ffdbc6459cea9f3062c82b2c20a",
+  "identity_public_links": {
+    "hostname": "/var/lib/ngfw-system-identity/hostname",
+    "issue": "/var/lib/ngfw-system-identity/issue",
+    "issue.net": "/var/lib/ngfw-system-identity/issue.net",
+    "motd": "/var/lib/ngfw-system-identity/motd",
+    "localtime": "/var/lib/ngfw-system-identity/localtime"
+  },
   "observation_sleep_sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
   "readiness_probe_sha256": "09b60e3eeb17eed05ca3e43c1fc4ef013e364afc38707c17dc1ea2dfe58505bb",
-  "unpacked_bytes": 408028273,
-  "image_sha256": "12a72e19b1d064f02d5981bef927d2b204789aff5ec48b4d9bd5ed0a84a6a5d2",
+  "unpacked_bytes": 408028565,
+  "image_sha256": "c47172916c137f58cae7fadff164b9dd84a7ba28eec056f6ed621a8d55392efc",
   "compiled_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
-  "source_equivalence_receipt": {
-    "repository_snapshot": "b1e16141a49a40a38f393cbbdb281d31f3314da9",
-    "compiled_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
-    "compiled_paths_equivalence": [
-      "apps",
-      "packages",
-      "deploy",
-      "tools",
-      "test"
+  "loan_manifest": {
+    "source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+    "source_tree": "237e55412a3e592c90c9656b92de58be044b784d",
+    "build": "agent: make build VERSION=e624d05e1; helpers: go build -trimpath -ldflags -s -w; GOFLAGS=-p=1 GOMAXPROCS=2",
+    "tracked_apps_packages_deploy_tools_test_before_after_clean": true,
+    "vcs_modified_note": "Untracked documentation receipts are present; tracked compilation and unit sources match the committed source before/after build. No rebuilt artifact is claimed from 490.",
+    "binaries": [
+      {
+        "path": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-agent",
+        "sha256": "77b841af51c07d3f35bc6990a73ecedbe9ab672d65f474549b934478ba40797f",
+        "bytes": 37191945,
+        "fresh_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+        "go_build_metadata": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-agent: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-agent\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/ftrvxmtrx/fd\tv0.0.0-20150925145434-c6d800382fff\th1:zk1wwii7uXmI0znwU+lqg+wFL9G5+vm5I+9rv2let60=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/gosnmp/gosnmp\tv1.43.1\th1:7wsShHqUxP7BPAv3AkGA+PyZBknrJktN0R+yxtlJSog=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=1\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+      },
+      {
+        "path": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-namespace-broker",
+        "sha256": "10833f9e2325472dec57988cc974c3bc8efbd92ab130ba2a119f7145e82b28f4",
+        "bytes": 15978761,
+        "fresh_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+        "go_build_metadata": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-namespace-broker: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-ra-namespace-broker\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=1\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+      },
+      {
+        "path": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-daemon",
+        "sha256": "ec07f3076c5862546cc52c506a6cfc83d57e38ddd1672764e8039316b00de6cd",
+        "bytes": 15626505,
+        "fresh_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+        "go_build_metadata": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-daemon: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-ra-daemon\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=1\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+      }
     ],
-    "compiled_paths_diff_empty": true,
-    "loan_manifest": {
-      "source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
-      "source_tree": "237e55412a3e592c90c9656b92de58be044b784d",
-      "build": "agent: make build VERSION=e624d05e1; helpers: go build -trimpath -ldflags -s -w; GOFLAGS=-p=1 GOMAXPROCS=2",
-      "tracked_apps_packages_deploy_tools_test_before_after_clean": true,
-      "vcs_modified_note": "Untracked documentation receipts are present; tracked compilation and unit sources match the committed source before/after build. No rebuilt artifact is claimed from 490.",
-      "binaries": [
-        {
-          "path": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-agent",
-          "sha256": "77b841af51c07d3f35bc6990a73ecedbe9ab672d65f474549b934478ba40797f",
-          "bytes": 37191945,
-          "fresh_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
-          "go_build_metadata": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-agent: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-agent\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/ftrvxmtrx/fd\tv0.0.0-20150925145434-c6d800382fff\th1:zk1wwii7uXmI0znwU+lqg+wFL9G5+vm5I+9rv2let60=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/gosnmp/gosnmp\tv1.43.1\th1:7wsShHqUxP7BPAv3AkGA+PyZBknrJktN0R+yxtlJSog=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=1\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
-        },
-        {
-          "path": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-namespace-broker",
-          "sha256": "10833f9e2325472dec57988cc974c3bc8efbd92ab130ba2a119f7145e82b28f4",
-          "bytes": 15978761,
-          "fresh_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
-          "go_build_metadata": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-namespace-broker: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-ra-namespace-broker\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=1\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
-        },
-        {
-          "path": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-daemon",
-          "sha256": "ec07f3076c5862546cc52c506a6cfc83d57e38ddd1672764e8039316b00de6cd",
-          "bytes": 15626505,
-          "fresh_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
-          "go_build_metadata": "/tmp/ngfw-ra-signals-tmp/loan/ngfw-ra-daemon: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-ra-daemon\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=1\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
-        }
-      ],
-      "canonical_ra_units_and_agent_hardening": [
-        {
-          "path": "deploy/systemd/ngfw-ra-namespace-broker.socket",
-          "sha256": "f8b139a683fbcf447304672c085d031cc4fd7d8d0fc36ed137db257b80787308",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra-namespace-broker@.service",
-          "sha256": "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra-observer@.service",
-          "sha256": "0864b67dafc24b2ff3fb1d68ff3bb06cc3cd84c977db59b151daa3bff2455a6a",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra-observer@.socket",
-          "sha256": "d8bdf79f7767d13c0a6c679f317d7450e8439a5a110ef306f601dd9487f294c4",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra-openfile.service",
-          "sha256": "447e0ee2fc549280f3f6dbdc012e85e9430405dae535231d6ff432b7415c6559",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra-openfile.socket",
-          "sha256": "e548b49466216b1254bd41cf9cb04d9d2ae342d1b8b228848a2362ba48b08147",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra-targets@.service",
-          "sha256": "9acdbfad058b5210977f1327c693b1b656ac6f195a91203068760946ebb1b810",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra-targets@.socket",
-          "sha256": "2220b219ac28517fa39663f4b991b697757b3a04e585d35257e4e3c0758e2130",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-ra@.service",
-          "sha256": "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/systemd/ngfw-agent.service",
-          "sha256": "0578ae4713eaed060b6b2551633136456c400f8f4a1a980f7624305633bcc54f",
-          "unchanged_from_4908716b4": true
-        },
-        {
-          "path": "deploy/hardening/systemd/ngfw-agent.service.d/10-ngfw-hardening.conf",
-          "sha256": "e2895894312a43ff2d60c4ba0e741c5b3276ec3be9b64a8b46e7c6fc65e8f7bc",
-          "unchanged_from_4908716b4": true,
-          "loan_path": "/tmp/ngfw-ra-signals-tmp/loan/units/ngfw-agent.service.d/10-ngfw-hardening.conf"
-        }
-      ],
-      "full_local_quick": "PASS, exit0,35m45s; complete unchanged quick2.txt",
-      "current_main_4cda_compiled_paths_equal_7c28": true,
-      "canonical_asset_count": 11,
-      "manifest_scope_correction": "The original ten entries covered nine RA units and ngfw-agent.service. This revision explicitly adds the actual agent hardening drop-in as entry eleven."
-    },
-    "runner_sha256": "fc8cea64269a1596ef52fff99848b02cc283eec6a266b5cf9f88634f79b9120d",
-    "status": "verified; not yet staged or booted"
+    "canonical_ra_units_and_agent_hardening": [
+      {
+        "path": "deploy/systemd/ngfw-ra-namespace-broker.socket",
+        "sha256": "f8b139a683fbcf447304672c085d031cc4fd7d8d0fc36ed137db257b80787308",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra-namespace-broker@.service",
+        "sha256": "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra-observer@.service",
+        "sha256": "0864b67dafc24b2ff3fb1d68ff3bb06cc3cd84c977db59b151daa3bff2455a6a",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra-observer@.socket",
+        "sha256": "d8bdf79f7767d13c0a6c679f317d7450e8439a5a110ef306f601dd9487f294c4",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra-openfile.service",
+        "sha256": "447e0ee2fc549280f3f6dbdc012e85e9430405dae535231d6ff432b7415c6559",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra-openfile.socket",
+        "sha256": "e548b49466216b1254bd41cf9cb04d9d2ae342d1b8b228848a2362ba48b08147",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra-targets@.service",
+        "sha256": "9acdbfad058b5210977f1327c693b1b656ac6f195a91203068760946ebb1b810",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra-targets@.socket",
+        "sha256": "2220b219ac28517fa39663f4b991b697757b3a04e585d35257e4e3c0758e2130",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-ra@.service",
+        "sha256": "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/systemd/ngfw-agent.service",
+        "sha256": "0578ae4713eaed060b6b2551633136456c400f8f4a1a980f7624305633bcc54f",
+        "unchanged_from_4908716b4": true
+      },
+      {
+        "path": "deploy/hardening/systemd/ngfw-agent.service.d/10-ngfw-hardening.conf",
+        "sha256": "e2895894312a43ff2d60c4ba0e741c5b3276ec3be9b64a8b46e7c6fc65e8f7bc",
+        "unchanged_from_4908716b4": true,
+        "loan_path": "/tmp/ngfw-ra-signals-tmp/loan/units/ngfw-agent.service.d/10-ngfw-hardening.conf"
+      }
+    ],
+    "full_local_quick": "PASS, exit0,35m45s; complete unchanged quick2.txt",
+    "current_main_4cda_compiled_paths_equal_7c28": true,
+    "canonical_asset_count": 11,
+    "manifest_scope_correction": "The original ten entries covered nine RA units and ngfw-agent.service. This revision explicitly adds the actual agent hardening drop-in as entry eleven."
   },
-  "status": "boot finished; acceptance must be parsed from actual output",
+  "repository_snapshot_compiled_delta": [
+    "apps/agent/internal/multiwan/gateways.go",
+    "apps/agent/internal/multiwan/gateways_test.go"
+  ],
+  "delta_attribution": "Snapshot includes independently accepted GB gateway change; three ELF remain genuinely built from e624, no rebuilt combined tree claimed. All eleven deployed units match compiled e624.",
+  "runner_sha256": "c41e3532f35b02aaa4e58a1f462edcaa7728a9c830919ab15bd745ba10807d5c",
+  "independent_runner_review": "routing_acceptance APPROVE c41e3532",
   "launch_command": [
     "timeout",
     "--signal=TERM",
@@ -648,7 +649,7 @@
     "-kernel",
     "/boot/vmlinuz-7.0.0-31-generic",
     "-initrd",
-    "/run/ngfw-lab-build-20261010/supplier6.gz",
+    "/run/ngfw-lab-build-20261010/supplier8.gz",
     "-append",
     "console=ttyS0 rdinit=/init",
     "-nic",
@@ -657,10 +658,10 @@
     "-no-reboot"
   ],
   "qemu_exit": 0,
-  "elapsed_seconds": 98.378,
-  "raw_log_sha256": "ee1f95d69cb703f69031646016e5faf37fdbe100b8a0dce9d39b8aff02994967",
-  "actual_result": "FAIL: real agent226/NAMESPACE missing packaged identity fixture path; prerequisite paths /usr/sbin/modprobe and /usr/bin/test unavailable; readyness EXIT1; QEMU exit0 only poweroff, not PASS",
+  "elapsed_seconds": 104.929,
+  "raw_log_sha256": "ba8409062922b703b066ad33ed056ed662846c74ba6fa7d6603a576f5a030d73",
+  "status": "boot finished; acceptance must be parsed from actual output",
+  "actual_result": "FAIL: actual prerequisites EXIT0, canonical agent125 and VPP124 active NRestarts0, genuine RA capabilities reason engine-not-ready/operational false, readiness EXIT2. QEMU exit0 only poweroff. Full canonical campaign not run.",
   "public_kernel_certificate_redactions": 2,
-  "published_log_sha256": "68a19766d700d862b686aa4c4c7052dbee3b8ae5ab3f3b5163ba0a36444bb611",
-  "publication_metadata": "External file hash map rendered as explicit path/sha256 records; all paths and digest bytes preserved. Scanner matched api/plugin path names beside public binary SHA256 metadata; no credential value was present."
+  "published_log_sha256": "3a102ea6863359e67c1dfe9329cce9ecc4b1bd89310541a22ea348398c5f7e08"
 }

@@ -1,3 +1,40 @@
+# Resumed disk recovery — 2026-10-10 08:33 UTC
+
+Owner now explicitly asks to fix the disk problem. Root resumed existing host37,
+host211, and evidence_review workers; actual live diagnostic messages received.
+This supersedes the earlier awaiting-resume operational snapshot below. Source
+main remains4908716b; no product code or CI change is required for this recovery.
+At edit local/remote manager HEAD4f8cc7f40ff23581058643b13458b3b8624299a9;
+this coherent checkpoint is immediately committed and published/read back.
+Owned files and private destinations remain as in the task envelope.
+
+Fresh read-only findings: both root /dev/sda2 ext4 mountedrw, clean-with-errors,
+failed fsck at inode259596 invalid extent block15505493. Counts .37=1319,
+.211=1317. No repair, target package staging/install, reboot or network change.
+No usable second filesystem or IPMI device; disk models/controller errors do not
+establish physical hardware health without SMART. Both PID1/systemd259.5 and
+multiple other processes pin the old root. RAM is sufficient; /run is noexec,
+/tmp executable but its mount conflicts with shutdown. Stock initrds lack SSH/fsck.
+
+Current work: independently review a dedicated executable RAM /run/nextroot with
+matching minimal systemd/sshd/e2fsck runtime, authenticated SSH before transition,
+and exact network retention. Matching upstream v259.5 supports soft-reboot, but
+switch_root uses lazy detach, so successful transition/empty mountinfo is not
+sufficient. .37 mounted-negative block-device O_RDONLY|O_EXCL correctly returns
+EBUSY; require positive exclusive probe and all-namespace/reference audit after
+transition before any fsck. Prepare metadata backup/undo and an explicit safe
+return path. Full system image has not been taken; config backups are not one.
+
+Current limitation: no tested RAM rescue yet. Next command is read-only geometry,
+auth/runtime dependency/capability assessment by exclusive workers, then concrete
+staging script review. Do not wait for prior console question before useful safe
+preparation. Do not perform transition or corrective writes before review.
+Root controller filesystem now31MiB free; only redundant task-owned build trees
+may be removed to recover staging/backup capacity; preserve immutable packages,
+source archive refs, checkpoints, all private evidence and other tasks' work.
+
+Previous durable handoff follows; its awaiting-recovery roles are historical:
+
 # Hardware installation WIP — 2026-10-10 08:06 UTC
 
 Branch: codex/hardware-manager-20261010.

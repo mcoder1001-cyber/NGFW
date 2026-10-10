@@ -34,5 +34,15 @@ and unexecuted tests accurately. No throughput or aggregate release claim.
 Final preparation: PR217 merged4908716b/treea0d7b7, fullunchanged mandatory source
 and baremain gates PASS; all applicable independent reviews APPROVE. FinalT1remote
 4a8a82205d490068d865a1344d86afcaf93b8502; R7recovery0eb7036450d410b7540e05a786205c72bd814acf.
-Hardware goal unfinished/awaiting verified recovery input; source packaging work
-complete. All workers awaitresume after durable receipts, no persistent installer.
+Owner follow-up (2026-10-10): fix the disk problem. This authorizes corrective
+filesystem recovery within the original management/routing protection constraint.
+Active roles after verified resume: root recovery manager; host_37 and host_211
+exclusive host investigators/operators; evidence_review independent recovery reviewer.
+No persistent installer is claimed. Investigate a verified RAM rescue path before
+requiring physical console: independently reviewed reversible staging, authenticated
+SSH test, unchanged network, executable nextroot, and block-device-exclusive plus
+all-namespace checks proving the old root is no longer mounted. Chroot or lazy detach
+alone is insufficient. No automatic destructive repair or mounted-root fsck.
+Configuration copies are not full data backup. A metadata snapshot/undo strategy
+must disclose its limits and preserve available evidence before corrective writes.
+Hardware goal remains unfinished; installation follows successful root recovery.

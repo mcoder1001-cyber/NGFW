@@ -54,7 +54,15 @@ tmpfs staging for dpkg duplication. No other agent's artifacts will be deleted.
 Remaining: .deb package build and independent inspection; offline disk recovery;
 reviewed guarded install, persist all data NICs, real acceptance and reboot persistence.
 Target installation/firstboot/API/dataplane/packet/reboot acceptance all NOT RUN.
-Next commands: copy prepared package-source to task-owned
-/dev/shm/ngfw-hardware-package-20261010; there run dpkg-buildpackage -us -uc -b
-with its unchanged required tests enabled, then preserve artifacts/checksums off tmpfs
-and obtain independent inspection. Offline recovery still requires owner console input.
+Initial dpkg-buildpackage -us -uc -b completed exit0 with all41 unchanged fixtures
+passing. Four .deb artifacts preserved in external runtime/ with buildinfo/changes
+and SHA256SUMS. Independent archive review found a real metadata failure: API native
+argon2 computes libc6>=2.34 and libgcc-s1>=4.2 in shlibs:Depends, but API Depends
+omitted that generated field. Initial artifacts are BLOCKED, not ready for install.
+Corrected the API control field to consume shlibs:Depends; no compiler sources or
+tests changed. Root owns this one control-file correction to unblock the requested
+installation preparation. Required independent source/archive review and unchanged
+hosted quick must pass before any merge. Targets still unchanged and disk-blocked.
+Next: commit/publish correction, rebuild clean corrected source into a new task-owned
+output, inspect final native control and helper receipts, publish reviewable PR and
+verify unchanged hosted quick. Offline recovery still requires owner console input.

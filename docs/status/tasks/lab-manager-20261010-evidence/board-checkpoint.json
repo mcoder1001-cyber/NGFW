@@ -12,15 +12,19 @@
     "F-ospf-host"
   ],
   "counts": {
-    "merged": 207,
+    "merged": 208,
     "running": 2,
-    "review": 3
+    "review": 2
   },
   "newly_completed": [
     "F-ospf-host",
-    "P12-fib-proof"
+    "P12-fib-proof",
+    "F-nat46-host"
   ],
   "accepted_main": "7c28b19203926f7b4d6cadb23b2ae6073a9f70a8",
   "main_ci": "https://github.com/mcoder1001-cyber/NGFW/actions/runs/38048002335",
-  "main_ci_conclusion": "success"
+  "main_ci_conclusion": "success",
+  "accepted_nat_main": "4cda4687584ff6e18aff659b5d2c562704ed4fe5",
+  "nat_main_ci": "https://github.com/mcoder1001-cyber/NGFW/actions/runs/38049694822",
+  "nat_main_ci_conclusion": "success"
 }

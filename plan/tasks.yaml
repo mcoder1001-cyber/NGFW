@@ -4544,7 +4544,7 @@ tasks:
     - F-nat46
     priority: 3
     est_hours: 3
-    state: "review"
+    state: "merged"
     wbs: []
     scope: 'host evidence owed by F-nat46 (cloud session without VPP): the "Not built (remaining — for the host)" / "Not done / remains" section of docs/status/tasks/F-nat46.md'
     files_owned: docs/status/tasks/F-nat46-host*
@@ -4552,14 +4552,14 @@ tasks:
     worktree: "/root/ngfw-wt/lab-nat46-20261010"
     owner: "nat46_acceptance"
     started: '2026-09-29'
-    finished: '2026-09-29'
+    finished: '2026-10-10'
     notes: 'D-162 | 2026-09-29 spawned slot 17, envelope /root/ngfw-wt/F-nat46-host.envelope.md, base main@4741ff86 | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928); CONTINUE after
       the owner restarts VPP | parked at ad49180e: driver host.sh ready, no host evidence yet; CONTINUE = `eval "$(tools/lab env 17)"; docs/status/tasks/F-nat46-host-evidence/host.sh run` after the restart
       + sentinel check | Integration audit: previous completion unverified; host evidence must be reconciled before merge/completion. | 2026-10-04 recovered current NGFW drivers and OSPF tests; fixed failure
       assertions/preconditions; remaining full host acceptance explicitly deferred, not complete.'
     parked_on: ""
-    worker_status: "acceptance complete; final CI/integration pending"
-    acceptance_receipt_20261010: "Actual195/250 native packet translation, FIB/counters/restart/refusal/rollback PASS. Actual authenticated API/candidate/commit/directRetrieve/duplicateHTTP400 exactpointer/agentrestart/revisionrollback and normal English/Persian browser now PASS on BOTHhosts. Supplemental250 current protected076agent, reviewed runtime-only adapters and nonceACK SSHtransport; actualprivateVPP494108/DB/role/tunnel cleanup PASS, shared8102 NRestarts0. PR220 final D112522886d195 parentmain7c28, exacthosted38048420443 pending; not yet Done."
+    worker_status: "completed; dual-host native/API/UI acceptance and main CI PASS"
+    acceptance_receipt_20261010: "Actual195/250 native packet translation, FIB/counters/restart/refusal/rollback PASS. Actual authenticated API/candidate/commit/directRetrieve/duplicateHTTP400 exactpointer/agentrestart/revisionrollback and normal English/Persian browser now PASS on BOTHhosts. Supplemental250 current protected076agent, reviewed runtime-only adapters and nonceACK SSHtransport; actualprivateVPP494108/DB/role/tunnel cleanup PASS, shared8102 NRestarts0. PR220 final D112522886d195 parentmain7c28, exacthosted38048420443 SUCCESS; expected-head squash merged4cda4687584ff6e18aff659b5d2c562704ed4fe5; main CI38049694822 SUCCESS. Completed2026-10-10."
   - id: S-mtu-linkmtu0
     title:
       "interfaces descriptor: defaultMtu treats LinkMtu=0 (mpls_tunnel) as VPP's 9000 fallback so Retrieve stops reporting a stray interface.mtu and MPLS tunnel applies stop rolling

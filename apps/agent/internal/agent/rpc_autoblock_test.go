@@ -323,14 +323,15 @@ func TestAutoBlockOmittedOwnerSurvivesRestart(t *testing.T) {
 	if req.GetOwner() != "" {
 		t.Fatal("caller request mutated")
 	}
-	before, err := os.ReadFile(dir + "/auto-block.json")
+	cacheFS := os.DirFS(dir)
+	before, err := fs.ReadFile(cacheFS, "auto-block.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.AutoBlockSet(context.Background(), &ngfwv1.AutoBlockSetRequest{Owner: "foreign"}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("foreign owner accepted: %v", err)
 	}
-	after, err := os.ReadFile(dir + "/auto-block.json")
+	after, err := fs.ReadFile(cacheFS, "auto-block.json")
 	if err != nil || string(before) != string(after) {
 		t.Fatal("rejected request changed cache", err)
 	}

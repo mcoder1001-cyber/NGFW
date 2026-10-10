@@ -1282,3 +1282,22 @@ and atomic normalized owner. Not executed; .211API/agent remain contained.
 Next command: collect actual dpkg-buildpackage completion/artifact hashes, review
 native fixed provenance and operator safe upgrade, then root scoped cache repair
 and ordered healthy runtime/native seed proof. No physical binding yet.
+
+Actual checkpoint 2026-10-10 13:26 UTC: full native build0/all41fixtures PASS;
+private four-archive manifest5739c8cb0fc935944560ee5ac074a12f3a64262ee23d479b8138cb3680545569
+4679B0600, sourceee202/version0.1.0~dev+ee2025007293. Packaged assets match
+reviewed source; installed-agent target SHAa909ae56ecee2431921659d0d9d489a14768fb12a4d71628627659fecd463781.
+No embedded Go VCS stamp exists; original audit assertion caught absence, no
+false vcs stamp claim. Clean producer prepare0/pinned checkpoint attest source,
+independent source rebuild/native maintscript review pending. No artifact upload.
+Final321 hosted mandatoryquick38055103197 ACTUALFAIL: two gosecG304 findings
+in new regression's ReadFile variable paths. Runtime correction unchanged;
+use fs.ReadFile through own TempDir DirFS with fixed leaf instead, no lint
+suppression/test removal/gate relaxation. Full unchanged gate must pass anew.
+Worker readonly upgradeinspect FAILED before mutation on generic root-owner
+guard: canonical secret.key is UID103/ngfw:GID107/32B0600 by firstboot contract.
+Worker specific-path named-account guard fix published7265; no owner/content
+change or prepare/upload/install occurred. R7 reviewing exact bounded repair.
+Next: focused corrected-test lint/test, publish preserved-history final single
+integration commit/fullhostedquick, independent native artifact approval,
+readonly inspect then bounded suppression/4archive simulation/install.

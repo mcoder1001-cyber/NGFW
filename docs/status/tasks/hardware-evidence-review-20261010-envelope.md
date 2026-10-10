@@ -53,3 +53,7 @@ permitted; never operate on physical/target devices during reviewer tests.
 Additional owned proposed-return review:
 `hardware-evidence-review-20261010-return.md`. Source-backed single-force semantics
 and exact preconditions, no reboot execution or acceptance claim.
+Additional owned per-host phase verdict:
+`hardware-evidence-review-20261010-transition-211.md`. Actual selected receipts,
+source identity and phase gates; .211 transition/read-only approval does not approve
+corrections, return, acceptance or .37 execution.

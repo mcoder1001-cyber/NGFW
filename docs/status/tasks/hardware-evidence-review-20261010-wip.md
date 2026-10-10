@@ -189,3 +189,26 @@ boot/auth/network/config checks. No transition, repair or return execution appro
 Next: read immutable worker staged/test receipts, compare hashes/units/properties
 and independently inspect private manifest metadata only. Private contents remain
 unprinted/uncommitted. Last verified own remote31872b92238e282f69a8c710128156a13e84e033.
+
+09:10 actual-evidence checkpoint: last own remote0da3aefdb3ad5735c7a841e092b9d342a39842a0.
+Independent ready private metadata/selected receipts corroborate .211 stage+four
+persistent RAM/global-namespace/cgroup processes, exact unit equality, empty successful
+parser, mounted-negative static BUSY3,8GiB RAM budget and selected auth/boot backups.
+Signed SMART7.5-2 exit0/media0/ATAerrors0; historicalCRC1003 and SCSIioerr6→9 remain
+explicit unexplained baselines. Formal owned transition-211 verdict APPROVE only
+supported RAM transition then strong offline proof/read-only diagnosis/metadata;
+worker actual public receipt must publish/readback before crossing. Corrections,
+return and hardware acceptance not approved. Next: read worker actual transition
+receipt, verify RAM PID1/newruntime/freshSSH/management, all namespace/nsfs/reference
+audit and positive0 guard before extending any operation scope.
+
+.37 source final5b9a8e65/b9da683b independently readback APPROVE RAM staging/test;
+actual first final readiness check raced chroot startup and was honestly preserved.
+Read-only completion17c370c9 and functional aec1a0f1 receipts privately parsed:
+network5/5 matches, guard3, RAM refs/global namespace, authenticated PTY twice,
+owned daemon restart3669→3866 and original22 preserved. Further .37 SMART reveals
+wear126%/two remaps despite aggregate PASS. Owner explicitly authorized logical
+repair despite known wear; do not manufacture another replacement/full-image
+approval blocker. Actual new read/reset/uncorrectable failures remain stop conditions;
+.37 transition is not approved by .211's phase verdict. Own docs check PASS14s,
+no target commands/product edits/full-quick duplication.

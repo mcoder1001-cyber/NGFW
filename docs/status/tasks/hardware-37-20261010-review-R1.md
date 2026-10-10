@@ -1,6 +1,6 @@
 # R1 correctness review — API native-library package dependencies
 
-Date: 2026-10-10. Independent reviewer `/root/host_37`, worktree `/root/ngfw-wt/hardware-37-20261010`. Reviewed source SHA `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`; final single-commit [PR217](https://github.com/mcoder1001-cyber/NGFW/pull/217) SHA `bde83bc87ae817a61bbc70e4029f76109ae77c35`. Independently verified final product tree/tests/CI are identical to source2045; only manager task review-plan/WIP differ. No product code or target host was modified by this reviewer.
+Date: 2026-10-10. Independent reviewer `/root/host_37`, worktree `/root/ngfw-wt/hardware-37-20261010`. Reviewed source SHA `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`; final single-commit [PR217](https://github.com/mcoder1001-cyber/NGFW/pull/217) SHA `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`. Independently verified final product tree/tests/CI are identical to source2045; only manager task evidence/review-plan/WIP differ. The earlier bde83bc snapshot was superseded by this documentation-only amendment. No product code or target host was modified by this reviewer.
 
 ## Scope and findings
 
@@ -55,6 +55,6 @@ PASS final archive: libc6/libgcc-s1 declared; original archive reproduces missin
 
 Fixed archive inspected: `/dev/shm/ngfw-api_0.1.0~dev+2045ab8b3d2f_amd64.deb`. Original reproducer: `/root/Documents/Codex/2026-10-10/hardware/runtime/ngfw-api_0.1.0~dev+cc80be66edcf_amd64.deb`. Generated substvars independently read back: `shlibs:Depends=libc6 (>= 2.34), libgcc-s1 (>= 4.2)`.
 
-The manager explicitly forbids a broad duplicate local quick build on the nearly full root disk (939MiB observed free). Full quick is pending hosted completion on final PR HEAD. Independently retrieved [run38033113750/job114157962736](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38033113750/job/114157962736): source HEAD `bde83bc87ae817a61bbc70e4029f76109ae77c35`, status `in_progress`, step `Run repository gate` running. PR integration candidate readback `883838639ef92a0ea224012ca89254f3ec166334`; completed checkout/gate logs remain to be inspected. No test/CI weakening was observed in the source diff.
+The manager explicitly forbids a broad duplicate local quick build on the nearly full root disk (939MiB observed free). Full quick is pending hosted completion on final PR HEAD. Independently retrieved fresh [run38033766837/job114159912573](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38033766837/job/114159912573): source HEAD `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, status `in_progress`. PR integration candidate readback `8a15d644c53cc3ef4abde339efd3b2a0331221a5`; completed checkout/gate logs remain to be inspected. Earlier run38033113750 on bde83bc was canceled/superseded and is not counted as PASS or as a product-test failure. No test/CI weakening was observed in the source diff.
 
 Verdict: **BLOCK pending final-SHA mandatory quick evidence**. This is a validation hold, not a source-code or archive defect finding.

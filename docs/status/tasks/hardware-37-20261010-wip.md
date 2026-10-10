@@ -6,6 +6,8 @@ Separate verified live role resumed by manager on 2026-10-10: independent R1 rev
 
 Manager subsequently announced one additional documentation-only final HEAD for PR217; R7 requires the actual command/output evidence appendix inside the PR. Therefore bde83bc/run38033113750 are historical evidence only if superseded, and must not be accepted as final T1 PASS. Await new final HEAD/run, recheck product-tree equality with2045 and require completed unchanged quick on the latest SHA. No package rebuild is needed for the documentation-only replacement. Actual API archive receipt checkpoint `4dc424692b2be76801a2146bea45c0bef3157f48` was published/read back successfully; lightweight check14s passed.
 
+Latest manager/PR217 final HEAD now independently verified `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`; only evidence/review-plan/WIP manager docs differ from2045, product/tests/CI identical. Fresh mandatory quick run38033766837/job114159912573 in progress; integration candidate `8a15d644c53cc3ef4abde339efd3b2a0331221a5`. Old run38033113750 canceled/superseded. Exact latest-head R1/T1 review remains pending complete fresh gate; no target actions. Latest-head waiting receipt `fa7fb0f9106ac45ac0e18cb460f78d84a5a89d6b` published/read back successfully with check14s passed.
+
 ## Ownership and checkpoints
 
 Branch `codex/hardware-37-20261010`; worktree `/root/ngfw-wt/hardware-37-20261010`; remote host `root@172.30.126.37`. Owned files are `docs/status/tasks/hardware-37-20261010*`.

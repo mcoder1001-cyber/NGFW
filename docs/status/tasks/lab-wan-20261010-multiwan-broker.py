@@ -9,7 +9,9 @@ unit='ngfw-pppoe-broker@'+inventory+'.service'
 assets={Path('/usr/lib/ngfw/pppoe-carrier.py'):ROOT/'scripts/pppoe-kernel-carrier.py',Path('/run/systemd/system/ngfw-pppoe-broker@.service'):ROOT/'scripts/pppoe-carrier-assets/ngfw-pppoe-broker@.service'}
 assert all(not os.path.lexists(p) for p in assets)
 receipts={};created_dirs=[];loaded=False
-asset_lock=open('/run/lock/ngfw-wan-w20-inventory-assets.lock','a');fcntl.flock(asset_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+asset_lock=os.open('/run/lock/ngfw-wan-w20-inventory-assets.lock',os.O_WRONLY|os.O_CREAT|os.O_NOFOLLOW,0o600)
+lock_info=os.fstat(asset_lock);assert stat.S_ISREG(lock_info.st_mode) and lock_info.st_uid==0 and lock_info.st_nlink==1 and not lock_info.st_mode&0o077
+fcntl.flock(asset_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 assert not Path('/run/netns/ns-w20-mw-router').exists()
 baseline_frames={}
 for area in ('requests','results'):

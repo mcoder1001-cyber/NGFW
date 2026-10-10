@@ -105,7 +105,8 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  config={'host-w20raw':{'enabled':True},'host-w20lan':{'enabled':True,'ipv4':['10.20.1.1/24'],'ipv6':['2001:db8:21::1/64']},'w20ppp':{'enabled':True,'pppoe':{'enabled':True,'parent':'host-w20raw','username':'w20','passwordRef':'password/w20-carrier','mtu':1492,'mssClamp':True,'defaultRoute':True,'ipv6':'slaac','reconnect':{'holdoffSec':1,'maxFail':0}}}}
  api.call('PATCH','/config/interfaces',config)
  extended_api=os.environ.get('NGFW_WAN_API_EXTENDED')=='1'
- nat_api=extended_api and os.environ.get('NGFW_WAN_API_NAT','1')=='1'
+ nat_control=os.environ.get('NGFW_WAN_API_NAT','1');assert nat_control in ('0','1'),'invalid diagnostic NAT scope'
+ nat_api=extended_api and nat_control=='1'
  if extended_api and not nat_api:print('DIAGNOSTIC_SCOPE NAT_EXCLUDED; dynamic-NAT criterion remains FAILED/OPEN',flush=True)
  if nat_api:
   api.call('PATCH','/config/nat',{'enabled':True,'mode':'ed','sessionLimit':4096,'inside':['host-w20lan'],'outside':['w20ppp'],'pools':[{'name':'w20-ppp-native','interface':'w20ppp'}]})

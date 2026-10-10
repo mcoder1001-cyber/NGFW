@@ -123,3 +123,44 @@ func TestRetiredLeaseNATCleanupAndPBR(t *testing.T) {
 		t.Fatal("missing learned NAT objects")
 	}
 }
+
+func TestExpiredEmptyGatewayObservationDoesNotRequestResync(t *testing.T) {
+	for _, groups := range [][]*ngfwv1.WanGroup{nil, routeDoc().Routing.WanGroups} {
+		rt := NewRuntime(nil)
+		if !rt.SetGateways(groups, "v1", nil) {
+			t.Fatal("initial identity/group change lost")
+		}
+		rt.gatewayUntil = time.Now().Add(-time.Second)
+		if rt.SetGateways(groups, "v1", nil) {
+			t.Fatal("empty expired observation requested resync")
+		}
+		rt.gatewayUntil = time.Now().Add(-time.Second)
+		if rt.SetGateways(groups, "v1", map[string]LearnedGateway{"invalid": {}}) {
+			t.Fatal("invalid observation requested resync")
+		}
+		if !rt.SetGateways(groups, "v2", nil) {
+			t.Fatal("identity change lost")
+		}
+	}
+}
+
+func TestExpiredLearnedGatewayRefreshAndWithdrawalStillRequestResync(t *testing.T) {
+	doc := routeDoc()
+	rt := NewRuntime(nil)
+	lease := LearnedGateway{Source: "dhcp", Address: netip.MustParsePrefix("203.0.113.10/24"), Gateway: netip.MustParseAddr("203.0.113.1")}
+	rt.SetGateways(doc.Routing.WanGroups, "v1", map[string]LearnedGateway{"wan1": lease})
+	rt.gatewayUntil = time.Now().Add(-time.Second)
+	if !rt.SetGateways(doc.Routing.WanGroups, "v1", map[string]LearnedGateway{"wan1": lease}) {
+		t.Fatal("expired learned lease refresh lost")
+	}
+	if !rt.SetGateways(doc.Routing.WanGroups, "v1", nil) {
+		t.Fatal("learned lease withdrawal lost")
+	}
+	rt.gatewayUntil = time.Now().Add(-time.Second)
+	if rt.SetGateways(doc.Routing.WanGroups, "v1", nil) {
+		t.Fatal("withdrawn lease requested another resync")
+	}
+	if !rt.SetGateways(nil, "v1", nil) {
+		t.Fatal("group withdrawal lost")
+	}
+}

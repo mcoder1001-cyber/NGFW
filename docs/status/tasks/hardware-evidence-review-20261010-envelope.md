@@ -99,3 +99,9 @@ foreign worktree edits or product changes. Root owns .37 after its worker depart
 Source-only ROOT .37 preflight/record/apply and future .211 corrected physical
 acceptance reviews remain conditional on fresh artifact/actual proof; prior failed
 physical launch and native healthy rollback remain historical failed evidence.
+
+Same-campaign bounded lexical-version retry follow-up: inspect exact6da8 upgrade
+correction, immutable failed7a64 receipt, fresh both-host plans/install/restore,
+worker physical retry/supplement/finite rollback and root37 actual nginx identity.
+Independent readonly/controller-only checks; own eal.md carries findings and
+phase-specific applicability. Reviewer never executes target phase modes.

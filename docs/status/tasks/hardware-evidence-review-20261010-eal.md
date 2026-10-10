@@ -321,6 +321,9 @@ read back. The prose above now uses separated words; no gitleaks configuration,
 rule, exclusion, product or main-history change and no waiver. The unchanged
 post-commit check must be rerun on this amended receipt.
 
+Actual amended51e60 post-commit check completed exit0, `check PASSED (0m14s)`;
+gitleaks342.32KB/no leaks and board212 valid. Failed542bf archive/log remains.
+
 ## Source-only corrected .37 preflight and finite record
 
 Initial preflight2a68c044ef6e1db1c20e073a5e289d16789a974f14a730e7324a84b7899eb651
@@ -342,3 +345,73 @@ facts, original startup UID/GID/mode and absent three owned file identities,
 trusted root parents, finite private fsynced backups before driver/startup changes.
 Previously reviewed binder0de/rollback00bed/unitd537 pins retained. No .37
 preflight/record/bind/apply action or physical acceptance is claimed here.
+
+## Bounded version-ordering correction and fresh-phase scope
+
+Source6da8b8e09b87ca75b5bff651370fae04bb2907da60e9a3f69703e35caf731440,
+published83f39e7b38b111a2f1dc9d06edbcb6909a698e63, independently APPROVE.
+Read preceding45f2b6e4a contract and exact83f diff. Only the existing four pinned
+local archives admit `--allow-downgrades`; old/new identities, zero removals,
+only-upgrade/no-remove, immutable plan and immediate identical re-simulation stay.
+No repository package downgrade or broadened dependency plan is admitted.
+
+New explicit preserve-failed-attempt mode is limited to actual .211 failure7a64.
+It proves old four identities, original binary, empty audit, unchanged protected
+state/guards and receipt-equal268/72-byte logs. Both root-owned0600 single-link
+RAM files are copied into a fresh private disk-record child; identities and both
+copies are fsynced/read back before either original is removed. Descriptor and
+path inode/device/size/mode/bytes are rechecked before each exact unlink. Archive
+membership stays exactly four. Future attempt logs use unique private disk-record
+names rather than polluting the archive directory. Failure100 remains historical.
+
+Actual independent commands/output:
+
+```text
+sha256sum hardware-211-20261010-upgrade-eal-four.py
+6da8b8e09b87ca75b5bff651370fae04bb2907da60e9a3f69703e35caf731440
+Python AST: outer + REMOTE + UPLOAD_BOOTSTRAP PASS
+Rehash/parse manager-eal-upgrade211-install-20261010T151153Z.json
+SHA7a64a439ca5d6d0f63712efc8dc7211847ce44f9b19115d07f74d2e94efe61f9
+upgrade_exit100; protected_unchanged=true; no_new_storage_errors=true
+dpkg_audit exit0/empty; exact_four_configured=false
+retained stdout268 bytes / stderr72 bytes
+python3 /root/ngfw-wt/hardware-211-20261010/docs/status/tasks/hardware-211-20261010-upgrade-eal-four.py --host 211 preserve-failed-attempt --validate-inputs-only --baseline /root/Documents/Codex/2026-10-10/hardware/manager-eal-upgrade211-inspect-20261010T150636Z.json --baseline-sha256 02d145ee91805f4fc1f71275c7473c90ab078f76ce67eaabe81d585c7bce80ae --manifest /root/Documents/Codex/2026-10-10/hardware/runtime-eal-97ae/manifest.json --manifest-sha256 b2f3f6a78014ea76995c783919a375f4398ea4bf7ccbf56bfc32b3ae1472b893 --failed-proof /root/Documents/Codex/2026-10-10/hardware/manager-eal-upgrade211-install-20261010T151153Z.json --failed-proof-sha256 7a64a439ca5d6d0f63712efc8dc7211847ce44f9b19115d07f74d2e94efe61f9
+exit0: target_contacted=false; controller_output_written=false
+generated_AST_PASS=true; archives_verified4; data_devices17; generated_source_bytes651258
+git ls-remote origin refs/heads/codex/hardware-211-20261010
+3045ba1270d94daa8ca13401ad471fa2ac6042c1
+```
+
+ROOT phase applicability: preserve exact previous logs, then fresh simulations on both
+hosts; inspect actual plans before installation. No reviewer target operation.
+
+## Fresh physical retry source and .37 nginx identity
+
+Worker3045ba12 retry fe9c4e094e9b551d155a69a77a336f716e85d702f076c9d1699f5d7a6f347437
+is conditionally applicable for readonly inspect/private supplemental record
+staging and one canonical launch after actual97ae installation/guard restoration.
+Original73fd/d965/735B367e startup, failedb1f rendering/f64 native transaction and
+native document/resource2 remain immutable. Corrected generator55e490 must render
+the closed17 allowlist, management absent, no raw blacklist, three plugins and
+65536 pool intent. Launch-to-observer whole kernel window is retained.
+
+Concrete observer finding sent to worker/root: before native_committed17_PASS,
+WORK mode must also observe native run-unit inactive/success and released
+canonical locks; markers and inactive dead-man timer alone do not publish that
+terminal-state proof. This same evidence is already implemented in reviewed ROOT
+.37 physical observer. Source-only focused correction requested; no extra host
+test/relaunch or new user approval. Inspect/stage scope remains separate.
+
+Finite rollback d1ca0e834fef7d00c265ff64e4f1c6a42c834d96eecbe9bbdeb4db21f82afbaa
+conditionally APPROVE: exact new supplement/staged self-source, sealed safely
+terminal work, stopped VPP/API/agent, nonblocking canonical locks, original17
+driver/override/name/master/up-down states and only three unchanged owned files.
+No global ID, broad interface/network cleanup or service start; originals retained.
+
+ROOT .37 native observer's literal .211 nginx PID9281 was a real inherited-source
+finding before execution. CLOSED at994643a6c0778a1f65bfa049b8d6647271bf9051:
+only that expression changes to RECORD.record_before.expected_unit_PIDs.nginx.
+Exact new source e2a0d066f5635b69ae38e84dc99f8713aef5a6ab09302240ff5d10f2dd3d4ea1;
+independent outer/REMOTE AST PASS, diff exactly one line, remote root b162adaea
+includes correction. Conditional source APPROVE after actual sealed COMMITTED7,
+new package/binary/record proof; no native/reboot execution acceptance inferred.

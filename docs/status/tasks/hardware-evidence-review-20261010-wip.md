@@ -27,7 +27,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`15e65f67ca5970b051412388e7bc5404d92eb53a` (matching CLI push/readback;
+`51e60b66fa313eeb95dbe5811a8a8274e92669ca` (matching CLI push/readback;
 actual own post-commit documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
@@ -58,15 +58,20 @@ APPROVE is conditional on exact actual phase evidence. Both actual four-package
 plans71377/2ad25 and complete final48af gate green independently PASS. Actual
 .211 INSTALL then APT100 before package changes because ee202 sorts above97ae;
 all four still ee202, dpkg-audit empty, guards/protection retained. Bounded exact
-four-artifact flag/log-preservation correction awaits focused review. No corrected
-physical retry has occurred. Next action: review final gate and actual upgrade
-phase receipts, then fresh native physical render/guarded apply.
+four-artifact flag/log-preservation correction6da8 is independently APPROVE at
+published83f39e7, now ancestor of3045ba12. Exact retained268/72-byte logs and
+controller-only generated651258-byte source verified; no target contact. ROOT may
+preserve the two exact logs and obtain fresh both-host simulations. Actual new
+plans/install/guard restoration remain pending. No corrected physical retry has
+occurred. Next action: inspect those fresh actual phase receipts; close worker
+retry observer's native-unit/lock evidence gap before terminal acceptance.
 No repeat launch or target writes by this reviewer.
 Published542bf docs checkpoint post-check FAILED on two historical prose strings
 copied into this report; no credential/config change. Remote archive542bf preserved
 and exact readback verified before this own latest amendment, replacing only
 those prose descriptions and adding real gate/plan/failure/source findings. Prior15e65
-check14s PASS remains historical. Amended unchanged check result still pending.
+check14s PASS remains historical. Amended51e60 unchanged check actually PASSED
+14s, gitleaks342.32KB/no leaks and board212 valid. No rule or exclusion changed.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,

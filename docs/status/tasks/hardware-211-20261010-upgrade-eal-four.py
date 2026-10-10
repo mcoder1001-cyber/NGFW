@@ -204,6 +204,44 @@ elif MODE=='restore':
  checked(['systemctl','daemon-reload']);assert not os.path.lexists(POLICY_PATH) and not os.path.lexists(MASK)
  after=observe();assert equivalent(before,after)
  result.update(after=after,protected_unchanged=True,original_guards_absent=True,recovery_record_retained=True)
+elif MODE=='preserve-failed-attempt':
+ d=marker();guards(d);assert equivalent(before,BASELINE['before'])
+ assert HOST=='211' and FAILED_PROOF_SHA=='7a64a439ca5d6d0f63712efc8dc7211847ce44f9b19115d07f74d2e94efe61f9'
+ q=FAILED_PROOF
+ assert q['mode']=='install' and q['host']==HOST and q['manifest_SHA']==MANIFEST_SHA and q['upgrade_exit']==100 and q['protected_unchanged'] and q['no_new_storage_errors']
+ assert q['dpkg_audit']['exit']==0 and q['dpkg_audit']['stdout']==q['dpkg_audit']['stderr']==''
+ assert before['native_packages']==q['before']['native_packages']==q['after']['native_packages'] and equivalent(before,q['after'])
+ assert {x.split('\t')[0]:x.split('\t')[1:] for x in before['native_packages']['stdout'].splitlines()}=={p:[OLD_VERSION,'installed'] for p in ['ngfw-agent','ngfw-api','ngfw-web','ngfw-meta']}
+ assert q['installed_agent_binary']['SHA']==OLD_AGENT_SHA and not q['exact_four_configured']
+ assert {x.name for x in INPUT.iterdir()}=={x['file'] for x in ARCHIVES}|{'native-upgrade.stdout','native-upgrade.stderr'}
+ destination=RECORD/('failed-attempt-'+FAILED_PROOF_SHA[:16]);assert not os.path.lexists(destination)
+ rootfd=os.open(INPUT,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+ try:
+  copies={};payloads={}
+  for key in ['stdout','stderr']:
+   name='native-upgrade.'+key;fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW,dir_fd=rootfd)
+   with os.fdopen(fd,'rb') as f:
+    s=os.fstat(f.fileno());assert stat.S_ISREG(s.st_mode) and s.st_uid==s.st_gid==0 and stat.S_IMODE(s.st_mode)==0o600 and s.st_nlink==1 and s.st_dev==os.fstat(rootfd).st_dev
+    expected=q[key].encode();assert s.st_size==len(expected) and len(expected)<1024**2
+    b=f.read(len(expected)+1);assert b==expected
+   copies[name]={'dev':s.st_dev,'inode':s.st_ino,'uid':s.st_uid,'gid':s.st_gid,'mode':stat.S_IMODE(s.st_mode),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()};payloads[name]=b
+  destination.mkdir(mode=0o700);syncdir(RECORD)
+  fresh_file(destination/'identities.json',json.dumps({'task':TASK,'failed_proof_SHA':FAILED_PROOF_SHA,'source_logs':copies},sort_keys=True).encode())
+  # RAM and original-root disk are different filesystems. Copy and fsync all
+  # exact logs before removing either original; never use cross-device rename.
+  for name,b in payloads.items():fresh_file(destination/name,b)
+  for name,b in payloads.items():assert (destination/name).read_bytes()==b
+  syncdir(destination)
+  for name,b in payloads.items():
+   fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW,dir_fd=rootfd)
+   with os.fdopen(fd,'rb') as f:
+    s=os.fstat(f.fileno());old=copies[name];assert (s.st_dev,s.st_ino,s.st_uid,s.st_gid,stat.S_IMODE(s.st_mode),s.st_size,s.st_nlink)==(old['dev'],old['inode'],0,0,0o600,old['bytes'],1) and f.read(len(b)+1)==b
+    pathstat=os.stat(name,dir_fd=rootfd,follow_symlinks=False);assert pathstat.st_dev==s.st_dev and pathstat.st_ino==s.st_ino
+    os.unlink(name,dir_fd=rootfd);os.fsync(rootfd)
+  assert {x.name for x in INPUT.iterdir()}=={x['file'] for x in ARCHIVES}
+ finally:os.close(rootfd)
+ after=observe();guards(d);assert equivalent(before,after)
+ result.update(after=after,protected_unchanged=True,failed_attempt_preserved=True,failed_proof_SHA=FAILED_PROOF_SHA,archive_record=str(destination),preserved_log_metadata=copies,only_two_unchanged_owned_input_logs_removed=True)
 elif MODE=='upload':
  d=marker();guards(d);assert equivalent(before,BASELINE['before'])
  assert checked(['findmnt','-no','FSTYPE','/run']).strip()=='tmpfs' and not os.path.lexists(INPUT)
@@ -230,7 +268,7 @@ else:
  assert {p.name for p in root.iterdir()}=={x['file'] for x in ARCHIVES},'unexpected upload directory member'
  assert len(ARCHIVES)==4 and {x['Package'] for x in ARCHIVES}=={'ngfw-agent','ngfw-api','ngfw-web','ngfw-meta'}
  assert all(x['Version']==VERSION for x in ARCHIVES)
- args=['apt-get','--no-remove','--no-install-recommends','--only-upgrade','-o','Dir::Cache::pkgcache=','-o','Dir::Cache::srcpkgcache=','-o','Dpkg::Options::=--force-confold','install']+[str(root/x['file']) for x in ARCHIVES]
+ args=['apt-get','--no-remove','--no-install-recommends','--only-upgrade','--allow-downgrades','-o','Dir::Cache::pkgcache=','-o','Dir::Cache::srcpkgcache=','-o','Dpkg::Options::=--force-confold','install']+[str(root/x['file']) for x in ARCHIVES]
  q=run(args[:1]+['-s']+args[1:],180);changes=[x for x in q['stdout'].splitlines() if re.match(r'^(Inst|Remv) ',x)]
  assert q['exit']==0 and len(changes)==4 and {x.split()[1] for x in changes}=={x['Package'] for x in ARCHIVES} and not any(x.startswith('Remv ') for x in changes)
  for line in changes:
@@ -243,13 +281,15 @@ else:
   assert shutil.which('needrestart') is None and not pathlib.Path('/usr/lib/needrestart/apt-pinvoke').exists()
   assert not any(p.is_file() and b'needrestart' in p.read_bytes().lower() for p in pathlib.Path('/etc/apt/apt.conf.d').iterdir())
   env=dict(os.environ,DEBIAN_FRONTEND='noninteractive',VPP_INSTALL_SKIP_SYSCTL='1',NEEDRESTART_MODE='l')
+  attempt='native-upgrade-'+str(time.time_ns())+'-'+str(os.getpid())
   logs={}
   for key in ['stdout','stderr']:
-   p=INPUT/('native-upgrade.'+key);fd=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600);logs[key]=(p,os.fdopen(fd,'w'))
+   p=RECORD/(attempt+'.'+key);fd=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600);logs[key]=(p,os.fdopen(fd,'w'))
   q=subprocess.run(args[:1]+['-y']+args[1:],env=env,stdout=logs['stdout'][1],stderr=logs['stderr'][1])
   for p,f in logs.values():f.flush();os.fsync(f.fileno());f.close()
-  syncdir(INPUT)
+  syncdir(RECORD)
   result.update(upgrade_exit=q.returncode,stdout=logs['stdout'][0].read_text(),stderr=logs['stderr'][0].read_text(),dpkg_audit=run(['dpkg','--audit']),packages=run(['dpkg-query','-W','-f','${binary:Package}\t${Version}\t${db:Status-Status}\n','ngfw-agent','ngfw-api','ngfw-web','ngfw-meta']))
+  result['attempt_log_metadata']={key:{'path':str(path),**metadata(path)} for key,(path,f) in logs.items()}
   expected={x['Package']:[VERSION,'installed'] for x in ARCHIVES}
   actual={line.split('\t')[0]:line.split('\t')[1:] for line in result['packages']['stdout'].splitlines()}
   result['exact_four_configured']=result['packages']['exit']==0 and actual==expected
@@ -273,9 +313,9 @@ def spool_info(p):
  b=p.read_bytes();return {'file':str(p),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()}
 def main():
  os.umask(0o077);p=argparse.ArgumentParser()
- p.add_argument('--host',choices=['211','37'],required=True);p.add_argument('mode',choices=['hold-runtime','inspect','prepare','upload','simulate','install','restore'])
+ p.add_argument('--host',choices=['211','37'],required=True);p.add_argument('mode',choices=['hold-runtime','inspect','prepare','preserve-failed-attempt','upload','simulate','install','restore'])
  p.add_argument('--validate-inputs-only',action='store_true',help='controller-only input/control/AST verification; no target contact or ROOT output writes')
- for x in ['baseline','baseline-sha256','manifest','manifest-sha256','plan','plan-sha256','install-proof','install-proof-sha256']:p.add_argument('--'+x)
+ for x in ['baseline','baseline-sha256','manifest','manifest-sha256','plan','plan-sha256','install-proof','install-proof-sha256','failed-proof','failed-proof-sha256']:p.add_argument('--'+x)
  a=p.parse_args();assert OUTPUT.lstat().st_uid==0 and stat.S_ISDIR(OUTPUT.lstat().st_mode)
  assert a.mode!='hold-runtime' or a.host=='37'
  if a.host=='211':
@@ -294,10 +334,10 @@ def main():
   network=prior['network_after'];inventory=prior['inventory_after'];sysctls=prior['sysctls_after'];owned={};assert len(inventory)==7
   firstboot=read_json(OUTPUT/'manager-firstboot37-apply-20261010T141814Z.json','1b75f2ee3d1489348b87218396d1f22c30207b967ba22eea22d484f448c8b15a')
   expected={'host':'172.30.126.37','BOOT_ID':'c8d66ea9-afab-4228-a293-00c198745040','MGMT_IF':'enp12s0','MGMT_PCI':'0000:0c:00.0','MGMT_GROUP':'58','VPP_PID':'7820','NGINX_PID':'9669','STARTUP_SHA':'c1b121e410961cb64869909a2cd82448984c0472ada11ab0a32234897b86b3c8'}
- baseline=None;archives=[];plan=None;installed=None;m=None
+ baseline=None;archives=[];plan=None;installed=None;failed=None;m=None
  if a.mode not in ['inspect','hold-runtime']:
   baseline=read_json(a.baseline,a.baseline_sha256);assert baseline['mode']=='inspect' and baseline['host']==a.host and baseline['read_only'] and baseline['native_input_proof_SHA']==native_sha
- if a.mode in ['upload','simulate','install'] or a.validate_inputs_only and a.manifest:
+ if a.mode in ['upload','simulate','install','preserve-failed-attempt'] or a.validate_inputs_only and a.manifest:
   m=pathlib.Path(a.manifest);assert a.manifest_sha256==MANIFEST_SHA
   manifest=read_json(m,MANIFEST_SHA,OUTPUT/'runtime-eal-97ae');assert manifest['source_sha']==SOURCE and manifest['version']==VERSION and manifest['agent_binary_sha256']==AGENT_SHA and manifest['startupgen_binary_sha256']==STARTUPGEN_SHA
   assert len(manifest['packages'])==4 and {x['Package'] for x in manifest['packages']}==PACKAGES and len({x['file'] for x in manifest['packages']})==4
@@ -310,7 +350,9 @@ def main():
  if a.mode=='install':
   q=read_json(a.plan,a.plan_sha256);assert q['mode']=='simulate' and q['host']==a.host and q['manifest_SHA']==MANIFEST_SHA and q['simulation']['exit']==0 and q['no_new_storage_errors'];plan=q['plan_changes']
  if a.mode=='restore':installed=read_json(a.install_proof,a.install_proof_sha256)
- fields={**{k:v for k,v in expected.items() if k!='host'},'MODE':a.mode,'HOST':a.host,'NETWORK':network,'INVENTORY':inventory,'OWNED_FILES':owned,'SYSCTLS':sysctls,'API_ENV_SHA':firstboot['files']['/etc/ngfw/api.env']['sha256'],'POLICY':POLICY,'BASELINE':baseline,'BASELINE_SHA':a.baseline_sha256,'ARCHIVES':archives,'PLAN':plan,'INSTALL_PROOF':installed,'VERSION':VERSION,'OLD_VERSION':OLD_VERSION,'OLD_AGENT_SHA':OLD_AGENT_SHA,'AGENT_SHA':AGENT_SHA,'STARTUPGEN_SHA':STARTUPGEN_SHA,'MANIFEST_SHA':MANIFEST_SHA,'NATIVE_PROOF_SHA':native_sha,'CONTROLLER_EPOCH':datetime.datetime.now(datetime.timezone.utc).timestamp()}
+ if a.mode=='preserve-failed-attempt':
+  assert a.host=='211' and a.failed_proof_sha256=='7a64a439ca5d6d0f63712efc8dc7211847ce44f9b19115d07f74d2e94efe61f9';failed=read_json(a.failed_proof,a.failed_proof_sha256)
+ fields={**{k:v for k,v in expected.items() if k!='host'},'MODE':a.mode,'HOST':a.host,'NETWORK':network,'INVENTORY':inventory,'OWNED_FILES':owned,'SYSCTLS':sysctls,'API_ENV_SHA':firstboot['files']['/etc/ngfw/api.env']['sha256'],'POLICY':POLICY,'BASELINE':baseline,'BASELINE_SHA':a.baseline_sha256,'ARCHIVES':archives,'PLAN':plan,'INSTALL_PROOF':installed,'FAILED_PROOF':failed,'FAILED_PROOF_SHA':a.failed_proof_sha256,'VERSION':VERSION,'OLD_VERSION':OLD_VERSION,'OLD_AGENT_SHA':OLD_AGENT_SHA,'AGENT_SHA':AGENT_SHA,'STARTUPGEN_SHA':STARTUPGEN_SHA,'MANIFEST_SHA':MANIFEST_SHA,'NATIVE_PROOF_SHA':native_sha,'CONTROLLER_EPOCH':datetime.datetime.now(datetime.timezone.utc).timestamp()}
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  if a.validate_inputs_only:
   ast.parse(code);ast.parse(UPLOAD_BOOTSTRAP)

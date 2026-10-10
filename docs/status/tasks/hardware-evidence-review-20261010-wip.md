@@ -137,3 +137,21 @@ not a universal requirement. .37 mounted-negative exclusivity probe reports EBUS
 pending positive/lazy-pinned tests remain explicit. Controller measured free space
 31,129,600 bytes; no preservation capacity PASS. All target preparation remains
 installer-owned and pending exact staged-artifact review.
+
+08:38 follow-up: preparation checkpoint5fb0ad29a3a196993509df29d3961c2578c979b8
+published/readback. Read immutable fresh host receipts37=0fb0d56f,211=2efc98ee;
+seven named private diagnostics0700-parent/0600-file and7/7 hash comparisons PASS.
+No payload printing. Matching systemd serialization/lookup/executor source supports
+manager's global-namespace chroot→RAMsshd survivor design, with direct new-root
+same-name /etc unit; exact staged artifacts/auth/runtime proof remain pending.
+Design APPROVE only reversible RAM preparation; transition/repair remains BLOCK.
+Old pinned executor closes on manager cleanup; new manager reopens RAM helper.
+Live networkctl reload would reconfigure links; no network modification in staging.
+RAM subtree and backup return lifetime, unit precedence/drop-ins and policy-rule
+preservation are explicit in report. Controller new free-space observation198184960B
+does not certify actual preservation size. Task-only static block-check source at
+fec319ed independently compiled warning-clean, static ELF860432B matching supplied
+SHA02a2270a…d0f41c, six refusal tests PASS; additional guard APPROVE is separate
+from pending target mounted/positive/lazy-pinned behavior. Owned block-check report
+records actual commands/output. Reviewer continues awaiting exact staged receipts;
+no target mutation and no duplicate full quick.

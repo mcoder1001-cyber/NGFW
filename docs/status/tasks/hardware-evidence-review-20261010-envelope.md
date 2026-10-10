@@ -42,3 +42,6 @@ Read-only research/host-worker evidence only; no target staging, services, netwo
 root repair, pivot/switchroot, kexec or reboot. Review concrete RAM maintenance
 preparation versus verified offline device/recovery/data preservation requirements;
 do not confuse missing capability evidence with missing owner authorization.
+Additional owned task-only helper report:
+`hardware-evidence-review-20261010-block-check.md`. Independently inspect/rebuild
+manager helper and staged host receipts without target mutations or product edits.

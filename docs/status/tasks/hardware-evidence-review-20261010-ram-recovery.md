@@ -12,7 +12,7 @@ there is a concrete RAM preparation candidate to validate. This is not a claim
 that a console is the only technically possible recovery method. Neither a
 surviving recovery connection nor an offline root has been demonstrated yet.
 
-## Actual evidence available at 08:26–08:39 UTC
+## Actual evidence available at 08:26–08:38 UTC
 
 The manager's published recovery runbook at0f3ab280 was read locally, along with
 this reviewer's prior published private-metadata addendum0eb70364. Current remote
@@ -28,8 +28,17 @@ git ls-remote origin refs/heads/codex/hardware-evidence-review-20261010 \
 
 Fresh target diagnostics below are sanitized reports from the assigned host
 workers, not commands executed by this reviewer. Immutable worker diagnostic
-receipts are pending at this checkpoint; previous configuration backup receipts
-remain published. Full diagnostic or credential contents were not printed.
+receipts were subsequently published and independently read back: [.37 at0fb0d56f](https://github.com/mcoder1001-cyber/NGFW/blob/0fb0d56f6145004067beeb2b25654b0cb1e17456/docs/status/tasks/hardware-37-20261010-recovery.md),
+[.211 at2efc98ee](https://github.com/mcoder1001-cyber/NGFW/blob/2efc98eeaa8a22570fa05155b4e28264f8cc065a/docs/status/tasks/hardware-211-20261010-maintenance-preflight.md).
+Full diagnostic or credential contents were not printed. Reviewer stat/hash
+inspection of the seven named private diagnostics matched all published hashes:
+
+```text
+python3: Path.stat/stat.S_IMODE and hashlib.sha256 for the four .37 and three .211
+named files listed in the immutable public receipts above; no payload printing
+fresh diagnostic metadata: parent/host0700, 7 named files0600, 7/7 published hashes match
+No payload contents printed or committed.
+```
 
 | Observation | .37 | .211 |
 |---|---|---|
@@ -43,7 +52,7 @@ remain published. Full diagnostic or credential contents were not printed.
 | Rescue/BMC | no usable channel established | no usable channel established |
 | Installed rescue tools | e2fsck,sshd; hidden busybox to confirm | e2fsck,sshd; hidden dynamically linked busybox |
 | Existing initrd | ~76.38MB; busybox,ip,switch_root,igc; no matched SSH/e2fsck | ~76.38MB; busybox,ip,pivot_root,switch_root; no matched SSH/e2fsck |
-| Old-root users | PID1 executable/root/cwd; earlier444 scan included kernel threads | PID1 has1 fd/105 mappings;12 processes reported |
+| Old-root users | PID1 executable/root/cwd;17 userspace processes across4 namespaces | PID1 has1 fd/105 mappings;12 processes;4 namespaces contain root |
 
 The error counts are snapshots, not proof that identical inode failures have the
 same cause. Neither worker has a SMART health result. Absence of an ipmitool binary
@@ -75,6 +84,10 @@ Filesystem       1B-blocks        Used Available Use% Mounted on
 ```
 
 No capacity for an off-host preservation artifact is certified by this snapshot.
+The manager freed only its redundant task-owned build output afterwards. A fresh
+reviewer df-B1 check observed Available198184960bytes on the same controller
+filesystem. This improves preparation headroom but is still not measured capacity
+for an actual metadata image/undo/log set.
 
 ## Supported candidate and the limits of the mechanism
 
@@ -110,8 +123,10 @@ must also fail in a disposable test with a lazy-detached mount deliberately pinn
 by an open reference. Only after those tests could a successful check contribute
 to an offline certificate, together with namespace/reference scans and disabled
 automounts. Do not hold its exclusive fd while launching an independent fsck.
-This proposed check has **not** run on either target and is not yet a reviewed
-executable. [Linux open manual](https://man7.org/linux/man-pages/man2/open.2.html).
+The .37 Python mounted-negative check ran; positive and deliberately lazy-pinned
+cases remain pending. A task-only static implementation was independently reviewed
+and rebuilt later in this review; see the separate owned block-check report.
+[Linux open manual](https://man7.org/linux/man-pages/man2/open.2.html).
 
 ## Preparation and validation before risking current SSH
 
@@ -228,3 +243,65 @@ repair, reboot, hardware acceptance or final recovery safety PASS is claimed.
 Reviewer-only validation: git diff --check exited0; tools/ci.sh check --base
 origin/main exited0 and printed check PASSED (0m13s) at this preparation checkpoint.
 No duplicate full quick or target test was run by this reviewer.
+
+## Refined survivor design review — 08:38 UTC
+
+Design verdict: **APPROVE reversible RAM-only preparation** using the manager's
+dedicated executable tmpfs/run/ngfwrescue, with/run/nextroot absent. This is not
+approval to transition, repair or certify staged artifacts before their review.
+The manager has assigned preparation to exclusive host workers; this reviewer
+continues independently on their exact receipts.
+
+Pretransition runtime ngfw-rescue.service may invoke the existing chroot command,
+which then execs copied RAM sshd in the same mount namespace as PID1. Its runtime
+executable, root/cwd, mappings and inherited descriptors must prove independence
+from device8:2, including authenticated session children. Avoid RootDirectory,
+PrivateMounts, PrivateTmp or other settings that retain a private old-root mount
+namespace. Avoid journald or old-root log descriptors; append to a private file
+inside the RAM root, with matching post-transition path. PAM-off key-only SSH is
+a candidate to avoid logind sessions; prove actual process cgroup membership.
+
+The root mount itself becomes new/, while stock soft reboot transfers/run by a
+nonrecursive bind. Subordinate/run RAM mounts are not automatically reachable
+thereafter. Keep preservation artifacts in the new RAM root's own private directory,
+and verify an off-host copy before return. Upstream259.5 sets no DESTROY_OLD_ROOT
+flag on soft reboot, but path/lifetime loss remains possible; do not infer durable
+backup from that implementation detail.
+[Root-switch implementation](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/shared/switch-root.c).
+
+RAMroot/etc/systemd/system/ngfw-rescue.service of the same name must use direct
+/usr/sbin/sshd and valid RAM-root log paths. It outranks a regular persisted
+/run/systemd/system bootstrap file. Higher-priority transient/control units or
+merged old drop-ins must be absent or deliberately resolved. Matching source loads
+current unit configuration by name before deserializing main PID/state; this
+supports the plan, but actual survival/restart still requires verification.
+[Unit search path](https://raw.githubusercontent.com/systemd/systemd/v259.5/man/systemd.unit.xml),
+[Deserialization implementation](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/core/manager-serialize.c).
+
+Copy matching systemd-executor plus its loader/libraries into the RAM root. PID1
+alone is incomplete: this helper executes new services. The old manager's pinned
+executor fd is closed by manager_free; the new manager opens the helper from its
+new root. prepare_reexecute starts a fresh fdset, with no executor field in manager
+serialization. Do not close arbitrary PID1 fds to force exclusivity. If runtime
+evidence contradicts the source expectation, keep repair blocked and identify the
+exact remaining holder.
+[Manager initialization/cleanup](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/core/manager.c),
+[Service execution implementation](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/core/execute.c).
+
+Current preparation must not reload/reconfigure networkd: reload applies changed
+.network files to matched links. A minimal RAM target should start only recovery
+SSH and avoid network managers/generators that alter the kernel network. Networkd
+normally leaves static state at exit, but stop hooks and dynamic protocols require
+inspection; no blanket IPv4/IPv6 route preservation PASS is claimed.
+[Matching networkctl manual](https://raw.githubusercontent.com/systemd/systemd/v259.5/man/networkctl.xml),
+[Matching networkd manual](https://raw.githubusercontent.com/systemd/systemd/v259.5/man/systemd-networkd.service.xml).
+On a later return to normal OS, KeepConfiguration alone does not protect all
+foreign routing policy rules: global ManageForeignRoutingPolicyRules defaults yes.
+Review actual rules and future network-manager startup before return, then compare
+all addresses/routes/rules independently. Do not introduce a live reload merely
+to prepare that future configuration.
+[Global networkd configuration](https://raw.githubusercontent.com/systemd/systemd/v259.5/man/networkd.conf.xml).
+
+Transition remains BLOCK pending exact staged tree/units/SSH/namespace/restart and
+failure/return evidence; repair additionally requires positive offline-device proof
+and completed budgeted preservation. Fresh diagnostic publication is now complete.

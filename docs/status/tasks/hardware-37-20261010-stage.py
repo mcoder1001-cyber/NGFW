@@ -240,6 +240,11 @@ assert propdict['PrivateMounts']=='no' and not propdict['RootDirectory'] and not
 assert propdict['FragmentPath']=='/run/systemd/system/'+UNIT and not propdict['DropInPaths'] and not propdict['WorkingDirectory']
 pid=int(propdict['MainPID']);assert pid>1
 proc=pathlib.Path('/proc')/str(pid)
+deadline=time.monotonic()+15
+while not all(os.stat(proc/name).st_dev==ramdev for name in ['root','cwd','exe']):
+    assert time.monotonic()<deadline, 'RAM daemon readiness timeout'
+    time.sleep(.1)
+assert int(subprocess.check_output(['systemctl','show',UNIT,'-p','MainPID','--value'],text=True))==pid, 'daemon changed during readiness'
 assert os.stat(proc/'root').st_dev==ramdev and os.stat(proc/'cwd').st_dev==ramdev and os.stat(proc/'exe').st_dev==ramdev
 assert os.readlink(proc/'ns/mnt')==os.readlink('/proc/1/ns/mnt')
 disk_maps=[]

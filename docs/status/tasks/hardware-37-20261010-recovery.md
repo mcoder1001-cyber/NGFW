@@ -1,6 +1,6 @@
 # Hardware .37 root-filesystem recovery investigation
 
-Date: 2026-10-10. Owner `/root/host_37`, branch `codex/hardware-37-20261010`, worktree `/root/ngfw-wt/hardware-37-20261010`. User now explicitly requests disk/root-filesystem repair; the original installation/acceptance objective remains. Manager coordinates one host at a time and independently reviewed transition/repair steps. This checkpoint contains **read-only diagnostics and a candidate design**, not a staged or executed repair.
+Date: 2026-10-10. Owner `/root/host_37`, branch `codex/hardware-37-20261010`, worktree `/root/ngfw-wt/hardware-37-20261010`. User now explicitly requests disk/root-filesystem repair; the original installation/acceptance objective remains. Manager coordinates one host at a time and independently reviewed transition/repair steps. Current state: reviewed RAM rescue staging/authenticated tests PASS; corruption remains unresolved and no transition/repair has occurred. Earlier read-only diagnosis and candidate checkpoints are retained below with actual later evidence.
 
 ## Actual fresh evidence
 
@@ -96,3 +96,36 @@ Before-repair boot baseline: protected readonly-boot-baseline-20261010.json,3120
 Both RAM rescue/runtime log files are explicitly precreated0600 within0700 var/log before starting any service.
 
 Post-publication history scan detected a false positive on the public archive digest constant name, not credential bytes. Prior source checkpoint02329d51e is preserved at remote codex/archive-hardware37-stage-02329d51e; renamed RETURN_ARCHIVE_DIGEST without changing CI detector policy. This own checkpoint is replaced with expected-head lease only after an actual passing post-commit check.
+
+## Actual RAM stage and authenticated tests
+
+The manager/R7-reviewed executed source was SHA256 `b9da683baf03bcbe0ece64a4e1822d578d8af6f097f79bf2dd7a69425b3417c8`, published/read back at5b9a8e6523e9d072e25a65147a32f9004e55ad42. Target --stage exited1 after starting the rescue unit because Type=simple returned before the chroot/sshd exec completed, and the immediate RAM-root assertion raced that startup. This failure is preserved rather than relabeled exit0. RAM tmpfs/binaries/private auth/units/listener had been created; original22 stayed reachable and nextroot remained absent.
+
+Fresh read-only inspection showed the same MainPID3669 subsequently had root/cwd/executable on RAM device0:51. The owned credential-free stage-validate.py continuation (SHA256 `82e3822e304d3486ec3a6a949da059892565b2c7df0848cedcc35c3269e9b6f8`) then completed exit0: bounded same-PID readiness, exact published unit/config bytes, all matching systemd/executor/shutdown/SSH/e2-tools/Python/shell loader closures, parser/no stderr, SurviveFinalKillSignal/IgnoreOnIsolate recognized yes, no drop-ins/rootdir/WorkingDirectory/mount dependencies, same PID1 mount namespace, and no oldroot maps or file/directory FDs. Approved guard again returned mounted BUSY exit3. Current complete IPv4/IPv6 routes/rules and every original address configuration compare equal to the protected original snapshots; address lifetime counters alone were excluded and that exclusion is recorded explicitly.
+
+The approved original source --test then exited0. Root public-key authenticated SSH with actual PTY passed before and after stopping/restarting only ngfw-rescue.service. Four live cgroup processes in each held connection passed RAM root/cwd/executable/maps/file-directory FD and global mount-namespace proof. Exact owned MainPID3669 stopped; new MainPID3866 started and authenticated successfully. Original22 continued listening, complete before/after network state was identical, nextroot absent. Tests ended their held sessions cleanly; the owned rescue service remains active for review, with SSH22 and management2222 available. No userspace transition, root repair, reboot or networkd configuration/reload has occurred. Filesystem corruption is still unresolved; NGFW installation/acceptance remains NOT RUN.
+
+| Protected actual receipt | Bytes | SHA256 |
+|---|---:|---|
+| ram-stage-result-20261010.stderr (original failed startup assertion) | 90 | 37d7fdb1b4b2e4962f8775af85f993b24f96096e50341d685f7505f078066063 |
+| ram-stage-validation-20261010.json | 54959 | 17c370c94118a2635554ca80151a47fde40654a783b7015b6581955b4745c0d3 |
+| ram-functional-tests-20261010.json | 3241 | aec1a0f1d6fe8f6bd924a96f57cfa133e119e4a7b17d891ec0c49dbac625ae59 |
+| ram-cgroup-before-restart.json | 876 | e67b666d125d5b9124743046e7b24efb27e1169029e4ca71e49558a619347b98 |
+| ram-cgroup-after-restart.json | 876 | 5ec89c24624d9b5934a7ee81e62486ec2e391b6f6c3da0d83047da8f989b2822 |
+| readonly-smart-trust-20261010.json | 768 | f32720101586c165b76ab58eacbfdddca51240cee9e716ffefd7a4949e269aee |
+
+All receipt files0600 in private0700 host37 directory; no authentication contents were printed/committed. Cached Ubuntu InRelease verified with installed Ubuntu archive keyring via gpgv exit0; signed uncompressed Packages SHA/size match. Trusted matching smartmontools7.5-2 amd64 expected664482 bytes/SHA256 ab211f171a9595f6b9686caaec44ca07a623c4605923caae756e2446e055e0ff is established; RAM-only download/read-only SMART query remains next.
+
+Future fresh staging source now includes the same bounded readiness and stable MainPID gate to avoid the startup race. Its new source SHA256 is `aafb62c9ff15a9812e45d364e0c91c4e7072345993d5e45a6ab53539a8d910c2`; no runtime artifact/unit/network behavior changed. Do not rerun --stage on the existing RAM root; it intentionally refuses overwrite. Executed source and actual follow-up evidence remain distinct above.
+
+Exact next actions: publish/read back this receipt; finish trusted RAM-only SMART health/integrity/capacity checks; obtain independent final staged-tree, kernel-network retention, bounded metadata/undo, namespace/block-guard and return procedure review. Only manager's later explicit instruction may create nextroot/transition or repair an actually unmounted root. Maintain a held authenticated RAM PTY across any reviewed transition and reauthenticate after the transferred-run helper completes.
+
+## RAM health diagnostic and held management session
+
+Manager-authorized trusted SMART diagnostic completed without installation: gpgv verified cached Ubuntu InRelease, authenticated signed Packages SHA/size previously matched; `apt-get download smartmontools=7.5-2` ran with RAM cwd/cache/log overrides and empty pkgcache/srcpkgcache, no update/install. Downloaded664482-byte archive actual SHA256 matched ab211f171a9595f6b9686caaec44ca07a623c4605923caae756e2446e055e0ff. `dpkg-deb --extract` ran only into owned RAM; selected smartctl plus seven dependencies are RAM-copied, all seven dependency installed-package MD5 checks pass, existing RAM libraries were checked byte-identical before reuse. Actual `chroot /run/ngfwrescue /usr/sbin/smartctl -x /dev/sda` exit0; no self-test, control change or SMART enable command ran. Private receipt ram-smart-diagnostic-20261010.json16921 bytes/SHA256728665ba546f6d244cbc5def704b2c0fa38120c1ef04e3e419ddab82cb306560; stderr0/controller exit0, file0600. Disk identifying/serial output stays private.
+
+Actual selected health results: aggregate SMART self-assessment PASSED; Percentage Used Endurance Indicator126, Wear_Leveling_Count normalized001/raw2648, Reallocated_Sector_Ct2 and Runtime_Bad_Block2, power-on26762 hours. Program/erase/uncorrectable/interface CRC counts0; ATA error log reports no errors. These are observed device counters, **not a declaration of healthy storage**; aggregate PASS does not erase the wear indications or filesystem corruption. Parent/R7 have been informed before any corrective write.
+
+Fresh authenticated RAM SSH PTY remains deliberately held for any later reviewed transition: controller exec session30565, RAM shell PID3940, rescue MainPID3866, cgroup /system.slice/ngfw-rescue.service. Actual four live authenticated SSH descendants again pass RAM root/cwd/executable/maps/fds and shared PID1 mount namespace. Private held-session receipt ram-held-pty-session-20261010.json1215 bytes/SHA256b77e86555d4d6179ac7809eb2b8028e9a9e440daae7fdd012dbd86260c0fe33d,0600. This observed held session is live at capture; revalidate it rather than assuming liveness from a task label. Exact next session check: read-only global `/proc/3940` and service cgroup reference audit, or send an innocuous command through controller session30565. Do not exit/stop the owned rescue while the manager reviews transition.
+
+Manager will handle .211 first after independent review. .37 remains RAM-ready and held, with nextroot absent; no ordinary reboot, soft-reboot, pivot or root filesystem check/repair is permitted until subsequent explicit manager instruction. No mounted `e2fsck -n` result is used as acceptance.

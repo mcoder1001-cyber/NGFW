@@ -2,6 +2,7 @@ package natcommon_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -14,9 +15,10 @@ func TestNonOwnerRequirementResyncPreservesLivePoolSessions(t *testing.T) {
 	ctx := context.Background()
 	state := natcommon.GlobalState[gspec]{Value: gspec{V: 1}, Present: true, Observable: true}
 	reads, writes, deletes := 0, 0, 0
+	var readErr error
 	global := natcommon.Global(natcommon.BuildConfig(nil), natcommon.GlobalOps[gspec]{
 		Name: "test.enable", ID: "global",
-		Read:  func(context.Context) (natcommon.GlobalState[gspec], error) { reads++; return state, nil },
+		Read:  func(context.Context) (natcommon.GlobalState[gspec], error) { reads++; return state, readErr },
 		Set:   func(context.Context, gspec) error { writes++; return nil },
 		Reset: func(context.Context, gspec) error { writes++; return nil },
 	})
@@ -60,6 +62,19 @@ func TestNonOwnerRequirementResyncPreservesLivePoolSessions(t *testing.T) {
 	}
 	if writes != 0 || deletes != 0 || len(sessions) != 1000 {
 		t.Fatalf("failed requirement destroyed live sessions: writes=%d deletes=%d sessions=%d", writes, deletes, len(sessions))
+	}
+	state.Value.V = 1
+	state.Present = false
+	if result := engine.ApplyWith(ctx, desired, nil, scheduler.ApplyOptions{Resync: true}); result.Outcome == scheduler.OutcomeApplied {
+		t.Fatal("absent shared requirement accepted")
+	}
+	state.Present = true
+	readErr = errors.New("backend read failed")
+	if result := engine.ApplyWith(ctx, desired, nil, scheduler.ApplyOptions{Resync: true}); result.Outcome == scheduler.OutcomeApplied {
+		t.Fatal("failed shared requirement read accepted")
+	}
+	if writes != 0 || deletes != 0 || len(sessions) != 1000 {
+		t.Fatalf("absent/read-error requirement destroyed live sessions: writes=%d deletes=%d sessions=%d", writes, deletes, len(sessions))
 	}
 	owner := natcommon.Global(natcommon.BuildConfig([]natcommon.Option{natcommon.WithGlobalsOwner(true)}), natcommon.GlobalOps[gspec]{Name: "test.owner", ID: "global", Read: func(context.Context) (natcommon.GlobalState[gspec], error) { return state, nil }, Set: func(context.Context, gspec) error { return nil }, Reset: func(context.Context, gspec) error { return nil }})
 	if owner.CreateIsReadOnly() || pool.CreateIsReadOnly() {

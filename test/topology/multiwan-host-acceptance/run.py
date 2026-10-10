@@ -51,7 +51,7 @@ try:
    acceptance_source=acceptance_source.replace(anchor,'t.Log("private NAT engine prerequisite; engine enable installation excluded from acceptance")\n\tmustRun(t, "flock", "-x", "/run/lock/ngfw-globals.lock", "vppctl", "nat44", "plugin", "enable", "sessions", "4096")\n\t'+anchor)
   (stage/acceptance.name).write_text(acceptance_source)
   extension=Path(__file__).with_name("extended_test.go")
-  if extension.exists():(stage/extension.name).write_text(extension.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}."))
+  if extension.exists():(stage/extension.name).write_text(extension.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}.").replace("IP4Address{10, 7,",f"IP4Address{{10, {SLOT},"))
   result=subprocess.call([ROOT/"tools/heavy.sh","python3",ROOT/"test/topology/hardware-smoke/isolated-vpp.py","go","-C",tmp,"test","-v","-count=1","-timeout","4m","-run","TestMultiWANRealAPI","."],env=env)
 finally:
  subprocess.run(["ip","netns","del",NS],check=True)

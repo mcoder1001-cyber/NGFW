@@ -733,3 +733,54 @@ deferral and does not mark this whole hardware campaign Done.
 
 Own published8798639530b1311ac6ac5695baa1eff96d1893fc unchanged check actually
 PASSED14s;gitleaks369.48KB/no leaks/board212valid.
+
+
+## Scoped external HTTPS and bounded clock preparation, 16:19 UTC
+
+ROOT readonly external HTTPS source0c99d177fe59aace5f26f9f9dcd2ed558c66b515b0bb4b543cc0154cfd163190
+at publishedc03441f39dddc2814dafb546e0938c0d80c1a5e9 independently APPROVE. Fixed
+SSH reads only the public certificate; management-IP connections use verified
+localhost SNI/Host identity with SSL CERT_REQUIRED and check_hostname enabled.
+GET web, protected unauth API and actual nonempty referenced assets only; no target
+mutation. Initial inline assumption of two assets was false and its failure is
+retained; actual HTML references JavaScript only. Published consumer accepts those
+actual references rather than inventing a stylesheet requirement.
+
+```text
+Python source AST/hash and actual receipt selected assertions; exit0
+manager-external-HTTPS-20261010T161526Z.json
+2539B/root0600 SHA30a032a2f88f798fe9952931ba6b397eb428e270c6b2b4154bdde6dd60e31bf4
+both hosts web200/API401/referencedJS200, 1768416-byte JavaScript
+all six TLS certificate/hostname checks true, same leaf across each host's three GETs
+```
+
+This is controller-time management reachability/asset delivery using localhost
+certificate identity, not management-IP SAN, browser trust, authenticated API
+functionality or repaired internal-clock acceptance. Repeat after RTC repair and
+verification reboot remains planned. Internal postboot native17/7 still pending.
+
+Preliminary complete readonly clock-source review on current uncommitted c70cbc8:
+only CLOCK_REALTIME and RTC_SET_TIME setters after validated RTC0/UTC context,
+immutable boot/inspection and privately fsynced original record. Bounded two-phase
+nonce/UTC beacon and device/system/controller readback; partial failure is retained
+and never reverted to known-wrong old time. Separate once-only verification-reboot
+marker; no timezone, TLS, NTP, package or service workaround. Exact published consumer
+review and actual readonly inspection are still required before repair.
+
+```text
+Controller-only AST extraction/pure rtc_pack/quoted bootstrap behavioral test; exit0
+sourceSHA c70cbc8cc97810b80ba26e08efb96cff531a693dcc1a9afbe14122252a105fbf
+outer/REMOTE/bootstrap AST3 PASS
+four UTC round trips, leap-day/year boundaries/weekday/yearday/isdst mapping PASS
+/bin/sh quoted bootstrap receives200073-byte framed code
+following same-buffer beacon payload preserved exactly PASS
+target_contacted=false/device_opened=false/clock_operation=false
+```
+
+Matching [Python clock_settime](https://docs.python.org/3/library/time.html#time.clock_settime)
+sets CLOCK_REALTIME; UTC gmtime is converted to Linux rtc_time's native9integer
+fields. ROOT caught the earlier unquoted SSH command joining issue before execution;
+corrected static shlex.quote bootstrap passed the independent framing check.
+
+Own published9733e5b99af5ee3e7e5fba6713b10d4c3ea6649a unchanged documentation
+check --base origin/main actually PASSED14s;gitleaks374.21KB/no leaks/board212valid.

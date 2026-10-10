@@ -11,7 +11,11 @@ wallclocks reverted to Apr15 despite trusted controllerOct10, old RTC2023/.37 an
 clock/TLS failure blocks final authenticated postboot native17/7 acceptance. No TLS
 relaxation or service/timezone workaround. Worker prepares closed ROOT-only bounded
 clock/RTC repair source; review exact published consumer next, then actual repair
-and separate persistence reboot/proofs. Root alone executes. Packet-only deferral
+and separate persistence reboot/proofs. Root alone executes. Actual external HTTPS30a032 narrowly PASS: controller-time
+web200/protectedAPI401/JS200 with full certificate/localhost hostname verification;
+this does not resolve internal clock/TLS/native proofs. Preliminary c70cbc8 clock
+source read/AST/RTC mapping/framed SSH controller-only checks PASS; exact durable
+consumer and actual inspect remain pending. Packet-only deferral
 28f724 APPROVE: all24admintrue but no carrier, forwarding/loss/throughput NOT RUN;
 clock/TLS/native requirements explicitly remain mandatory. Whole campaign RUNNING.
 
@@ -52,7 +56,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`8798639530b1311ac6ac5695baa1eff96d1893fc` (matching CLI push/readback;
+`9733e5b99af5ee3e7e5fba6713b10d4c3ea6649a` (matching CLI push/readback;
 actual own post-commit documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and

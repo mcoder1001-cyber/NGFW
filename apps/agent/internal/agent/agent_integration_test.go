@@ -353,7 +353,7 @@ func TestAgentOnHost(t *testing.T) {
 		// An unrelated connect/request resync can finish before this transaction
 		// reverts. Only the empty DONE following its CONFIRM_REVERTED belongs
 		// to the required rollback sequence.
-		if e.GetTxnId() != owner+"-it-3" && !(len(seen) == 2 && e.GetTxnId() == "" && e.GetKind() == ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE) {
+		if e.GetTxnId() != owner+"-it-3" && (len(seen) != 2 || e.GetTxnId() != "" || e.GetKind() != ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE) {
 			continue
 		}
 		seen = append(seen, e.GetKind().String()+":"+e.GetTxnId())

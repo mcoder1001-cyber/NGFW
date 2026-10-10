@@ -26,7 +26,7 @@ func TestPppoeDelegationEmptyPollingRetriesAndTransitions(t *testing.T) {
 		runPppoeDelegation(ctx, ticks, func() []desired.PppoeDelegationLease {
 			index++
 			return snapshots[index]
-		}, func(leases []desired.PppoeDelegationLease) {
+		}, func(_ []desired.PppoeDelegationLease) {
 			observed <- index
 		}, func(context.Context) error {
 			applied = append(applied, index)

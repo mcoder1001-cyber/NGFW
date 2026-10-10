@@ -297,3 +297,34 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 	}
 
 }
+
+// Read-only receipt after the genuine API configured and mirrored its session.
+func TestWANCurrentCarrierReadback(t *testing.T) {
+	if os.Getenv("NGFW_DISPOSABLE_VPP") != "1" || os.Getenv("NGFW_WAN_FULL_API") != "1" {
+		t.Fatal("private API fixture required")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+	defer cancel()
+	conn := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{})
+	defer conn.Close()
+	if err := conn.WaitConnected(ctx); err != nil {
+		t.Fatal(err)
+	}
+	interfaces, err := df6.DumpInterfaces(ctx, conn, "w20")
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, ok := interfaces.IndexByTag("w20ppp")
+	if !ok {
+		t.Fatal("owned logical carrier missing")
+	}
+	stream, err := mssapi.NewServiceClient(conn).MssClampGet(ctx, &mssapi.MssClampGet{SwIfIndex: interface_types.InterfaceIndex(index)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, _, err := stream.Recv()
+	if err != nil || row == nil || row.IPv4Mss != 1452 || row.IPv6Mss != 1432 || row.IPv4Direction != 3 || row.IPv6Direction != 3 {
+		t.Fatalf("actual API MSS readback: %+v %v", row, err)
+	}
+	t.Log("REAL_API_MSS_CLAMP_1452_1432_RX_TX PASS")
+}

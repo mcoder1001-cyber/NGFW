@@ -1,0 +1,4 @@
+=== RUN   TestIntegrationActualArtifactReadonlyPreflight
+    installation_test.go:54: actual artifact readiness remote-access: verified engine lifecycle unavailable
+--- FAIL: TestIntegrationActualArtifactReadonlyPreflight (0.01s)
+FAIL

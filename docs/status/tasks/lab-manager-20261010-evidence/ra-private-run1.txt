@@ -1,0 +1,45 @@
+=== RUN   TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI
+    daemon_integration_test.go:73: private fixture link name=lo kind=
+    daemon_integration_test.go:73: private fixture link name=ip6tnl0 kind=ip6tnl
+    daemon_integration_test.go:73: private fixture link name=gre0 kind=gre
+    daemon_integration_test.go:73: private fixture link name=gretap0 kind=gretap
+    daemon_integration_test.go:73: private fixture link name=erspan0 kind=erspan
+    daemon_integration_test.go:73: private fixture link name=outer0 kind=dummy
+    daemon_integration_test.go:73: private fixture link name=inner0 kind=dummy
+    daemon_integration_test.go:93: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-1ca01a85d562910c7347b401c1d08ea6/4cedf8a18a49cdfc46fbcb1269fa0477cee51735005586615a920cd90f760c5a-startup.log
+--- FAIL: TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI (15.92s)
+=== RUN   TestIntegrationPrivateEAPNegotiationAndObservedDisconnect
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-74b79bcd65a9997c2646a1836178c833/47435a22d2af75b20ebe016946cc3d6f28396ccfbed9a56b633a4b5dc2200654-startup.log
+--- FAIL: TestIntegrationPrivateEAPNegotiationAndObservedDisconnect (15.36s)
+=== RUN   TestIntegrationPrivateEAPBadPasswordRefused
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-66f1ce3c43815cf961ed50a73ddce538/47435a22d2af75b20ebe016946cc3d6f28396ccfbed9a56b633a4b5dc2200654-startup.log
+--- FAIL: TestIntegrationPrivateEAPBadPasswordRefused (15.62s)
+=== RUN   TestIntegrationActualArtifactReadonlyPreflight
+    installation_test.go:54: actual artifact readiness remote-access: verified engine lifecycle unavailable
+--- FAIL: TestIntegrationActualArtifactReadonlyPreflight (11.73s)
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/valid
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-08a9f0af3609c5aaed29ff9753040e98/47435a22d2af75b20ebe016946cc3d6f28396ccfbed9a56b633a4b5dc2200654-startup.log
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/revoked
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-d3f72760cd7c2074a42bcfeadac4e742/47435a22d2af75b20ebe016946cc3d6f28396ccfbed9a56b633a4b5dc2200654-startup.log
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/foreign
+    eap_integration_test.go:134: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=2
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-b81908aa33aecd2fa2096d911cd0278d/47435a22d2af75b20ebe016946cc3d6f28396ccfbed9a56b633a4b5dc2200654-startup.log
+--- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance (45.92s)
+    --- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance/valid (15.30s)
+    --- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance/revoked (15.32s)
+    --- FAIL: TestIntegrationPrivateEAPTLSCertificateAcceptance/foreign (15.30s)
+FAIL
+FAIL	ngfw/agent/internal/ra_vpn	104.955s
+FAIL

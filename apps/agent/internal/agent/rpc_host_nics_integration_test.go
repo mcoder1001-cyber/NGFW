@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"maps"
+	"net"
 	"os"
 	"os/exec"
 	"slices"
@@ -97,12 +98,22 @@ func TestHostNicsOnHost(t *testing.T) {
 	if data < 1 {
 		t.Errorf("expected at least one non-management data NIC, got %d", data)
 	}
-	// on the reference host (docs/lab/host-ngfw-a.md, recognised by ens192 = 0000:0b:00.0) the exact set is asserted
+	// Assert the exact inventory only on the reference management address; other VMware guests can share PCI positions.
 	got := map[string]string{}
 	for _, n := range resp.GetNics() {
 		got[n.GetNetdev()] = n.GetPci()
 	}
-	if got["ens192"] == "0000:0b:00.0" {
+	referenceHost := false
+	if management, err := net.InterfaceByName("ens192"); err == nil {
+		if addresses, err := management.Addrs(); err == nil {
+			for _, address := range addresses {
+				if prefix, ok := address.(*net.IPNet); ok && prefix.IP.Equal(net.ParseIP("172.30.126.195")) {
+					referenceHost = true
+				}
+			}
+		}
+	}
+	if referenceHost && got["ens192"] == "0000:0b:00.0" {
 		want := map[string]string{
 			"ens161": "0000:04:00.0", "ens192": "0000:0b:00.0", "ens193": "0000:0c:00.0", "ens224": "0000:13:00.0",
 			"ens225": "0000:14:00.0", "ens256": "0000:1b:00.0", "ens257": "0000:1c:00.0",
@@ -114,7 +125,7 @@ func TestHostNicsOnHost(t *testing.T) {
 			t.Errorf("ngfw-a management = %v, want [ens192]", mgmtNames)
 		}
 	} else {
-		t.Logf("not the reference host (no ens192 = 0000:0b:00.0): exact-set check skipped")
+		t.Logf("not the reference host at 172.30.126.195: exact-set check not applicable")
 	}
 
 	a.Stop()

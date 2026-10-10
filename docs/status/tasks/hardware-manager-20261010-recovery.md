@@ -1,10 +1,13 @@
 # Hardware recovery and installation resume
 
-This runbook is a preparation record, not proof of repair, installation or hardware
-acceptance. Both /dev/sda2 roots have active structural ext4 errors and failed boot
-fsck. Reboot alone may leave a manual-fsck/emergency prompt with no SSH. No offline
-recovery path has been supplied yet. Existing authorization to reboot when needed
-does not provide that missing access information.
+Current recovery record: both /dev/sda2 roots have structural ext4 errors and failed
+boot fsck. Authenticated RAM rescue SSH and persistent PTYs are now staged and
+tested on both hosts, with original management SSH retained. No root transition,
+filesystem repair, normal reboot, package installation or hardware acceptance has
+yet occurred. The owner explicitly requests repair despite .37 SSD wear; wear
+alone is not a replacement or permission blocker. Recover .211 first, then .37.
+The earlier console-only plan is superseded by the reviewed matching-systemd RAM
+rescue design and actual readiness evidence, not by an unverified rescue assumption.
 
 ## Preserve management and existing data
 
@@ -29,34 +32,71 @@ Native nft capture is unavailable on both hosts (toolmissing,exit127); successfu
 empty IPv4/IPv6 iptables-save exports do not establish empty native nft state.
 Inspect actual native firewall after clean recovery and before activation.
 Do not infer a complete backup from a tar file merely existing.
-Secure a trusted off-host full backup/image or agreed data-recovery plan before
-any potentially destructive offline repair. The configuration snapshot alone is
-insufficient to certify preservation of unrelated existing data.
+Additional original SSH/account and selected boot/config backups are privately
+captured, readable and hash-verified both offhost and in RAM. These remain scoped
+backups. Full root/userdata images have not been taken; .37 apparent /root usage
+is at least23.739GB and exceeds available backup capacity. Do not remove that
+data or equate filesystem metadata/undo with file-byte or power-loss protection.
+Before correction, capture verified offline filesystem metadata offhost, inspect
+the actual affected inode names/types, and retain a bounded undo log. A concrete
+new read/media failure or unexpectedly affected user file requires diagnosis.
 
 ## Offline diagnosis and repair
 
-1. Obtain verified usable physical/serial/IPMI/KVM/hypervisor console or LiveISO
-   rescue, and confirm it can select a rescue boot and show the recovery shell.
-2. With that console and backup plan, boot rescue. Identify the actual disk and root
-   partition by device model/identity, partition table and filesystem UUID. Do not
-   assume rescue names match current /dev/sda2. Inspect available drive-health data.
-3. Verify that the identified root is unmounted everywhere. Do not run repair on
-   a live/mounted root or force online repair/remount shortcuts.
-4. Run a diagnostic only on that verified unmounted root, for example
-   `e2fsck -fn /dev/sda2` if identity was confirmed. Record complete output/exit code;
-   exit4 (uncorrected errors) is a failure to repair, not a successful health check.
-5. Review diagnostics and backup/recovery readiness before interactive repair.
-   Kernel reports requested directory rebuilding; a possible reviewed command is
-   `e2fsck -fD /dev/sda2` with operator-visible prompts. Do not use blind `-y`, erase
-   affected directories, or declare repair successful from a canceled command.
-6. Repeat the unmounted check until clean, preserve actual repair/check outputs,
-   then boot normal and independently confirm fresh SSH via each original
-   management address, exact protected NIC/default route/alltables/rules/DNS,
-   filesystem state and successful boot fsck. Investigate any new storage errors.
+1. The exclusive host operator publishes actual readiness receipts and readback,
+   keeps the authenticated RAM PTY live, and verifies original SSH to the other
+   host. Exact .211 staged source e33b95eacf965361d2dc3ba05866e3ee80d9eb1cd6259679fa7d3582a34166d6
+   is reviewed at2ee35a45; actual readiness is published ate65e4f86. R7 transition
+   and read-only phase approval is45b08eab, counter addendum5af876c0. Review effective
+   management static/dynamic state and matching networkd exit behavior; do not
+   modify KeepConfiguration or use networkctl reload as passive preparation.
+2. Only on the reviewed phase release, create the exact owned symlink
+   /run/nextroot -> /run/ngfwrescue and invoke ordinary systemctl soft-reboot through
+   original SSH. Do not force this transition. Matching259.5 RAM PID1, executor,
+   shutdown and SSH helpers are copied and validated. The protected SSH unit has
+   RAM-only process references in PID1's global mount namespace and surviving
+   children; a new-root helper recreates /run/sshd after transferred /run overlays it.
+3. Verify actual RAM PID1/executor, helper completion, /run/sshd ownership/mode,
+   persistent PTY and fresh authenticated2222 SSH, and exact management addresses,
+   all-table routes/rules. Remove only the exact owned nextroot symlink after the
+   transition is confirmed. Audit every process root/cwd/exe/maps/fd, every mount
+   namespace including namespace fds without a representative process, and block
+   users/automounts. switch_root lazy-detaches the old root; empty mountinfo or
+   successful SSH alone is insufficient. The independently tested static guard
+   SHA02a2270ad8e0f480efc7464b26d2216fec8a915aa12755da6339015abed0f41c
+   must positively open the actual /dev/sda2 identity8:2 O_RDONLY|O_EXCL (exit0).
+   If BUSY, identify the holder; never close arbitrary descriptors or force fsck.
+4. Only after that offline proof, run e2fsck -f -n with full private output/exit,
+   and e2image -Q to a seekable private regular RAM file. A diagnostic exit4 means
+   uncorrected errors. Measure actual capacity and image size, compress privately
+   offhost, verify compressed and decompressed source hashes, and keep both pipeline
+   exits. Record block-read/SCSI/CRC/kernel baselines before and after reads. Do not
+   use a -Q output pipe or modify the mounted original root. Both filesystem and
+   partition are exactly63510503424bytes; no partition enlargement is justified.
+5. Review actual inode/path findings and prompts plus verified metadata and undo
+   capacity before interactive e2fsck -f -z on the still-unmounted identified root.
+   No unattended -y, arbitrary directory deletion, format, repartition, SMART reset
+   or generic -D repair. Known inode259596 is a damaged regular journal file, not
+   /root; do not infer all reported corruption is confined to that file. Undo is
+   not a crash-safe full backup. Record every actual correction and its exit code.
+6. Require a subsequent clean offline e2fsck -f -n, stable actual block-read health,
+   offhost verified image/undo/logs, and a temporary read-only/noload original-root
+   check of selected original boot/auth/network files. Ordinary unmount afterward.
+   Reconfirm kernel/initrd/EFI/fstab/management/SSH baseline and the exact owned
+   nextroot marker's removal before return. Then set SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1
+   and SYSTEMCTL_SKIP_AUTO_KEXEC=1 and use single systemctl reboot --force: the RAM
+   PID1 still performs systemd-shutdown cleanup. Double force bypasses that cleanup
+   and is prohibited. Actual return is separately released after these gates;
+   the owner already authorizes a necessary reboot, so no repeated permission ask.
+7. After normal boot, prove fresh original22 SSH, exact protected PCI/NIC and
+   addresses/routes/rules/DNS, clean root/boot-fsck status and no new storage errors.
+   Historical ext4 error counts are not alone a post-repair failure. Repeat the
+   reviewed sequence for .37 while .211 stays reachable; the accepted endurance126%
+   and two remaps remain physical facts, not something software repair removes.
 
-If owner/operator repairs independently, receive actual clean offline-check output,
-normal-boot filesystem/management evidence, and backup/recovery confirmation before
-resuming package writes. No repair or reboot has run in this task.
+No correction or normal return approval is implied by a read-only phase release.
+Current actual findings and next commands belong in each published worker WIP and
+the manager WIP; do not treat this runbook as execution evidence.
 
 ## Resume the existing installation tasks
 

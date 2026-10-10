@@ -8,6 +8,8 @@ Manager subsequently announced one additional documentation-only final HEAD for 
 
 Latest manager/PR217 final HEAD now independently verified `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`; only evidence/review-plan/WIP manager docs differ from2045, product/tests/CI identical. Fresh mandatory quick run38033766837/job114159912573 in progress; integration candidate `8a15d644c53cc3ef4abde339efd3b2a0331221a5`. Old run38033113750 canceled/superseded. Exact latest-head R1/T1 review remains pending complete fresh gate; no target actions. Latest-head waiting receipt `fa7fb0f9106ac45ac0e18cb460f78d84a5a89d6b` published/read back successfully with check14s passed.
 
+Latest review checkpoint `0ac4701ba689278b7e609fee72efcf464dced700` published/read back successfully. Candidate integration tree independently asserted equal to final source tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2`, exact main/final-source parents verified. Latest-head hosted packaging38033766825 and provisioning38033766876 completed success; actual logs7+81 and46+23+11+18 tests OK independently retrieved. Complete mandatory quick38033766837 still pending; no overall T1 PASS or R1 APPROVE claimed.
+
 ## Ownership and checkpoints
 
 Branch `codex/hardware-37-20261010`; worktree `/root/ngfw-wt/hardware-37-20261010`; remote host `root@172.30.126.37`. Owned files are `docs/status/tasks/hardware-37-20261010*`.

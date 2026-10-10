@@ -1,9 +1,12 @@
 # Independent EAL failure review — same hardware campaign
 
 Scope: docs/source/private receipt inspection only. Reviewer performs no target or
-product mutation. Current physical acceptance verdict: BLOCK pending a corrected
-renderer/native artifact and actual guarded physical result. This is a real runtime
-failure, not a deferred laboratory-only test.
+product mutation. Current checkpoint: corrected source/native physical application and strong
+preboot control/admin convergence independently PASS on both hosts. New-boot
+configuration/driver persistence scoped PASS; actual wallclock/RTC regression blocks
+TLS and final authenticated postboot native acceptance. This real failure remains
+mandatory. The initial EAL failure below is historical and its correction is
+verified in the later appendices.
 
 Actual root-owned failure receipt f64ad15bd241d4bbed2e3219900b6836138dcaf13be17ce2f916df2bc9559de1
 is18019B0600. Independent selected JSON assertions confirm no COMMITTED, rolled-back
@@ -675,3 +678,58 @@ postboot PASS by reviewer. Paired native7 and .211 postboot proofs remain pendin
 
 Own published e8a574121735980ef707cd104934a4cd3453b056 unchanged documentation
 check --base origin/main actually PASSED14s;gitleaks367.80KB/no leaks/board212valid.
+
+
+## Actual RTC/clock regression and packet-only scope, 16:15 UTC
+
+Independent private receipt verification, without printing credentials/configs:
+
+```text
+Python SHA/mode/schema/selected assertions; exit0
+manager-boot211-observe-boot-20261010T160652Z.json
+665267 B/root0600 SHA3d1c9655039cdf39b49d2b5c4e74f07ae213327701b944d6309acb264e541bfd
+PASS=true/new_boot_observed=true/observe-boot complete
+68commands/all exit0/new_storage_errors=[]/counter_epoch=fresh-boot
+manager-clock-diagnosis-20261010T160710Z.json
+2939 B/root0600 SHA0201e8b99923cb568d9cfca1d6802d4b1a218991995f792273733e0d0284ca45
+controller_UTC=2026-10-10T16:07:09.854284+00:00
+.37 wallclock Apr15 18:49:25UTC2026/RTC2023-03-07
+.211 wallclock Apr15 18:43:30UTC2026/RTC2021-03-23
+each diagnosis SSH0/empty stderr/LocalRTC=no/chrony unsynchronised
+each six chrony sources Reach0; RTC0 root-owned char247:0
+.37 certificate notBefore Oct10 14:18:12UTC2026
+.211 certificate notBefore Oct10 12:06:26UTC2026
+```
+
+Both host times are outside their actual certificate validity intervals. This
+concrete prerequisite explains the TLS readiness failure together with ROOT's
+underlying SSL diagnosis; no API-crash inference from the earlier URLError class.
+No TLS relaxation, NTP/service restart, timezone override or target write by reviewer.
+Both successful scoped new-boot receipts do not establish trusted clock or final
+authenticated native postboot acceptance. Campaign remains RUNNING until bounded
+clock/RTC correction, persistence and strong paired native proofs actually pass.
+
+Independent controller-only Linux RTC ABI check:
+
+```text
+cc -Wall -Wextra -Werror /dev/shm/evidence-review-rtc-abi-20261010/abi.c -o /dev/shm/evidence-review-rtc-abi-20261010/abi
+/dev/shm/evidence-review-rtc-abi-20261010/abi
+size=36 RD=0x80247009 SET=0x4024700a
+exit0; no device open or clock operation
+```
+
+The matching [Linux7.0 RTC UAPI](https://raw.githubusercontent.com/torvalds/linux/v7.0/include/uapi/linux/rtc.h)
+defines nine native integers and the read/set time requests. This confirms ABI,
+not applicability or execution of the forthcoming closed ROOT-only clock helper.
+Worker contract9137e40d precedes that consumer; exact source remains pending review.
+
+ROOT packet-only deferral28f724a58e56076be356e5c4a98be0f1d12c803e independently
+APPROVE after exact seven-line diff and selected actual519e/f052 state assertions:
+all24 physical adminUp=true/linkUp=false/linkSpeedKbps=0. No physical peer traffic,
+loss or throughput was run or claimed. Connecting peers and actual bidirectional
+packet/counter/loss/throughput evidence remains the explicit deferred laboratory
+step. That document excludes clock, TLS and final authenticated native proof from
+deferral and does not mark this whole hardware campaign Done.
+
+Own published8798639530b1311ac6ac5695baa1eff96d1893fc unchanged check actually
+PASSED14s;gitleaks369.48KB/no leaks/board212valid.

@@ -105,3 +105,9 @@ correction, immutable failed7a64 receipt, fresh both-host plans/install/restore,
 worker physical retry/supplement/finite rollback and root37 actual nginx identity.
 Independent readonly/controller-only checks; own eal.md carries findings and
 phase-specific applicability. Reviewer never executes target phase modes.
+
+Same-campaign clock/RTC persistence follow-up: inspect actual diagnosis0201e and
+scoped postboot receipts, bounded ROOT-only Linux RTC/CLOCK_REALTIME consumer and
+later fresh reboot/TLS/native proofs. Reviewer may perform controller-only ABI
+checks with no device operations. No target time/device/service/secret operations;
+packet-only owner-authorized laboratory deferral leaves these real failures mandatory.

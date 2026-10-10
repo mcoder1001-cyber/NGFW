@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`e83c0c5434425d9688b4992c9b640ca304dcc1e2` (actual .37 protected normal return and final firstboot/seed source checkpoint; matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`27be6d0a038ceb5a231ae7da671a40a1bf2b9796` (actual .211 firstboot/input/restore and initial-runtime source; .37 guard/source approvals; matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -577,3 +577,20 @@ solver/TZ/native-install results pending. No reviewer target operation/private
 contents committed. Exact next action: read actual worker runtime/seed and solver/
 TZ receipts, then source/read-only review manager-owned scoped PCI binding plan.
 Source PR217 approval and product/hardware forwarding acceptance remain separate.
+
+
+12:21 UTC actual follow-up: .37 native configured install51861660/270474 B
+independently PASS (114plan/11exact/audit0/21suppressed/currentL3+16sysctl unchanged/
+101mask/native skip/counter6storage0). Own actual solver07d88 and same-zone0704/dabf
+operations PASS; final44e3 source remote3b913a06 verified. Readonly inspector6cf4
+147308 B PASS; exactc1ea firstboot source-only APPROVE after AST2/peer diff, later
+published/source phase and actual provisioning proof remain separate. .211 early
+VPP API readiness failure9b486 retained, same-PID actualfec249 readiness PASS;
+exact77df continuation source remotef771 approved. Actual371137-byte98b516
+continuation starts all4units with TLSadminlogin200 but real seed FAIL:22 config200
+polls rev0/events empty. All protected invariants remain PASS; root/operator
+actual API-only/env/RPC diagnosis ongoing. Never classify missing seed as lab-only
+acceptance or bind early. Draft scoped binder option premise sent separately,
+not a runtime gate. Exact next action: inspect actual seed diagnosis and .37
+firstboot source/publication/results, then reviewed manager binding plan. No target
+operation by reviewer, no private payloads committed.

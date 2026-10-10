@@ -389,3 +389,96 @@ Inspect is read-only; the parent's already-released canonicalization requires it
 own matching fsynced baseline. No effective timezone-byte change or security guard
 relaxation. Actual solver, timezone operation and subsequent native installation
 remain pending; no .211 evidence is substituted for .37 actual results.
+
+
+## Actual .37 configured installation and .211 runtime failures — 12:21 UTC
+
+Controller-only review commands (private payloads remain unprinted):
+
+```sh
+python3 - <<'PY_CHECK'
+import pathlib,json,hashlib
+p=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware/recovery-private/host-37/package-install-20261010T121903Z.json')
+b=p.read_bytes();d=json.loads(b)
+print(len(b),oct(p.stat().st_mode&0o777),hashlib.sha256(b).hexdigest())
+assert d['install_exit']==0 and d['simulation_exit']==0 and d['plan_exact']
+assert len(d['plan_changes'])==114 and all(x.startswith('Inst ') for x in d['plan_changes'])
+assert d['network_before']==d['network_after'] and d['sysctl_before']==d['sysctl_after']
+assert len(d['service_states'])==21 and all(s in ['inactive','failed'] for s in d['service_states'].values())
+assert d['policy_exact'] and d['persistent_mask'] and d['VPP_INSTALL_SKIP_SYSCTL']=='1'
+assert d['ioerr_before']==d['ioerr_after'] and d['new_storage_errors']==[]
+assert d['dpkg_audit']=={'exit':0,'stdout':'','stderr':''}
+r=d['packages'];assert r['exit']==0 and r['stderr']==''
+rows=[x.split() for x in r['stdout'].splitlines()]
+prod={'ngfw-agent','ngfw-api','ngfw-web','ngfw-meta'}
+vpp={'vpp','libvppinfra','vpp-drivers','vpp-plugin-core','vpp-plugin-dpdk','vpp-crypto-engines','python3-vpp-api'}
+assert len(rows)==11 and {x[0] for x in rows}==prod|vpp
+assert all(x[2]=='installed' and x[1]==('0.1.0~dev+2045ab8b3d2f' if x[0] in prod else '26.06-release+ngfw3') for x in rows)
+print('independent exact11 identities/audit/114plan/21suppression/L3/16sysctl/ioerr PASS')
+PY_CHECK
+```
+
+Selected actual output:
+
+```text
+270474 0o600 51861660d6b82f5bd3576d2228b2754c706766acd415f047271a31f42fc4c696
+independent exact11 identities/audit/114plan/21suppression/L3/16sysctl/ioerr PASS
+ioerr 0x6 -> 0x6; actual policy denial messages=11
+```
+
+Own .37 solver21634 B/0600 SHA07d88eb379ed4a9a813ac8c5cf6d0be9b31e0446ac9cbd5563afdbc49af035d8
+was independently byte-identical to the previously fully reviewed .211 plan.
+Exactly three actual upgrades matched `^Inst \S+ \[`; ordinary architecture brackets
+are not upgrades. Actual .37 timezone inspect6489 B/0600
+SHA0704ec548876f7fe10b26665d86d82def948de909807bfc4797f0512e8baecad and canonicalize11536 B/0600
+SHAdabf151233bf62c6dacdd8b484f31f480f48dd5995dfb9c47a62b6840da068af
+independently preserve backup digest, unchanged trusted1248-byte zone hash, all
+four other identities, hostname/cached timezone, current L3 and sixteen sysctls;
+all21 services suppressed, clock step approximately -0.86 microseconds.
+
+Final .37 native installation source44e3f38b2402e8d87531a81b97421135c9cefe26a8fdef1d3ac1ffd39d5dc175
+was independently read back from published3b913a0650234cdd1207d1e4b50757cbbffeade1.
+Focused peer diff and outer/remote AST2 PASS; own constants/guards/proof filenames,
+additional readonly exact11/audit and storage-proof checks. No early provisioning.
+Actual configured installation PASS; .37 firstboot/runtime/binding remain pending.
+
+Actual .211 initial runtime010 source safely stopped after VPP start0 and immediate
+binary-API check2.294155 B/0600 receipt9b486056180f7b15a341fb01a7aa2f33cc79ef62b76a29528b8bef50a3fc591e
+records active PID7359/NRestarts0, other three units inactive, all protected
+invariants unchanged. No false runtime or seed PASS.
+
+Fresh1706 B/0600 receiptfec24987ae5692b51786c371bab9762c1fdc197cfa379dfc97a9eb8231f14813
+independently shows socket exists, same active7359/NRestarts0, all four actual
+property/version/bootid/local0 commands exit0/empty stderr. The early probe raced
+socket readiness. Narrow source77dfcc9c0bf01c02a9e6d1bce3d65aabca451d89b04557feada0ec278a1a17a1
+on independently published/source-readbackf7710855f369181b711a524f8b685b4add05ee90
+approved after focused diff/AST2: exact private failed-proof/PID continuation skips
+VPP start, bounded same-PID socket readiness and unauthenticated protected HTTPS
+readiness precede the single administrator login. Original guards retained.
+
+Actual continuation371137 B/0600 SHA98b516a17a02cc82a8b6e26b3ac81d3e1ea8b3cf28fb73b1c0a68bd41b9376fe
+has all four units active/NRestarts0, native TLS login200/admin, binary API tests0,
+full L3/seventeen kernel NICs/DNS/sixteen sysctls/foreign NFT unchanged, counter6
+stable and no new storage errors. **Real seed FAIL remains open:** all22 config/
+event polls200 stayed revision0 with empty event items. No manual configuration,
+DB seed or early binding. Actual API-only journal/environment/inventory diagnosis
+is underway; the caller-aware source filtering rationale cannot substitute for
+actual revision1 acceptance. No concrete cause is claimed yet.
+
+Source-only .37 firstboot mirrorc1ea9741622ad6e8fbc78ce564432b2e52f33590afa745e53aaddabc066e6145
+focused peer1989 diff/AST2 APPROVE after own147308 B/0600 baseline
+SHA6cf4eaed57b65f4f2ee6e999d11c53f67f8ae1240c5386b9665bd28e0620b3ea:
+13 commands0, zero native NFT objects, zero hugepages/group0,2MiB/NUMA0,
+protectedPCI0c/igc/group58/root8:2/counter6. Publication/readback and parent phase
+release remain explicit before firstboot execution; no peer result substitution.
+
+Draft scoped binder uses per-device override/unbind/probe, avoids driverctl/global
+new_id, guards singleton groups and unsafe mode, management and inactive VPP.
+Observed .211 data netdevs/bridges all have zero addresses/routes. One remaining
+source premise before its later exact verdict: plain modprobe also consumes
+configuration/kernel options; [pinned Linux7 VFIO source](https://raw.githubusercontent.com/torvalds/linux/v7.0/drivers/vfio/pci/vfio_pci.c)
+turns nonempty ids into pci_add_dynid at module initialization.
+[Primary kmod documentation](https://raw.githubusercontent.com/kmod-project/kmod/master/man/modprobe.8.scd)
+confirms those option inputs. Actual effective-option evidence or explicit
+empty-ID/load-command handling requested. This is separate from initial runtime
+and is not a claim of an observed target global-ID configuration.

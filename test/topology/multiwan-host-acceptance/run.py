@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Real Multi-WAN acceptance: private VPP/agent network namespace, real external API."""
-import os, json, shlex, shutil, subprocess, tempfile, hashlib
+import os, json, shlex, shutil, subprocess, tempfile, hashlib, fcntl
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 PRODUCT=Path(os.environ.get("NGFW_MULTIWAN_PRODUCT_ROOT",str(ROOT)))
@@ -9,6 +9,8 @@ SLOT=int(os.environ.get("NGFW_MULTIWAN_SLOT", "7"))
 if SLOT not in (*range(1,12), *range(14,33)):
  raise SystemExit("invalid developer slot")
 NS=f"ns-w{SLOT}-mw-router"
+slot_lock=open(f"/run/lock/ngfw-slot-{SLOT}.lock", "a")
+fcntl.flock(slot_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 for name in ("ngfw-agent","ngfw-agentctl","ngfw-vpp-preflight"):
  binary=BIN/name
  if not binary.is_file() or not os.access(binary,os.X_OK):raise SystemExit("missing executable: "+str(binary))

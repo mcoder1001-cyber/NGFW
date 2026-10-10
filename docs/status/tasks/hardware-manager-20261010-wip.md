@@ -1,3 +1,44 @@
+# Actual .211 read-only diagnosis and tool readiness — 2026-10-10
+
+Actual e2fsck -f -n exit12(4|8: uncorrected plus aborted), full private1878B receipt
+03190e6c reviewed independently. Invalid extent nodes259596/259597/259598 and
+corrupted directory259599; -n declined all corrections and aborted at salvage.
+Incidental extent-tree optimization259816 is not a required repair response.
+Actual ioerr12 remained stable. Missing trimmedBusyBox dmesg and unsupported df-B1
+are tool failures, preserved; no clean health/capacity result was inferred from them.
+Narrow static read-only kernel reader78f74c/source, binary856288B/3ebe9a3e uses only
+klogctl10 SIZE_BUFFER and3 READ_ALL, bounded; independently rebuilt/tested by R7.
+Actual RAM reader exit0/empty stderr, private230252B4bf012ea health baseline;
+valid df-P-k reports8265208KiB free. Metadata capture is released, not correction.
+
+Root prepared only shared private debugfs-minimal.tar276480B SHA
+f9ded4be20815967c33b26074f15617406e8863c19ba3edcd7812d85e1ce4647 plus adjacent
+manifest. Two safe regular members only: debugfs231368B/864e1d7b and missing
+libss.so.2 30880B/c8ecc883, both controller dpkg MD5/version1.47.2-3ubuntu4 verified.
+Initial MD5 discovery missed multiarch filename, stopped before writing, then fixed.
+Target/controller e2fsprogs and core ext2fs/e2p/com_err match; generic libc/loader/
+blkid/uuid byte differences caused a safely refused full-closure overwrite. They
+do not alone establish ABI incompatibility. R7 approves only missing-path copy of
+these two regular members in RAM, no existing-library overwrite, actual RAM loader
+--list and LD_BIND_NOW=1 debugfs -V viability before readonly stat/ncheck commands.
+No -w, file-content dump or disk modification. Full affected inode/type/name and
+verified offhost metadata plus undo budget are still required before corrections.
+
+Correction to earlier namespace interpretation: root and reviewer initially said
+setns necessarily retains the RAM fs root. Pinned Linux7.0 mntns_install actually
+sets the CHILD's pwd/root to the destination namespace root. Root independently
+checked [matching implementation](https://raw.githubusercontent.com/torvalds/linux/v7.0/fs/namespace.c).
+This explains both actual mounted-negative helper exit3 results. The helper remains
+static/RAM, executes no old-root binary, and child exit releases temporary references;
+all children exit before mandatory exclusive guard. Actual .211 offline nsfs0/guard0
+proof and released scope are unaffected. R7 corrects its own review documents.
+
+Latest own published/readback6a28c5f2c92db37312585aa37665b6e0f17e15a7;
+this coherent update is immediately published. Remaining/next: complete measured
+private metadata image + persistent offhost source/decompressed hash verification,
+actual inode diagnosis/undo readiness, then root/R7 targeted correction review.
+No correction/normal return/installation executed. .37 stays reachable and held.
+
 # Actual .211 RAM transition and offline proof — 2026-10-10
 
 Ordinary soft-reboot into RAM actually completed, original command exit0; held
@@ -9,8 +50,8 @@ completed, fresh SSH exit0/empty stderr, helper active/exited Resultsuccess/stat
 directory0:0/0755; private receipt8d8935aab15f80eadaf75926fae80bde34d6e7de24d63abb9807f4495d8142f7.
 R7 independently verified that actual runtime receipt. Audit sources/review are
 published workerf5018b5710dcc78a602e478c19565f81d441c83b and reviewerbc7b67d9;
-helper nsfs mountinfo remains root-filtered reference inspection, supplemented by
-the independent kernel exclusive-open proof, not claimed unfiltered enumeration.
+helper namespace interpretation is corrected in the latest section above;
+the independent kernel exclusive-open proof remains mandatory after child exit.
 
 Actual complete offline audit PASS, private25017B/SSH0/empty stderr,
 SHA b74d8312d66acfcf7483a83a05cada8da896a5ed9ccd99e73a720b5c27cf61d6:

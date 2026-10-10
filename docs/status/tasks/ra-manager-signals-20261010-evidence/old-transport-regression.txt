@@ -1,0 +1,6 @@
+=== RUN   TestManagerDBusSignalBeforePendingReply
+    namespace_openfile_manager_dbus_signals_test.go:152: lawful signal killed pending property reply remote-access: isolated runtime boundary refused
+--- FAIL: TestManagerDBusSignalBeforePendingReply (0.00s)
+FAIL
+FAIL	ngfw/agent/internal/ra_vpn	0.169s
+FAIL

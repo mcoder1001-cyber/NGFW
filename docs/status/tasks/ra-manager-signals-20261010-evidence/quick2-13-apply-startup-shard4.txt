@@ -1,0 +1,83 @@
+$ env -u NGFW_TEST_ONLY -u KEEP NGFW_TEST_SHARD=4/4 deploy/vpp/test-apply-startup.sh /root/ngfw-wt/logs/ci/ra-manager-signals-20261010-20261010-114648-72008/ngfw-startupgen
+== 4. gate: pending → refused; approval only when a D-row has the PENDING as subject AND names this rendering; spent approval refused (N4)
+  ok   no approval: exit 3, no work dir
+  ok   PENDING-no-such refused (exit 3)
+  ok   PENDING-closed refused (exit 3)
+  ok   PENDING-mentioned refused (exit 3)
+  ok   systemd never touched
+  ok   D-900 has the PENDING as subject and names this rendering: accepted, recorded in gate + log (exit 0)
+  ok   approval sent to syslog
+  ok   same approval + same rendering again after the commit: spent, exit 3, no new work dir
+  ok   same PENDING, a different change: not covered, exit 3
+  ok   the dry run shows the gate against its own rendering
+  ok   handover: done → accepted without approval (exit 0)
+  ok   one more pending source keeps it pending (exit 3)
+  ok   flag parser (tools/lab rule); interface names regex-escaped
+== 8. healthy apply commits — NRestarts 4 before, reset to 0 by the restart (H1); settle + ≥2 identity reads (N3)
+  ok   exit 0, committed although NRestarts went 4 → 0
+  ok   new boot identity = the unit's MainPID, NRestarts 0 right after the restart
+  ok   identity stable across 2 reads in the window
+  ok   new file installed, backup kept
+  ok   logical interfaces + plugins verified through ngfw-vppcheck
+  ok   management snapshot: ens192, ifupdown; check neigh (ARP of the next hop)
+  ok   locks taken (holder unit) before backup and diff
+  ok   dead-man timer and lock holder units started with the settings as --setenv
+  ok   timer cancelled, locks released, exactly one VPP restart
+  ok   dead-man deadline > run budget + rollback budget
+== 12. --mgmt-probe tcp:… → commits; path lost → rollback judged by the same probe
+  ok   exit 0, committed with a TCP probe
+  ok   exit 1, lost TCP path → rollback, healthy afterwards by the same probe
+== 16. ifupdown host (ngfw-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
+  ok   exit 1, loss detected (addresses/routes compared exactly)
+  ok   unbound from vfio-pci, bound back to vmxnet3, override cleared
+  ok   recorded addresses (v4+v6) and default route re-applied verbatim
+  ok   addresses before routes
+  ok   fake kernel: address, default route and vmxnet3 driver back
+  ok   no network manager needed; rollback verified healthy
+== 20. plugins: enabled but not loaded → rollback; D-084 omission (dropped from the document) → commits
+  ok   exit 1, reason: npt66 not loaded
+  ok   exit 0, committed without npt66
+== 24. SSH session dies mid-apply (the run is a systemd-run unit with a clean environment) → the run still commits
+deploy/vpp/test-apply-startup.sh: line 72: 153412 Killed                     setsid bash -c '"$0" --doc "$1" --apply "${@:2}"; sleep 60' "$SCRIPT" "$DOCF" "${TIMING[@]}" "${APPROVE[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/caller.out" 2>&1
+  ok   session killed after install, before commit
+  ok   detached run committed anyway
+  ok   unit started with every setting as --setenv
+  ok   the unit saw exactly the recorded settings under env -i
+== 28. dead-man: no-op after commit; one rollback when the run died before finishing (holder gone → takes the locks itself)
+  ok   committed run: dead-man does nothing
+  ok   exactly one rollback, locks taken exclusively first, released after (exit 1)
+== 32. V1: a dead run's armed dead-man never reverts a newer apply — the planner refuses while an apply is unfinished; a superseded dead-man changes nothing
+deploy/vpp/test-apply-startup.sh: line 72: 161645 Killed                     apply > "$T/run1.out" 2>&1
+  ok   run 1 died after installing; its holder is gone; its dead-man is still armed
+    state: rc=3 finished=[] vpp=active locks-free=y timer-cancelled=n live==new=y live==orig=n
+  ok   a new apply is refused while run 1 is unfinished (exit 3; dir and timer named), nothing changed
+  ok   TD-7 F1: the refusal points at the safe command, the dead-man's own unit (systemctl start <unit>.service), not a second rollback by hand
+  ok   run 1's dead-man makes its one rollback (exit 1): original file back
+  ok   then the new apply commits (exit 0) and is recorded as the current one
+    state: rc=1 finished=[superseded] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=n
+  ok   late dead-man of run 1: superseded, the newer committed file stays (exit 1)
+  ok   VPP neither stopped nor restarted by it, locks released
+== 36. V4: VPP crashes and systemd restarts it BEFORE the first `systemctl show` → NRestarts=1 in the baseline → rollback
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+    unit.restart: ActiveEnterTimestampMonotonic=78009 MainPID=1051 NRestarts=1 
+  ok   exit 1, the auto-restarted instance is not accepted
+== 40. V8: neigh probe — a link-local IPv6 default gateway is nudged with its scope; a hanging `ip neigh` is bounded by time
+      will use: neigh (passes now); manager session: no peer known
+  ok   dual stack, gateway fe80::1: nudged as fe80::1%ens192, neigh viable (exit 0)
+    elapsed 7s at load 2.56, 1 `ip neigh` read(s):   NONE VIABLE — --apply will refuse: no viable management reachability check on this host: next hop 10.0.0.1 on ens192
+  ok   ip neigh hangs (cmd-timeout 3s): refused (exit 3)
+  ok   the poll is bounded by time, not by count: 1 hanging `ip neigh` read(s) of 3 s within the 3 s deadline (pre-V8: 2 × cmd-timeout = 6 reads) — independent of the host load
+== 44. TD-17 product mode: installed binaries (NGFW_LIB_BIN), appliance approval bound to the rendering's sha256, no docs/lab or PENDING read; lab-only flags refused
+  ok   --approve-rendering in lab mode refused (exit 2)
+  ok   --i-have-product-owner-approval in product mode refused (exit 2)
+  ok   unknown --mode refused (exit 2)
+  ok   product mode looks for the installed binaries under NGFW_LIB_BIN (exit 2)
+  ok   dry run without approval: exit 3, appliance gate shown, no handover gate
+  ok   dry run with the approval: exit 0, nothing changed
+  ok   approval of another sum: exit 3, no work dir
+  ok   product apply with the approval commits (exit 0); gate recorded
+  ok   mode and installed binary paths recorded and pinned in the work dir
+  ok   dead-man armed (in product mode) and cancelled after the commit; locks released; one VPP restart
+  ok   product mode: the dead-man cannot be armed → refused (exit 3), VPP not restarted
+
+apply-startup tests: 61 passed, 0 failed

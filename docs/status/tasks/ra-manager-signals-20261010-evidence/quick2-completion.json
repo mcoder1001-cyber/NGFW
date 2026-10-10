@@ -1,0 +1,9 @@
+{
+  "exit_code": 0,
+  "gate": "CI GATE PASSED",
+  "wall_time": "35m45s",
+  "frozen_compilation_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+  "complete_receipt": "quick2.txt",
+  "agent_race_receipt": "quick2-agent.txt",
+  "integration_mode": "unit; live test-module integrations remain default skipped; no full RA acceptance claimed"
+}

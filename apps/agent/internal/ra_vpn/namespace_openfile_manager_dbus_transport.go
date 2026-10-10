@@ -24,6 +24,7 @@ type managerDBusTransport struct {
 	authStage uint8
 	written   int
 	read      int
+	signals   int
 	buffer    []byte
 	pending   map[uint32]bool
 }
@@ -141,31 +142,49 @@ func (t *managerDBusTransport) Read(dst []byte) (int, error) {
 			}
 			t.buffer = line
 		} else {
-			var header [16]byte
-			if err := t.rawRead(header[:]); err != nil {
-				return 0, err
+			for len(t.buffer) == 0 {
+				var header [16]byte
+				if err := t.rawRead(header[:]); err != nil {
+					return 0, err
+				}
+				isSignal := header[1] == 4
+				size, _, ok := managerDBusFrameSize(header[:])
+				if isSignal {
+					size, ok = managerDBusSignalFrameSize(header[:])
+				}
+				if !ok || size-16 > managerDBusLimit-t.read {
+					return 0, ErrBoundary
+				}
+				frame := make([]byte, size)
+				copy(frame, header[:])
+				if err := t.rawRead(frame[16:]); err != nil {
+					return 0, err
+				}
+				if isSignal {
+					if err := validateManagerDBusSignalFrame(frame); err != nil {
+						return 0, err
+					}
+					t.signals++
+					if t.signals > 1024 {
+						return 0, ErrBoundary
+					}
+					// Authenticated broadcasts consume the same original read budget
+					// but never enter godbus or consume a pending property serial.
+					continue
+				}
+				reply, err := validateManagerDBusFrame(frame)
+				if err != nil {
+					return 0, err
+				}
+				t.mu.Lock()
+				valid := t.pending[reply]
+				delete(t.pending, reply)
+				t.mu.Unlock()
+				if !valid {
+					return 0, ErrBoundary
+				}
+				t.buffer = frame
 			}
-			size, _, ok := managerDBusFrameSize(header[:])
-			if !ok || size-16 > managerDBusLimit-t.read {
-				return 0, ErrBoundary
-			}
-			frame := make([]byte, size)
-			copy(frame, header[:])
-			if err := t.rawRead(frame[16:]); err != nil {
-				return 0, err
-			}
-			reply, err := validateManagerDBusFrame(frame)
-			if err != nil {
-				return 0, err
-			}
-			t.mu.Lock()
-			valid := t.pending[reply]
-			delete(t.pending, reply)
-			t.mu.Unlock()
-			if !valid {
-				return 0, ErrBoundary
-			}
-			t.buffer = frame
 		}
 	}
 	n := copy(dst, t.buffer)

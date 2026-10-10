@@ -100,11 +100,20 @@ def main():
  assert result['revision1']['data']['id']==1 and result['revision1']['data']['kind']=='system' and result['revision1']['data']['payload']==SEED_DOCUMENT
  assert any(e.get('code')=='system.seed-defaults' for e in result['events']['data']['items']) and result['system']['data']['agent']['reachable'] is True and result['system']['data']['sync']['state']=='in-sync'
  expected=RECORD['manifest']['data_nics'];rows={n:q for n,q in DOCUMENT['interfaces'].items() if q.get('physical')};assert set(rows)==set(expected)
- items=result['interfaces']['data']['items'];mapped={q['name']:q for q in items};result['interface_acceptance']={}
+ deadline=time.monotonic()+45;result['admin_convergence_observations']=[]
+ while True:
+  items=result['interfaces']['data']['items'];mapped={q['name']:q for q in items}
+  ready=all(n in mapped and isinstance(mapped[n].get('state'),dict) and mapped[n]['state'].get('adminUp')==rows[n]['enabled'] for n in expected)
+  result['admin_convergence_observations'].append({'ready':ready,'adminUp':{n:mapped.get(n,{}).get('state',{}).get('adminUp') if isinstance(mapped.get(n,{}).get('state'),dict) else None for n in expected}})
+  if ready:break
+  assert time.monotonic()<deadline,'native physical admin state did not converge';time.sleep(1);result['interfaces']=request('/api/v1/state/interfaces',token=token);assert result['interfaces']['status']==200
+ result['interface_acceptance']={}
  for name,d in expected.items():
   row=rows[name];p=row['physical'];assert p['pci']==d['PCI'] and p['owner']=='dataplane' and p['builtIn'] is True
-  q=mapped[name];assert q['state'] is not None and q['state']['vppName']==name and q.get('awaitingDataplane') is False and q.get('inventoryOnly') is False and q.get('hasPendingChange') is False and q['physical']['pci']==d['PCI'] and q['builtIn'] is True
+  q=mapped[name];assert q['state'] is not None and q['state']['adminUp']==row['enabled'] and q['state']['vppName']==name and q.get('awaitingDataplane') is False and q.get('inventoryOnly') is False and q.get('hasPendingChange') is False and q['physical']['pci']==d['PCI'] and q['builtIn'] is True
   result['interface_acceptance'][name]={'PCI':d['PCI'],'state':q['state'],'link_and_counters_recorded_no_packet_throughput_claim':True}
+ result['VPP_interface_admin']=checked(['vppctl','show','interface']);vpp_admin={n:st for n,st in re.findall(r'^\s*(\S+)\s+\d+\s+(up|down)\s+',result['VPP_interface_admin'],re.M)}
+ assert all(vpp_admin.get(n)==('up' if rows[n]['enabled'] else 'down') for n in expected);result['physical_admin_converged']=True
  result['plugins']=checked(['vppctl','show','plugins']);assert all(re.search(r'\b'+re.escape(n)+r'\b',result['plugins']) for n in ['linux_cp_plugin.so','linux_nl_plugin.so','npt66_plugin.so'])
  result['buffers']=checked(['vppctl','show','buffers']);pools=re.findall(r'^\s*default-numa-0\s+\d+\s+0\s+\d+\s+\d+\s+(\d+)\s+',result['buffers'],re.M);assert len(pools)==1 and int(pools[0])>=7168;result['actual_pool_total']=int(pools[0]);total_rx=0;result['hardware']={}
  for name,d in expected.items():

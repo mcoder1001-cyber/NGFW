@@ -306,3 +306,16 @@ finite undo path/budget/preflight. Current live role reviewer running this
 independent read-only follow-up; .211 operator in RAM, .37 original SSH held.
 No correction/return/acceptance claim. Last own verified remotee47affb55 above.
 Next: read those two actual private receipts, review exact first repair prompt.
+
+10:04 targeted correction APPROVE under parent's conditional release after a
+refreshed full offline audit/finalguard0 and publication. Actual five4096B/0600
+offhost blocks859d8ac2 verified against source, all alreadyzero; source preservation
+limits explicit. SMART775c15->18 occurs before rawcapture, posthealth7fde18stable
+and exact2281-line kernel equality. Final actual1GiB undo preflight18059dfd
+cap/write+sync+unlink/path/RAM/capacity/guard PASS; supersedes earlier4GiB cap that
+exceeded newly observed offhostfree. Exact wrapper61e40215/driver0186e5ab inspected,
+Bash syntax0/ASTPASS. Individually known journal clears/accounting and cache/config
+salvage/checksum approved, newobjects held. Worker/root informed actual phase
+verdict; completion/clean-check/return still pending. Last own verified remote
+40315bab82301a7a686fe8b7ac4147361ac5438a. Next read refreshed audit and private
+repair transcript's first prompts, then actual undo/offhost/clean-check receipts.

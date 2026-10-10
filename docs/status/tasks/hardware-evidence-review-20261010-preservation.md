@@ -1,9 +1,10 @@
 # Independent .211 preservation and targeted correction review
 
-09:54UTC checkpoint: **native metadata preservation PASS within its stated
-scope**. Corrective writes are still pending a separate verdict on the five
-external-block supplement and actual undo preparation. Reviewer performed no
-target operation and printed no backup payload.
+10:04UTC verdict: **APPROVE the targeted interactive correction phase** after
+the parent's required refreshed full offline audit/final exclusive guard0 and
+publication. Actual preservation and finite undo preparation passed as recorded
+below. Correction completion, clean verification and return remain pending.
+Reviewer performed no target operation and printed no backup payload.
 
 The failed QCOW capture exited1 on corrupt extent inode259596 and retained0B;
 it is not preservation. The plain native fallback is source-supported:
@@ -66,7 +67,8 @@ SHA2563256798046a2f81d1b06b3a1b5e93837c7da35a1bcc472dcc095c8330f6a1ea2.
 Seven missing/extra/invalid/out-of-range/nonallowlisted argument checks all refused2
 with empty stdout/stderr, before device open. No valid-block device call was
 executed by the reviewer; owned temporary compile resources were cleaned.
-Actual target capture/offhost verification is pending this checkpoint.
+Actual target capture/offhost verification follows below; the source approval
+and its earlier pending state remain distinct.
 
 The narrow missing-path-only debugfs/libss RAM runtime actually passed loader
 resolution and LD_BIND_NOW=1 version checking; both member hashes match the
@@ -103,7 +105,83 @@ does not roll back previously accepted repairs. Preserve actual undo/transcript
 offhost before any normal return. Stop on unexpected user data, failed reads,
 reset/media errors, undo failure/capacity threshold or loss of management.
 
-Next exact reviewer action: read the operator's private external-block transfer
-and undo preflight receipts, then issue a phase-specific APPROVE/BLOCK. Normal
-return, .37 transition, package installation and hardware acceptance remain
-separate and pending.
+## Actual supplemental preservation, health and finite undo
+
+Independently hashed/parsed additional private0600 receipts:
+
+| Receipt | Bytes | SHA256 |
+| --- | --- | --- |
+| raw-metadata-capture-command.json | 969 | 61d90dce1bf58d9b4f72569995850bc1363b18e5c64386211ab3552c3f545a5c |
+| raw-metadata-supplement.json | 2141 | 859d8ac2a83a4f12dfc47cd9ece75e449ca59633483ce70ceef1106944713b0f |
+| post-image-health.json | 267681 | 775c972f99530617214f1c91996aa95679ad609302c7b1a5ca061ba70926b80e |
+| post-supplement-health.json | 230138 | 7fde03b91343c41f11c88b1cbc892b24f74cb5fd07a3198d863713336b33a803 |
+| undo-preflight.json, superseded4GiB preparation | 526 | d76eb281b969848b710cfc56fede22318f43f590975b28cdcf5bec8157fae242 |
+| undo-preflight-1g.json, final preparation | 692 | 18059dfd050ab8bfe15fd1f8f3e243beeb0197bd31cabf5f35d941fbd654cefe |
+
+Capture helper digest/guard/command all passed. All five persistent controller
+raw-metadata-block-<number>.bin files are4096B/0600, independently hashed against
+their RAM source digests:
+SHA256ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+All five are already zeroed. The saved originals therefore explain the damaged
+headers/directories; they do not contain recoverable intact original structures.
+No block payload was printed.
+
+Post-image health shows exact SMART query15->18 before the raw-capture timestamp.
+Media attributes5/179/181/182/183/187 remain0, CRC199 remains1003, SMART exit0.
+Post-supplement counter remains18. Reviewer extracted kernel snapshot lines and
+compared all2281 lines against the native-image baseline: exact equality True.
+The increased query-associated counter is not misrepresented as raw-read failure
+or as a blanket exemption for later storage errors.
+
+Final repair-wrapper.sh source
+SHA25661e40215461de05f5a4c3db4d20e54b122551d3af53fe1e136b5abd15fe89422
+refuses an existing undo/probe path, requires private700 RAM device46, establishes
+LC_ALL=C/umask077, checks space and uses explicit fixes_only,nodiscard/-z options.
+Actual final preflight establishes:
+
+```text
+exit0, stderr0
+RLIMIT_FSIZE hard=soft1073741824bytes, inherited through exec
+owned1MiB write + sync +0600 check + unlink: PASS
+undo absent; parent RAM46/700/uid0/gid0
+RAM8254240KiB available
+controller actual root free2707152896B, exceeds1GiB+512MiB reserve
+exact static guard: exclusive exit0
+```
+
+The earlier4GiB preflight passed in RAM but exceeded the newly observed controller
+offhost free space; it was superseded before any repair. The final1GiB cap fits
+both actual locations. Controller PTY driver fsck-session.py
+SHA2560186e5abf5862bb6f3d7689d8aa2c6fc11d40412a3e39a0aa358588fd03df752
+checks private path/capacity, refuses an existing transcript, fsyncs received bytes,
+and sends only individually provided y/n or interrupt. It prints prompt markers
+instead of the full private transcript and has no automatic answers. Independent
+Bash syntax check exited0/empty; driver AST parsed successfully. Reviewer did not
+execute either repair entry point.
+
+## Scoped write verdict
+
+APPROVE under the parent's already issued conditional release, after refreshed
+complete offline audit and final exclusive guard0: run the exact reviewed wrapper
+interactively and individually accept known journal259596/259597/259598 invalid
+extent clears and consequent accounting fixes; known cache259599/config259602
+directory salvage/checksum fixes. Matching
+[pass1 implementation](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass1.c)
+deletes the invalid extent reference and updates its parents; this can lose that
+branch's journal data. Matching
+[directory salvage](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass2.c)
+can remove remaining malformed entries, including the entire remainder at offset0.
+The operator must retain each exact prompt/answer in the private transcript.
+
+Unexpected objects, newly exposed user-data changes, or unrelated optimization
+remain held for concrete classification. No -y/-p/-D, all/default answers or
+automatic prompt acceptance. Stop actual read/reset/media/CRC changes, undo
+failure/capacity threshold or management failure. A size-bound abort does not
+roll back already accepted changes. Preserve undo/transcript offhost with actual
+size/hash verification before normal return; repeat offline read-only fsck until
+the complete check is clean and review boot/auth/network integrity separately.
+This verdict is not completed repair, return approval, .37 transition approval,
+package installation or hardware acceptance.
+
+Next exact reviewer action: inspect the refreshed offline audit and private first
+repair prompts/answers, then actual completed undo/clean-check evidence.

@@ -282,7 +282,15 @@ c.close()
 EOF
   ip netns exec "$NS_WAN" python3 "$srv" "$SERVER6" "$PORT" > "$RUN/server6.txt" 2>&1 9>&- & PIDS+=("$!")
   ip netns exec "$NS_WAN" tcpdump -lni "$WAN_PEER" -c 6 "ip6 and tcp port $PORT" > "$RUN/tcpdump6.txt" 2>&1 9>&- & local td=$!; PIDS+=("$td")
-  sleep 1
+  # Wait for capture readiness: a fixed sleep can miss all packets when the
+  # shared host is busy loading tcpdump. An early exit must fail explicitly.
+  local capture_ready=0
+  for i in $(seq 1 120); do
+    if grep -q 'listening on' "$RUN/tcpdump6.txt"; then capture_ready=1; break; fi
+    kill -0 "$td" 2>/dev/null || die "IPv6 capture exited before readiness: $(cat "$RUN/tcpdump6.txt")"
+    sleep 0.25
+  done
+  [[ "$capture_ready" == 1 ]] || die "IPv6 capture did not become ready within 30 seconds"
   local rx0 tx0
   rx0=$(V show interface "$LAN_IF" | awk '/rx packets/ {print $NF}' | head -1); tx0=$(V show interface "$WAN_IF" | awk '/tx packets/ {print $NF}' | head -1)
   say "ping $SVC4 from $NS_LAN (ICMP → ICMPv6 → ICMP):"

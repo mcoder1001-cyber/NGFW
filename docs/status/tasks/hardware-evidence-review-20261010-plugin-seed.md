@@ -201,4 +201,32 @@ actual passed native after-observer receipt. It requires real seeded17 rows,
 loaded3plugins and protected kernel management, then canonical render/product
 dryrun without apply. Its modprobe invocation is dry-run only; no module or driver
 mutation. Failed native seed cannot satisfy that prerequisite. Finite rollback
-source93bff522 received but still under review, not execution-ready.
+source93bff522 now has the preparation-only approval below, not execution readiness.
+
+## Finite recovery source review — 13:17 UTC
+
+APPROVE manager-only finite rollback source
+93bff522c2dba173c39ac64631b2dbd74e01b986cfe5778986ade1b27cc0cbdf and its contract
+published af289e547948e882a58d829f775f14dc3077cd60. Independent AST PASS and full
+source read; default validation is not target execution. All17 original/current
+driver scopes validate before writes; protected04/group28 excluded; API/agent/VPP
+must be inactive; nonblocking canonical VPP then lab locks prevent racing native
+apply. Exact735B367e original startup and exactly3 unchanged owned files only;
+per-device override/unbind/probe, recorded driver/name/master/up-down, repeated
+protected L3/TCP22, no global IDs/driverctl/service start. Immutable actual
+manifest/offhost copy/combined manager consumer and terminal native transaction
+remain pending. Any actual partial restoration or regenerated data link-local
+state must be classified, never broadly cleared. No binding/rollback was executed.
+
+APPROVE narrow known-empty-cache source
+4a5d13130963c24ed54e164e8d6304d08347a63f153a67f5f251ce9de9373717 after the actual
+fixed-agent attestation/hash is available and installed. Full read/AST PASS;
+published operational3acf03df0a9abf9168e9f0256497064c8f0fc861 source bytes match that
+digest. Exact observed2-byte empty cache/root:GID107/0600/nlink1 only, O_EXCL
+original backup and fsync, atomic owner-only replacement retaining UID/GID/mode;
+same boot/VPP33868/stopped API-agent/live367e/protected management and wholeL3;
+no service start. Product default Owner=ngfw and unit/default state directory
+/var/lib/ngfw/agent confirmed, so absent env assignments retain these defaults.
+Retain original metadata/private backup-directory identity with the digest in
+actual receipt. Fixed artifact/cache mutation/seed outcome are still pending;
+source approval does not claim any of those actions occurred.

@@ -1,3 +1,41 @@
+# Actual .211 RAM transition and offline proof — 2026-10-10
+
+Ordinary soft-reboot into RAM actually completed, original command exit0; held
+PTY71683/shell6459 survived. PID1 root is tmpfs dev46 and executable matching
+systemd. First fresh2222 auth exit255 hit the actual missing /run/sshd startup
+window; retained privately, not erased/reclassified as initial PASS. No manual
+mkdir/service restart/network change was required. After the reviewed helper
+completed, fresh SSH exit0/empty stderr, helper active/exited Resultsuccess/status0,
+directory0:0/0755; private receipt8d8935aab15f80eadaf75926fae80bde34d6e7de24d63abb9807f4495d8142f7.
+R7 independently verified that actual runtime receipt. Audit sources/review are
+published workerf5018b5710dcc78a602e478c19565f81d441c83b and reviewerbc7b67d9;
+helper nsfs mountinfo remains root-filtered reference inspection, supplemented by
+the independent kernel exclusive-open proof, not claimed unfiltered enumeration.
+
+Actual complete offline audit PASS, private25017B/SSH0/empty stderr,
+SHA b74d8312d66acfcf7483a83a05cada8da896a5ed9ccd99e73a720b5c27cf61d6:
+267processes/93FDs/nsfs0/races0/failures0; exact static guard final exit0 after
+all inspection children exited. PID1 executor fd9 is RAM dev46; sysfs actually
+mounted, all six network snapshot sections match pretransition. Only exact owned
+nextroot symlink removed after confirmed RAM PID1. These are actual worker results,
+R7 full receipt review proceeds independently. No corrective fsck/normal reboot.
+Worker now executes released read-only e2fsck -f -n and measured metadata capture;
+private offhost persistent copy/hash/capacity and actual read health precede writes.
+.37 remains on original management SSH plus heldRAMPTY30565; transition not released.
+
+Root latest own public readback211df32c183cfbe144190fa3f9afc1f919a90375;
+this coherent checkpoint is immediately published. Own docs guard/check actual
+tools/ci.sh check --base origin/main exit0, check PASSED(0m23s); no new broad quick.
+.37 independent install preparation published55e62fd3:11archives verified,72 direct
+dependency terms satisfied by supplied versions/41 cached candidates; not transitive
+offline closure. Hugepages0, explicit API seed opt-in and controlled service/mask/
+firewall sequence are concrete postrepair steps. No package activation yet.
+Exact next command: exclusive .211 worker's released e2fsck -f -n /dev/sda2, then
+seekable private e2image -Q and offhost verified preservation; root/R7 review actual
+correction prompts, undo budget and clean return evidence before later releases.
+
+Earlier phase release/preparations below remain history.
+
 # Current .211 phase release — 2026-10-10 disk recovery
 
 Manager branch codex/hardware-manager-20261010, owned task docs/static guard and

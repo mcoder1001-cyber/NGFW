@@ -3,8 +3,8 @@
 بسته‌های اصلاح‌شده آماده‌اند؛ CI کامل قبل و بعد از ادغام PR217 موفق شد.
 مالک تعمیر را با پذیرش فرسودگی SSD ماشین172.30.126.37 تأیید کرد.
 محیط تعمیر و SSH اضطراری در RAM هر دو دستگاه آماده و آزمایش شده است.
-مدیریت و روتینگ برقرار است؛ مرحله انتقال و تشخیص آفلاین .211 آزاد شده است.
-هنوز تعمیر فایل‌سیستم یا نصب بسته‌ها اجرا نشده؛ ابتدا .211 و سپس .37 انجام می‌شود.
+مدیریت و روتینگ .211 حفظ شد؛ انتقال به RAM و آزاد بودن کامل پارتیشن تأیید شد.
+تشخیص آفلاین و پشتیبان ساختاری شروع شده؛ هنوز اصلاح فایل‌سیستم یا نصب اجرا نشده است.
 
 Fresh main4908716b unchanged; no openPR; main quick38035583209 and both fixtures SUCCESS.
 Board212:205merged,7parked,0running/ready/review; no invented hardware WBS row.
@@ -17,10 +17,10 @@ Both bounded256MiB aligned direct reads PASS with stable sample counters/no new 
 .211 historicalCRC1003 and query-associated+3 SCSI counter are preserved, not a health certification.
 .37 endurance126%/two remaps persist physically; owner explicitly accepts wear for logical repair.
 Protected .37enp12s0/.211enp4s0 addresses/routes unchanged; original22 and RAM2222 authenticated.
-.211 heldRAMPTY71683; .37heldRAMPTY30565; no nextroot transition execution claimed yet.
-Conditional .211 release: final RAM-only audit helper validation/publication, then ordinary
-soft-reboot; require actual RAM PID1/auth/network and all-reference/exclusive offline proof
-before e2fsck-n/metadata image. No corrective fsck or normal return released yet.
+.211 ordinary RAM transition/heldPTY71683/fresh2222 auth PASS; .37heldRAMPTY30565/original22 retained.
+Actual .211 audit267processes/93FDs/nsfs0/races0/failures0/finalexclusive guard0; executor RAM,
+all six network sections match. Initial fresh-auth startup gap preserved; helper naturally completed.
+Released read-only e2fsck-n/metadata capture underway. No corrective fsck or normal return released yet.
 Scoped private auth/network/boot backups verified; full userdata image absent; metadata/undo pending.
 Controller privileged free7.3GB/write-fsync PASS; private backup RAM1.9GB, actual image size pending.
 Package hashes/dependencies independently prepared; hugepages0 and explicit NIC-seed opt-in need controlled setup.

@@ -1,0 +1,9 @@
+# RA manager signal repair WIP
+
+Branch codex/ra-manager-signals-20261010, worktree /root/ngfw-wt/ra-manager-signals-20261010, source base ded860762c81e72fb9f760caec4bd98898c8b6a4. Local/remote first checkpoint publication follows this contract commit. Owned files listed in envelope. No product code changed yet.
+
+Read-only source finding: managerDBusFrameSize rejects type4 signals, and transport Read returns ErrBoundary, killing property readback. Actual guest5 systemd259.5 official source https://github.com/systemd/systemd/blob/v259.5/src/core/dbus.c#L1017 sends broadcasts to every ready private/direct peer without requiring Subscribe; dbus-unit.c#L1721 routes unit broadcasts through that function. Historical unmerged0cb864bf1 is precedent only, not imported. Full guest5 failure cause remains unproven.
+
+Actual protected PID1 read-only probe: five separate <=2s connections, SO_PEERCRED(1,0,0), EXTERNAL UID0, fixed Properties.Get Manager.Version only; no Subscribe/Hello/LoadUnit/start/reload. Four returned40 valid reply frames each, one timed out during authentication/read at2.003s with zero frames. No type4 observed during this quiet window; PID1 start identity unchanged. Raw header/count-only script and JSON retained, no reply bodies/secrets. Coordinate next already-authorized WAN private-unit lifecycle for a new bounded observation, with no extra unit operations for the probe.
+
+Remaining code: strict signal header whitelist and separate bounded discard, meaningful boundary/race regression, independent source review, actual property-query or canonical guest consumption proof, unchanged whole mandatory quick at current integration source. Exact next command: implement pure signal wire validation plus tests, send concrete contract/helper diff to manager before modifying transport consumer. Routing218 remains ready unchanged at13ad83af6; no new RA Done or operational claim.

@@ -175,13 +175,13 @@ host_hostname=os.uname().nodename
 host_uts=os.readlink('/proc/self/ns/uts')
 print('ROOT_HOST_IDENTITY_BEFORE '+json.dumps({'uts':host_uts,'hostname':host_hostname,'public_file_sha256':host_identity}),flush=True)
 try:
- if os.environ.get('NGFW_WAN_FULL_API')=='1':
-  for parent in CARRIER_ROOT.parents:
-   info=parent.lstat();assert parent.is_dir() and not parent.is_symlink() and info.st_uid==0 and info.st_mode&0o022==0
-  assert not os.path.lexists(CARRIER_ROOT),'refuse existing carrier render token'
-  CARRIER_ROOT.mkdir(mode=0o700)
-  info=CARRIER_ROOT.stat();carrier_root_identity=[info.st_dev,info.st_ino]
-  os.environ['NGFW_WAN_CARRIER_ROOT_IDENTITY']=json.dumps(carrier_root_identity)
+ # Both native and full API consumers render only into this originally-absent owned token.
+ for parent in CARRIER_ROOT.parents:
+  info=parent.lstat();assert parent.is_dir() and not parent.is_symlink() and info.st_uid==0 and info.st_mode&0o022==0
+ assert not os.path.lexists(CARRIER_ROOT),'refuse existing carrier render token'
+ CARRIER_ROOT.mkdir(mode=0o700)
+ info=CARRIER_ROOT.stat();carrier_root_identity=[info.st_dev,info.st_ino]
+ os.environ['NGFW_WAN_CARRIER_ROOT_IDENTITY']=json.dumps(carrier_root_identity)
  for dest,source in assets.items():
   dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,dest);dest.chmod(0o644 if dest.suffix=='.service' else 0o755);hashes[dest]=hashlib.sha256(dest.read_bytes()).hexdigest();print('TEMP_ORIGINAL_ASSET '+str(dest)+' sha256='+hashes[dest],flush=True)
  run('systemctl','daemon-reload')

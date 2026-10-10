@@ -1,0 +1,7 @@
+Observed by read-only exec while OSPF attempt3 owned runtime alive; source .scratch/isolated-vpp-3649170/test-run/w6/frr/run/w6/mgmtd.launch.log. Later copy raced registered cleanup; this is exact terminal output, not byte-copy provenance.
+
+Unable to set log file: /run/ngfw-test/w6/frr/run/w6/mgmtd.log
+2026/10/10 09:22:36 MGMTD: [NFX3B-68SEX] FD Limit set: 524288 is too large.  Is this intentional?  Consider using --limit-fds. Limiting size to 100000
+2026/10/10 09:22:36 MGMTD: [TQDCA-479TZ][EC 100663303] Could not write pid 3652480 to pid_file /run/ngfw-test/w6/frr/run/w6/mgmtd.pid, rc was -1: No space left on device
+
+PID file and daemon log existed size0. Vty/frontend/backend sockets existed. Daemon PID absent after launch. df /: 197G size190G used, Avail0. df-i /:12954864 total9047560 used3907304free70%. Root reserved blocks allowed root harness writes, while dropped-privilege frr could not write.

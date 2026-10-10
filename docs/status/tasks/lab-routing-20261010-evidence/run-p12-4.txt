@@ -1,0 +1,473 @@
+P12_SLOT14_EXCLUSIVE=ACQUIRED
+P12_SHARED_BEFORE=["MainPID=1014\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 onlink \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.195 \n192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 linkdown \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]
+P12_OUTER_LINK_INVENTORY=[{"addr_info": [{"family": "inet", "label": "lo", "local": "127.0.0.1", "preferred_life_time": 4294967295, "prefixlen": 8, "scope": "host", "valid_life_time": 4294967295}, {"family": "inet6", "local": "::1", "preferred_life_time": 4294967295, "prefixlen": 128, "protocol": "kernel_lo", "scope": "host", "valid_life_time": 4294967295}], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "00:00:00:00:00:00", "flags": ["LOOPBACK", "UP", "LOWER_UP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 1, "ifname": "lo", "link_type": "loopback", "max_mtu": 0, "min_mtu": 0, "mtu": 65536, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "UNKNOWN", "promiscuity": 0, "qdisc": "noqueue", "tso_max_segs": 65535, "tso_max_size": 524280, "txqlen": 1000}, {"addr_info": [], "address": "::", "allmulti": 0, "broadcast": "::", "flags": ["NOARP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 2, "ifname": "ip6tnl0", "link": null, "link_type": "tunnel6", "linkinfo": {"info_data": {"encap_limit": 0, "flowlabel": "0x00000", "local": "any", "proto": "ip6ip6", "remote": "any", "tclass": "0x00", "ttl": 0}, "info_kind": "ip6tnl"}, "max_mtu": 65535, "min_mtu": 68, "mtu": 1452, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "permaddr": "e3a:2601:132::", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}, {"addr_info": [], "address": "0.0.0.0", "allmulti": 0, "broadcast": "0.0.0.0", "flags": ["NOARP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 3, "ifname": "gre0", "link": null, "link_type": "gre", "linkinfo": {"info_data": {"local": "any", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "gre"}, "max_mtu": 0, "min_mtu": 0, "mtu": 1476, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}, {"addr_info": [], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "ff:ff:ff:ff:ff:ff", "flags": ["BROADCAST", "MULTICAST"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 4, "ifname": "gretap0", "link": null, "link_type": "ether", "linkinfo": {"info_data": {"local": "any", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "gretap"}, "max_mtu": 0, "min_mtu": 68, "mtu": 1462, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}, {"addr_info": [], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "ff:ff:ff:ff:ff:ff", "flags": ["BROADCAST", "MULTICAST"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 5, "ifname": "erspan0", "link": null, "link_type": "ether", "linkinfo": {"info_data": {"erspan_index": 0, "erspan_ver": 1, "local": "any", "okey": "0.0.0.0", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "erspan"}, "max_mtu": 0, "min_mtu": 68, "mtu": 1450, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}]
+P12_PRIVATE_NETNS=net:[4026532616]
+DISPOSABLE_VPP pid=3685496 runtime=/root/ngfw-wt/lab-routing-20261010/.scratch/isolated-vpp-3685493
+P12_PRIVATE_VPP={"pid": "3685496", "starttime": "60547826", "netns": "net:[4026532616]"}
+P12_PRIVATE_API=/root/ngfw-wt/lab-routing-20261010/.scratch/isolated-vpp-3685493/api.sock
+=== RUN   TestP12TopologyOnHost
+    p12_topology_integration_test.go:626: P12 private root verified: host=net:[4026531833] current=net:[4026532616] owned API=/root/ngfw-wt/lab-routing-20261010/.scratch/isolated-vpp-3685493/api.sock
+    p12_topology_integration_test.go:634: systemctl show vpp -p NRestarts (before) = 0
+2026/10/10 09:29:06 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    p12_topology_integration_test.go:654: NGFW_P12_FIB=root preconditions: VPP /run/vpp/api.sock, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    p12_topology_integration_test.go:659: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    p12_topology_integration_test.go:664: rig up w14 (slot 14, path af_packet, VPP /run/vpp/cli.sock)
+          create netns ns-w14-lan
+          create veth w14l0 <-> ns-w14-lan:w14l1
+          create vpp host-w14l0 (af_packet on w14l0)
+          reset  ip/ip6 classify host-w14l0 (table-index ~0)
+          set    addr host-w14l0 10.14.1.1/24
+          create netns ns-w14-wan
+          create veth w14w0 <-> ns-w14-wan:w14w1
+          create vpp host-w14w0 (af_packet on w14w0)
+          reset  ip/ip6 classify host-w14w0 (table-index ~0)
+          set    addr host-w14w0 10.14.2.1/24
+        rig: up
+        prefix: w14
+        slot: 14
+        path: af_packet
+        lan_ns: ns-w14-lan
+        lan_veth: w14l1
+        lan_ip: 10.14.1.2/24
+        lan_gw: 10.14.1.1
+        vpp_lan_if: host-w14l0
+        vpp_lan_addr: 10.14.1.1/24 
+        wan_ns: ns-w14-wan
+        wan_veth: w14w1
+        wan_ip: 10.14.2.2/24
+        wan_gw: 10.14.2.1
+        vpp_wan_if: host-w14w0
+        vpp_wan_addr: 10.14.2.1/24 
+        ping: ip netns exec ns-w14-lan ping -c 3 10.14.2.2
+        
+    p12_topology_integration_test.go:670: rig VPP side handed to the agent: af_packet_delete w14l0 (veth down)
+    p12_topology_integration_test.go:670: rig VPP side handed to the agent: af_packet_delete w14w0 (veth down)
+    p12_topology_integration_test.go:675: rootFRR: [mgmtd zebra staticd bgpd] started in the root netns, pathspace w14, base /run/ngfw-test/w14/frr, pids map[bgpd:3687457 mgmtd:3687391 staticd:3687437 zebra:3687407]
+2026/10/10 09:29:33 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w14 component=subsystems
+2026/10/10 09:29:33 INFO PKI file materialiser wired owner=w14 component=subsystems root=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/pki-w14 source=true
+2026/10/10 09:29:33 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w14 component=subsystems
+2026/10/10 09:29:33 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w14 component=subsystems
+2026/10/10 09:29:33 INFO fqdn state reloaded owner=w14 component=subsystems family=objects file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/objects-fqdn-w14.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/10 09:29:33 INFO objects domain wired owner=w14 component=subsystems store=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/objects-w14.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/10 09:29:33 INFO acl domain wired owner=w14 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/10 09:29:33 INFO host firewall wired owner=w14 component=subsystems table="inet ngfw_w14" mode=check netns="" rules_file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/host-acl-w14.nft
+2026/10/10 09:29:33 INFO kea wired owner=w14 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/10 09:29:33 INFO host services wired owner=w14 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/unbound/unbound.conf chrony_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/10 09:29:33 INFO system identity wired owner=w14 component=subsystems product_paths=false hostname_file=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/sysident/etc/hostname
+2026/10/10 09:29:33 INFO pppoe client wired owner=w14 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/10 09:29:33 INFO subsystems wired owner=w14 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state: claims-iface-w14.json, boot-w14.json; globals owner false" vpp_ids=14000-14999
+2026/10/10 09:29:33 INFO ngfw-agent listening owner=w14 socket=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/agent.sock metrics=off state_dir=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state vpp_api=/run/vpp/api.sock
+2026/10/10 09:29:33 INFO VPP binary API connected owner=w14 component=vpp socket=/run/vpp/api.sock
+2026/10/10 09:29:33 WARN remote-access initialization unavailable owner=w14 component=subsystems reason=engine-not-ready
+2026/10/10 09:29:33 INFO VPP boot identity owner=w14 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3685496/60547826 complete=true expired_claims=0
+2026/10/10 09:29:33 WARN neighbour events: interface dump owner=w14 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/10 09:29:33 INFO reconcile start owner=w14 txn_id="" mode=resync domains=[]
+2026/10/10 09:29:33 INFO reconcile done owner=w14 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=153.106545ms err=""
+2026/10/10 09:29:33 INFO resync finished owner=w14 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/10 09:29:33 INFO dynamic source started owner=w14 source=mpls-ldp descriptors=[mpls-route.ldp]
+2026/10/10 09:29:33 INFO dynamic source started owner=w14 source=pppoe-delegation descriptors="[pppoe.pd.address pppoe.pd.prefix pppoe.pd.ra]"
+2026/10/10 09:29:33 INFO dynamic source started owner=w14 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/10 09:29:33 INFO dynamic source started owner=w14 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/10 09:29:34 INFO reconcile start owner=w14 txn_id=w14-p12-commit mode=apply domains="[interfaces routing]"
+2026/10/10 09:29:34 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=af-packet.host-interface/host-w14l0
+2026/10/10 09:29:34 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=af-packet.host-interface/host-w14w0
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=interface/host-w14l0
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=interface-ip/host-w14l0/10.14.1.1/24
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=interface.admin-state/host-w14l0
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=interface/host-w14w0
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=interface-ip/host-w14w0/10.14.2.1/24
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=interface.admin-state/host-w14w0
+2026/10/10 09:29:34 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-l0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:29:34 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14l0
+2026/10/10 09:29:35 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-w0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:29:35 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14w0
+2026/10/10 09:29:36 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=true
+2026/10/10 09:29:36 INFO created owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:29:36 INFO reconcile done owner=w14 txn_id=w14-p12-commit mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=2.493105111s err=""
+    p12_topology_integration_test.go:759: apply commit: {
+          "created": 11
+        }
+2026/10/10 09:29:39 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:29:40 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=6 duration=1.065976086s err=""
+2026/10/10 09:29:40 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_APPLIED summary=unchanged:11
+    p12_topology_integration_test.go:761: both sessions Established after 3.5s: 10.14.1.2 Established rx=0; 10.14.2.2 Established rx=0
+    p12_topology_integration_test.go:762: 200 routes after commit: FRR RIB bgp=200, VPP lcp-rt-dynamic=200, neighbours=10.14.1.2 Established rx=100; 10.14.2.2 Established rx=100 after 900ms
+    p12_topology_integration_test.go:763: [after commit] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w14l0 tap4096 w14-l0 10 type tap
+        itf-pair: [1] host-w14w0 tap4097 w14-w0 11 type tap
+    p12_topology_integration_test.go:763: [after commit] ip -br addr show dev w14-l0 / w14-w0 (taps):
+        w14-l0           UNKNOWN        10.14.1.1/24 fe80::fe:ebff:fe6d:2908/64 
+        w14-w0           UNKNOWN        10.14.2.1/24 fe80::fe:ebff:fe7b:3179/64 
+    p12_topology_integration_test.go:763: [after commit] vtysh -N w14 -c "show bgp summary":
+        
+        IPv4 Unicast Summary:
+        BGP router identifier 10.14.1.1, local AS number 65080 VRF default vrf-id 0
+        BGP table version 200
+        RIB entries 200, using 31 KiB of memory
+        Peers 2, using 60 KiB of memory
+        Peer groups 1, using 72 bytes of memory
+        
+        Neighbor        V         AS   MsgRcvd   MsgSent   TblVer  InQ OutQ  Up/Down State/PfxRcd   PfxSnt Desc
+        10.14.1.2       4      65081         5         5      200    0    0 00:00:02          100      200 peer one
+        10.14.2.2       4      65082         5         5      200    0    0 00:00:02          100      200 peer two
+        
+        Total number of neighbors 2
+    p12_topology_integration_test.go:763: [after commit] vppctl show ip fib summary:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+            Prefix length         Count     
+                           0               1
+                           4               2
+                          24               2
+                          25             200
+                          32              10
+    p12_topology_integration_test.go:763: [after commit] vppctl show ip fib 10.14.64.0/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.14.64.0/25 fib:0 index:23 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[36] locks:200 flags:shared,popular, uPRF-list:30 len:1 itfs:[2, ]
+              path:[52] pl-index:36 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.14.1.2 host-w14l0
+              [@0]: ipv4 via 10.14.1.2 host-w14l0: mtu:9000 next:7 flags:[] d2a66fc0e77d02feeb6d29080800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:25 buckets:1 uRPF:30 to:[0:0]]
+            [0] [@5]: ipv4 via 10.14.1.2 host-w14l0: mtu:9000 next:7 flags:[] d2a66fc0e77d02feeb6d29080800
+    p12_topology_integration_test.go:763: [after commit] vppctl show ip fib 10.14.163.128/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.14.163.128/25 fib:0 index:222 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[37] locks:200 flags:shared,popular, uPRF-list:31 len:1 itfs:[1, ]
+              path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.14.2.2 host-w14w0
+              [@0]: ipv4 via 10.14.2.2 host-w14w0: mtu:9000 next:8 flags:[] b29b90db578302feeb7b31790800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:224 buckets:1 uRPF:31 to:[0:0]]
+            [0] [@5]: ipv4 via 10.14.2.2 host-w14w0: mtu:9000 next:8 flags:[] b29b90db578302feeb7b31790800
+    p12_topology_integration_test.go:763: [after commit] ip -4 route show proto bgp (root netns): 200 routes
+        10.14.64.0/25 nhid 11 via 10.14.1.2 dev w14-l0 metric 20 
+        10.14.64.128/25 nhid 12 via 10.14.2.2 dev w14-w0 metric 20 
+        10.14.65.0/25 nhid 11 via 10.14.1.2 dev w14-l0 metric 20 
+        … (197 more)
+2026/10/10 09:29:43 WARN resync requested again right after a requested resync: deferred owner=w14 in=1.547912273s
+2026/10/10 09:29:43 INFO reconcile start owner=w14 txn_id=w14-p12-idempotent mode=apply domains="[interfaces routing]"
+2026/10/10 09:29:44 INFO reconcile done owner=w14 txn_id=w14-p12-idempotent mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=0 duration=558.39401ms err=""
+    p12_topology_integration_test.go:780: apply idempotent: {
+          "unchanged": 11
+        }
+2026/10/10 09:29:45 INFO reconcile start owner=w14 txn_id=w14-p12-deny-half mode=apply domains="[interfaces routing]"
+2026/10/10 09:29:47 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=true
+2026/10/10 09:29:47 INFO updated owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:29:47 INFO reconcile done owner=w14 txn_id=w14-p12-deny-half mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1 unchanged:10" reapplied=0 duration=2.322800485s err=""
+    p12_topology_integration_test.go:787: apply deny-half: {
+          "updated": 1,
+          "unchanged": 10
+        }
+    p12_topology_integration_test.go:788: route map denies half: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.14.1.2 Established rx=50; 10.14.2.2 Established rx=50 after 300ms
+2026/10/10 09:29:48 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:29:49 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=6 duration=1.024866614s err=""
+2026/10/10 09:29:49 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_APPLIED summary=unchanged:11
+2026/10/10 09:29:51 WARN resync requested again right after a requested resync: deferred owner=w14 in=2.335404805s
+2026/10/10 09:29:54 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:29:55 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=6 duration=991.473582ms err=""
+2026/10/10 09:29:55 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_APPLIED summary=unchanged:11
+    p12_topology_integration_test.go:795: peer 1 withdrew: FRR RIB bgp=50, VPP lcp-rt-dynamic=50, neighbours=10.14.1.2 Established rx=0; 10.14.2.2 Established rx=50 after 300ms
+    p12_topology_integration_test.go:799: peer 1 announces again: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.14.1.2 Established rx=50; 10.14.2.2 Established rx=50 after 300ms
+2026/10/10 09:29:59 WARN PPPoE delegation reconciliation failed owner=w14 component=subsystems error="rpc error: code = Canceled desc = context canceled"
+2026/10/10 09:29:59 INFO dynamic source stopped owner=w14 source=pppoe-delegation
+2026/10/10 09:29:59 INFO dynamic source stopped owner=w14 source=mpls-ldp
+2026/10/10 09:29:59 INFO dynamic source stopped owner=w14 source=pppoe-watch
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mpls-route.ldp err="mpls-route.ldp: retrieve: mpls_table_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=dhcp.proxy err="dhcp_proxy_dump(is_ip6=false): context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=dhcp.proxy-vss err="dhcp_proxy_dump(is_ip6=false): context canceled"
+time="2026-10-10T09:29:59Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4294967295 VpePID:3685496}" async=true connId=2
+time="2026-10-10T09:29:59Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=2
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=hoststack.session-rule err="session_rules_v2_dump: context canceled"
+time="2026-10-10T09:29:59Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=2
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ipfix.exporter err="ipfix_all_exporter_get: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=flowprobe.interface err="flowprobe_interface_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=sflow.interface err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:29:59Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=2
+time="2026-10-10T09:29:59Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=2
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=policer.policer err="policer.policer: policer_dump_v2: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.egress-map err="qos.egress-map: qos_egress_map_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.record err="sw_interface_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.store err="sw_interface_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.mark err="sw_interface_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=prometheus.listener err="context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.client.config err="context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.pd.address err="sw_interface_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.pd.prefix err="sw_interface_dump: context canceled"
+2026/10/10 09:29:59 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.pd.ra err="sw_interface_dump: context canceled"
+2026/10/10 09:29:59 INFO reconcile done owner=w14 mode=sync source=multiwan status=APPLY_STATUS_FAILED summary="" duration=129.351954ms err="retrieve nat44-ed.output-feature.wan: nat44-ed.output-feature.wan: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:29:59 INFO dynamic source stopped owner=w14 source=multiwan
+2026/10/10 09:29:59 INFO ngfw-agent stopped owner=w14
+    p12_topology_integration_test.go:811: simulated loss: lcp_itf_pair_add_del_v3 del host-w14l0 (sw_if_index 2) with the agent stopped
+    p12_topology_integration_test.go:811: simulated loss: lcp_itf_pair_add_del_v3 del host-w14w0 (sw_if_index 1) with the agent stopped
+2026/10/10 09:29:59 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w14 component=subsystems
+2026/10/10 09:29:59 INFO PKI file materialiser wired owner=w14 component=subsystems root=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/pki-w14 source=true
+2026/10/10 09:29:59 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w14 component=subsystems
+2026/10/10 09:29:59 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w14 component=subsystems
+2026/10/10 09:29:59 INFO fqdn state reloaded owner=w14 component=subsystems family=objects file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/objects-fqdn-w14.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/10 09:29:59 INFO objects domain wired owner=w14 component=subsystems store=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/objects-w14.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/10 09:29:59 INFO acl domain wired owner=w14 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/10 09:29:59 INFO host firewall wired owner=w14 component=subsystems table="inet ngfw_w14" mode=check netns="" rules_file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state/host-acl-w14.nft
+2026/10/10 09:29:59 INFO kea wired owner=w14 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/10 09:29:59 INFO host services wired owner=w14 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/unbound/unbound.conf chrony_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/10 09:29:59 INFO system identity wired owner=w14 component=subsystems product_paths=false hostname_file=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2804700857/sysident/etc/hostname
+2026/10/10 09:29:59 INFO pppoe client wired owner=w14 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/10 09:29:59 INFO VPP binary API connected owner=w14 component=vpp socket=/run/vpp/api.sock
+2026/10/10 09:29:59 INFO subsystems wired owner=w14 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state: claims-iface-w14.json, boot-w14.json; globals owner false" vpp_ids=14000-14999
+2026/10/10 09:29:59 INFO ngfw-agent listening owner=w14 socket=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/agent.sock metrics=off state_dir=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost506878563/001/state vpp_api=/run/vpp/api.sock
+2026/10/10 09:29:59 WARN remote-access initialization unavailable owner=w14 component=subsystems reason=engine-not-ready
+2026/10/10 09:29:59 INFO VPP boot identity owner=w14 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3685496/60547826 complete=true expired_claims=0
+2026/10/10 09:29:59 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:29:59 WARN neighbour events: interface dump owner=w14 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/10 09:29:59 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-l0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:29:59 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14l0
+2026/10/10 09:29:59 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:29:59 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14w0
+2026/10/10 09:30:00 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=true
+2026/10/10 09:30:00 INFO updated owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:30:01 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="created:2 updated:1 unchanged:8" reapplied=6 duration=1.90262895s err=""
+2026/10/10 09:30:01 INFO resync finished owner=w14 why=connect status=APPLY_STATUS_APPLIED summary="created:2 updated:1 unchanged:8"
+2026/10/10 09:30:01 INFO dynamic source started owner=w14 source=mpls-ldp descriptors=[mpls-route.ldp]
+2026/10/10 09:30:01 INFO dynamic source started owner=w14 source=pppoe-delegation descriptors="[pppoe.pd.address pppoe.pd.prefix pppoe.pd.ra]"
+2026/10/10 09:30:01 INFO dynamic source started owner=w14 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/10 09:30:01 INFO dynamic source started owner=w14 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/10 09:30:01 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:30:01 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=6 duration=491.10404ms err=""
+2026/10/10 09:30:01 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_APPLIED summary=unchanged:11
+    p12_topology_integration_test.go:701: agent not ready within 30 s: last health={
+          "agentVersion": "p12-it",
+          "vppConnected": true,
+          "vppVersion": "26.06-release",
+          "owner": "w14",
+          "subsystems": [
+            "system",
+            "interfaces",
+            "vrfs",
+            "routing",
+            "nat",
+            "objects",
+            "acl",
+            "vpn",
+            "tunnels",
+            "services",
+            "ha",
+            "management",
+            "security"
+          ],
+          "lastTxnId": "w14-p12-deny-half",
+          "lastReconcileAt": "2026-10-10T09:30:01.753962704Z",
+          "reconcileInProgress": true
+        } error=<nil>
+2026/10/10 09:30:30 INFO reconcile start owner=w14 txn_id=w14-p12-cleanup mode=apply domains="[interfaces routing]"
+2026/10/10 09:30:32 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=false
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:30:32 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=lcp.itf-pair/host-w14w0
+2026/10/10 09:30:32 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-l0 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=lcp.itf-pair/host-w14l0
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=interface.admin-state/host-w14w0
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=interface.admin-state/host-w14l0
+2026/10/10 09:30:32 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w14w0 prefix=10.14.2.1/24 err="sw_interface_add_del_address host-w14w0 10.14.2.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=interface-ip/host-w14w0/10.14.2.1/24
+2026/10/10 09:30:32 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w14w0 descriptor=af-packet.host-interface ifindex=9 kind=veth
+2026/10/10 09:30:32 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=af-packet.host-interface/host-w14w0
+2026/10/10 09:30:32 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w14l0 prefix=10.14.1.1/24 err="sw_interface_add_del_address host-w14l0 10.14.1.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=interface-ip/host-w14l0/10.14.1.1/24
+2026/10/10 09:30:32 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w14l0 descriptor=af-packet.host-interface ifindex=7 kind=veth
+2026/10/10 09:30:32 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:30:32 INFO deleted owner=w14 component=scheduler key=af-packet.host-interface/host-w14l0
+2026/10/10 09:30:32 INFO reconcile done owner=w14 txn_id=w14-p12-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=2.843261699s err=""
+    p12_topology_integration_test.go:715: cleanup apply: <nil> {
+          "deleted": 9
+        }
+    p12_topology_integration_test.go:724: cleanup: zero lcp-rt-dynamic routes of 10.14/16 left in VPP table 0
+2026/10/10 09:30:32 INFO dynamic source stopped owner=w14 source=mpls-ldp
+2026/10/10 09:30:32 WARN PPPoE delegation reconciliation failed owner=w14 component=subsystems error="rpc error: code = Canceled desc = context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=vxlan-gpe.tunnel err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 INFO dynamic source stopped owner=w14 source=pppoe-delegation
+2026/10/10 09:30:32 INFO dynamic source stopped owner=w14 source=pppoe-watch
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=gtpu.tunnel err="gtpu.tunnel: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2tp.tunnel err="l2tp.tunnel: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.session err="pppoe.session: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ra.namespace err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=tapv2.tap err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ikev2.profile err="ikev2_profile_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mpls-table err="mpls-table: retrieve: mpls_table_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mpls-interface err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mpls-route err="mpls-route: retrieve: mpls_table_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mpls-tunnel err="mpls-tunnel: mpls_tunnel_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=sr.localsid err="vpp boot identity: control_ping: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=sr.policy err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:658946 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=sr.steering err="vpp boot identity: control_ping: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.locator-set err="vpp boot identity: control_ping: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.locator err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:658945 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.eid-table-map err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:658945 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.local-eid err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.map-resolver err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.map-server err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.remote-mapping err="vpp boot identity: control_ping: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lisp.adjacency err="vpp boot identity: control_ping: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3586 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=bfd.auth-key err="bfd.auth-key: bfd_auth_keys_dump: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3586 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=bfd.udp-session err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=igmp.listen err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mfib.route err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=bond.bond err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=bond.member err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=bond.member-weight err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2.bridge-domain err="bridge_domain_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2.bridge-domain-member err="bridge_domain_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2.xconnect err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2.fib-entry err="bridge_domain_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2.flags err="bridge_domain_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2.vlan-tag-rewrite err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l3xc.l3xc err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mactime.range err="mactime_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mactime.enable err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=gso.interface err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=span.mirror err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=svs.table err="ip_table_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=svs.interface err="ip_table_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=svs.route err="ip_table_dump: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *mactime.MactimeDumpReply &{Retval:-160 TableEpoch:0}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ip-neighbor.neighbor err="sw_interface_dump: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ip6-nd.ra-config err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ip6-nd.ra-prefix err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=arp.proxy-range err="proxy_arp_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=arp.proxy-interface err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=urpf.interface err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=adl.interface err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=abf.policy err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=abf.attach err="sw_interface_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=objects.tag err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=objects.address err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=objects.address-group err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=objects.service err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=objects.service-group err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=objects.schedule err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=objects.zone err="context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=acl.acl err="acl_dump: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=acl.macip-acl err="macip_acl_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=acl.interface-binding err="acl_dump: context canceled"
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=remote-access.acl.interface-binding err="acl_dump: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:658945 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=acl.etype-whitelist err="sw_interface_dump: context canceled"
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:658945 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:32Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1949578285 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:32 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=acl.macip-interface-binding err="macip_acl_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.vrf-table err="nat44-ed.vrf-table: retrieve: nat44_ed_vrf_tables_v2_dump: context canceled"
+time="2026-10-10T09:30:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:658946 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.interface-feature err="nat44-ed.interface-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.output-feature err="nat44-ed.output-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.address-pool err="nat44-ed.address-pool: retrieve: nat44_address_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.interface-address err="nat44-ed.interface-address: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.static-mapping err="nat44-ed.static-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.identity-mapping err="nat44-ed.identity-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ed.lb-static-mapping err="nat44-ed.lb-static-mapping: retrieve: nat44_lb_static_mapping_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ei.interface-feature err="nat44-ei.interface-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ei.output-feature err="nat44-ei.output-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ei.address-pool err="nat44-ei.address-pool: retrieve: nat44_ei_address_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ei.interface-address err="nat44-ei.interface-address: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ei.static-mapping err="nat44-ei.static-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat44-ei.identity-mapping err="nat44-ei.identity-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat64.prefix err="nat64.prefix: retrieve: nat64_prefix_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat64.pool err="nat64.pool: retrieve: nat64_pool_addr_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat64.interface err="nat64.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat64.static-bib err="nat64.static-bib: retrieve: nat64_bib_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat66.interface err="nat66.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=nat66.static-mapping err="nat66.static-mapping: retrieve: nat66_static_mapping_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=wireguard.interface err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=wireguard.peer err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=lcp.itf-pair err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=mpls-route.ldp err="mpls-route.ldp: retrieve: mpls_table_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=dhcp.proxy err="dhcp_proxy_dump(is_ip6=false): context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=dhcp.proxy-vss err="dhcp_proxy_dump(is_ip6=false): context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=hoststack.session-rule err="session_rules_v2_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ipfix.exporter err="ipfix_all_exporter_get: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=flowprobe.interface err="flowprobe_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=sflow.interface err="vpp boot identity: control_ping: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=policer.policer err="policer.policer: policer_dump_v2: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.egress-map err="qos.egress-map: qos_egress_map_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.record err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.store err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=qos.mark err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=prometheus.listener err="context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.client.config err="context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.pd.address err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.pd.prefix err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.pd.ra err="sw_interface_dump: context canceled"
+2026/10/10 09:30:33 INFO reconcile done owner=w14 mode=sync source=multiwan status=APPLY_STATUS_FAILED summary="" duration=25.513688ms err="retrieve nat44-ed.output-feature.wan: nat44-ed.output-feature.wan: retrieve: sw_interface_dump: context canceled"
+2026/10/10 09:30:33 INFO dynamic source stopped owner=w14 source=multiwan
+time="2026-10-10T09:30:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:658946 VpePID:3685496}" async=true connId=3
+time="2026-10-10T09:30:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:3685496}" async=true connId=3
+2026/10/10 09:30:33 INFO ngfw-agent stopped owner=w14
+    p12_topology_integration_test.go:667: rig down: <nil>
+        rig down w14
+          delete netns ns-w14-lan (and its veth peer)
+          delete veth w14l0
+          delete netns ns-w14-wan (and its veth peer)
+          delete veth w14w0
+        rig: down
+        prefix: w14
+        slot: 14
+        path: af_packet
+        lan_ns: ns-w14-lan
+        lan_veth: w14l1
+        lan_ip: 10.14.1.2/24
+        lan_gw: 10.14.1.1
+        vpp_lan_if: host-w14l0
+        vpp_lan_addr: -
+        wan_ns: ns-w14-wan
+        wan_veth: w14w1
+        wan_ip: 10.14.2.2/24
+        wan_gw: 10.14.2.1
+        vpp_wan_if: host-w14w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w14-lan ping -c 3 10.14.2.2
+    p12_topology_integration_test.go:637: systemctl show vpp -p NRestarts (after) = 0
+--- FAIL: TestP12TopologyOnHost (88.67s)
+FAIL
+FAIL	ngfw/agent/internal/agent	88.793s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3685496
+P12_RETAINED_NAMESPACES=["net:[4026533285]", "net:[4026533351]"]
+P12_PRIVATE_REMAINING={}
+P12_PRIVATE_PROCESSES_AFTER={}
+P12_OUTER_CLEANUP=PASS
+P12_SHARED_AFTER=["MainPID=1014\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 onlink \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.195 \n192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 linkdown \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]

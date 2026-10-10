@@ -1,0 +1,16 @@
+{
+  "owned_processes_remaining": [],
+  "owned_handles": {
+    ".scratch/ospf-fib-3592745/netns": [],
+    ".scratch/ospf-fib-3649163/netns": [],
+    ".scratch/ospf-fib-3614018/netns": [],
+    ".scratch/ospf-fib-3670890/netns": [],
+    ".scratch/ospf-fib-3742707/netns": [],
+    ".scratch/ospf-fib-3592745/frr": [],
+    ".scratch/ospf-fib-3649163/frr": [],
+    ".scratch/ospf-fib-3614018/frr": [],
+    ".scratch/ospf-fib-3670890/frr": [],
+    ".scratch/ospf-fib-3742707/frr": []
+  },
+  "private_vpp_pid3742728_present": false
+}

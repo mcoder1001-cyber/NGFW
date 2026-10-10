@@ -1,0 +1,17 @@
+SOURCE_PAIRED_FRR_ARTIFACTS=48
+[
+  {
+    "case": "original-mount",
+    "passed": true,
+    "message": "FRR stage refused in original mount namespace"
+  },
+  {
+    "case": "wrong-net-handle",
+    "passed": true,
+    "message": "original mount handle refused"
+  },
+  {
+    "case": "extra-artifact",
+    "passed": true
+  }
+]

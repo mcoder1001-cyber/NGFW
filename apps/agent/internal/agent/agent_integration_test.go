@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -99,16 +100,26 @@ func dialAgent(t *testing.T, sock string) ngfwv1.DataplaneClient {
 func waitReady(t *testing.T, c ngfwv1.DataplaneClient) *ngfwv1.HealthResponse {
 	t.Helper()
 	deadline := time.Now().Add(30 * time.Second)
+	var last *ngfwv1.HealthResponse
+	var lastErr error
 	for time.Now().Before(deadline) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		h, err := c.Health(ctx, &ngfwv1.HealthRequest{})
+		last, lastErr = h, err
 		cancel()
 		if err == nil && h.GetVppConnected() && h.GetLastReconcileAt() != nil && !h.GetReconcileInProgress() {
 			return h
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	t.Fatal("agent not ready within 30 s")
+	stacks := make([]byte, 1<<20)
+	n := runtime.Stack(stacks, true)
+	for _, stack := range strings.Split(string(stacks[:n]), "\n\n") {
+		if strings.Contains(stack, "(*Service).syncLocked") {
+			t.Logf("in-progress dynamic reconciliation stack:\n%s", stack)
+		}
+	}
+	t.Fatalf("agent not ready within 30 s: last health=%s error=%v", protojson.Format(last), lastErr)
 	return nil
 }
 

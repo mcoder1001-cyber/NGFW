@@ -56,3 +56,36 @@ Three historical generic-api-key findings were scanner matches on prose, not
 credentials; corrected wording is retained without any scanner/config exception.
 Final D112 integration imports only the narrow corrected product/setup/report
 diff onto current main, preserving the full operational history independently.
+
+## Agent snapshot restart correction
+
+Root also owns the narrow docs/decisions/LOG.md entry for this integration.
+After the guarded three-plugin startup succeeded, actual .211 agent restart
+failed with `auto-block cache owner mismatch`. The private cache was an empty
+two-byte JSON object, owner absent, zero entries. Accepted RPC requests may omit
+owner, but the strict cache loader requires the service owner. Persist the
+effective owner only after checkOwner and cloning; keep the caller request
+unchanged and retain rejection of explicit foreign RPC and persisted owners.
+
+Actual root tests on published ee20250072938a46407c5ff541e61e1afb7db2d5:
+
+```text
+cd apps/agent
+go test -count=1 -run 'TestAutoBlock' ./internal/agent
+ok ngfw/agent/internal/agent 0.337s
+```
+
+Independent R7 exact immutable archive:
+
+```text
+env -u NGFW_INTEGRATION go test -mod=readonly -count=1 -run TestAutoBlock -v ./internal/agent
+--- PASS: TestAutoBlockOmittedOwnerSurvivesRestart
+ok ngfw/agent/internal/agent 0.350s
+```
+
+The regression exercises accepted ownerless publication followed by strict
+NewService restart, verifies that rejected foreign RPC cannot change the cache,
+and refuses foreign persisted ownership. A source merge does not correct the
+already installed binary or its legacy empty cache. Live fixed native artifact
+deployment, scoped known-empty-cache recovery, real NIC seed/binding and reboot
+acceptance remain pending. The overall hardware task is not Done.

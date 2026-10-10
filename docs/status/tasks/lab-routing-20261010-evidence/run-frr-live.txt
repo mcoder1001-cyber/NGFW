@@ -1,0 +1,162 @@
+FRRLIVE_PRIVATE_NS=net:[4026533649]
+=== RUN   TestOSPFLive
+    integration_test.go:136: ngfw ns-w6-frr (pathspace w6), peer ns-w6-p1 (pathspace w6p1), veth w6v0 10.6.9.1 ↔ w6v1 10.6.9.2, dummy w6d0 10.6.8.0/24
+    integration_test.go:173: ngfw rendered /run/ngfw-test/w6/frr/etc/w6/frr.conf:
+        frr version 10.7.1
+        frr defaults traditional
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        interface w6d0
+         ip ospf area 51
+         ip ospf passive
+        exit
+        !
+        interface w6v0
+         ip ospf network point-to-point
+         ip ospf cost 10
+         ip ospf hello-interval 1
+         ip ospf dead-interval 4
+         ip ospf priority 0
+         ip ospf area 0.0.0.0
+        exit
+        !
+        router ospf
+         ospf router-id 10.6.9.1
+         redistribute connected metric 20
+         area 0.0.0.7 nssa
+         area 51 stub no-summary
+         default-information originate always
+        exit
+        !
+        end
+    integration_test.go:180: frr-reload --test of the applied config: no diff (canonical form, FRR 10.7.1)
+    integration_test.go:191: ngfw show running-config:
+        Building configuration...
+        
+        Current configuration:
+        !
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ngfw
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        interface w6d0
+         ip ospf area 51
+         ip ospf passive
+        exit
+        !
+        interface w6v0
+         ip ospf area 0.0.0.0
+         ip ospf cost 10
+         ip ospf dead-interval 4
+         ip ospf hello-interval 1
+         ip ospf network point-to-point
+         ip ospf priority 0
+        exit
+        !
+        router ospf
+         ospf router-id 10.6.9.1
+         redistribute connected metric 20
+         area 0.0.0.7 nssa
+         area 51 stub no-summary
+         default-information originate always
+        exit
+        !
+        end
+    integration_test.go:206: 16 rendered ospf/interface lines checked against the running config
+    integration_test.go:209: adjacency Full on the NGFW side after 100ms ({VRF:default RouterID:10.6.9.2 Address:10.6.9.2 Interface:w6v0 State:Full/- Priority:1})
+    integration_test.go:226: show ip ospf vrf all neighbor json:
+        {
+          "default":{
+            "vrfName":"default",
+            "vrfId":0,
+            "neighbors":{
+              "10.6.9.2":[
+                {
+                  "nbrState":"Full/-",
+                  "nbrPriority":1,
+                  "converged":"Full",
+                  "role":"DROther",
+                  "upTimeInMsec":906,
+                  "routerDeadIntervalTimerDueMsec":3322,
+                  "upTime":"0.906s",
+                  "deadTime":"3.322s",
+                  "ifaceAddress":"10.6.9.2",
+                  "ifaceName":"w6v0:10.6.9.1",
+                  "linkStateRetransmissionListCounter":2,
+                  "linkStateRequestListCounter":0,
+                  "databaseSummaryListCounter":0
+                }
+              ]
+            }
+          }
+        }
+    integration_test.go:227: 50 OSPF routes on the NGFW side after 5.2s (50 routes of 10.6/16)
+    integration_test.go:232: connected (metric 20) and default-information originate on the peer after 2s (0.0.0.0/0 10.6.8.0/24)
+    integration_test.go:244: show ip ospf vrf all interface json (keys [default]):
+        {
+          "default":{
+            "vrfName":"default",
+            "vrfId":0,
+            "interfaces":{
+              "w6d0":{
+                "ifUp":true,
+                "ifIndex":6,
+                "mtuBytes":1500,
+                "bandwidthMbit":0,
+                "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,NOARP>",
+                "ospfEnabled":true,
+                "ipAddress":"10.6.8.1",
+                "ipAddressPrefixlen":24,
+                "ospfIfType":"Broadcast",
+                "localIfUsed":"10.6.8.255",
+                "area":"0.0.0.51 [Stub]",
+                "routerId":"10.6.9.1",
+                "networkType":"BROADCAST",
+                "cost":10,
+                "transmitDelaySecs":1,
+                "state":"Waiting",
+                "priority":1,
+                "opaqueCapable":true,
+                "timerMsecs":10000,
+                "timerDeadSecs":40,
+                "timerWaitSecs":40,
+                "timerRetransmitSecs":5,
+                "timerRetransmitWindowMsecs":50,
+                "timerPassiveIface":true,
+                "nbrCount":0,
+                "nbrAdjacentCount":0,
+                "grHelloDelaySecs":10,
+                "prefixSuppression":false,
+                "nbrFilterPrefixList":"N/A",
+                "lsaRetransmissions":0
+              },
+              "w6v0":{
+                "ifUp":true,
+                "ifIndex":7,
+                "mtuBytes":1500,
+                "bandwidthMbit":10000,
+                "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,MULTICAST>",
+                "ospfEnabled":true,
+                "ipAddress":"10.6.9.1",
+                "ipAddressPrefixlen":24,
+                "ospfIfType":"Broadcast",
+                "localIfUsed":"10.6.9.255",
+                "area":"0.0.0.0",
+                "routerId":"10.6.9.1",
+                "networkType":"POINTOPOINT",
+                "cost":10,
+                "transmitDelaySecs…
+    integration_test.go:262: poller baseline: frr: daemon error: poll: ospf6-neighbors: frr: daemon error: vtysh --command "show ipv6 ospf6 vrf all neighbor json": ospf6d is not running
+--- FAIL: TestOSPFLive (30.65s)
+FAIL
+FAIL	ngfw/agent/internal/renderers/frr/ospf	30.690s
+FAIL
+PRIVATE_NETNS_HANDLES=
+PRIVATE_FRR_HANDLES=[]
+SHARED_BEFORE=MainPID=1014
+NRestarts=0
+SHARED_AFTER=MainPID=1014
+NRestarts=0

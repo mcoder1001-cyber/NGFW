@@ -147,3 +147,5 @@ ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@172.
 ```
 
 Then follow owned install-plan.md: verify actual cleanFS/management/nativefirewall; reviewed resolver simulation/critical-upgrade inspection; preserve originalstartpolicy/masks; HugePages reservation; canonical firstboot/noPCI; explicit seed opt-in before firstoperatorrevision/bind; persist exact seven data NICs with management excluded; manager-reviewed guarded DPDK ownership and actual acceptance. Previous console-only recovery handoff is historical and superseded by the reviewed RAM route/user repair authorization.
+
+- Source-only guarded11deb input/apt-s plan prepared: package-input.py d5294674 AST3PASS, actual local11hash/control check0 with target_contacted=false/private4502Breceiptbbe9b51d. Target upload/solver/install NOT RUN; requires post-repair normalroot/clock/mgmt, exactpolicy101+VPPmask and later plan review. Root originalinstallgoal remains; details in install-plan.md.

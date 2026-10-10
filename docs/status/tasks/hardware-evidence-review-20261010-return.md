@@ -142,3 +142,32 @@ earlier readiness verdict: original disk boot/SSH have now been observed. Worker
 full postboot L3/DNS/current-kernel receipt and later NGFW installation/binding/
 forwarding acceptance remain pending. The new boot resets kernel/device counters;
 do not equate a counter after kernel reboot with the old-kernel18 baseline.
+
+## .37 read-only return-proof source and actual selector failure
+
+Full final return-proof.py SHA256
+8772baa382446ccb4180efe8cc20185a6323a92c1934bf751d8dbe24de98fba1
+independently read and hashed, outer/remote AST2 PASS. Operator branch remote
+07aa11a114273f428073e5a86b3c1f37566f27f0 independently read back before approval.
+This was source applicability for existing authorized read-only capture only.
+
+Source pins own19-file boot baseline, auth/network archives and47-file RAM
+baseline. Archive-derived regular/directory kind, UID/GID/mode and regular
+bytes/hash compare, with final symlink no-follow metadata and target while
+parents resolve inside original root. Available boot modes compare prior values.
+Root ro,noload,nosuid,nodev,noexec and EFI ro,nosuid,nodev,noexec are measured;
+ordinary unmount only and final full audit/exclusive guard0 remain required.
+Current EFI hashes/MZ headers are explicitly current evidence without invented
+historical equality. No reboot is performed by this source.
+
+Actual capture subsequently refused a synthetic archive selector treated as a
+real original filesystem path: return/root-shadow.record. Operator reports SSH1,
+stdout0 B and stderr323 B, with both original mounts ordinary-unmounted in finally;
+no normal return occurred. Reviewer/root initial all-tar-regular classification
+missed this synthetic-artifact distinction. Exact source correction must exclude
+generated artifacts from path/metadata comparisons and compare original passwd/
+shadow selected root-record digests explicitly. Synthetic backup0600 mode cannot
+prove original /etc/shadow metadata. Failure remains retained; authorized read-only
+retry follows exact focused correction publication/applicability. No new owner
+or manager permission loop is required. Actual successful capture and separate
+normal-return verdict remain pending.

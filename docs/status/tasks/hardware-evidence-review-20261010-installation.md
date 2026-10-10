@@ -198,3 +198,50 @@ Do not infer automatic seed from a running API. Actual canonical revision1 and
 protected management inventory must precede data-driver binding. HostNics reader
 can enumerate without a connected VPP and never binds/restarts/changes startup.
 These are source facts, not firstboot or NIC acceptance results.
+
+## Native timezone adoption and configured installation
+
+Exact bounded identity-native.py SHA256
+3fed0081c2a138cf2c28c01cd534be5bad5f5973d58911472f2368c402af3c11
+on independently remote-readback2aa55c29e54f4fd92e345164bf80ad8d075f22e0:
+full source, outer/remote AST2 and preserved original-link inspection reviewed.
+Private inspect6736 B/0600 SHA256
+93ad1a7a321ec34fdc4f9355303abc79796e57fec1b712a3d79812ff0b3913bd
+records three regular sources, absent motd, five absent STATE targets, exact
+relative root-owned link and same trusted1248-byte zonefile. Descriptor/no-follow
+trusted parents, current inode/link recheck, atomic sole localtime canonicalization
+and directory fsync precede only agent/meta configuration under unchanged101,
+mask and native sysctl skip. No product guard is relaxed. Source APPROVE under
+existing bounded parent release was delivered before operation.
+
+Actual identity-native-canonicalize-configure-20261010T113324Z.json13205 B/0600
+SHA256a70c56fe63312a43b8db02db45bf3766694c4517c03a8f93eb4ee9c045f15698
+independently parsed, including full before/after comparisons and package rows:
+
+```text
+configure_exit=0; internal stderr139 bytes: one Created symlink message
+expected package rows=11; all install ok installed; exact versions=True
+dpkg --audit exit0; stdout/stderr empty
+21 named service/socket states=inactive
+five full L3 sections before==after=True
+16 sysctl values before==after=True; guard_error=null
+identity_contents_equal=True; hostname_equal=True
+cached_timezone_equal=True; clock_step_seconds=-0.0000029524067031161394
+```
+
+Configured installation PASS. This resolves the actual partial installation
+failure; firstboot, forwarding, interface binding and hardware acceptance remain
+unperformed at this checkpoint.
+
+Fresh installed inspection184291 B/0600 SHA256
+30fb509abc3cc8b2e710385117dc8cb36182e469569670d87a1ddd25494949ce
+records the adopted chain /etc/localtime -> managed STATE/localtime -> unchanged
+canonical zonefile. No timedated restart was performed. Pinned systemd259.5
+[get_timezone source](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/basic/time-util.c)
+reads the immediate link and accepts only the absolute or relative zoneinfo prefix;
+the managed intermediate link therefore needs fresh timezone-label measurement
+after the later normal reboot. [Timedated source](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/timedate/timedated.c)
+reads that helper and clears the label on EINVAL. Preserved dereferenced zone bytes
+support libc timezone behavior; current cached-label equality is explicitly not
+proof of fresh timedated label compatibility. Root/operator were informed without
+blocking the authorized same-file adoption or weakening security guards.

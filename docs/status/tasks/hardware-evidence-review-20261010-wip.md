@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`dab0893ff8b9866ef2fcaa4de136e5fdd9a215ab` (verified native sysctl scope correction and guarded repair launch; matching
+`bdb887306e5b8c52ba663329b19a139212cc8068` (verified .37 repair and .211 configure-failure classification; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -517,3 +517,17 @@ establishes same1248 B trusted zone target, all5 STATE objects absent; parent
 released exact preserved same-file canonicalization then only agent/meta configure
 under guards, source/actual results pending. No installation/forwarding acceptance
 overclaim. Next commands remain read-only source/receipt review; no targetaction.
+
+2026-10-10 11:42 UTC follow-up: .211 bounded native identity-adoption source
+3fed0081 at independently remote-readback2aa55c29 approved; actual13205-byte
+a70c56fe configure receipt independently PASS: configure0/exact11 installed/
+audit empty/all21inactive/fullL3 and16sysctls equal/identity and hostname preserved.
+Installation configured PASS; firstboot/runtime/NIC acceptance pending. Immediate
+managed timezone link versus pinned259.5 fresh-label limitation recorded in the
+installation appendix; cached label is not claimed as fresh/reboot compatibility.
+.37 final8772baa3 read-only return source on remote07aa11a1 approved, AST2 PASS,
+then actual capture safely refused synthetic root-shadow archive path. Ordinary
+unmount occurred; source correction maps selected account-record digests while
+avoiding invented original shadow mode. Reviewer classification miss acknowledged;
+no normal reboot verdict. Exact next action: review published narrow source fix,
+then actual .37 return receipt and .211 firstboot-only source/effective evidence.

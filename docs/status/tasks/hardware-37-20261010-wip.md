@@ -1,12 +1,14 @@
 # Hardware .37 WIP — 2026-10-10
 
+Task state: **blocked on offline root-filesystem recovery**. Installation and hardware acceptance: **NOT RUN**. Management, routing, netplan, SSH and target disk contents were left unchanged. Worker is handing off and is **awaiting resume**, not a live developer after this turn ends. Manager will resume the same branch/worktree when recovery is available.
+
 ## Ownership and checkpoints
 
 Branch `codex/hardware-37-20261010`; worktree `/root/ngfw-wt/hardware-37-20261010`; remote host `root@172.30.126.37`. Owned files are `docs/status/tasks/hardware-37-20261010*`.
 
-Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. Last verified published checkpoint: local HEAD and remote `refs/heads/codex/hardware-37-20261010` both `405d581b1239a7a6e79ee3a981f95f3dff4ad599` after successful `git push -u origin codex/hardware-37-20261010`. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing a subsequent status update identifies the next checkpoint without a self-referential SHA.
+Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. Last verified published checkpoint: local HEAD and remote `refs/heads/codex/hardware-37-20261010` both `9d968c3c7e6859ff0099566ae1675d0dc9788953` after successful `git push origin codex/hardware-37-20261010`. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing a subsequent status update identifies the next checkpoint without a self-referential SHA.
 
-Actual repository verification: `tools/ci.sh check --base origin/main` printed `check PASSED (0m43s)`. Full quick/integration gates have not been run by this worker; no product code has changed and installation acceptance remains NOT RUN.
+Actual repository verification: `tools/ci.sh check --base origin/main` printed `check PASSED (0m43s)` for the first checkpoint and `check PASSED (0m14s)` for the second. Full quick/integration gates have not been run by this worker; no product code has changed and installation acceptance remains NOT RUN.
 
 ## Actual read-only preflight
 
@@ -60,6 +62,8 @@ Last error err: EFSCORRUPTED
 ## Remaining work and exact next command
 
 No installation or dataplane tests have run. Blocked by root filesystem corruption and pending manager payload/reviewer verdict. Continue preparing reviewed payload and recovery instructions without target mutations.
+
+Required recovery input is either (a) owner-provided usable physical/serial/IPMI/KVM console or recovery-boot access, with the root filesystem unmounted for an agreed offline repair, or (b) owner/operator confirmation that offline repair has completed, including the actual filesystem-check result and restored management reachability. Merely authorizing a reboot does not provide console recovery from the existing manual-fsck failure. No console/recovery path has been supplied at handoff.
 
 After manager reports offline recovery complete, exact first command:
 

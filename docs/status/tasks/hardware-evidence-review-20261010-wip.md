@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`7ca7c4edc206130a4b5436a7a59e8ef73fc42f5d` (verified211 normal-return readiness review; matching
+`4e8e3f136ac1ee3420ebb633ca699b3216dd431e` (verified211 original boot and37 preservation-source review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -439,3 +439,43 @@ premises requested before upcoming transition review; no KeepCfg reload required
 if matching source and this host's actual properties establish preservation.
 Last verified remote7ca7c4edc above; next worker actual postboot211/final37preflight
 receipts and parent's specific phase release, then actual37offline preservation.
+
+
+## 11:08 UTC operational review checkpoint
+
+Actual .211 normal return FULL PASS: independently parsed post-return-original-host-v2.json
+152238 B/0600/baf2aad81531abdd0af13ed223d976de4aefb483d36473476e436c86148a1f51 and
+post-return-conclusions.json864 B/0600/e2d563d1267d78326de044cc21f50aeb92dc338cd105640c2c0f54f93c23df24.
+All12 commands0/empty; new original boot, root8:2 clean and boot-fsck success; protected
+PCI/driver/IOMMU/MAC,52 selected files, five exact L3 address/route/rule sections and
+DNS compared directly to original network archive member all PASS. Actual new-kernel
+storage-fault matches0. Word-bounded UNC is required; substring unc also matches benign
+"functions" and was not treated as a disk fault. Fresh-boot counter6 is distinct from
+old-boot18. No product installation/acceptance is claimed.
+
+Focused .211 start-guard source2530bc534fabd6d83712388fc7aad0eb4cf1a71f9a5a02215d2c8c08aeb81fe6
+and package-input sourcee5c7a1c927b03d0298ae122acc7f765edbd5f23b12cc2d8cea03500a91e6b346
+on operator checkpoint6bdf80b843d827cf52e12c9bc94ef8a0369d4003 reviewed: full actual source,
+AST2+3 PASS, actual4905 B/0600 inspectc45e00dfcdbf10618b06634808eba3445dba088817d413988cb4c6a60de01d82
+both original policy/mask absent. APPROVE parent-authorized durable private original-root
+recovery marker before exact101policy/persistentmask/daemon-reload/wallclock preparation
+and verified11 RAM upload/apt simulation only. Marker fsyncs/identity checks and partial
+restore original-or-owned-guard checks reviewed. Actual solver Inst/Remv assessment remains
+required before package installation. No activation/binding authorization in this verdict.
+
+Actual .37 networkd source premise PASS:30572 B/0600 network-stop receipt3dd7f9811518e823ba617d5e142b627dae4b25c40fff9770c37aeb5f766bf104
+has effective matching static file, no DAD/DHCP/RA/KeepConfiguration override, no network
+drop-ins/service stop hooks. Optional networkctl cat failed1; actual direct file and
+effective JSON establish the premise. Matching259.5 default non-IPv4LL DAD=none closes
+ACD-stop removal exception. Transition/read-only phase was approved under parent's
+activated release after .211 return. Actual first offline receipt520498 B/0600
+3b1c0352e49320f42b4892a7352350cd7392897f1e8315cca7cb63ecf20f7e3e independently PASS:
+RAM51, both audits449processes/98FDs/nsfs0/races0/failures0/guard0, counter9/kernel unchanged.
+
+Actual .37 preservation and bounded-undo prerequisites independently PASS; details
+and narrowly scoped conditional correction verdict are in the preservation appendix.
+Root correction phase release, immediate fresh full audit/guard0, actual interactive
+results/clean check/offhost undo and separate normal-return evidence remain pending.
+Reviewer performed no target operation and committed no private backup contents.
+Exact next action: inspect actual .211 full solver plan and .37 correction receipts as
+provided; publish this coherent checkpoint and verify remote SHA before handoff.

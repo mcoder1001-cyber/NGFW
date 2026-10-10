@@ -521,3 +521,59 @@ filesystem acceptance. No correction/mount/reboot/SMART action. Existing .37 sta
 copies Python/full stdlib/extensions; operator asked to prove actual -B imports
 of required modules before crossing. These are source reviews, not peer facts
 substituted for actual .37 preservation or transition outcomes.
+
+
+## Actual .37 offline preservation and correction readiness
+
+Independent actual-byte verification: offline-preservation-20261010.json532992 B/0600
+SHA256c072d1d30d843375ffa0ed024cbc249eb4fa0a2f04bb2a93110155d052c53290,
+offline-preservation-transfers-20261010.json3108 B/0600
+SHA256696c0e48e13121bc9da5409eb04c9fcbd8ca83b245b2db538d2283d8e36cc411.
+All20 native/debugfs commands exit0. Debugfs version banners28 B are present; ncheck
+has408 B corruption diagnostics retained, not a claim of clean pathname traversal.
+Two complete audits444 then441 processes/98FDs/nsfs0/races0/failures0/finalguard0.
+Counter9 unchanged; actual before/after kernel strings equal, new storage fault lines0.
+
+Native core metadata source986808320 B,10096640 allocated B,
+SHA256822fc9507eb42c47fcd1529e9f0b939511f07d00f04f1b2307768ed367a7ae83;
+controller gzip1707875 B/0600
+SHA256d3b05aa7c3f1e49363acdd5aae4c28d30e76c818bf53aa753c2a6b978c74cda1.
+Reviewer independently reads full gzip stream and verifies nominal986808320 B/source
+hash, plus exact stored size/hash. Seven private4096 B raw blocks15505493,15503361,
+15503362,15503363,15503874,15503875,15505492 independently all-zero and
+SHA256ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+All are root-owned0600 under0700 directory, stored size/hash exactly match target
+receipt. Operator receipt records file/directory fsync; reviewer independently
+corroborates persistent bytes. Native image excludes payload/directory/extent/EA/
+journal data blocks; seven blocks supplement known corruption only, not full backup.
+
+Actual nine inodes independently classified from stat/blocks/ncheck:259594 home-user
+cache directory0700/UID1000/4096 B;259595 regular0644/UID1000/zero bytes/no blocks;
+259596/7/8 regular0640/root:999 journal8388608 B with known invalid external nodes;
+259599 root-cache directory0700/4096 B;259600 regular0644/root/zero bytes/no blocks;
+259602 root-config directory0700/4096 B/links3;259603 root directory0700/4096 B/links2
+with original path unresolved. Full pathnames remain private. Readonly diagnostic
+521700 B/0600 SHA256851d42ac252b01162b3e1c7d63b808253b96e1beb833612cb155b0bb9187d2ff
+e2fsck exit12 confirms uncorrected plus aborted; no repair or acceptance claim.
+
+Finite undo preflight703 B/0600
+SHA256491fb0240de6de5356a33a13b1b8472194821b30b326e2e86d721d1baf82e608
+exit0/empty stderr: actual hard+soft1073741824 B,1MiB600 probe+sync/unlink,
+exclusive0, undo absent, privateRAM51/0700. Reviewer observed controller free
+1775915008 B greater than1GiB+512MiB; driver rechecks this at execution.
+Exact wrapper0c76f5cba2cce5f088cb3485abee0ca45ed1fa2d0cfdae6091be2792c4927e8c
+Bash syntax0; corrected one-byte driver5f45bf37db7d5e066165b07f66bbbe55a4e383aadd3f483525ba50222e3ed973
+AST PASS and full source inspected. No newline is appended to e2fsck answers.
+
+Verdict: APPROVE narrowly targeted interactive correction conditional on parent
+phase release, durable source/receipts, fresh full audit/final exclusive0 immediately
+before execution. Exact -f -E fixes_only,nodiscard -z with finite undo; allow known
+journal invalid-extent clear/accounting, preserved zero-directory salvage/dots/
+temporary dotdot followed by actual pass3 parent/reconnection, decline zero-file
+Clear259595/600 and preserve Connect/count instead. Known consequential parent/
+bitmap/global-count fixes are metadata changes with nodiscard and undo. Decline
+optimizations; no -y/-D. Unknown destructive/special/new-object prompts pause for
+actual classification; this does not preauthorize deletion. Owner already accepts
+.37 known media wear; actual new read/reset/uncorrectable/CRC faults remain a stop.
+Actual correction/clean validation/offhost undo and normal return are still pending.
+Reviewer executes no target command.

@@ -1,0 +1,25 @@
+# Finite original data-driver rollback candidate
+
+This is source preparation for root's later physical transaction. It has not been target-staged or executed, and does not authorize binding. The current real agent owner-cache failure must be fixed and the native seventeen-row seed accepted before any data preflight/transaction.
+
+Root manager alone installs/executes the binder and rollback helper. The rollback candidate defaults to validation; `--restore` changes only the exact seventeen data devices, their original empty sysfs overrides/link state/bridge membership, the unchanged transaction-created binder/helper/drop-in files, and the original noPCI startup. Management PCI04/enp4s0/group28 is excluded. No `driverctl`, global `new_id`, arbitrary driver, network reload, route/address cleanup, service start or automatic retry is present.
+
+Before any physical mutation root creates a new private0700 original-root directory `/var/lib/ngfw-install-recovery/hardware-manager-20261010-data-211`, preserving collisions. Its0600/fsynced `startup.before` contains the actual735B required-plugin noPCI startup SHA367ead293aefd84d4b3f85f882d3dac33834bda9129467c9a1578f7223a39184. Its immutable0600/fsynced `manifest.json` and a private offhost copy must exist before target files, unit intent or drivers change. Pass the actual SHA256 explicitly to the helper; it refuses a different file or untrusted/symlinked path.
+
+Manifest version1 has these exact fields:
+
+- `schema`:1; `task`:hardware-211-20261010; `root_dev`:[8,2].
+- `data_nics`: the complete actual `data-preflight` seventeen-name map with PCI, original driver, singleton IOMMU group/members, original `link`, `bridge_master`, original `sysfs_override`, and `persistent_override` type absent. Existing nonempty overrides require a concrete different recovery plan; this candidate never overwrites them.
+- `network_before`: the actual five-section L3 baseline from that preflight, with each data interface and original bridge address/route free.
+- `new_startup_SHA`: the actual approved canonical physical rendering SHA; never a fabricated host/render value.
+- `owned_files`: exactly `/usr/local/libexec/ngfw-hardware-211-bind` mode0755, `/etc/systemd/system/ngfw-hardware-211-bind.service` mode0644, `/etc/systemd/system/vpp.service.d/20-hardware-211-bind.conf` mode0644. Each row records `before_absent`:true, exact planned installed `SHA`, and `mode`. Root verifies actual original absence and preserves any collision; rollback removes only a still-identical owned file and fsyncs its directory.
+
+Also preserve original runtime unit states, their enablement, startup metadata, original module/driver facts and the root-managed asynchronous apply work/markers in the task's private evidence. These are parent restoration intent, not arbitrary rollback-script inputs. The later combined manager launcher is still to be implemented/reviewed; this contract does not claim that transaction complete.
+
+If binding fails before startupapply, or native startupapply reaches a terminal result and later physical acceptance fails, root first stops API then agent then VPP and verifies them inactive. Do not race an active native run/dead-man/holder. The helper takes nonblocking exclusive canonical VPP then lab locks; held locks refuse. It refuses unknown current startup hashes or changed installed binder files, checks all17 original/current driver scopes before mutations, and proves the protected management/L3/controllerTCP22 premise repeatedly. Seventeen missing address-free VFIO netdev entries are the sole allowed L3-map difference during driver restoration; every other interface/address and every route/rule must match.
+
+Restoration first removes only unchanged owned binder files and atomically restores the735B pinned noPCI startup, then daemon-reloads without starting a service. Each data PCI is scoped to its actual singleton, restored to its recorded i40e/igc driver using only per-device `driver_override`/`unbind`/`drivers_probe`, and its original empty override restored. Original modules must still exist; no module install hooks or dynamic ID registration run. A bounded ten-second check requires its original predictable netdev name and exact PCI. The original validated bridge master and UP/down state are restored only for that data name. Whole original L3/startup/management proof ends the helper; units remain stopped. Any failure preserves the manifest and evidence, emits an actual failure and stops; root classifies it instead of forcing names/routes or repeating writes.
+
+Root then inspects actual protected state and restores prior runtime intent under its reviewed phase. The helper does not assume that a launched startup job, a restored kernel driver, or a failed partial rollback is accepted.
+
+Source validation so far: Python AST PASS only. Independent review, actual durable manifest/file states and parent release remain prerequisites for target staging/execution. No hardware rollback or data binding test has run.

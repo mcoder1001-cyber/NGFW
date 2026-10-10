@@ -1,0 +1,23 @@
+{
+  "utc": "2026-10-10T12:20:19.006989+00:00",
+  "process_mount_guard": "PASS",
+  "wan_dependency_release": "confirmed by owner",
+  "results": [
+    {
+      "path": "/tmp/ngfw-lab-nat46-20261010-250",
+      "status": "removed_owned_artifacts",
+      "regular_file_bytes": 98205509
+    },
+    {
+      "path": "/tmp/ngfw-lab-global-blocking-20261010-250",
+      "status": "removed_owned_artifacts",
+      "regular_file_bytes": 630531156
+    },
+    {
+      "path": "/tmp/ngfw-lab-nat46-20261010-250-api-adapter",
+      "status": "removed_owned_artifacts",
+      "regular_file_bytes": 53286293
+    }
+  ],
+  "foreign_wan_distribution": "untouched"
+}

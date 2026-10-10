@@ -174,7 +174,7 @@ func Global[T any](cfg Config, ops GlobalOps[T]) *Descriptor[T] {
 			}
 			return nil
 		}
-		return New(Ops[T]{
+		d := New(Ops[T]{
 			Name: ops.Name, ID: id, Deps: ops.Deps,
 			Create:   func(ctx context.Context, s T) (any, error) { return nil, require(ctx, s) },
 			Update:   func(ctx context.Context, _, s T, _ any) (any, error) { return nil, require(ctx, s) },
@@ -182,6 +182,8 @@ func Global[T any](cfg Config, ops GlobalOps[T]) *Descriptor[T] {
 			Retrieve: func(context.Context) ([]Item[T], error) { return nil, ErrRetrieveUnsupported },
 			Global:   true,
 		})
+		d.readOnlyRequirement = true
+		return d
 	}
 	update := func(ctx context.Context, o, n T, _ any) (any, error) {
 		if ops.SetUpdate != nil {

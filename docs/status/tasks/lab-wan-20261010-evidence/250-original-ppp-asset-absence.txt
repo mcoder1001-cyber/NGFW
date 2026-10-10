@@ -1,0 +1,11 @@
+/usr/sbin/pppd ABSENT
+/usr/sbin/pppoe-server ABSENT
+/usr/lib/pppd/2.5.2/pppoe.so ABSENT
+/usr/lib/pppd/2.5.2/rp-pppoe.so ABSENT
+/usr/lib/ngfw/pppoe-carrier.py ABSENT
+/run/systemd/system/ngfw-pppoe-carrier@.service ABSENT
+/run/systemd/system/ngfw-pppoe-broker@.service ABSENT
+/usr/lib/ngfw/pppoe-carrier-hooks/ip-up ABSENT
+/usr/lib/ngfw/pppoe-carrier-hooks/ip-down ABSENT
+/usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up ABSENT
+/usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down ABSENT

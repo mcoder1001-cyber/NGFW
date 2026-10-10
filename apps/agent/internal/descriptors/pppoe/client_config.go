@@ -34,6 +34,8 @@ type ClientRuntime interface {
 	Apply(context.Context, []ren.Session) error
 }
 
+var errPasswordUnavailable = errors.New("PPPoE password reference is unavailable")
+
 // ClientConfig resolves credentials only at the final renderer boundary.
 type ClientConfig struct {
 	mu           sync.RWMutex
@@ -169,7 +171,7 @@ func (d *ClientConfig) sessions(_ context.Context, value proto.Message, strict b
 		}
 		if err != nil || password == "" {
 			if strict {
-				return nil, redactor, scheduler.InvalidAt(passwordPointer(name), errors.New("PPPoE password reference is unavailable"))
+				return nil, redactor, scheduler.InvalidAt(passwordPointer(name), errPasswordUnavailable)
 			}
 			password = "validation-placeholder"
 		}
@@ -307,6 +309,26 @@ func (d *ClientConfig) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		return nil, fmt.Errorf("PPPoE applied manifest is invalid")
 	}
 	sessions, redactor, err := d.sessions(ctx, doc, true)
+	if errors.Is(err, errPasswordUnavailable) {
+		// A candidate may withdraw or replace the applied reference. Retain only
+		// structurally validated, credential-free teardown metadata; never claim
+		// that files match credentials unavailable in the selected snapshot.
+		sessions, structuralRedactor, structuralErr := d.sessions(ctx, doc, false)
+		if structuralErr != nil {
+			return nil, structuralErr
+		}
+		if structuralErr = d.renderer.Validate(sessions); structuralErr != nil {
+			return nil, structuralRedactor.Error(structuralErr)
+		}
+		for i := range sessions {
+			sessions[i].Password = ""
+		}
+		if remember, ok := d.runtime.(interface{ Remember([]ren.Session) }); ok {
+			remember.Remember(sessions)
+		}
+		drift, _ := structpb.NewStruct(map[string]any{"drift": "PPPoE applied password reference is unavailable"})
+		return []scheduler.KV{{Key: ClientConfigKey, Value: drift}}, nil
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,86 @@
+ngfw-agent sha256=e10417a365a90c6081ec2a78f171cd11b6384d7671e92641146c7d99509b9207
+ngfw-agentctl sha256=b3208c9513a0aaac74ce2ad2659759310cd6ae38272d3a32ee3b42d194c74e31
+ngfw-vpp-preflight sha256=768961fe463470203776403732d67cb7f9da707ab8de46337c7c88cf5834bd17
+DISPOSABLE_VPP pid=3672557 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-3672531
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:88: net.ipv4.ping_group_range = 0 0
+        
+    acceptance_test.go:89: create role ngfw_w20
+        create database ngfw_w20 (owner ngfw_w20)
+        check  ngfw_w20 as ngfw_w20 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w20/pg.env (0600) · DSN postgres://ngfw_w20:<redacted>@127.0.0.1:5432/ngfw_w20
+        
+    acceptance_test.go:89: started ngfw-agent pid 3674221 (log /run/ngfw-test/w20/acl/agent.log)
+    acceptance_test.go:89: started ngfw-api pid 3674255 (log /run/ngfw-test/w20/acl/api.log)
+    acceptance_test.go:107: POST /api/v1/config/commit?comment=multiwan-baseline → 502, want 200: {"type":"https://ngfw.dev/problems/agent-error","title":"Agent error","status":502,"grpcCode":"INTERNAL","detail":"agent: plan: retrieve pppoe.carrier.namespace: PPPoE kernel helper operation failed","instance":"/api/v1/config/commit"}
+    acceptance_test.go:93: agent log: {"time":"2026-10-10T09:27:02.734669861Z","level":"INFO","msg":"ngfw-agent starting","version":"dev","pid":3674221,"owner":"w20","socket":"/run/ngfw-test/w20/agent.sock","vpp_api":"/run/vpp/api.sock"}
+        {"time":"2026-10-10T09:27:02.736608678Z","level":"INFO","msg":"VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP","owner":"w20","component":"subsystems"}
+        {"time":"2026-10-10T09:27:02.736640845Z","level":"INFO","msg":"keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged","owner":"w20","component":"subsystems"}
+        {"time":"2026-10-10T09:27:02.73758375Z","level":"INFO","msg":"PKI file materialiser wired","owner":"w20","component":"subsystems","root":"/run/ngfw-test/w20/acl/agent-state/pki-w20","source":true}
+        {"time":"2026-10-10T09:27:02.741080063Z","level":"INFO","msg":"nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim","owner":"w20","component":"subsystems"}
+        {"time":"2026-10-10T09:27:02.746078894Z","level":"INFO","msg":"VPP binary API connected","owner":"w20","component":"vpp","socket":"/run/vpp/api.sock"}
+        {"time":"2026-10-10T09:27:02.752845222Z","level":"INFO","msg":"fqdn state reloaded","owner":"w20","component":"subsystems","family":"objects","file":"/run/ngfw-test/w20/acl/agent-state/objects-fqdn-w20.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+        {"time":"2026-10-10T09:27:02.753863988Z","level":"INFO","msg":"objects domain wired","owner":"w20","component":"subsystems","store":"/run/ngfw-test/w20/acl/agent-state/objects-w20.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"127.0.0.1:9"}
+        {"time":"2026-10-10T09:27:02.754001357Z","level":"INFO","msg":"acl domain wired","owner":"w20","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":true,"resync_hook":true}
+        {"time":"2026-10-10T09:27:02.754131403Z","level":"INFO","msg":"host firewall wired","owner":"w20","component":"subsystems","table":"inet ngfw_w20","mode":"check","netns":"","rules_file":"/run/ngfw-test/w20/acl/agent-state/host-acl-w20.nft"}
+        {"time":"2026-10-10T09:27:02.755036725Z","level":"INFO","msg":"kea wired","owner":"w20","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+        {"time":"2026-10-10T09:27:02.757115564Z","level":"INFO","msg":"host services wired","owner":"w20","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":true,"unbound_conf":"/etc/unbound/unbound.conf","chrony_conf":"/etc/chrony/chrony.conf","rsyslog_conf":"/etc/rsyslog.d/50-ngfw-export.conf","vpp_dns_cache":"applied (globals owner)"}
+        {"time":"2026-10-10T09:27:02.75735707Z","level":"INFO","msg":"system identity wired","owner":"w20","component":"subsystems","product_paths":true,"hostname_file":"/var/lib/ngfw-system-identity/hostname"}
+        {"time":"2026-10-10T09:27:02.758352702Z","level":"INFO","msg":"pppoe client wired","owner":"w20","component":"subsystems","feature":"pppoe-client","globals_owner":true,"product_paths":true}
+        {"time":"2026-10-10T09:27:02.760480498Z","level":"INFO","msg":"subsystems wired","owner":"w20","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"wiring":"stores in /run/ngfw-test/w20/acl/agent-state: claims-iface-w20.json, boot-w20.json; globals owner true","vpp_ids":"20000-20999"}
+        {"time":"2026-10-10T09:27:02.766375931Z","level":"INFO","msg":"ngfw-agent listening","owner":"w20","socket":"/run/ngfw-test/w20/agent.sock","metrics":"127.0.0.1:9301","state_dir":"/run/ngfw-test/w20/acl/agent-state","vpp_api":"/run/vpp/api.sock"}
+        {"time":"2026-10-10T09:27:02.76910346Z","level":"WARN","msg":"remote-access initialization unavailable","owner":"w20","component":"subsystems","reason":"engine-not-ready"}
+        {"time":"2026-10-10T09:27:02.771583084Z","level":"INFO","msg":"classify table sentinel created at index 0 (INC-vpp-classify-crash M2)","owner":"w20","component":"subsystems","family":"classify-sentinel","state":"created","left":null,"report":"state=created pops=0"}
+        {"time":"2026-10-10T09:27:02.772506228Z","level":"INFO","msg":"VPP boot identity","owner":"w20","component":"subsystems","identity":"cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3672557/60537169","complete":true,"expired_claims":0}
+        {"time":"2026-10-10T09:27:02.772996616Z","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"resync","domains":null}
+        {"time":"2026-10-10T09:27:02.773096325Z","level":"WARN","msg":"neighbour events: interface dump","owner":"w20","component":"subsystems","err":"sw_interface_dump: context canceled"}
+        {"time":"2026-10-10T09:27:02.899013904Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:02.904500241Z","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":131340672,"err":""}
+        {"time":"2026-10-10T09:27:02.904565513Z","level":"INFO","msg":"resync finished","owner":"w20","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+        {"time":"2026-10-10T09:27:02.904942492Z","level":"INFO","msg":"dynamic source started","owner":"w20","source":"pppoe-delegation","descriptors":["pppoe.pd.address","pppoe.pd.prefix","pppoe.pd.ra"]}
+        {"time":"2026-10-10T09:27:02.904995957Z","level":"INFO","msg":"dynamic source started","owner":"w20","source":"pppoe-watch","descriptors":["pppoe.client.observation"]}
+        {"time":"2026-10-10T09:27:02.905011883Z","level":"INFO","msg":"dynamic source started","owner":"w20","source":"multiwan","descriptors":["ip.route.wan","nat44-ed.output-feature.wan","nat44-ed.interface-address.wan","nat44-ed.static-address.wan"]}
+        {"time":"2026-10-10T09:27:02.90513898Z","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"resync","domains":null}
+        {"time":"2026-10-10T09:27:03.025228725Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:03.031054691Z","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":125877697,"err":""}
+        {"time":"2026-10-10T09:27:03.031135357Z","level":"INFO","msg":"resync finished","owner":"w20","why":"requested","status":"APPLY_STATUS_APPLIED","summary":""}
+        {"time":"2026-10-10T09:27:03.157587019Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:03.272587381Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:03.383910187Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:04.015754828Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:04.131647566Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:05.030940065Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:05.165512227Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:06.028367968Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:06.150686326Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:07.026994338Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:07.159053119Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:08.032756587Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:08.169251074Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:09.029988744Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:09.149856005Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:10.038464536Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:10.167863638Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:11.019114572Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:11.145113142Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:12.035858914Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:12.17722286Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:13.015545882Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:13.140646247Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:13.774326752Z","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"auto-block","domains":["acl"]}
+        {"time":"2026-10-10T09:27:13.887136322Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:13.892305921Z","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"acl.stats-enable/global"}
+        {"time":"2026-10-10T09:27:13.899401049Z","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"created:1","reapplied":0,"duration":125106692,"err":""}
+        {"time":"2026-10-10T09:27:14.015877296Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+        {"time":"2026-10-10T09:27:14.135910252Z","level":"WARN","msg":"retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies","owner":"w20","component":"scheduler","descriptor":"pppoe.carrier.namespace","err":"PPPoE kernel helper operation failed"}
+    stack_test.go:199: stopped ngfw-api pid 3674255
+    stack_test.go:199: stopped ngfw-agent pid 3674221
+    acl_test.go:177: pg-test drop w20: <nil>
+        drop   database ngfw_w20
+        drop   role ngfw_w20
+        ok     nothing named ngfw_w20 / ngfw_w20 remains
+--- FAIL: TestMultiWANRealAPI (15.99s)
+FAIL
+FAIL	ngfw/test/topology/acl	16.016s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3672557

@@ -1,0 +1,16 @@
+TEMP_GENUINE_RUNTIME /usr/sbin/pppd da4500bda31e7944ba279cf52ba5c296ea30523343abecb76c97fddf7c125f9a
+TEMP_GENUINE_RUNTIME /usr/sbin/pppoe-server 42434e28c7b95bacbe562caeed09ca1a071f547d8d008b650872e5ef0feb64de
+TEMP_GENUINE_RUNTIME /usr/lib/pppd/2.5.2/pppoe.so 9db46149c218bcd55617a6baf9deaa71fde1329af2a27c4e0a82d0f965f138cf
+TEMP_GENUINE_ALIAS /usr/lib/pppd/2.5.2/rp-pppoe.so pppoe.so
+Traceback (most recent call last):
+  File "/tmp/ngfw-lab-wan250-20261010/repo/docs/status/tasks/lab-wan-20261010-carrier-live.py", line 180, in <module>
+    host_identity={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in identity_files}
+                                       ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/pathlib/_abc.py", line 625, in read_bytes
+    with self.open(mode='rb') as f:
+         ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/lib/python3.13/pathlib/_local.py", line 539, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/etc/motd'
+TEMP_GENUINE_RUNTIME_REMOVED PASS

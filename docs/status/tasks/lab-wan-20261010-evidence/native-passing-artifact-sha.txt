@@ -1,0 +1,2 @@
+e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41  scripts/pppoe-kernel-carrier.py
+4e956d08b8658e6009ddc85fe501fad3646de8053e6243720625a53f79c5be1a  /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test

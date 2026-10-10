@@ -1,0 +1,4 @@
+Primary source: https://github.com/ppp-project/ppp/blob/master/pppd/ipcp.c lines2177-2184 and ipv6cp.c lines1519-1526: scriptargv1=interface, argv6=ipparam. main.c exports IFNAME and PPPD_PID; IPLOCAL/IPREMOTE and LLLOCAL/LLREMOTE exported by protocol modules. Exact host binary strings show IFNAME; native PAP/IPCP negotiation with originaldispatcher failed to publish state because rendered guard expected unexported PPP_IPPARAM. New regression executes six actualargs without fabricated PPPenv, foreign/missingargs refused, actualIPv6helper admission and departedparent fence reached.
+372308791104d5397cd023098d99f7158d7671e42a36533b8b74be39eff226a7  /tmp/ngfw-lab-wan-20261010/pppd-ipcp.c
+81c1cf602058feee727f7f4cef0b2080c23c0aae85c521891cd4b91f883ec07b  /tmp/ngfw-lab-wan-20261010/pppd-ipv6cp.c
+628c7daac637b5a4cb0f326b7189e602ec9b28a0a0460626a21ce1806ea906fb  /tmp/ngfw-lab-wan-20261010/pppd-main.c

@@ -1,0 +1,15 @@
+ngfw-agent sha256=e10417a365a90c6081ec2a78f171cd11b6384d7671e92641146c7d99509b9207
+ngfw-agentctl sha256=b3208c9513a0aaac74ce2ad2659759310cd6ae38272d3a32ee3b42d194c74e31
+ngfw-vpp-preflight sha256=768961fe463470203776403732d67cb7f9da707ab8de46337c7c88cf5834bd17
+DISPOSABLE_VPP pid=3649693 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-3649691
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:88: net.ipv4.ping_group_range = 0 0
+        
+    acceptance_test.go:89: /root/ngfw-wt/lab-nat46-20261010/deploy/dev/pg-test.sh create w20: exit status 3
+        create role ngfw_w20
+        ERROR:  could not create directory "base/349400": No space left on device
+--- FAIL: TestMultiWANRealAPI (8.48s)
+FAIL
+FAIL	ngfw/test/topology/acl	8.500s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3649693

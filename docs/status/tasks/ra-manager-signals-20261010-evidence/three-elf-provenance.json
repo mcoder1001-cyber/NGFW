@@ -85,7 +85,7 @@
       "loan_path": "/tmp/ngfw-ra-signals-tmp/loan/units/ngfw-agent.service.d/10-ngfw-hardening.conf"
     }
   ],
-  "full_local_quick": "running, not PASS yet",
+  "full_local_quick": "PASS, exit0,35m45s; complete unchanged quick2.txt",
   "current_main_4cda_compiled_paths_equal_7c28": true,
   "canonical_asset_count": 11,
   "manifest_scope_correction": "The original ten entries covered nine RA units and ngfw-agent.service. This revision explicitly adds the actual agent hardening drop-in as entry eleven."

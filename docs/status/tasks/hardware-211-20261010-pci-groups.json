@@ -1,0 +1,210 @@
+{
+  "host": "172.30.110.211",
+  "physical_nics": [
+    {
+      "netdev": "enp1s0f0np0",
+      "pci": "0000:01:00.0",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "16",
+      "group_members": [
+        "0000:01:00.0"
+      ]
+    },
+    {
+      "netdev": "enp1s0f1np1",
+      "pci": "0000:01:00.1",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "17",
+      "group_members": [
+        "0000:01:00.1"
+      ]
+    },
+    {
+      "netdev": "enp1s0f2np2",
+      "pci": "0000:01:00.2",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "18",
+      "group_members": [
+        "0000:01:00.2"
+      ]
+    },
+    {
+      "netdev": "enp1s0f3np3",
+      "pci": "0000:01:00.3",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "19",
+      "group_members": [
+        "0000:01:00.3"
+      ]
+    },
+    {
+      "netdev": "enp2s0f0np0",
+      "pci": "0000:02:00.0",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "20",
+      "group_members": [
+        "0000:02:00.0"
+      ]
+    },
+    {
+      "netdev": "enp2s0f1np1",
+      "pci": "0000:02:00.1",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "21",
+      "group_members": [
+        "0000:02:00.1"
+      ]
+    },
+    {
+      "netdev": "enp2s0f2np2",
+      "pci": "0000:02:00.2",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "22",
+      "group_members": [
+        "0000:02:00.2"
+      ]
+    },
+    {
+      "netdev": "enp2s0f3np3",
+      "pci": "0000:02:00.3",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "23",
+      "group_members": [
+        "0000:02:00.3"
+      ]
+    },
+    {
+      "netdev": "enp3s0f0np0",
+      "pci": "0000:03:00.0",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "24",
+      "group_members": [
+        "0000:03:00.0"
+      ]
+    },
+    {
+      "netdev": "enp3s0f1np1",
+      "pci": "0000:03:00.1",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "25",
+      "group_members": [
+        "0000:03:00.1"
+      ]
+    },
+    {
+      "netdev": "enp3s0f2np2",
+      "pci": "0000:03:00.2",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "26",
+      "group_members": [
+        "0000:03:00.2"
+      ]
+    },
+    {
+      "netdev": "enp3s0f3np3",
+      "pci": "0000:03:00.3",
+      "vendor": "0x8086",
+      "device": "0x1572",
+      "driver": "i40e",
+      "iommu_group": "27",
+      "group_members": [
+        "0000:03:00.3"
+      ]
+    },
+    {
+      "netdev": "enp4s0",
+      "pci": "0000:04:00.0",
+      "vendor": "0x8086",
+      "device": "0x125c",
+      "driver": "igc",
+      "iommu_group": "28",
+      "group_members": [
+        "0000:04:00.0"
+      ]
+    },
+    {
+      "netdev": "enp5s0",
+      "pci": "0000:05:00.0",
+      "vendor": "0x8086",
+      "device": "0x125c",
+      "driver": "igc",
+      "iommu_group": "29",
+      "group_members": [
+        "0000:05:00.0"
+      ]
+    },
+    {
+      "netdev": "enp6s0",
+      "pci": "0000:06:00.0",
+      "vendor": "0x8086",
+      "device": "0x125c",
+      "driver": "igc",
+      "iommu_group": "30",
+      "group_members": [
+        "0000:06:00.0"
+      ]
+    },
+    {
+      "netdev": "enp7s0",
+      "pci": "0000:07:00.0",
+      "vendor": "0x8086",
+      "device": "0x125c",
+      "driver": "igc",
+      "iommu_group": "31",
+      "group_members": [
+        "0000:07:00.0"
+      ]
+    },
+    {
+      "netdev": "enp8s0",
+      "pci": "0000:08:00.0",
+      "vendor": "0x8086",
+      "device": "0x125c",
+      "driver": "igc",
+      "iommu_group": "32",
+      "group_members": [
+        "0000:08:00.0"
+      ]
+    },
+    {
+      "netdev": "enp9s0",
+      "pci": "0000:09:00.0",
+      "vendor": "0x8086",
+      "device": "0x125c",
+      "driver": "igc",
+      "iommu_group": "33",
+      "group_members": [
+        "0000:09:00.0"
+      ]
+    }
+  ],
+  "management_tcp_probe": {
+    "host": "172.30.126.195",
+    "port": 22,
+    "result": "PASS"
+  },
+  "memory": "MemTotal:       32626156 kB\nMemFree:        31623712 kB\nMemAvailable:   31461588 kB\nBuffers:            7192 kB\nCached:           185112 kB\nSwapCached:            0 kB\nActive:           179412 kB\nInactive:          28948 kB\nActive(anon):      28604 kB\nInactive(anon):        0 kB\nActive(file):     150808 kB\nInactive(file):    28948 kB\nUnevictable:        9628 kB\nMlocked:               0 kB\nSwapTotal:             0 kB\nSwapFree:              0 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               344 kB\nWriteback:             0 kB\nAnonPages:         26276 kB\nMapped:            32428 kB\nShmem:             12488 kB\nKReclaimable:      21152 kB\nSlab:             174432 kB\nSReclaimable:      21152 kB\nSUnreclaim:       153280 kB\nKernelStack:        4624 kB\nPageTables:         1888 kB\nSecPageTables:      3672 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    16313076 kB\nCommitted_AS:      58720 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:       33644 kB\nVmallocChunk:          0 kB\nPercpu:            15840 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:     8192 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:              0 kB\nCmaFree:         2885632 kB\nUnaccepted:            0 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      213988 kB\nDirectMap2M:     4798464 kB\nDirectMap1G:    28311552 kB\n",
+  "kernel_cmdline": "BOOT_IMAGE=/boot/vmlinuz-7.0.0-22-generic root=UUID=343f6a24-1c79-4177-b7d0-52c8582914fb ro quiet\n"
+}

@@ -347,3 +347,14 @@ preflight also checked fixed helper/asset hashes, masks/policy/e275, effective o
 NFT units, normal clean root and protected management before any firstboot mutation.
 This justifies root's separate canonical firstboot phase; actual firstboot results
 remain required, with only nr1024 and six owned dependencies expected.
+
+Actual root canonical firstboot subsequently independently PASS:
+`manager-firstboot37-apply-20261010T141814Z.json`,235321B0600,
+SHA1b75f2ee3d1489348b87218396d1f22c30207b967ba22eea22d484f448c8b15a.
+Direct metadata/document assertions prove firstboot0/disable0, six owned units
+active/fifteen other units inactive, only nr1024 among sixteen sysctls, exact
+protected before/after L3, only owned ngfw_base NFT, three required plugins in
+canonical noPCI startup with management0c blacklist, exact three API environment
+names,32B0600 secret key, bootstrap removed/guard_error null/ioerr0x6 unchanged and
+no new storage errors. Outer stderr empty. No VPP/agent/API/nginx activation or
+binding occurred in this phase. Actual runtime/native seed7 remains pending.

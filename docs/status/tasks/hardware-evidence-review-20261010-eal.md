@@ -3,9 +3,9 @@
 Scope: docs/source/private receipt inspection only. Reviewer performs no target or
 product mutation. Current checkpoint: corrected source/native physical application and strong
 preboot control/admin convergence independently PASS on both hosts. New-boot
-configuration/driver persistence scoped PASS; actual wallclock/RTC regression blocks
-TLS and final authenticated postboot native acceptance. This real failure remains
-mandatory. The initial EAL failure below is historical and its correction is
+configuration/driver persistence and recovered authenticated native proof PASS.
+Actual wallclock/RTC regression is corrected; separate repeat-boot clock and final
+native acceptance PASS on .37, pending on .211. These checks remain mandatory. The initial EAL failure below is historical and its correction is
 verified in the later appendices.
 
 Actual root-owned failure receipt f64ad15bd241d4bbed2e3219900b6836138dcaf13be17ce2f916df2bc9559de1
@@ -876,3 +876,45 @@ repair/before==after==repair/health[]/one private marker/systemctl reboot reques
 This establishes one request only. Fresh new-boot UUID, authoritative UTC/RTC
 persistence and final paired authenticated native proof remain pending; no repeat
 request or campaign Done claim.
+
+
+## .37 repeated boot proves UTC persistence and native7, 16:32 UTC
+
+Actual ROOT .37 second normal boot independently PASS after RTC repair and one
+verification request. Initial bounded short SSH poll did not connect; later normal
+return was observed with no duplicate reboot or manual runtime restart.
+
+```text
+Python private exact SHA/mode/selected clock/boot/native assertion set; exit0
+manager-clock-fresh-SSH37-20261010T162835Z.json507B0600
+SHAab456acb9ed68faf4004568e628918ae03debfd9abc5d012729faa2aba79adad
+newUUID66e81101-eb23-4183-a845-098d0f69a11d/fresh SSH0/system+RTC Oct10
+manager-boot37-observe-boot-20261010T163007Z.json535152B0600
+SHA66f3f543fb3b5df8e3d2382cdb71e2a26e08f85c03983653cfa94019d9c840c2
+68commands0/empty stderr/PASS/all4active0/newUUID/fresh-epoch/protectedbefore==after
+manager-clock-persistence37-20261010T163005Z.json811B0600
+SHA18eabed836c966b6721fa16534a0a301a3b3bf306d20218737e27035a924b9bf
+readonly/SSH0/UTCcontext rtc0char247:0/hctosys1/LocalRTCno/adjtimeabsent
+controller monotonic window.244s;system/RTC samples within5s
+actual sampled delta to controller start-.2814s/-.2186s
+exact successful949f repair and newUUID pinned
+manager-physical-native37-postboot-20261010T163040Z.json585836B0600
+SHA89b2eab7dd26d820bab52d6e058f886506bd08a3d9e74a245faec28bd7a27b01
+46commands0/PASS/read-only/native1/seedretained/candidateequal/noPending/in-sync
+verifiedTLS/admin200/readiness401/all7APIadmintrue/independentVPPup
+pool16784>=RX7168/fourunitidentitystable/protectedbefore==after/storage[]
+```
+
+Exact repeated newUUID differs initial d4b5 and original c8d. Final native observer
+pins actual fresh66f3 BOOT and strong immutable preboot proof, without resume/start
+or configuration writes. No physical peer packet throughput claim. Source/actual
+planned once-only .211 verification reboot applicability APPROVE now; its final
+new-boot clock/TLS/native17 persistence is still pending, so campaign remains RUNNING.
+
+ROOT compact18ea persistence receipt carries correct sampled results but no command
+or source identity. Reviewer requested the exact readonly persistence command/source
+in durable public evidence before final completion; this is a publication NIT,
+not a .211 phase blocker or new target test.
+
+Own publishede5c5c54f802318615bbcc3a1a91323c7e73d512d documentation check actually
+PASSED14s;gitleaks384.47KB/no leaks/board212valid.

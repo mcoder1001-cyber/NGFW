@@ -3,19 +3,19 @@
 **Current operational status: resumed for the same existing hardware task at the
 owner's explicit request, 2026-10-10 12:33 UTC.** Independent source/actual-evidence
 review only; no target or product writes. The prior pause below remains historical.
-Current checkpoint, 16:27 UTC: corrected physical application and strong native
-preboot/admin convergence PASS on both hosts; first new-boot configuration/driver
-persistence scoped PASS. Real wallclock/RTC regression0201e is diagnosed and exact
-c70 ROOT-only consumer approved at published9cf59. Actual inspections e283/4e297
-and UTC+RTC repairs949f/2639 independently PASS with controller readback and all
-protected state unchanged. Readonly authenticated native repeats c0f620/e4b0b48 now
-PASS, confirming actual TLS readiness recovery and native7/17 admin/controlstate.
-Separate once-only verification reboot .37 e543 request PASS; fresh reboot clock/RTC
-persistence and final paired native proof still pending. .211 verification request
-waits successful .37 return. Whole campaign RUNNING until those actual proofs.
-No TLS relaxation/NTP/service/timezone workaround or reviewer target operation.
-Packet-only deferral28f724 APPROVE: all24admintrue/no carrier/forwarding-loss-throughput
-NOT RUN; clock/TLS/native persistence remains mandatory. Root alone executes.
+Current checkpoint, 16:32 UTC: corrected physical application/source/mainCI and
+strong native control/admin convergence PASS on both hosts. Real RTC/wallclock
+regression0201e corrected by exact c70; both actual UTC+RTC repairs949f/2639 and
+recovered readonly TLS/native7/17 c0f/e4b PASS with protected states unchanged.
+.37 separate one verification reboot e543 now returns secondUUID66e811; actual
+BOOT66f3, absolute RTC/controller18ea and final authenticated readonly native7
+89b2 independently PASS. All7physical admin/VPP states converge; clock survives
+normal reboot. Planned once-only .211 verification reboot applicable now; actual
+new-boot clock/TLS/native17 remains pending. Campaign RUNNING until those proofs.
+Packet-only owner-authorized deferral28f724 remains: all24admintrue but no carrier,
+forwarding/loss/throughput NOT RUN. ROOT will add exact readonly persistence source
+to public evidence before final completion. No reviewer target operation, TLS/NTP/
+service/timezone workaround, duplicate reboot or packet acceptance claim.
 
 Historical 15:45 checkpoint: both new97ae four-package installations and actual
 guard restores independently PASS. Corrected canonical physical application on
@@ -54,8 +54,8 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`a5ff7fba32e6870049df3e9422dab7d39904ca83` (matching CLI push/readback;
-prior published669e unchanged documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
+`e5c5c54f802318615bbcc3a1a91323c7e73d512d` (matching CLI push/readback;
+actual unchanged documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
 eal.md. The prior source/launch documentation check exited0 (17s); that success

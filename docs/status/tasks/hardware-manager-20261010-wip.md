@@ -1,3 +1,49 @@
+# Actual .211 package installation configured — 2026-10-10 11:38 UTC
+
+Root independently read full final identity-native3fed0081 source (trusted
+same-file timezone-only canonicalization; native configure only; product guards
+unchanged). Fresh remote2aa55c29e54f4fd92e345164bf80ad8d075f22e0 matches R7 applicability
+APPROVE and conditional release. Actual13205B/0600 receipt
+identity-native-canonicalize-configure-20261010T113324Z.json SHA
+ a70c56fe63312a43b8db02db45bf3766694c4517c03a8f93eb4ee9c045f15698
+independently parsed: configure0/stdout only two setups/SSHstderr0, all11 exact
+product2045ab8b3d2f and VPP26.06-release+ngfw3 installed, dpkg-audit0/empty stdout
+and stderr, fullL3equal/all16sysctlequal/guard_errorNone/all21inactive,
+identity contents unchanged/hostname+cachedTZequal/clockstep about0.
+Original backup6736B/93ad1a7a file+dirfsynced before link replacement. Actual
+package installation CONFIGURED PASS; firstboot/API/runtime/NIC tests NOT RUN.
+
+Concrete source-level later timezone metadata concern: systemd259.5 get_timezone
+reads immediate /etc/localtime link; native product STATE indirection preserves
+glibc timezone bytes but may not supply fresh timedated metadata after reboot.
+Current cached label equality does not prove that compatibility. R7 matching
+primary source reviewed; record postconfigure actual chain/fresh reboot metadata.
+This does not hold the bounded completed install or authorize guard relaxation,
+unknown service restarts or privileged workaround. Fix actual acceptance failures.
+
+.37 actual clean repair/37explicitresponses/749568B offhost undo alreadyPASS.
+Final readonly return-proof8772baa3 includes own baseline44regular+available
+6directory/1symlink auth/network metadata,19boot modes, same exact selectors;
+ro,noload,nosuid,nodev,noexec root andEFIro/noexec, ordinaryunmounts; currentEFI
+MZ/hashes without false prebaseline equality; originalUUID/fstab/grub/kernel,
+all5L3/protectedPCI0cigc58/47RAMhashes/systemd+executor+shutdown loaderclosures,
+fullaudit/sync/exclusiveguard0. Root independently read initialfullsource and
+final focused metadata/mountflags delta; no arbitrary count or broad newscan.
+Worker reports finalpublication/readback07aa11a114273f428073e5a86b3c1f37566f27f0,
+checks0/cleanWT; R7 source applicability pending then already-authorized readonly
+capture. HeldRAMPTY30565/shell3940 remains; no normalreturn yet. Root separate
+singleforce skip-auto-soft/kexec return release follows actual proof/R7 verdict.
+
+Next exact: worker37 readonly return capture; worker211 full fresh22/kernel and
+postconfigure chain, publish configuredmilestone, prepare firstboot effective-nft/
+privatebootstrap/explicit hugepage/noPCI contract. Restoreguards AFTER canonical
+firstboot whileVPPinactive+kerneldataNICnames intact; persistent API seedflag AFTER
+firstboot BEFORE firstAPI/revision/driverbind, actual17seededrows before guarded
+startupapply. .211 firstboot/firewall/service activation follows .37 normalboot
+managementproof; source/readonly preparation can proceed now. Original all7+17NIC
+and real service/API/restart/reboot tests remain. Root priorbe0e60c65e71eda23162cee38be5093e579e70bd
+push/readbackPASS; this coherent configured milestone immediately publishes.
+
 # Actual .37 clean repair and .211 bounded configuration recovery — 2026-10-10 11:27 UTC
 
 .37 actual correction completed exit1. Root independently reread full3381B private

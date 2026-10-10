@@ -49,7 +49,7 @@ def main():
  q=pathlib.Path(a.proof).resolve();assert q.parent==PRIVATE and q.stat().st_uid==0 and stat.S_IMODE(q.stat().st_mode)==0o600;b=q.read_bytes();assert hashlib.sha256(b).hexdigest()==a.proof_sha256;j=json.loads(b)
  assert j['failure']=='actual system.seed-defaults revision1 not observed' and j['last_observed_config']['revision']=='0' and j['network_equal'] and j['all17_still_kernel'] and j['new_storage_errors']==[] and j['ioerr_before']==j['ioerr_after']
  doc=j['last_observed_config']['data'];assert not any(x.get('physical') for x in doc.get('interfaces',{}).values()) and doc['dataplane']['devices']=={} and doc['dataplane']['pciWhitelist']==[]
- doc=json.loads(json.dumps(doc));doc['dataplane']['plugins']['switches'].update({p:True for p in ['linux_cp_plugin.so','linux_nl_plugin.so','npt66_plugin.so']})
+ doc=json.loads(json.dumps(doc));doc['dataplane'].setdefault('plugins',{}).setdefault('switches',{}).update({p:True for p in ['linux_cp_plugin.so','linux_nl_plugin.so','npt66_plugin.so']})
  fb_raw=(PRIVATE/'firstboot-apply-20261010T120628Z.json').read_bytes();assert hashlib.sha256(fb_raw).hexdigest()==j['firstboot_proof_SHA'];fb=json.loads(fb_raw);live_sha=fb['files']['/etc/vpp/startup.conf']['sha256']
  fields={'PROOF_SHA':a.proof_sha256,'NETWORK':j['network_after'],'INVENTORY':j['inventory_after'],'UNITS':j['unit_states'],'LIVE_SHA':live_sha,'DOCUMENT':doc};code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  r=subprocess.run(SSH+['python3 -'],input=code.encode(),capture_output=True);stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')

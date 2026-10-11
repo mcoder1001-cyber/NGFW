@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"github.com/strongswan/govici/vici"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -1149,7 +1150,7 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 			break
 		}
 		if readErr != nil || len(rows.GetSessions()) > 1 {
-			t.Fatal("API peer observed session boundary")
+			t.Fatalf("API peer observed session boundary: error=%v count=%d", readErr, len(rows.GetSessions()))
 		}
 		// Each real VICI operation has its own authenticated ten-second socket;
 		// the independent peer process remains alive throughout the hold.
@@ -1160,11 +1161,32 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 				canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence, "disconnected", prior)
 				attempt, stop := context.WithTimeout(ctx, 15*time.Second)
 				if prior != "" {
-					terminated, terminateErr := peer.Call(attempt, "terminate", privateMessage("ike", "ra-client", "timeout", "2000"))
-					if terminateErr != nil || terminated == nil {
+					connections, connectionErr := peer.Call(attempt, "get-conns", nil)
+					stats, statsErr := peer.Call(attempt, "stats", nil)
+					if connectionErr != nil || connections == nil || !reflect.DeepEqual(connections.Get("conns"), []string{"ra-client"}) || statsErr != nil || stats == nil {
 						stop()
-						t.Fatal("API peer stale owned SA removal")
+						t.Fatal("API peer complete owned inventory before reconnect")
 					}
+					ikeStats, ok := stats.Get("ikesas").(*vici.Message)
+					if !ok || ikeStats == nil {
+						stop()
+						t.Fatal("API peer IKE inventory before reconnect")
+					}
+					count, countErr := strconv.ParseUint(fmt.Sprint(ikeStats.Get("total")), 10, 64)
+					if countErr != nil || count > 1 {
+						stop()
+						t.Fatal("API peer bounded owned SA inventory")
+					}
+					if count == 1 {
+						terminated, terminateErr := peer.Call(attempt, "terminate", privateMessage("ike", "ra-client", "timeout", "2000"))
+						if terminateErr != nil || terminated == nil || terminated.Get("success") != "yes" {
+							stop()
+							t.Fatal("API peer stale owned SA removal")
+						}
+					}
+					// The owned resolve plugin rewrites its file on real IKE removal.
+					// Capture its current private inode before the next negotiation.
+					dnsOwnership.Capture(t)
 				}
 				result, initiateErr := peer.Call(attempt, "initiate", privateMessage("child", "protected", "timeout", "12000"))
 				stop()

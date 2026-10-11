@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // NamespaceHandoffStoppedRepair repairs an owned export generation only after
@@ -39,8 +40,26 @@ func (h *FixedNamespaceHandoff) ExportExistingRepair(ctx context.Context, plan *
 	if err != nil {
 		return ErrBoundary
 	}
-	current, err := h.targets(ctx)
+	before, err := h.capture(ctx)
 	if err != nil {
+		return ErrBoundary
+	}
+	defer func() { _ = before.Close() }()
+	current := append([]MountTarget(nil), before.Targets[:]...)
+	if !record.Pending && sameMountTargets(current, record.Targets) {
+		// Completed unchanged exports need only readback. Retain the initial
+		// fresh capture as the first verification boundary instead of discarding
+		// it. Partial exports and generation replacement keep separate captures.
+		if verifyHeldTargetChain(ctx, record.Targets, before, func(call context.Context, target MountTarget, snapshot *NamespaceTargetSnapshot) (*NamespaceTargetSnapshot, error) {
+			bounded, cancel := context.WithTimeout(call, 15*time.Second)
+			defer cancel()
+			return h.callWithCapture(bounded, "verify", plan, target, snapshot)
+		}) != nil {
+			return ErrBoundary
+		}
+		return writeNamespaceExport(record, true)
+	}
+	if before.Close() != nil {
 		return ErrBoundary
 	}
 	if sameMountTargets(current, record.Targets) {

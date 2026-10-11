@@ -407,3 +407,35 @@ waits preserve the token. RA race PASS3.653s, subsystem race PASS32.524s, scoped
 lint PASS0issues. Normal native78 is running with original budgets. Agent uses
 normal unstripped build; helpers use production packaging's -s -w, all CGO0.
 Complete native/TLS/rollback and both-host API/browser evidence remains open.
+
+
+Source22 normal native78: automatic empty-session readback29.403s and genuine
+negotiation29.428s; final observed session FAIL under the unchanged whole30s
+context. Whole canonical FAIL150.93s. Source23 normal native79 similarly reaches
+readback29.045s and negotiation29.068s, then fails final observation; no completion.
+Source23 changes classify helper/daemon from one fresh held two-capture snapshot
+in Unit.Start, retaining a fresh manager PID and complete live process identity.
+Runtime still independently observes again before loading credentials. Full RA
+race PASS3.810s. Source23 native80 adds timing logs only and is diagnostic, never
+an acceptance receipt: create6.752s, Start4.320s, each two-capture target/unit
+acquisition approximately2s; complete unchanged export repair discarded one
+fresh initial snapshot before starting another pre/post pair. Instrumented
+Acquire's cancelled flag includes its own deferred cancellation and must not be
+interpreted as proof of a caller deadline failure.
+
+Source24 retains that initial snapshot only for read-only verification of complete
+unchanged stopped exports, using the same fresh pre/post chain. Partial exports,
+generation replacement and mutating dispatch retain separate captures and all
+existing guards. RA race PASS3.662s, subsystem race PASS32.271s, scoped lint
+PASS0issues. Normal native81 on195 and native250-source24 are running; all18
+manifest files on250 match the local81 cohort exactly. No full campaign PASS
+is asserted. Inactive owned guests77–80 have their private observations/evidence
+retained with SHA receipts before removal; the lab services were preserved.
+
+Actual API/browser preparation uses an owned PostgreSQL role/database, normal
+bootstrap-admin login HTTP200, normal configured licence trust key (no licence
+issued/uploaded yet), fresh public PKI and an isolated byte-only bridge transport.
+Normal API/schema/web builds pass. Existing real Chrome154.0.8037.97 runs through
+Playwright; the new browser download failed403 and is retained as failed setup,
+not acceptance. No live agent/API/browser campaign or whole RA completion is
+inferred from these prerequisites.

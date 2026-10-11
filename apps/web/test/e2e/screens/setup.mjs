@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Real-browser factory wizard preview/screenshots: no endpoint mocks and no commit/NIC changes.
-// Requires existing WAN/LAN names, real factory API, admin password file, Playwright/Chrome paths.
+// Requires existing WAN name, real factory API, admin password file, Playwright/Chrome paths.
 import { readFileSync, mkdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
@@ -13,9 +13,8 @@ import { shot } from '../lib/shot.mjs';
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const base = process.env.NGFW_E2E_BASE;
 const wan = process.env.NGFW_E2E_SETUP_WAN;
-const lan = process.env.NGFW_E2E_SETUP_LAN;
 const passwordFile = process.env.NGFW_E2E_ADMIN_PASSWORD_FILE;
-if (!base || !wan || !lan || !passwordFile) throw new Error('Set NGFW_E2E_BASE, NGFW_E2E_SETUP_WAN/LAN and NGFW_E2E_ADMIN_PASSWORD_FILE');
+if (!base || !wan || !passwordFile) throw new Error('Set NGFW_E2E_BASE, NGFW_E2E_SETUP_WAN and NGFW_E2E_ADMIN_PASSWORD_FILE');
 const current = readFileSync(passwordFile, 'utf8').trim();
 const langs = ['en', 'fa']; const tr = createTranslator(webRoot, langs);
 const out = resolve(process.env.NGFW_E2E_SHOTS ?? '/tmp/ngfw-setup-shots'); mkdirSync(out, { recursive: true });
@@ -42,10 +41,9 @@ try {
       await page.getByLabel(t('hostname'), { exact: true }).fill(process.env.NGFW_E2E_SETUP_HOSTNAME ?? 'ngfw');
       await capture('3-hostname'); await next();
       await select('wan', wan); await capture('4-wan'); await next();
-      await select('lan', lan); await page.getByLabel(t('lanAddress'), { exact: true }).fill(process.env.NGFW_E2E_SETUP_LAN_ADDRESS ?? '192.168.40.1/24');
-      await capture('5-lan'); await next(); await capture('6-defaults'); await next();
-      await page.getByRole('button', { name: t('commit'), exact: true }).waitFor(); await capture('7-summary');
-      assertNoPageErrors(); console.log(`PASS setup ${lang}: seven real-API preview steps; no configuration applied`);
+      await capture('5-review'); await next();
+      await page.getByRole('button', { name: t('commit'), exact: true }).waitFor(); await capture('6-summary');
+      assertNoPageErrors(); console.log(`PASS setup ${lang}: six real-API preview steps; no configuration applied`);
     } finally { await ctx.close(); }
   }
 } finally { await browser.close(); }

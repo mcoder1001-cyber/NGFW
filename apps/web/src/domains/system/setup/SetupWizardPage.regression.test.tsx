@@ -39,6 +39,12 @@ async function reachWan() {
   await screen.findByRole('combobox', { name: i18n.t('setup:wan') });
 }
 async function select(label: string, name: string) {
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: label })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    ),
+  );
   fireEvent.mouseDown(screen.getByRole('combobox', { name: label }));
   fireEvent.click(within(await screen.findByRole('listbox')).getByRole('option', { name }));
 }
@@ -84,6 +90,84 @@ describe('setup wizard independent network-picker regression', () => {
     },
   );
 
+  it('prefills an unconfigured WAN address and gateway from live observations', async () => {
+    const fake = installFakeApi();
+    await signIn();
+    fake.on('GET /api/v1/config', { body: RootConfig.parse({}) });
+    fake.on('GET /api/v1/state/interfaces', {
+      body: {
+        items: [
+          {
+            name: 'uplink',
+            kind: 'interface',
+            state: {
+              swIfIndex: 4,
+              managed: false,
+              vrf: 'default',
+              type: 'dpdk',
+              ipv4: ['192.0.2.2/24'],
+            },
+            physical: null,
+          },
+          {
+            name: 'internal',
+            kind: 'interface',
+            state: { swIfIndex: 5, managed: false, vrf: 'default', type: 'dpdk', ipv4: [] },
+            physical: null,
+          },
+        ],
+      },
+    });
+    fake.on('GET /api/v1/state/routes', {
+      body: {
+        items: [
+          {
+            prefix: '0.0.0.0/0',
+            vrf: 'default',
+            nextHops: [{ interface: 'uplink', address: '192.0.2.1' }],
+          },
+        ],
+      },
+    });
+    render(app());
+    await reachWan();
+    await waitFor(() =>
+      expect(screen.getByLabelText('WAN address/prefix')).toHaveValue('192.0.2.2/24'),
+    );
+    expect(screen.getByLabelText('WAN gateway')).toHaveValue('192.0.2.1');
+    expect(screen.getByRole('combobox', { name: 'WAN interface' })).toHaveTextContent('uplink');
+  });
+
+  it('prefills static WAN and retains administrator edits after returning to the step', async () => {
+    const fake = installFakeApi();
+    await signIn();
+    fake.on('GET /api/v1/config', {
+      body: RootConfig.parse({
+        interfaces: { uplink: { ipv4: ['203.0.113.2/24'] }, lan0: {} },
+        routing: {
+          static: [
+            { prefix: '0.0.0.0/0', nextHops: [{ interface: 'uplink', address: '203.0.113.1' }] },
+          ],
+        },
+      }),
+    });
+    fake.on('GET /api/v1/state/interfaces', { body: { items: [] } });
+    fake.on('GET /api/v1/state/routes', { body: { items: [] } });
+    render(app());
+    await reachWan();
+    await waitFor(() =>
+      expect(screen.getByLabelText('WAN address/prefix')).toHaveValue('203.0.113.2/24'),
+    );
+    expect(screen.getByRole('combobox', { name: 'WAN interface' })).toHaveTextContent('uplink');
+    expect(screen.getByLabelText('WAN gateway')).toHaveValue('203.0.113.1');
+    fireEvent.change(screen.getByLabelText('WAN gateway'), { target: { value: '203.0.113.254' } });
+    next();
+    await screen.findByText(i18n.t('setup:defaultsHelp'));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByLabelText('WAN gateway')).toHaveValue('203.0.113.254');
+    expect(screen.queryByText('LAN interface')).not.toBeInTheDocument();
+  });
+
   it('retains configured choices when live state fails and retry loads new interfaces', async () => {
     const fake = installFakeApi();
     await signIn();
@@ -114,14 +198,13 @@ describe('setup wizard independent network-picker regression', () => {
     await waitFor(() =>
       expect(screen.queryByText(i18n.t('setup:interfacesFailed'))).not.toBeInTheDocument(),
     );
-    next();
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: i18n.t('setup:lan') }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: i18n.t('setup:wan') }));
     const list = await screen.findByRole('listbox');
     expect(
       within(list)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['configuredLan', 'discoveredLan']);
+    ).toEqual(['configuredLan', 'configuredWan', 'discoveredLan']);
     fireEvent.click(within(list).getByRole('option', { name: 'discoveredLan' }));
     expect(
       fake.calls.filter((r) => r.path === '/api/v1/state/interfaces').length,
@@ -156,7 +239,8 @@ describe('setup wizard independent network-picker regression', () => {
       'configuredWan',
     );
     next();
-    await select(i18n.t('setup:lan'), 'configuredLan');
+    await screen.findByText(i18n.t('setup:defaultsHelp'));
+    expect(screen.queryByRole('combobox', { name: 'LAN interface' })).not.toBeInTheDocument();
     expect(
       fake.calls.filter((r) => r.path === '/api/v1/state/interfaces').length,
     ).toBeGreaterThanOrEqual(2);
@@ -172,6 +256,9 @@ describe('setup wizard independent network-picker regression', () => {
     render(app());
     await reachWan();
     expect(await screen.findByText(i18n.t('setup:noInterfaces'))).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: i18n.t('setup:next') })).toBeEnabled(),
+    );
     next();
     expect(await screen.findByText(i18n.t('setup:selectInterface'))).toBeInTheDocument();
     expect(
@@ -181,7 +268,7 @@ describe('setup wizard independent network-picker regression', () => {
       fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
     ).toBe(false);
   });
-  it('renders Persian WAN and LAN selection errors and excludes the selected WAN from LAN', async () => {
+  it('renders Persian WAN selection errors and proceeds without a LAN step', async () => {
     const fake = installFakeApi();
     await signIn();
     fake.on('GET /api/v1/config', { body: RootConfig.parse({}) });
@@ -208,21 +295,15 @@ describe('setup wizard independent network-picker regression', () => {
     await select('Language', 'Persian');
     await waitFor(() => expect(i18n.language).toBe('fa'));
     await reachWan();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: i18n.t('setup:next') })).toBeEnabled(),
+    );
     next();
     expect(await screen.findByText('پیش از ادامه یک واسط شبکه انتخاب کنید.')).toBeInTheDocument();
     await select('رابط WAN', 'wanNic');
     next();
-    await screen.findByRole('combobox', { name: 'رابط LAN' });
-    next();
-    expect(await screen.findByText('پیش از ادامه یک واسط شبکه انتخاب کنید.')).toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'رابط LAN' }));
-    const list = await screen.findByRole('listbox');
-    expect(
-      within(list)
-        .getAllByRole('option')
-        .map((option) => option.textContent),
-    ).toEqual(['lanNic']);
-    fireEvent.click(within(list).getByRole('option', { name: 'lanNic' }));
+    await screen.findByText(i18n.t('setup:defaultsHelp'));
+    expect(screen.queryByRole('combobox', { name: 'رابط LAN' })).not.toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute('dir', 'rtl');
     expect(
       fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),

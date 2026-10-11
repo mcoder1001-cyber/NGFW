@@ -25,13 +25,19 @@ afterEach(async () => {
 });
 const next = () => fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 async function select(label: string, name: string) {
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: label })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    ),
+  );
   fireEvent.mouseDown(screen.getByRole('combobox', { name: label }));
   fireEvent.click(within(await screen.findByRole('listbox')).getByRole('option', { name }));
 }
 
 describe('setup wizard', () => {
   it.each(['dhcp', 'pppoe'])(
-    'keeps all seven steps local until reviewed %s commit and uses confirmation',
+    'keeps all six steps local until reviewed %s commit and uses confirmation',
     async (mode) => {
       const fake = installFakeApi();
       await signIn();
@@ -79,9 +85,7 @@ describe('setup wizard', () => {
         });
       }
       next();
-      await select('LAN interface', 'lan0');
-      next();
-      await screen.findByText(/Enable outbound NAT/);
+      await screen.findByText(/Setup updates the selected WAN/);
       next();
       await screen.findByRole('button', { name: 'Apply with 120-second confirmation' });
       expect(
@@ -91,7 +95,7 @@ describe('setup wizard', () => {
       ).toEqual(['/api/v1/config/setup/preview']);
       expect(screen.getByText(/"\/system\/hostname"/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Apply with 120-second confirmation' }));
-      await screen.findByRole('button', { name: 'Confirm LAN management works' });
+      await screen.findByRole('button', { name: 'Confirm management access' });
       expect(fake.calls.filter((r) => r.path === '/api/v1/config/commit')).toHaveLength(1);
       expect(fake.calls.find((r) => r.path === '/api/v1/config/commit')!.search).toContain(
         'confirm=120',
@@ -109,7 +113,7 @@ describe('setup wizard', () => {
       );
     },
   );
-  it('loads live WAN/LAN interfaces on an empty configuration and requires a selection', async () => {
+  it('loads live WAN interfaces on an empty configuration and requires a selection', async () => {
     const fake = installFakeApi();
     await signIn();
     fake.on('GET /api/v1/config', { body: RootConfig.parse({}) });
@@ -148,6 +152,7 @@ describe('setup wizard', () => {
     await screen.findByLabelText('Hostname');
     next();
     await screen.findByRole('combobox', { name: 'WAN interface' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
     next();
     expect(
       await screen.findByText('Select a network interface before continuing.'),
@@ -161,7 +166,8 @@ describe('setup wizard', () => {
     ).toEqual(['liveLan', 'liveWan']);
     fireEvent.click(within(list).getByRole('option', { name: 'liveWan' }));
     next();
-    await select('LAN interface', 'liveLan');
+    await screen.findByText(/Setup updates the selected WAN/);
+    expect(screen.queryByRole('combobox', { name: 'LAN interface' })).not.toBeInTheDocument();
     expect(fake.calls.some((r) => r.path === '/api/v1/state/interfaces')).toBe(true);
     expect(
       fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),

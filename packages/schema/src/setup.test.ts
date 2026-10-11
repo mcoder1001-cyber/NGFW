@@ -23,6 +23,178 @@ const input = SetupInputSchema.parse({
 });
 const at = '2026-10-04T00:00:00Z';
 describe('setup builder', () => {
+  const wanOnly = () => {
+    const wan = { ...input };
+    delete wan.lan;
+    delete wan.lanAddress;
+    delete wan.dhcp;
+    return SetupInputSchema.parse(wan);
+  };
+  it('configures a single WAN while preserving LAN and every existing policy', () => {
+    const configured = buildSetup(base(), input, at);
+    const original = structuredClone(configured);
+    const doc = buildSetup(
+      configured,
+      {
+        ...wanOnly(),
+        rerun: true,
+        wanMode: 'static',
+        wanAddress: '203.0.113.2/24',
+        wanGateway: '203.0.113.1',
+      },
+      at,
+    );
+    expect(doc.interfaces.lan0).toEqual(original.interfaces.lan0);
+    expect(doc.interfaces.other0).toEqual(original.interfaces.other0);
+    expect(doc.services.dhcp).toEqual(original.services.dhcp);
+    expect(doc.nat).toEqual(original.nat);
+    expect(doc.acl).toEqual(original.acl);
+    expect(doc.management).toEqual(original.management);
+    expect(doc.routing.static).toHaveLength(1);
+    expect(doc.interfaces.wan0?.ipv4).toEqual(['203.0.113.2/24']);
+    expect(configured).toEqual(original);
+    expect(validateConfig(doc)).toEqual({ ok: true, config: doc });
+  });
+  it('accepts a one-interface appliance without creating LAN, DHCP, NAT or ACL policy', () => {
+    const original = RootConfig.parse({ interfaces: { wan0: {} } });
+    const doc = buildSetup(original, wanOnly(), at);
+    expect(Object.keys(doc.interfaces)).toEqual(['wan0']);
+    expect(doc.interfaces.wan0?.dhcpClient).toBeDefined();
+    expect(doc.services.dhcp).toEqual(original.services.dhcp);
+    expect(doc.nat).toEqual(original.nat);
+    expect(doc.acl).toEqual(original.acl);
+    expect(doc.management).toEqual(original.management);
+    expect(doc.system.setup.completed).toBe(true);
+    expect(validateConfig(doc)).toEqual({ ok: true, config: doc });
+  });
+  it('reuses a prefilled ordinary WAN default route and updates its gateway without duplicates', () => {
+    const original = RootConfig.parse({
+      interfaces: { wan0: { ipv4: ['203.0.113.2/24'] }, other0: {} },
+      routing: {
+        static: [
+          {
+            prefix: '0.0.0.0/0',
+            nextHops: [{ address: '203.0.113.1', interface: 'wan0' }],
+            description: 'Existing uplink',
+            distance: 20,
+          },
+          {
+            prefix: '198.51.100.0/24',
+            nextHops: [{ interface: 'other0' }],
+            description: 'Keep this route',
+          },
+        ],
+      },
+    });
+    const staticInput = {
+      ...wanOnly(),
+      wanMode: 'static' as const,
+      wanAddress: '203.0.113.2/24',
+      wanGateway: '203.0.113.1',
+    };
+    const reused = buildSetup(original, staticInput, at);
+    expect(reused.routing.static).toEqual(original.routing.static);
+    expect(validateConfig(reused)).toEqual({ ok: true, config: reused });
+    const updated = buildSetup(original, { ...staticInput, wanGateway: '203.0.113.9' }, at);
+    expect(updated.routing.static[0]).toEqual({
+      ...original.routing.static[0],
+      nextHops: [{ ...original.routing.static[0]!.nextHops[0], address: '203.0.113.9' }],
+    });
+    expect(updated.routing.static[1]).toEqual(original.routing.static[1]);
+    expect(validateConfig(updated)).toEqual({ ok: true, config: updated });
+    const dhcp = buildSetup(original, wanOnly(), at);
+    expect(dhcp.routing.static).toEqual([original.routing.static[1]]);
+    expect(validateConfig(dhcp)).toEqual({ ok: true, config: dhcp });
+  });
+  it('recognizes gateway-only WAN routes and refuses overriding another interface default', () => {
+    const original = RootConfig.parse({
+      interfaces: { wan0: { ipv4: ['203.0.113.2/24'] }, other0: {} },
+      routing: { static: [{ prefix: '0.0.0.0/0', nextHops: [{ address: '203.0.113.1' }] }] },
+    });
+    expect(buildSetup(original, wanOnly(), at).routing.static).toEqual([]);
+    original.routing.static[0]!.nextHops = [{ interface: 'other0', weight: 1 }];
+    expect(buildSetup(original, wanOnly(), at).routing.static).toEqual(original.routing.static);
+    expect(() =>
+      buildSetup(
+        original,
+        {
+          ...wanOnly(),
+          wanMode: 'static',
+          wanAddress: '203.0.113.2/24',
+          wanGateway: '203.0.113.1',
+        },
+        at,
+      ),
+    ).toThrow('existing default route');
+  });
+  it('preserves unedited IPv4 aliases, IPv6 and DHCP client options during WAN-only setup', () => {
+    const original = RootConfig.parse({
+      interfaces: {
+        wan0: {
+          ipv4: ['203.0.113.2/24', '198.51.100.2/24'],
+          ipv6: ['2001:db8::2/64'],
+        },
+      },
+    });
+    const staticInput = {
+      ...wanOnly(),
+      wanMode: 'static' as const,
+      wanAddress: '203.0.113.2/24',
+      wanGateway: '203.0.113.1',
+    };
+    const unchanged = buildSetup(original, staticInput, at);
+    expect(unchanged.interfaces.wan0!.ipv4).toEqual(original.interfaces.wan0!.ipv4);
+    expect(unchanged.interfaces.wan0!.ipv6).toEqual(original.interfaces.wan0!.ipv6);
+    expect(validateConfig(unchanged)).toEqual({ ok: true, config: unchanged });
+    const changed = buildSetup(original, { ...staticInput, wanAddress: '203.0.113.3/24' }, at);
+    expect(changed.interfaces.wan0!.ipv4).toEqual(['203.0.113.3/24']);
+    const dhcpBase = RootConfig.parse({
+      interfaces: { wan0: { dhcpClient: { setBroadcastFlag: true }, ipv6: ['2001:db8::2/64'] } },
+    });
+    const dhcp = buildSetup(dhcpBase, wanOnly(), at);
+    expect(dhcp.interfaces.wan0!.dhcpClient).toEqual({ setBroadcastFlag: true });
+    expect(dhcp.interfaces.wan0!.ipv6).toEqual(dhcpBase.interfaces.wan0!.ipv6);
+    expect(validateConfig(dhcp)).toEqual({ ok: true, config: dhcp });
+  });
+  it('requires legacy LAN settings together without imposing them on WAN-only input', () => {
+    expect(SetupInputSchema.safeParse(wanOnly()).success).toBe(true);
+    expect(SetupInputSchema.safeParse({ ...wanOnly(), lan: 'lan0' }).success).toBe(false);
+    expect(SetupInputSchema.safeParse({ ...wanOnly(), dhcp: false }).success).toBe(false);
+    expect(
+      SetupInputSchema.safeParse({ ...wanOnly(), lanAddress: '192.168.40.1/24' }).success,
+    ).toBe(false);
+  });
+  it('can rerun and migrate a WAN-only PPPoE interface without changing policies', () => {
+    const original = RootConfig.parse({ interfaces: { wan0: {} } });
+    const pppoe = {
+      ...wanOnly(),
+      wanMode: 'pppoe' as const,
+      wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' },
+    };
+    const first = buildSetup(original, pppoe, at);
+    expect(first.nat).toEqual(original.nat);
+    const second = buildSetup(first, { ...pppoe, rerun: true }, at);
+    expect(second).toEqual(first);
+    const migrated = buildSetup(second, { ...wanOnly(), rerun: true }, at);
+    expect(migrated.interfaces['setup-pppoe']).toBeUndefined();
+    expect(migrated.nat).toEqual(original.nat);
+    expect(migrated.acl).toEqual(original.acl);
+    expect(validateConfig(migrated)).toEqual({ ok: true, config: migrated });
+  });
+  it('refuses WAN-only PPPoE migration if preserving policy would leave dangling references', () => {
+    const first = buildSetup(
+      base(),
+      {
+        ...input,
+        wanMode: 'pppoe',
+        wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' },
+      },
+      at,
+    );
+    expect(() => buildSetup(first, { ...wanOnly(), rerun: true }, at)).toThrow(
+      'unrelated references',
+    );
+  });
   it('builds schema and semantic valid safe defaults without mutating source', () => {
     const b = base();
     const d = buildSetup(b, input, at);

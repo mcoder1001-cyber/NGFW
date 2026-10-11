@@ -1,3 +1,18 @@
+# PPPoE and RA completion receipts
+
+Final acceptance completed on 2026-10-11. PPPoE is merged through PR228; RA source and closeout are submitted together in PR232. The board records 212/212 source tasks as merged once this PR is integrated; final PR and main CI are checked before reporting integration complete.
+
+- PPPoE: both-host normal API IPv4/IPv6 default route, NAT/MSS, RX/TX, reconnect, peer-loss withdrawal, wrong PAP refusal, restart recovery and baseline cleanup PASS. Original 11-second bound retained: .195 10.275s, .250 10.346s. Multi-WAN original flow/packet, weighting, NAT, dead-member and PBR campaign also PASS on both hosts.
+- RA final product30: complete canonical native campaign PASS .195 236.51s and .250 230.41s, including actual EAP/VIP/DNS/split selectors, selected VRF and both ACL directions, ESP-only packet capture, bad password, actual valid/revoked/foreign EAP-TLS, real VICI disconnect, original-agent restart, physical and baseline cleanup. Restart 26.040085725s / 25.821022867s is inside the original 30 seconds.
+- Same product binaries, API fixture35: whole actual 900-second hold PASS .195 900.16s / .250 900.19s, no skip; genuine admin UI disconnect and different new ID, overlapping second pool HTTP400 at its exact pointer, eight real UI views per host (admin/readonly, en/fa, light/dark), RTL, readonly HTTP403 with the actual session unchanged, and public config/candidate/export/capability/audit secret scanning PASS. Initial browser subset timeouts are retained; missing views passed through fresh normal login under the same successful hold. The original whole-run, reconnect and cleanup budgets were not increased.
+- Both normal public API baseline restores PASS. Running equals each captured baseline except manager users that the normal API preserves. The .250 baseline is its first committed disabled foundation, not an empty pre-bootstrap database. Actual readback shows no active RA instance services, peer namespaces, or RA TAPs; .250 retains the two loopbacks from that disabled foundation. Peer status is stopped only after strict cleanup. Both owned guest PID1s exited, APIs/previews/byte bridges stopped, own PG databases/roles dropped, and only owned Valkey prefixes removed. Shared .195 VPP PID556416/NRestarts1 and .250 VPP PID8102/NRestarts0 plus FRR PID4575 remain as recorded before final runs.
+
+Implementation head f96278cf29759d97f547f0f643558a0d952fc9fb passed mandatory CI38171610069 and packaging38171610048. Final documentation-head checks and actual merged-main checks are recorded in PR232. Public hashes, actual results, failed-attempt distinctions and screenshots' hashes are in `pppoe-ra-completion-20261011-evidence.json`; raw logs and credentials stay private.
+
+Lab limits: these are independent native PID1/network namespace guests using finite reviewed opaque mutual-TLS byte transport, not a full installed appliance or QEMU test. The .195 lab API process became unresponsive after transport replacement; only the owned normal API process was restarted, then real API baseline restore and exact readback passed. The cause is unproven and continuous API uptime is not claimed. Live RADIUS is not claimed; EAP-RADIUS golden rendering and actual EAP-MSCHAPv2/EAP-TLS are separate evidence.
+
+## Historical attempts (superseded by the final receipts above)
+
 # PPPoE accepted; RA canonical acceptance remains open
 
 Base main d44c68edccd16e8adc9ac2545c0b61f5154ed36e; 210/212 merged.

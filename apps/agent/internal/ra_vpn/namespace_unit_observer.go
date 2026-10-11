@@ -20,7 +20,7 @@ const unitObserverRAServiceDigest = "0ab102d0538360d947e48a437723a67d1abcd602605
 
 // SystemdUnitObservation obtains fresh manager-opened namespace and executable
 // descriptors for the canonical private unit without reading target proc NS/exe.
-type SystemdUnitObservation struct{}
+type SystemdUnitObservation struct{ captures observationGate }
 
 // NewSystemdUnitObservation constructs the fixed production observation adapter.
 func NewSystemdUnitObservation() UnitObservationProvider { return &SystemdUnitObservation{} }

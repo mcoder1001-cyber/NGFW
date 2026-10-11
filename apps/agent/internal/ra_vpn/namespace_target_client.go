@@ -27,6 +27,7 @@ type SystemdNamespaceTargets struct {
 	ExpectedVPP   func(context.Context) (bootid.Identity, error)
 	Executable    string
 	requesterRole string
+	captures      observationGate
 }
 
 func (p *SystemdNamespaceTargets) expected(ctx context.Context) (bootid.Identity, error) {
@@ -150,6 +151,10 @@ func (p *SystemdNamespaceTargets) Acquire(ctx context.Context) (*NamespaceTarget
 	}
 	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	if !p.captures.acquire(bounded) {
+		return nil, ErrBoundary
+	}
+	defer p.captures.release()
 	expected, err := p.expected(bounded)
 	if err != nil {
 		return nil, ErrBoundary

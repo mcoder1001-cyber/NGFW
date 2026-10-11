@@ -387,3 +387,23 @@ Owned real child MNT/image controls reject intermediate generation/image/closure
 cancellation, reused snapshot and second-hop failure; all descriptors are closed.
 Source21 full RA race PASS3.525s; scoped lint PASS0issues. Fresh original native
 execution must still prove30s recovery, TLS, baseline rollback and API/browser.
+
+
+Source21 normal native77 passes genuine EAP and ESP/VPP ACL traffic. Automatic
+recovery reaches authenticated empty-session readback, but final observed session
+fails the original whole30s restart context. Connect resync is APPLIED26.056s;
+engine creation precedes its end by8.52s. Whole canonical campaign FAIL150.45s,
+including retained DNS ownership refusal on failure cleanup. No TLS/rollback
+completion or whole-task PASS is inferred. Exact c54e47d PR232 mandatory38157714653
+and packaging38157714649 both PASS, but PR232 is still open.
+
+Source22 permits concurrent read-only Runtime Ready/Records/Sessions under a
+shared lock while lifecycle changes retain the exclusive lock. Each production
+observation adapter serializes its own two fresh socket captures with cancellation
+inside its original5s budget. No capture is cached. LazyEngineStore serializes
+its first open and directory operations. A control proves Sessions proceeds during
+held readiness and lifecycle mutation waits; another proves cancelled capture
+waits preserve the token. RA race PASS3.653s, subsystem race PASS32.524s, scoped
+lint PASS0issues. Normal native78 is running with original budgets. Agent uses
+normal unstripped build; helpers use production packaging's -s -w, all CGO0.
+Complete native/TLS/rollback and both-host API/browser evidence remains open.

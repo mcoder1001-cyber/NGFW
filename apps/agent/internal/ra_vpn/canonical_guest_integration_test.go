@@ -281,8 +281,10 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	if !recovered {
 		t.Fatal("canonical recovered engine readback exceeded original30s restart budget")
 	}
+	t.Logf("canonical automatic recovery readback elapsed=%s", time.Since(restartAt))
 	peer = freshPrivateVICI(t, peerPlan)
 	initiate(true)
+	t.Logf("canonical restart negotiation elapsed=%s", time.Since(restartAt))
 	observe(1)
 	if elapsed := time.Since(restartAt); elapsed >= 30*time.Second {
 		t.Fatal("canonical agent reconnect exceeded30s")

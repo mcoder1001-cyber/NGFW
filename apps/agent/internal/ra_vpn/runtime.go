@@ -86,10 +86,11 @@ type engineGeneration struct {
 	prepared *PreparedEngine
 }
 
-// Runtime serializes lifecycle and observations. Its callbacks are injected in
-// disposable tests; constructing it never starts a system daemon.
+// Runtime serializes lifecycle changes while allowing concurrent read-only
+// observations. Its callbacks are injected in disposable tests; constructing it
+// never starts a system daemon.
 type Runtime struct {
-	mu                     sync.Mutex
+	mu                     sync.RWMutex
 	owner                  string
 	verifier               HandoffVerifier
 	preparation            SnapshotPreparation
@@ -428,8 +429,8 @@ func (r *Runtime) Recover(ctx context.Context) error {
 
 // Records defines the public private-engine lifecycle contract.
 func (r *Runtime) Records(ctx context.Context) ([]EngineRecord, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if !r.configured() {
 		return nil, ErrEngine
 	}
@@ -455,8 +456,8 @@ func (r *Runtime) Operational(ctx context.Context) bool {
 
 // Sessions defines the public private-engine lifecycle contract.
 func (r *Runtime) Sessions(ctx context.Context, profile string) ([]strongswan.RASession, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	g := r.active[InstanceID(r.owner, profile)]
 	if g == nil || !g.record.Ready {
 		return nil, ErrEngine
@@ -641,8 +642,8 @@ func (r *Runtime) SetReadiness(check func(context.Context) error) {
 func (r *Runtime) Ready(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if !r.configured() || r.readiness == nil || r.initializationRequired && !r.initializationReady {
 		return ErrEngine
 	}

@@ -2254,7 +2254,7 @@ tasks:
     started: ''
     finished: ''
     notes: ''
-    worker_status: "PR232 under CI/review; exact source20 cohort passes genuine EAP/VIP/DNS and ESP/VPP ACL traffic on195 and250 but fails original30s recovery and cleanup; source21 read-only handoff chain retains per-target fresh pre/post proofs; TLS/rollback/actual API/browser acceptance remains open"
+    worker_status: "PR232 source21 exact CI passes; native77 recovery readback succeeds but final session exceeds original30s context; source22 concurrent read-only observations retain exclusive lifecycle and fresh socket capture guards, race/lint pass; native78 running; complete TLS/rollback and both-host API/browser acceptance remains open"
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
     advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
     completion_receipt_20261008: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."

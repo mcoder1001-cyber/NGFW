@@ -162,3 +162,23 @@ also fails, leaving the isolated agent degraded. These failed cohorts are
 not canonical acceptance, and no EAP connection, restart, rollback or browser
 completion is claimed. No production units, capability masks or deadlines
 were changed to admit these cohorts.
+
+### RA consecutive-capture repair
+
+Diagnostic39 observed exact TARGET_SOCKET_DIAG running false false at the
+pre-connect check, followed by refusal in handoff.call. The preceding capture's
+second supplier was completing post-ACK checks. The preliminary fixed socket
+observation now admits active/listening or active/running; it grants no authority.
+The received response still requires a complete supplier identity with running
+socket and all unchanged executable, cgroup, boot, five zero capability sets
+and two fresh activation proofs. Original deadlines and units remain unchanged.
+Focused regression PASS1.182s and FAIL against the previous predicate. Full
+RA package race suite PASS3.749s. Initial local suite attempts failed the two
+protected-file fixtures because Go uses GOTMPDIR as the test's TMPDIR; rerunning
+with both under the protected owned /run tree passes without weakening the guard.
+Fresh canonical activation is still required.
+
+Fresh formal helper builds use the existing Debian prepare.sh flags (-s -w);
+previous diagnostic helper builds included debug sections. The installed agent
+uses the unchanged packaging CGO0/trimpath build. No production build recipe
+or binary authority rule is changed.

@@ -1147,7 +1147,9 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 	})
 	_, plan, dnsOwnership := canonicalGuestPeer(t, profile, proposal, credentials, password, "api-"+input.Generation)
 	for ctx.Err() == nil {
-		rows, readErr := client.RemoteAccessSessions(ctx, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
+		rows, readErr := canonicalAPIHeldSessionRead(ctx, func(read context.Context) (*ngfwv1.RemoteAccessSessionsResponse, error) {
+			return client.RemoteAccessSessions(read, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
+		})
 		if ctx.Err() != nil {
 			break
 		}
@@ -1244,6 +1246,72 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 		case <-ctx.Done():
 		case <-time.After(time.Second):
 		}
+	}
+}
+
+// canonicalAPIHeldSessionRead never substitutes a snapshot. A fresh complete
+// manager observation may refuse concurrent reads inside its unchanged five-
+// second budget. Bound retries of that explicit fail-closed status to fifteen
+// seconds, inside the original whole hold; other failures remain immediate.
+func canonicalAPIHeldSessionRead(ctx context.Context, read func(context.Context) (*ngfwv1.RemoteAccessSessionsResponse, error)) (*ngfwv1.RemoteAccessSessionsResponse, error) {
+	bounded, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	for {
+		if bounded.Err() != nil {
+			return nil, bounded.Err()
+		}
+		rows, err := read(bounded)
+		if err == nil || status.Code(err) != codes.FailedPrecondition {
+			return rows, err
+		}
+		select {
+		case <-bounded.Done():
+			return nil, bounded.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+func TestCanonicalAPIHeldReadKeepsFreshAuthorityAndCallerBound(t *testing.T) {
+	attempts := 0
+	expected := &ngfwv1.RemoteAccessSessionsResponse{}
+	got, err := canonicalAPIHeldSessionRead(context.Background(), func(ctx context.Context) (*ngfwv1.RemoteAccessSessionsResponse, error) {
+		attempts++
+		if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) > 15*time.Second {
+			t.Fatal("unbounded read")
+		}
+		if attempts < 3 {
+			return nil, status.Error(codes.FailedPrecondition, "incomplete snapshot")
+		}
+		return expected, nil
+	})
+	if err != nil || got != expected || attempts != 3 {
+		t.Fatal("fresh complete readback required")
+	}
+	attempts = 0
+	_, err = canonicalAPIHeldSessionRead(context.Background(), func(context.Context) (*ngfwv1.RemoteAccessSessionsResponse, error) {
+		attempts++
+		return nil, status.Error(codes.PermissionDenied, "owner")
+	})
+	if status.Code(err) != codes.PermissionDenied || attempts != 1 {
+		t.Fatal("non-observation refusal retried")
+	}
+	short, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	_, err = canonicalAPIHeldSessionRead(short, func(context.Context) (*ngfwv1.RemoteAccessSessionsResponse, error) {
+		return nil, status.Error(codes.FailedPrecondition, "incomplete snapshot")
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("caller deadline extended")
+	}
+	canceled, stop := context.WithCancel(context.Background())
+	stop()
+	_, err = canonicalAPIHeldSessionRead(canceled, func(context.Context) (*ngfwv1.RemoteAccessSessionsResponse, error) {
+		t.Fatal("read after cancellation")
+		return nil, nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatal("cancellation replaced")
 	}
 }
 

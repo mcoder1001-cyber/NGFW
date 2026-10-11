@@ -1,0 +1,1 @@
+[0] tag {w17tb:nat46-web} ip4-pfx 10.17.46.10/32 ip6-pfx fd00:11:46::/64 ip6-src fd00:11:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 0 

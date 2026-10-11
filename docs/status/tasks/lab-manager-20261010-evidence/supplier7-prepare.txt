@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/tmp/ngfw-lab-manager-20261010/prepare-supplier7.py", line 95, in <module>
+    receipt['unpacked_bytes']=module.pack(root,base/'supplier7.gz');receipt['image_sha256']=sha(base/'supplier7.gz')
+                              ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-ra-full-guest-20261005/pack_initramfs.py", line 110, in pack
+    link=os.readlink(p);guest_target(root,name,link);data=link.encode();size=len(data)
+                        ~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/root/ngfw-ra-full-guest-20261005/pack_initramfs.py", line 29, in guest_target
+    current=root.joinpath(*resolved,part);s=current.lstat()
+                                            ~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/pathlib/__init__.py", line 662, in lstat
+    return os.lstat(self)
+           ~~~~~~~~^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/run/ngfw-lab-build-20261010/guest7/usr/share'

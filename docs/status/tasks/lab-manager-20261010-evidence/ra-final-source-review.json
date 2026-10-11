@@ -1,0 +1,17 @@
+{
+  "reviewer": "root",
+  "verdict": "APPROVE source integration; acceptance remains open",
+  "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+  "parent": "bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3",
+  "D112_single_commit": true,
+  "reviewed_RA_compilation_paths_equal": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+  "changed_compiled_paths": [
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_pid1_probe_test.go",
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_signals_test.go",
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_transport.go",
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_wire.go"
+  ],
+  "inherited_gateway_source": "previously independently reviewed156, canonicalmainbd25",
+  "full_local_gate": "e624 compilation tree PASS35m45; finalcombined unchangedhosted38052804483 pending",
+  "canonical_acceptance": "Actualguest8FAIL; developmentCGO1 loan wrongfor canonical AllThreadsSyscall; fresh canonicalCGO0 build/acceptance pending"
+}

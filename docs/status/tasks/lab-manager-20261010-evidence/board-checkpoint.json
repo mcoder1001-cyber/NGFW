@@ -1,0 +1,34 @@
+{
+  "base": "ded860762c81e72fb9f760caec4bd98898c8b6a4",
+  "total_tasks": 212,
+  "unchanged_task_objects": 205,
+  "changed_ids": [
+    "F-ra-vpn",
+    "P12-fib-proof",
+    "F-global-blocking-host",
+    "F-pppoe-client-host",
+    "F-multiwan-host",
+    "F-nat46-host",
+    "F-ospf-host"
+  ],
+  "counts": {
+    "merged": 209,
+    "running": 2,
+    "review": 1
+  },
+  "newly_completed": [
+    "F-ospf-host",
+    "P12-fib-proof",
+    "F-nat46-host",
+    "F-global-blocking-host"
+  ],
+  "accepted_main": "7c28b19203926f7b4d6cadb23b2ae6073a9f70a8",
+  "main_ci": "https://github.com/mcoder1001-cyber/NGFW/actions/runs/38048002335",
+  "main_ci_conclusion": "success",
+  "accepted_nat_main": "4cda4687584ff6e18aff659b5d2c562704ed4fe5",
+  "nat_main_ci": "https://github.com/mcoder1001-cyber/NGFW/actions/runs/38049694822",
+  "nat_main_ci_conclusion": "success",
+  "accepted_gb_main": "bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3",
+  "gb_main_ci": "https://github.com/mcoder1001-cyber/NGFW/actions/runs/38051133842",
+  "gb_main_ci_conclusion": "success"
+}

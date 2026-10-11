@@ -1124,6 +1124,11 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 	if err != nil || protojson.Unmarshal([]byte(productionRADoc), &expected) != nil {
 		t.Fatal("API peer desired readback")
 	}
+	// Public API schema parsing materializes these normal timer defaults.
+	// Require their exact values as well as the canonical endpoint and policy.
+	expectedProfile := expected.GetVpn().GetRemoteAccess()["road"]
+	expectedProfile.Dpd = &ngfwv1.IpsecDpd{Enabled: proto.Bool(true), DelaySec: proto.Uint32(30), TimeoutSec: proto.Uint32(150), Action: proto.String("restart")}
+	expectedProfile.Rekey = &ngfwv1.IpsecRekey{IkeSec: proto.Uint32(14400), EspSec: proto.Uint32(3600), Reauth: proto.Bool(false)}
 	profile := actual.GetDesiredState().GetVpn().GetRemoteAccess()["road"]
 	proposal := actual.GetDesiredState().GetVpn().GetIpsec().GetProposals()["ra-proposal"]
 	if !proto.Equal(profile, expected.GetVpn().GetRemoteAccess()["road"]) || !proto.Equal(proposal, expected.GetVpn().GetIpsec().GetProposals()["ra-proposal"]) {

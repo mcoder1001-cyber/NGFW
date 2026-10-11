@@ -460,3 +460,28 @@ PKI import, secrets, signed licence upload and valid-state readback pass.
 Foundation commit failed on nspawn replacing the guest localtime package link;
 only the independently owned guest link was restored. A subsequent commit had
 unknown outcome after actual transport loss; no API/browser acceptance claimed.
+
+Full normal product24/fixture27 on250 PASS231.07s with campaignEXIT0:
+actual EAP/ESP, unchanged normal Apply, original-unit restart26.407s readback,
+TLS valid/revoked/foreign, physical transport ownership, connection/pool removal
+and complete baseline rollback. Local87 failed248.26s at VPN rollback against
+unchanged240s budget; cleanup Apply completed, but this is not local acceptance.
+Concurrent local API work and VPP health timeouts were observed; cause remains
+unproven. Local revalidation is required. Private failed roots83/84/85/87 were
+retained with SHA receipts and removed only after all-process root identity and
+mount checks proved inactivity.
+
+API86 normal public activation and complete baseline restore PASS. Its read-only
+hold failed on exact profile equality: real Retrieve contains the public schema's
+materialized DPD enabled/30/150/restart and rekey14400/3600/false defaults.
+Fixture28 expects these exact values, preserving every endpoint, secret reference,
+proposal and policy equality assertion. RA race PASS3.462s and lint PASS0issues.
+Fresh owned API88 is prepared with VPP main core1 within the original eight CPU
+budget to avoid sharing main core0 with the independent full campaign.
+The minimal guest's localtime link pointed directly into zoneinfo; nspawn causation
+was not proven. The package-required link was restored only in owned guests.
+API86 SIGSYS occurred when applying hostname through nspawn's syscall policy;
+its owned UTS was initialized to the normal appliance hostname ngfw without
+changing host UTS. API88 selects that hostname at launch, timezone initialization
+off and journal linking disabled. These are fixture prerequisites, not product
+unit overrides or whole API/browser acceptance.

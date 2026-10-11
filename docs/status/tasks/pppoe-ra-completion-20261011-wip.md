@@ -439,3 +439,24 @@ Normal API/schema/web builds pass. Existing real Chrome154.0.8037.97 runs throug
 Playwright; the new browser download failed403 and is retained as failed setup,
 not acceptance. No live agent/API/browser campaign or whole RA completion is
 inferred from these prerequisites.
+
+Source24 mandatory CI run38161228779 and packaging38161228790 PASS.
+Original full source24 campaigns recovered sessions on195/250 within30s but
+failed at the later repeated TLS Apply against the unchanged240s deadline.
+Fixture25 configures one real responder CA/CRL and three matching client-key
+cases; its revoked case failed because an earlier same-identity peer credential
+could be selected. Fixture26 clears only disposable peer VICI credentials and
+requires actual get-keys readback to contain exactly the selected key. Both
+hosts then passed valid, revoked and foreign actual TLS outcomes, with restart
+readback26.905s/26.782s, but failed at duplicate physical-dump stream Close.
+The generated VPP RPC client closes on terminal control-ping and returns EOF
+only after successful Close; fixture27 consumes that success without closing
+the already-closed stream again. Original dump bounds and rollback assertions
+remain. RA race PASS4.589s, lint PASS0issues; whole fixture27 reruns pending.
+API hold captures the real DNS ownership after each verified connected view.
+Private API84 setup failed because the minimal guest lacks seq; a fresh API86
+uses bounded shell arithmetic instead. Normal login, actual capabilities200,
+PKI import, secrets, signed licence upload and valid-state readback pass.
+Foundation commit failed on nspawn replacing the guest localtime package link;
+only the independently owned guest link was restored. A subsequent commit had
+unknown outcome after actual transport loss; no API/browser acceptance claimed.

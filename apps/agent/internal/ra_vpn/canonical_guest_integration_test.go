@@ -292,26 +292,31 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	restartCancel()
 	restartContext = nil
 	t.Log("canonical live EAP/VIP/selected FIB both ACL directions, ESP-only wire, wrong-password refusal, observed disconnect and agent reconnect under30s PASS")
+	tlsCredentials, tlsCases, _ := tlsCredentialsCasesFixture(t)
+	defer clear(tlsCredentials.PrivateKey)
+	for _, material := range tlsCases {
+		defer clear(material.PrivateKey)
+	}
+	tlsDesired := proto.Clone(desired).(*ngfwv1.DesiredState)
+	tlsProfile := tlsDesired.GetVpn().GetRemoteAccess()["road"]
+	method, caName, caRef := "eap-tls", "clients", "cert/clients"
+	tlsProfile.Auth = &method
+	tlsProfile.ClientCa = &caName
+	tlsProfile.Users = nil
+	if tlsDesired.GetVpn().GetPki().Cas == nil {
+		tlsDesired.GetVpn().GetPki().Cas = map[string]*ngfwv1.PkiCa{}
+	}
+	tlsDesired.GetVpn().GetPki().Cas[caName] = &ngfwv1.PkiCa{CertificateRef: &caRef}
+	apply(ctx, "-tls-certificate-cases", tlsDesired, []string{"vpn"}, &ngfwv1.SecretBundle{Values: map[string][]byte{"cert/server": tlsCredentials.Certificate, "key/server": tlsCredentials.PrivateKey, "cert/clients": tlsCredentials.ClientCA, "cert/clients.crl": tlsCredentials.ClientCRL}})
 	for _, scenario := range []string{"valid", "revoked", "foreign"} {
-		tlsCredentials, certificate, key, _ := tlsCredentialsFixture(t, scenario)
+		material := tlsCases[scenario]
+		certificate, key := material.Certificate, material.PrivateKey
 		canonicalValidateTLSFixture(t, scenario, tlsCredentials, certificate, key)
-		tlsDesired := proto.Clone(desired).(*ngfwv1.DesiredState)
-		tlsProfile := tlsDesired.GetVpn().GetRemoteAccess()["road"]
-		method, caName, caRef := "eap-tls", "clients", "cert/clients"
-		tlsProfile.Auth = &method
-		tlsProfile.ClientCa = &caName
-		tlsProfile.Users = nil
-		if tlsDesired.GetVpn().GetPki().Cas == nil {
-			tlsDesired.GetVpn().GetPki().Cas = map[string]*ngfwv1.PkiCa{}
-		}
-		tlsDesired.GetVpn().GetPki().Cas[caName] = &ngfwv1.PkiCa{CertificateRef: &caRef}
-		apply(ctx, "-tls-"+scenario, tlsDesired, []string{"vpn"}, &ngfwv1.SecretBundle{Values: map[string][]byte{"cert/server": tlsCredentials.Certificate, "key/server": tlsCredentials.PrivateKey, "cert/clients": tlsCredentials.ClientCA, "cert/clients.crl": tlsCredentials.ClientCRL}})
 		observe(0)
 		peer = freshPrivateVICI(t, peerPlan)
 		_, _ = peer.Call(ctx, "terminate", privateMessage("ike", "ra-client", "timeout", "20000"))
 		canonicalConfigureTLSClient(t, peer, peerPlan, tlsProfile, tlsCredentials, certificate, key)
 		clear(key)
-		clear(tlsCredentials.PrivateKey)
 		if scenario == "valid" {
 			initiate(true)
 			tlsSessions := observe(1)
@@ -549,12 +554,13 @@ func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, propo
 
 func canonicalConfigureTLSClient(t *testing.T, peer strongswan.ViciConn, plan *NetworkPlan, profile *ngfwv1.RemoteAccessProfile, credentials Credentials, certificate, key []byte) {
 	t.Helper()
-	call := func(name string, message *vici.Message) {
+	call := func(name string, message *vici.Message) *vici.Message {
 		t.Helper()
 		r, e := peer.Call(context.Background(), name, message)
 		if e != nil || r == nil || r.Get("success") != "yes" {
 			t.Fatal("canonical TLS peer configuration")
 		}
+		return r
 	}
 	_, remaining := pem.Decode(credentials.Certificate)
 	ca, _ := pem.Decode(remaining)
@@ -563,9 +569,20 @@ func canonicalConfigureTLSClient(t *testing.T, peer strongswan.ViciConn, plan *N
 	if ca == nil || leaf == nil || private == nil {
 		t.Fatal("canonical TLS fixture certificate material")
 	}
+	// Clear only this genuine disposable peer's VICI-loaded credentials so a
+	// prior client with the same identity cannot be selected in the next case.
+	call("clear-creds", privateMessage())
 	call("load-cert", privateMessage("type", "X509", "flag", "CA", "data", string(ca.Bytes)))
 	call("load-cert", privateMessage("type", "X509", "flag", "NONE", "data", string(leaf.Bytes)))
-	call("load-key", privateMessage("type", "ANY", "data", string(private.Bytes)))
+	loaded := call("load-key", privateMessage("type", "ANY", "data", string(private.Bytes)))
+	keys, err := peer.Call(context.Background(), "get-keys", privateMessage())
+	if err != nil || keys == nil {
+		t.Fatal("TLS peer key readback")
+	}
+	actual, ok := keys.Get("keys").([]string)
+	if !ok || len(actual) != 1 || actual[0] != loaded.Get("id") {
+		t.Fatal("TLS peer must hold only the selected client key")
+	}
 	child := privateMessage("local_ts", []string{"dynamic"}, "remote_ts", []string{"10.19.0.0/16"}, "esp_proposals", []string{"aes256gcm16-ecp256"}, "if_id_in", "1", "if_id_out", "1", "set_mark_out", "1")
 	config := privateMessage("version", "2", "local_addrs", []string{plan.LocalAddress}, "remote_addrs", []string{profile.GetLocalAddr()}, "vips", []string{"0.0.0.0"}, "proposals", []string{"aes256-sha256-prfsha256-ecp256"}, "local", privateMessage("auth", "eap-tls", "id", "client", "eap_id", "client", "certs", []string{string(certificate)}), "remote", privateMessage("auth", "pubkey", "id", "vpn.example.test"), "children", privateMessage("protected", child))
 	call("load-conn", privateMessage("ra-client", config))
@@ -862,9 +879,8 @@ func canonicalGuestTransportReadback(t *testing.T) canonicalPhysicalTransport {
 		}
 		result.taps[row.SwIfIndex] = *row
 	}
-	if err := stream.Close(); err != nil {
-		t.Fatal("canonical physical TAP stream close")
-	}
+	// The generated dump client closes its stream on the terminal control-ping
+	// reply before returning EOF, including any close error in Recv.
 	for _, table := range []uint32{19000, 19001} {
 		routes, e := ipapi.NewServiceClient(connection).IPRouteDump(ctx, &ipapi.IPRouteDump{Table: ipapi.IPTable{TableID: table}})
 		if e != nil {
@@ -880,9 +896,7 @@ func canonicalGuestTransportReadback(t *testing.T) canonicalPhysicalTransport {
 			}
 			result.routes[table] = append(result.routes[table], row.Route)
 		}
-		if err := routes.Close(); err != nil {
-			t.Fatal("canonical physical FIB stream close")
-		}
+		// Successful EOF already includes the generated client's stream close.
 	}
 	return result
 }
@@ -1123,7 +1137,7 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 			canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence+1, "stopped", prior)
 		}
 	})
-	peer, plan, _ := canonicalGuestPeer(t, profile, proposal, credentials, password, "api-"+input.Generation)
+	peer, plan, dnsOwnership := canonicalGuestPeer(t, profile, proposal, credentials, password, "api-"+input.Generation)
 	for ctx.Err() == nil {
 		rows, readErr := client.RemoteAccessSessions(ctx, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
 		if ctx.Err() != nil {
@@ -1160,6 +1174,7 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 			}
 			canonicalNegotiatedSelectors(t, peer, row.GetAddresses()[0])
 			canonicalGuestDNS(t, plan)
+			dnsOwnership.Capture(t)
 		}
 		select {
 		case <-ctx.Done():

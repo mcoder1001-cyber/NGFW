@@ -85,7 +85,9 @@ func ClearDeadSessions(ctx context.Context, src SessionSource, addresses map[str
 			if pageDeleted == 0 {
 				progress.Offset += 512
 			}
-			return deleted, false, nil
+			// Deletion compacts the native session dump. Revisit this offset
+			// before advancing, within the existing time/dump/delete bounds.
+			continue
 		}
 		progress.User++
 		progress.Offset = 0

@@ -228,7 +228,7 @@ func (p *SystemdNamespaceTargets) validateUnits(ctx context.Context, target, ser
 		return ErrBoundary
 	}
 	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-targets@"+numeric+".socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
-	if err != nil || fields["FragmentPath"] != targetSupplierSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != socketPath+" (SequentialPacket)" {
+	if err != nil || !targetSupplierSocketProperties(fields, socketPath, server.Complete()) {
 		return ErrBoundary
 	}
 	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-targets@"+numeric+".service", "MainPID,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")
@@ -260,6 +260,16 @@ func (p *SystemdNamespaceTargets) validateUnits(ctx context.Context, target, ser
 		return ErrBoundary
 	}
 	return readTargetsOpenFile(target)
+}
+
+func targetSupplierSocketProperties(fields map[string]string, socketPath string, serving bool) bool {
+	state := "listening"
+	if serving {
+		// Accept=no sockets enter running while their single supplier serves
+		// the accepted connection. The complete supplier proof follows below.
+		state = "running"
+	}
+	return fields["FragmentPath"] == targetSupplierSocket && fields["DropInPaths"] == "" && fields["ActiveState"] == "active" && fields["SubState"] == state && fields["Listen"] == socketPath+" (SequentialPacket)"
 }
 func namespaceSystemdProperties(ctx context.Context, unit, properties string) (map[string]string, error) {
 	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)

@@ -62,3 +62,37 @@ Current source18f mandatory hosted gate38126271268 SUCCESS (20m34s); previous c5
 Capacity incident: local shared-memory filesystems were nearly full, with48GiB shmem and only4GiB available. Kernel OOM killed shared VPP1014; systemd restarted it as556416/NRestarts1. No host VPP stop/restart/config command was issued. Own root-cache cleanup was terminated; verified inactive generated manager build cache15GiB and owned tmp build cache4GiB were cleaned using standard go clean only. No source, configuration, package outputs or evidence were removed. Delayed exact7-asset cleanup PASS; host identity unchanged. Root reserved blocks restored to original2099368; memory available24GiB and I/O recovered. The original unchanged-PID claim does not apply across this incident.
 
 RA source18f supplier11 initialization completed but actual readiness EXIT2. Diagnostic supplier12 limited failure to canonical source observer preflight; supplier13 normal CPU failed bounded post-publisher VPP manager query, and SHA-NI-disabled8-vCPU diagnostic completed initialization but observer source query still refused. Diagnostic ELFs are not acceptance artifacts. Native isolated systemd component guest uses exact source18f product ELF/eleven original assets and only private AF_PACKET fixture configuration, no host module loading or shared VPP access. Actual canonical driver runs only after a positive supplier/RPC capability proof. RA activation/API/browser and original restart/rollback acceptance remain open.
+
+### Current source c28 acceptance and subsequent regressions
+
+The full hosted mandatory gate passed at c28c9c4a5 (run 38134546504).
+Both full real-API PPPoE drivers passed: native IPv4/IPv6 packets,
+bidirectional MSS, automatic negotiated-address NAT, peer-loss withdrawal,
+wrong-password rejection, password recovery, raw-log / GET / audit credential
+absence and committed teardown. The original 11-second restart bound was met
+in 9.890 seconds on .195 and 9.164 seconds on .250. The agent was source18f
+SHA256 0a9823ac217fb42518d9815bd05272dcd457c438af8638d92e91bf37d2b7b467;
+18f to c28 has no Go source differences. Both used the c28 helper SHA256
+dc8e4a2df34537f89bf85f33d60636e5fb1ac7797e9d6c6f606dffcf5a9784a7.
+These passes do not establish acceptance for later Go changes.
+
+Both fresh extended MultiWAN tests passed 1000 weighted plain and automatic
+NAT flows and preserved sessions after agent restart, but failed the original
+8-second dead-link cleanup assertion. Exact package identity provisioning
+inside private mount/UTS namespaces was required for the finite fixture;
+shared hosts were not provisioned or renamed. Cleanup exited after every
+512-row page. Continuing within the original 32-dump / 512-delete / time
+budgets removes the dead sessions in a mixed 1000-session scan, preserving
+healthy sessions. The new regression is red against the old implementation
+(128 deleted, incomplete) and green after the change. Fresh packets remain
+required for the changed source.
+
+The isolated original-unit RA diagnostic established all five helper
+capability sets are zero with NoNewPrivileges=1. The actual original Accept=no
+socket was active/running while its supplier served the connection, rejected
+by the old unconditional listening predicate. The revised predicate requires
+listening before activation and running only for a complete supplier identity;
+all subsequent exact unit, cgroup, executable, boot and capability proofs
+remain. No units, authority masks or timing budgets changed. Diagnostic
+binaries are not acceptance. Fresh canonical activation remains required;
+RA stays open.

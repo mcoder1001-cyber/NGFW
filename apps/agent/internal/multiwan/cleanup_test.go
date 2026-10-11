@@ -55,6 +55,26 @@ func TestCleanupFiltersAndResumesBoundedPages(t *testing.T) {
 	}
 }
 
+func TestCleanupMixedThousandSessionsCompletesWithinOneBoundedScan(t *testing.T) {
+	f := &cleanupFake{}
+	for i := 0; i < 1000; i++ {
+		outside := "198.51.100.2"
+		if i%4 == 0 {
+			outside = "192.0.2.2"
+		}
+		f.rows = append(f.rows, nat44ed.Session{Inside: nat44ed.Endpoint{IP: fmt.Sprintf("10.0.%d.%d", i/256, i%256)}, Outside: nat44ed.Endpoint{IP: outside}, Protocol: "udp"})
+	}
+	n, done, err := ClearDeadSessions(context.Background(), f, map[string]bool{"192.0.2.2": true}, map[uint32]bool{7: true}, &CleanupProgress{})
+	if err != nil || !done || n != 250 || len(f.rows) != 750 {
+		t.Fatal(n, done, err, len(f.rows))
+	}
+	for _, row := range f.rows {
+		if row.Outside.IP != "198.51.100.2" {
+			t.Fatal("dead session retained", row)
+		}
+	}
+}
+
 type cleanupRetryFake struct {
 	cleanupFake
 	fail bool

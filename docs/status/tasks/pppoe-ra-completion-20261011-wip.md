@@ -31,3 +31,26 @@ not a product remedy or acceptance success. Private raw output is root0600 under
 /tmp/ngfw-completion-evidence-20261011; public kernel certificate identifiers are
 not republished. Canonical RA activation/recovery/API/browser acceptance remains
 open; no task is marked Done from a supplier-only result.
+
+Complete current PPP-related package race tests PASS: subsystems39.217s,
+descriptors/pppoe1.431s, renderers/pppoe62.451s. Contract check PASS47s.
+Draft PR228 opened; full unchanged hosted gate38125408678 in progress.
+Fresh static CGO0 product agent c55 SHA907dd8d8b65ba8b556e26ada6d909b5f23c33ac093582b40cae62c6f66072a46.
+Actual .195 full API attempt1 failed before product launch: fixed .5s fixture wait
+observed ip-netns-exec before it became the genuine peer executable. All strict
+process/name checks stayed enabled and cleanup/shared VPP1014/NRestarts0 and host
+identity checks passed. Fixture now waits at most two seconds for that genuine
+transition, matching its existing bounded restart guard; no fake identity.
+
+Primary upstream ppp v2.5.2 plugin.c and discovery.c show PADI/PADR timeout doubling
+(default initial5s), allowing the retained15.096s restart gap. Carrier-only peer
+configuration now proposes initial2s/two attempts per discovery phase, so a cycle
+is bounded and persist returns to the configured holdoff. Legacy peers, holdoff,
+maxFail, authentication and the original11s acceptance remain unchanged. Actual
+new-source peer-restart/NAT acceptance and fresh paired binary remain required.
+Sources: https://github.com/ppp-project/ppp/blob/v2.5.2/pppd/plugins/pppoe/plugin.c
+and https://github.com/ppp-project/ppp/blob/v2.5.2/pppd/plugins/pppoe/discovery.c .
+
+Capacity remedy: no running Go tool used the default root build cache. Standard
+GOCACHE=/root/.cache/go-build go clean -cache is releasing its22GiB generated
+compilation artifacts; source/configuration/evidence and module cache retained.

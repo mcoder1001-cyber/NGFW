@@ -177,7 +177,7 @@ func ownedOuterRule(data []byte) (bool, error) {
 	add := true
 	for _, rule := range rules {
 		if rule.Priority == 100 {
-			if !add || string(rule.Mark) != "\"0x1\"" || string(rule.Table) != "100" {
+			if !add || string(rule.Mark) != "\"0x1\"" || (string(rule.Table) != "100" && string(rule.Table) != `"100"`) {
 				return false, ErrBoundary
 			}
 			add = false

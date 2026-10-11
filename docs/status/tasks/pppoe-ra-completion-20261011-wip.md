@@ -326,3 +326,18 @@ Early failed campaigns retain the independent resolver file/peer namespace when
 strongSwan replaces its inode: the foreign-replacement cleanup guard is retained.
 Full restart, EAP-TLS valid/revoked/foreign-CA, transport rollback, both-host genuine
 API/license/session/second-pool400 and en/fa browser acceptance remain required.
+
+
+Native71 repeats the real30s recovery failure. Native72 is diagnostic only: its
+daemon reports a bounded startup phase into its owned private writable directory;
+no acceptance or cleanup success is attributed to that modified diagnostic ELF.
+A live, root-inode/scope/PID1-verified collector captures namespace-8: the existing
+outer-rule reader rejects table100. A disposable actual network namespace shows
+iproute2 returns table as JSON string"100", while the guard expects numeric100.
+The reader now accepts exactly those two representations; other tables and foreign
+string formats remain refused. Real-kernel old-source control FAIL0.061s; source19
+full RA race PASS3.675s. Source18 subsystem race PASS33.541s after shortening its
+private exec-capable temporary path: earlier runs exceeded the unchanged SNMP
+path-length guard; /run alone also disallows execution. Those failures are retained.
+Owned inactive68–71 roots are archived with evidence hashes after repeated process,
+root-inode and mount checks. Complete canonical acceptance remains pending.

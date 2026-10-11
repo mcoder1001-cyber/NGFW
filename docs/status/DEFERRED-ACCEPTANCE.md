@@ -2,6 +2,29 @@
 
 Owner authorization, 2026-10-02: remove Telegram; merge reviewed code without waiting for laboratory access; collect deferred tests here and continue development. This supersedes historical lab-only BLOCK verdicts. Real code defects and the complete hosted quick CI remain merge blockers. NOT RUN never means PASS. Existing security, secret-channel, shared-host and privilege handover decisions remain applicable.
 
+## Current dual-host acceptance checkpoint — 2026-10-11
+
+The four board rows `P12-fib-proof`, `F-ospf-host`, `F-nat46-host` and
+`F-global-blocking-host` passed their actual acceptance on172.30.126.195 and
+172.30.126.250. Their reviewed source PRs218/220/222 are merged and their main
+mandatory CI receipts passed. See [dual-host report](2026-10-10-lab-195-250.md)
+for exact gates and retained packet/API/browser/recovery/rollback receipts.
+These four rows are no longer NOT RUN; the old seven-row parked checkpoint below
+is historical. This does not certify all other native cases listed in this ledger.
+
+Fresh source-paired MultiWAN acceptance passed on both hosts:1000 weighted/native
+NAT/PBR flows, preservation across agent restart, dead-WAN-only session removal,
+rollback and cleanup. PR221 is merged as76362bdc79dceb9538400e63dcbb4b0c0f9a9e75;
+its exact-head quick38060576901 passed. [Post-merge quick38119082146](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38119082146) PASS;
+MultiWAN is complete. The reconciled board has210 merged and two open acceptance rows.
+
+Full PPPoE acceptance remains OPEN. The final source run selects the carrier
+transit address for interface-based native NAT, and .195 fails the original
+11-second peer-restart criterion. The successful .250 extended run explicitly
+excluded NAT. Full canonical RA VPN appliance readiness/acceptance also remains
+OPEN. The bounded signal transport fix in PR224 does not close RA acceptance.
+No failure, excluded case or private supplier fixture is relabeled PASS.
+
 ## Current completion campaign — 2026-10-09
 
 Accepted source is integrated through [PR214](https://github.com/mcoder1001-cyber/NGFW/pull/214), main `d58db1a673d716ebcf595a9e49847a54991c58da`,

@@ -1,0 +1,8 @@
+{
+  "utc": "2026-10-10T12:36:34.265056+00:00",
+  "scope": "/run/ngfw-lab-build-20261010",
+  "owned_tmpfs_unmounted": true,
+  "owned_empty_mountpoint_removed": true,
+  "qemu_and_nested_mount_guards": "PASS",
+  "historical_base_overlay_and_manifests": "untouched"
+}

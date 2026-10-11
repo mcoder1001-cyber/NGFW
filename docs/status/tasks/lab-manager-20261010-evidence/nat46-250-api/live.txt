@@ -1,0 +1,3 @@
+DISPOSABLE_VPP pid=494108 runtime=/tmp/ngfw-lab-global-blocking-20261010-250/repo/.scratch/isolated-vpp-494105
+REAL_API_NAT46_PASS
+DISPOSABLE_VPP_STOPPED pid=494108

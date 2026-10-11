@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-11",
+  "board": {
+    "total": 212,
+    "merged": 210,
+    "running": 2,
+    "review": 0
+  },
+  "multiwan_source_head": "206dc7349eb34964250991bd2848dbea268babaf",
+  "multiwan_main_merge": "76362bdc79dceb9538400e63dcbb4b0c0f9a9e75",
+  "source_quick_run": 38060576901,
+  "main_quick_run": 38119082146,
+  "source_and_main_quick": "SUCCESS",
+  "native_acceptance_hosts": [
+    "172.30.126.195",
+    "172.30.126.250"
+  ],
+  "acceptance_scope": "original source-paired native race acceptance:1000 weighted/native NAT/PBR flows, restart preservation, dead-WAN-only removal, rollback and cleanup",
+  "remaining_open": [
+    "F-pppoe-client-host",
+    "F-ra-vpn"
+  ],
+  "unrelated_board_objects_unchanged": 205,
+  "original_pr223_failure_retained": 38053169529,
+  "gates_modified": false
+}

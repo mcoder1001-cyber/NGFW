@@ -1,0 +1,10 @@
+{
+  "source_producer": "7e5e1de5b",
+  "binary_sha256": "4c4cf12ce051e71cf8024dcdcdd14ca3326449d75dbf628f5d0692111d3a9a22",
+  "run": "TestManagerDBusSignal|TestNumericPublisherManagerDBus",
+  "race_enabled": true,
+  "count": 1,
+  "exit": 0,
+  "skip": false,
+  "coverage": "strict wire whitelist, mixed signal/reply, original byte/count budget, orphan serial refusal, descriptor closure, prior reply boundary controls; does not certify canonical supplier/readiness"
+}

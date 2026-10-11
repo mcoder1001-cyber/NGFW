@@ -1,0 +1,117 @@
+--- reviewed-nat-api.py
++++ runtime-remote-api.py
+@@ -1,17 +1,19 @@
+ #!/usr/bin/env python3
+ """Finite NAT46 real API/agent acceptance. No secret enters evidence."""
+-import json, os, subprocess, sys, urllib.request, urllib.error
++import importlib.util, json, os, secrets, select, subprocess, sys, time, urllib.request, urllib.error
+ from pathlib import Path
+-ROOT=Path(__file__).resolve().parents[3]
++ROOT=Path('/tmp/ngfw-lab-global-blocking-20261010-250/repo')
+ sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
+-from stack import product_stack
++fixture_spec=importlib.util.spec_from_file_location('nat46_remote_stack',ROOT/'docs/status/tasks/lab-global-blocking-20261010-stack.py')
++fixture=importlib.util.module_from_spec(fixture_spec);fixture_spec.loader.exec_module(fixture)
++product_stack=fixture.product_stack
+ from tunnels import check_commit
+-EVID=ROOT/'docs/status/tasks/lab-nat46-20261010-evidence'
++EVID=Path('/tmp/ngfw-lab-nat46-20261010-250-api-adapter/evidence');EVID.mkdir(exist_ok=True)
+ events=[]
+ def save(): (EVID/'api.json').write_text(json.dumps(events,indent=2)+'\n')
+ def ctl(runtime,*args):
+- return json.loads(subprocess.check_output(['/tmp/ngfw-lab-nat46-20261010-bin/ngfw-agentctl','-s',str(runtime/'agent.sock'),*args],text=True))
+-with product_stack(17,agent_binary='/tmp/ngfw-lab-nat46-20261010-bin/ngfw-agent') as (api,runtime,restart):
++ return json.loads(subprocess.check_output(['/tmp/ngfw-lab-global-blocking-20261010-250/ngfw-agentctl','-s',str(runtime/'agent.sock'),*args],text=True))
++with product_stack(17,agent_binary='/tmp/ngfw-lab-nat46-20261010-250-api-adapter/ngfw-agent') as (api,runtime,restart):
+  baseline='w17-nat46-proof'
+  api.call('PATCH','/config/vrfs',{baseline:{'id':17040}})
+  first=api.call('POST','/config/commit?comment=nat46-baseline');warnings=check_commit(first,changed_paths=('/vrfs',))
+@@ -46,7 +48,35 @@
+     env=dict(p.split(b'=',1) for p in Path('/proc/'+child+'/environ').read_bytes().split(b'\0') if b'=' in p)
+     api_secret=env[b'NGFW_BOOTSTRAP_ADMIN_PASSWORD'].decode()
+   assert api_secret
+-  browser=subprocess.run(['node',str(ROOT/'docs/status/tasks/lab-nat46-20261010-shots.mjs')],input=json.dumps({'password':api_secret}),text=True,check=True)
++  transport=runtime/'browser-transfer';transport.mkdir(mode=0o700)
++  incoming,outgoing=transport/'input',transport/'result'
++  for pipe in (incoming,outgoing):os.mkfifo(pipe,0o600)
++  nonce=secrets.token_hex(24)
++  try:
++   deadline=time.monotonic()+180
++   while True:
++    try:fd=os.open(incoming,os.O_WRONLY|os.O_NONBLOCK);break
++    except OSError:
++     if time.monotonic()>deadline:raise TimeoutError('owned browser reader deadline')
++     time.sleep(.1)
++   with os.fdopen(fd,'w') as stream:stream.write(json.dumps({'password':api_secret,'nonce':nonce}))
++   fd=os.open(outgoing,os.O_RDONLY|os.O_NONBLOCK)
++   try:
++    data=b''
++    while time.monotonic()<deadline:
++     ready,_,_=select.select([fd],[],[],.2)
++     if ready:
++      chunk=os.read(fd,4096)
++      if chunk:data+=chunk
++      if b'\n' in data:break
++      time.sleep(.1)
++    reply=json.loads(data)
++    assert reply=={'status':'pass','nonce':nonce},'actual remote browser failed'
++   finally:os.close(fd)
++   events.append({'case':'remote-browser','actualAuthentication':True,'locales':['en','fa']})
++  finally:
++   for pipe in (incoming,outgoing):pipe.unlink(missing_ok=True)
++   transport.rmdir()
+   events.append({'case':'browser-en-fa','screenshots':['nat46-en.png','nat46-fa.png']});save()
+  finally:
+   api.call('POST','/config/discard')
+--- reviewed-nat-shots.mjs
++++ runtime-shots.mjs
+@@ -5,22 +5,22 @@
+ const require=createRequire(import.meta.url);
+ const {chromium}=require('/root/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
+ let input='';for await(const chunk of process.stdin)input+=chunk;const {password}=JSON.parse(input);
+-const root=resolve('');const web=spawn('node',[root+'/apps/web/node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','15700','--strictPort'],{cwd:root+'/apps/web',env:{...process.env,NGFW_HTTP_PORT:'11700',NGFW_WEB_PORT:'15700'},stdio:'ignore'});
++const root=resolve('');const web=spawn('node',[root+'/apps/web/node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','15790','--strictPort'],{cwd:root+'/apps/web',env:{...process.env,NGFW_HTTP_PORT:'11790',NGFW_WEB_PORT:'15790'},stdio:'ignore'});
+ let browser;
+ try{
+- for(let i=0;i<100;i++){try{if((await fetch('http://127.0.0.1:15700/')).ok)break;}catch{}await new Promise(r=>setTimeout(r,200));}
++ for(let i=0;i<100;i++){try{if((await fetch('http://127.0.0.1:15790/')).ok)break;}catch{}await new Promise(r=>setTimeout(r,200));}
+  browser=await chromium.launch({executablePath:'/tmp/fbr-ux-chrome/chrome-headless-shell-linux64/chrome-headless-shell',headless:true,args:['--no-sandbox'],env:{...process.env,LD_LIBRARY_PATH:'/tmp/fbr-ux-chrome/libroot/usr/lib/x86_64-linux-gnu'}});
+  for(const lang of ['en','fa']){
+   const context=await browser.newContext({viewport:{width:1440,height:1000}});await context.addInitScript(l=>localStorage.setItem('ngfw.ui.settings',JSON.stringify({lang:l,mode:'light',dense:true,persianDigits:false})),lang);
+   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+-  await page.goto('http://127.0.0.1:15700/login');await page.locator('input[autocomplete="username"]').fill('admin');await page.locator('input[type="password"]').fill(password);
++  await page.goto('http://127.0.0.1:15790/login');await page.locator('input[autocomplete="username"]').fill('admin');await page.locator('input[type="password"]').fill(password);
+   await page.locator('button[type="submit"]').click();await page.waitForURL(url=>!url.pathname.includes('login'));
+-  await page.goto('http://127.0.0.1:15700/firewall/nat?tab=nat46');await page.getByRole('tab',{name:'NAT46',exact:true}).waitFor();
++  await page.goto('http://127.0.0.1:15790/firewall/nat?tab=nat46');await page.getByRole('tab',{name:'NAT46',exact:true}).waitFor();
+   const locale=JSON.parse(readFileSync(root+'/apps/web/src/locales/'+lang+'/nat46.json'));
+   await page.getByLabel(locale.client.ipv4,{exact:true}).fill('10.17.1.2');await page.getByRole('button',{name:locale.client.show,exact:true}).click();
+   await page.getByTestId('nat46-client').filter({hasText:'fd00:11:4646::a11:102'}).waitFor();
+   if(errors.length)throw new Error(errors.join('\n'));
+-  await page.screenshot({path:root+'/docs/status/tasks/lab-nat46-20261010-evidence/nat46-'+lang+'.png',fullPage:true});await context.close();
++  await page.screenshot({path:'/tmp/ngfw-lab-nat46-20261010-250-api-adapter'+'/nat46-'+lang+'.png',fullPage:true});await context.close();
+  }
+  console.log('NAT46_BROWSER_EN_FA_PASS');
+ }finally{if(browser)await browser.close();web.kill('SIGTERM');}
+--- reviewed-gb-transport.py
++++ runtime-transport.py
+@@ -2,7 +2,7 @@
+ """Real remote API authentication through an owned SSH tunnel; no secret files."""
+ import json,os,shlex,subprocess,sys,time
+ from pathlib import Path
+-root=Path(__file__).resolve().parents[3]
++root=Path('/root/ngfw-wt/lab-nat46-20261010')
+ target=sys.argv[1]; remote_root=sys.argv[2]
+ assert target.startswith('root@') and remote_root.startswith('/tmp/ngfw-lab-global-blocking-')
+ ssh=['ssh','-o','BatchMode=yes','-o','ConnectTimeout=10',target]
+@@ -21,8 +21,8 @@
+  # Read password and nonce directly into memory; never log or persist them.
+  raw=subprocess.check_output(ssh+[shlex.join(['cat',transport])],timeout=180)
+  payload=json.loads(raw)
+- out=root/'docs/status/tasks/lab-global-blocking-20261010-evidence/250';out.mkdir(exist_ok=True)
+- subprocess.run(['node',str(root/'docs/status/tasks/lab-global-blocking-20261010-shots.mjs')],input=json.dumps({'password':payload['password']}).encode(),check=True,cwd=root,timeout=150,env=dict(os.environ,NGFW_GB_BROWSER_API_PORT='11790',NGFW_GB_BROWSER_WEB_PORT='15790',NGFW_GB_BROWSER_OUTPUT=str(out)))
++ out=Path('/tmp/ngfw-lab-nat46-20261010-250-api-adapter')
++ subprocess.run(['node',str(Path('/tmp/ngfw-lab-nat46-20261010-250-api-adapter/shots.mjs'))],input=json.dumps({'password':payload['password']}).encode(),check=True,cwd=root,timeout=150,env=dict(os.environ,NGFW_GB_BROWSER_API_PORT='11790',NGFW_GB_BROWSER_WEB_PORT='15790',NGFW_GB_BROWSER_OUTPUT=str(out)))
+  result=str(Path(transport).with_name('result'))
+  # Structured stdin avoids shell expansion and secret-bearing command arguments.
+  script="import json,sys; x=json.load(sys.stdin); open(x['path'],'w').write(json.dumps(x['reply'])+'\\n')"

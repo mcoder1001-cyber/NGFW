@@ -1,0 +1,15 @@
+{
+  "reviewer": "routing_acceptance",
+  "verdict": "APPROVE",
+  "base": "1ea080121",
+  "reviewed_change": "F-global-blocking-host only; 211 objects deep-equal; 212 IDs and order preserved",
+  "counts": {
+    "merged": 209,
+    "review": 1,
+    "running": 2
+  },
+  "expected_head_merge": "bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3",
+  "main_ci": 38051133842,
+  "independently_queried_conclusion": "SUCCESS",
+  "RA_acceptance": "open"
+}

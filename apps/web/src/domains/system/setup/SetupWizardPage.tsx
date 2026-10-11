@@ -13,23 +13,24 @@ import {
 } from '@mui/material';
 import { RootConfig, SetupInputSchema, parentInterfaceName, type SetupInput } from '@ngfw/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { api, authMiddleware } from '../../../api';
 import { call } from '../../../api-problem';
 import { useAuth, usePermissions } from '../../../auth/AuthProvider';
 import { fetchInterfacesState, ifaceKeys } from '../../interfaces/queries';
+import { fetchRoutes } from '../../routing/vrf-static-ecmp/api';
+import { wanDefaults } from './wan-defaults';
 import { useUiSettings } from '../../../settings/UiSettings';
 
-const STEP_KEYS = ['time', 'password', 'identity', 'wan', 'lan', 'defaults', 'summary'];
+const STEP_KEYS = ['time', 'password', 'identity', 'wan', 'defaults', 'summary'];
 const WAN_MODES = ['dhcp', 'static', 'pppoe'];
 const KEY = {
   time: 'time',
   password: 'password',
   identity: 'identity',
   wan: 'wan',
-  lan: 'lan',
   defaults: 'defaults',
   summary: 'summary',
   rerun: 'rerun',
@@ -44,7 +45,6 @@ const KEY = {
   pppoe: 'pppoe',
   wanAddress: 'wanAddress',
   wanGateway: 'wanGateway',
-  lanAddress: 'lanAddress',
 } as const;
 const CONFIRM_PATH = '/api/v1/config/commit/confirm';
 const LOGIN_PATH = '/login';
@@ -74,16 +74,22 @@ export function SetupWizardPage() {
     ntp: ['pool.ntp.org'],
     hostname: 'ngfw',
     wanMode: 'dhcp',
-    lanAddress: '192.168.40.1/24',
-    dhcp: true,
     rerun: false,
   });
   const [step, setStep] = useState(0);
   const interfaces = useQuery({
     queryKey: ifaceKeys.state,
     queryFn: ({ signal }) => fetchInterfacesState(signal),
-    enabled: step === 3 || step === 4,
+    enabled: step === 3,
   });
+  const routes = useQuery({
+    queryKey: ['state', 'setup-wan-routes'],
+    queryFn: ({ signal }) =>
+      fetchRoutes({ vrf: 'default', family: 'ipv4', pageSize: 1000 }, signal),
+    enabled: step === 3,
+  });
+  const wanEdited = useRef(false);
+  const wanLoading = interfaces.isPending || routes.isPending;
   const interfacesUnavailable =
     interfaces.isError || (interfaces.data?.observationErrors?.length ?? 0) > 0;
   const interfaceNames = [
@@ -116,6 +122,23 @@ export function SetupWizardPage() {
         .map((item) => item.name),
     ]),
   ].sort();
+  useEffect(() => {
+    if (
+      !running.data ||
+      step !== 3 ||
+      interfaces.isPending ||
+      routes.isPending ||
+      wanEdited.current
+    )
+      return;
+    const defaults = wanDefaults(
+      running.data.doc,
+      interfaceNames,
+      interfaces.data,
+      routes.data?.items,
+    );
+    if (defaults.wan) setValues((v) => ({ ...v, ...defaults }));
+  }, [running.data, step, interfaces.isPending, interfaces.data, routes.isPending, routes.data]);
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -124,6 +147,7 @@ export function SetupWizardPage() {
   const [at, setAt] = useState('');
   const [deadline, setDeadline] = useState('');
   const set = <K extends keyof SetupInput>(key: K, value: SetupInput[K]) => {
+    if (key.startsWith('wan')) wanEdited.current = true;
     setValues((v) => ({ ...v, [key]: value }));
     setPreview(undefined);
   };
@@ -157,11 +181,9 @@ export function SetupWizardPage() {
         [],
         ['hostname'],
         ['wan', 'wanMode'],
-        ['lan', 'lanAddress', 'dhcp'],
         [],
       ];
-      if ((step === 3 || step === 4) && !values[step === 3 ? 'wan' : 'lan'])
-        throw new Error(t('selectInterface'));
+      if (step === 3 && !values.wan) throw new Error(t('selectInterface'));
       for (const key of fields[step] ?? []) SetupInputSchema.shape[key].parse(values[key]);
       if (
         step === 3 &&
@@ -171,7 +193,7 @@ export function SetupWizardPage() {
         throw new Error(t('pppoeRequired'));
       if (step === 1 && (password.length < 12 || current === '' || current === password))
         throw new Error(t('passwordPolicy'));
-      if (step === 5) {
+      if (step === 4) {
         const input = SetupInputSchema.parse(values);
         const completedAt = new Date().toISOString();
         const r = await request('preview', {
@@ -215,6 +237,7 @@ export function SetupWizardPage() {
       label={t(label)}
       value={String(values[key] ?? '')}
       onChange={(e) => set(key, e.target.value as never)}
+      disabled={step === 3 && wanLoading}
       fullWidth
     />
   );
@@ -294,41 +317,60 @@ export function SetupWizardPage() {
         </>
       )}
       {step === 2 && field(KEY.hostname)}
-      {(step === 3 || step === 4) && (
+      {step === 3 && (
         <TextField
           select
-          label={t(step === 3 ? KEY.wan : KEY.lan)}
-          value={values[step === 3 ? KEY.wan : KEY.lan] ?? ''}
-          onChange={(e) => set(step === 3 ? KEY.wan : KEY.lan, e.target.value)}
+          disabled={wanLoading}
+          label={t(KEY.wan)}
+          value={values.wan ?? ''}
+          onChange={(e) => {
+            wanEdited.current = true;
+            setValues((v) => ({
+              ...v,
+              wanAddress: undefined,
+              wanGateway: undefined,
+              wanPppoe: undefined,
+              ...wanDefaults(
+                running.data.doc,
+                interfaceNames,
+                interfaces.data,
+                routes.data?.items,
+                e.target.value,
+              ),
+            }));
+            setPreview(undefined);
+          }}
         >
-          {interfaceNames
-            .filter((name) => name !== values[step === 3 ? 'lan' : 'wan'])
-            .map((name) => (
-              <MenuItem key={name} value={name}>
-                {name}
-              </MenuItem>
-            ))}
+          {interfaceNames.map((name) => (
+            <MenuItem key={name} value={name}>
+              {name}
+            </MenuItem>
+          ))}
         </TextField>
       )}
-      {(step === 3 || step === 4) && interfaces.isFetching && (
+      {step === 3 && (interfaces.isFetching || routes.isFetching) && (
         <Typography>{t('loadingInterfaces')}</Typography>
       )}
-      {(step === 3 || step === 4) && interfacesUnavailable && (
+      {step === 3 && interfacesUnavailable && (
         <Alert severity="warning">
           {t('interfacesFailed')}
           <Button onClick={() => void interfaces.refetch()}>{t('retryInterfaces')}</Button>
         </Alert>
       )}
-      {(step === 3 || step === 4) && !interfaces.isFetching && interfaceNames.length === 0 && (
+      {step === 3 && !interfaces.isFetching && interfaceNames.length === 0 && (
         <Alert severity="warning">{t('noInterfaces')}</Alert>
       )}
       {step === 3 && (
         <>
+          <Alert severity="info">{t(values.wan ? 'wanDetected' : 'wanManual')}</Alert>
+          {routes.isError && <Alert severity="warning">{t('routesFailed')}</Alert>}
           <TextField
             select
+            disabled={wanLoading}
             label={t(KEY.wanMode)}
             value={values.wanMode}
             onChange={(e) => {
+              wanEdited.current = true;
               const wanMode = e.target.value as SetupInput['wanMode'];
               setValues((v) => ({
                 ...v,
@@ -353,6 +395,7 @@ export function SetupWizardPage() {
           {values.wanMode === KEY.pppoe && (
             <>
               <TextField
+                disabled={wanLoading}
                 label={t('pppoeUsername')}
                 value={values.wanPppoe?.username ?? ''}
                 onChange={(e) =>
@@ -363,6 +406,7 @@ export function SetupWizardPage() {
                 }
               />
               <TextField
+                disabled={wanLoading}
                 label={t('pppoePasswordRef')}
                 value={values.wanPppoe?.passwordRef ?? ''}
                 onChange={(e) =>
@@ -377,22 +421,8 @@ export function SetupWizardPage() {
           )}
         </>
       )}
-      {step === 4 && (
-        <>
-          {field(KEY.lanAddress)}
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={values.dhcp ?? false}
-                onChange={(e) => set(KEY.dhcp, e.target.checked)}
-              />
-            }
-            label={t('dhcpServer')}
-          />
-        </>
-      )}
-      {step === 5 && <Alert severity="warning">{t('defaultsHelp')}</Alert>}
-      {step === 6 && (
+      {step === 4 && <Alert severity="warning">{t('defaultsHelp')}</Alert>}
+      {step === 5 && (
         <>
           <Typography>{t('summaryHelp')}</Typography>
           <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
@@ -427,8 +457,8 @@ export function SetupWizardPage() {
           >
             {t('back')}
           </Button>
-          {step < 6 ? (
-            <Button disabled={busy} onClick={() => void next()}>
+          {step < 5 ? (
+            <Button disabled={busy || (step === 3 && wanLoading)} onClick={() => void next()}>
               {t('next')}
             </Button>
           ) : (

@@ -1,16 +1,22 @@
-# Setup WAN defaults and remove LAN step — validation in progress
+# Setup WAN defaults and remove LAN step
 
 Branch: codex/setup-system-wan-no-lan-20261011
-Published source checkpoint: ec4cc410cdf6bfc58c777b27df284f8aedb2f544
-Draft PR: https://github.com/mcoder1001-cyber/NGFW/pull/227
-Base: origin/main 76362bdc7; task changes rebased without conflicts.
+Published product checkpoint: 2ee48ba98
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/227
+Base: origin/main 76362bdc7; task commits rebased without conflicts.
 
-Implemented: six-step WAN-only UI; configured/live WAN defaults including address-only gateways; editable values protected from observation refreshes; English/Persian copy; browser preview script and getting-started guide. Contract allows omitted LAN fields with legacy caller compatibility. LAN/DHCP/NAT/ACL/management preserved. Static default routes reused/updated, WAN IPv6 and unchanged aliases/DHCP options preserved.
+Implemented: six-step WAN-only UI; editable defaults from running config and live dataplane interfaces/default routes; ambiguous selection and address-only gateway handling; administrator changes protected from observation refreshes. No LAN creation. Existing LAN, DHCP, NAT, ACL and management settings remain intact. Existing static defaults reused/updated; unedited WAN IPv6, static aliases and DHCP options preserved. Legacy explicit-LAN API callers remain compatible. English/Persian copy, feature specification, browser preview script, getting-started guide and generated API client updated.
 
-Passed: schema setup tests 20/20 on final parent tree; helper API tests 17/17, schema/API lint and typecheck; parent focused web lint; browser script syntax and git diff whitespace check; source review APPROVE after reported route/ambiguity/loading fixes. Forbidden-pattern/contract check passed before rebasing.
+Completed validation:
+- Final schema setup tests: 20/20 passed on parent tree.
+- API setup tests: 17/17 passed; API/schema package lint and typecheck passed.
+- Wizard navigation/commit tests: 5/5; WAN inference tests: 7/7; regression tests: 8/8 passed on focused rerun after an initial shared-host lazy-loading timeout. Total 20 UI tests.
+- Final web typecheck and focused web lint passed; browser script syntax and git whitespace checks passed.
+- API client generation: all 9 scheduler tasks successful with concurrency=1. Failed earlier proto generation fully restored; generated diff is only the six optional legacy LAN properties.
+- Independent source review: APPROVE after route duplication, ambiguity, initial-loading race and address-only gateway findings were fixed.
 
-Initial parent UI run: failed module resolution because API-client had not yet been built; 6 WAN inference tests passed. Dependency now built; final UI/typecheck rerun running. Initial shared proto generation process killed by host; retry using scheduler concurrency=1 running. Generated proto outputs were removed by failed generator and must be fully restored by successful generation before final commit.
+Mandatory quick gate: local tools/ci.sh quick --base origin/main running; final hosted quick job also running. Earlier hosted job failed only because the generated client had not yet been committed; corrected in 3c4085aef. No remaining product implementation work is known. Do not merge before the final gate is green.
 
-Remaining: finish client generation and final UI/typecheck; commit generated API artifacts and updated task prompt; complete mandatory quick gate (hosted job also running), update PR validation and publish final checkpoint. No deployment or live appliance changes. Lab acceptance not run.
+No live appliance settings were changed. ISP negotiation, packet delivery and confirmed-commit acceptance require an isolated lab and were not run.
 
-Next: poll generation/UI sessions; commit generated outputs only after successful generation; run tools/ci.sh quick --base origin/main with bounded concurrency.
+Recovery: inspect PR checks and local quick logs under /root/ngfw-wt/logs/ci/NGFW-20261011-073510-493950; fix any real gate failure, update reviewable PR validation, then mark ready when green.

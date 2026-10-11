@@ -16,9 +16,9 @@ export const SetupInputSchema = z
     wanPppoe: InterfacePppoeSchema.pick({ username: true, passwordRef: true }).optional(),
     wanAddress: ipv4Cidr.optional(),
     wanGateway: z.ipv4().optional(),
-    lan: parentInterfaceName,
-    lanAddress: ipv4Cidr,
-    dhcp: z.boolean(),
+    lan: parentInterfaceName.optional(),
+    lanAddress: ipv4Cidr.optional(),
+    dhcp: z.boolean().optional(),
     rerun: z.boolean().default(false),
   })
   .superRefine((s, ctx) => {
@@ -42,8 +42,20 @@ export const SetupInputSchema = z
         path: ['wanAddress'],
         message: 'static WAN address and gateway required',
       });
-    const prefix = Number(s.lanAddress.split('/')[1]);
-    if (prefix < 8 || prefix > 29)
+    if (s.lan && (!s.lanAddress || s.dhcp === undefined))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['lanAddress'],
+        message: 'LAN address and DHCP choice required when selecting LAN',
+      });
+    if (!s.lan && (s.lanAddress !== undefined || s.dhcp !== undefined))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['lan'],
+        message: 'LAN settings require a selected LAN interface',
+      });
+    const prefix = s.lanAddress ? Number(s.lanAddress.split('/')[1]) : undefined;
+    if (prefix !== undefined && (prefix < 8 || prefix > 29))
       ctx.addIssue({
         code: 'custom',
         path: ['lanAddress'],
@@ -98,21 +110,25 @@ function removeSetupPppoe(doc: RootConfig, input: SetupInput) {
     !previous.pppoe ||
     previous.description !== SETUP_PPPOE_DESCRIPTION ||
     JSON.stringify(previous) !== JSON.stringify(expected) ||
-    !doc.nat.outside.includes(SETUP_PPPOE) ||
-    !doc.nat.pools.some(
-      (pool) => pool.name === 'setup-wan' && 'interface' in pool && pool.interface === SETUP_PPPOE,
-    )
+    (input.lan !== undefined &&
+      (!doc.nat.outside.includes(SETUP_PPPOE) ||
+        !doc.nat.pools.some(
+          (pool) =>
+            pool.name === 'setup-wan' && 'interface' in pool && pool.interface === SETUP_PPPOE,
+        )))
   )
     throw new Error('The setup-pppoe interface is not an unchanged wizard-owned WAN');
   if (input.wanMode !== 'pppoe') {
     const rest = structuredClone(doc);
     delete rest.interfaces[SETUP_PPPOE];
-    rest.nat.inside = rest.nat.inside.filter((name) => name !== SETUP_PPPOE);
-    rest.nat.outside = rest.nat.outside.filter((name) => name !== SETUP_PPPOE);
-    rest.nat.pools = rest.nat.pools.filter((pool) => pool.name !== 'setup-wan');
-    rest.acl.attachments = rest.acl.attachments.filter(
-      (a) => !['setup-lan-out', 'setup-wan-in'].includes(a.list),
-    );
+    if (input.lan) {
+      rest.nat.inside = rest.nat.inside.filter((name) => name !== SETUP_PPPOE);
+      rest.nat.outside = rest.nat.outside.filter((name) => name !== SETUP_PPPOE);
+      rest.nat.pools = rest.nat.pools.filter((pool) => pool.name !== 'setup-wan');
+      rest.acl.attachments = rest.acl.attachments.filter(
+        (a) => !['setup-lan-out', 'setup-wan-in'].includes(a.list),
+      );
+    }
     rest.routing.static = rest.routing.static.filter(
       (route) => route.description !== 'Setup WAN default route',
     );
@@ -132,21 +148,19 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
   const input = SetupInputSchema.parse(raw);
   if (base.system.setup.completed && !input.rerun)
     throw new Error('Setup completed; explicit rerun acknowledgement required');
-  if (!base.interfaces[input.wan] || !base.interfaces[input.lan])
+  if (!base.interfaces[input.wan] || (input.lan && !base.interfaces[input.lan]))
     throw new Error('Select existing interfaces');
-  if (base.interfaces[input.wan]!.vrf !== base.interfaces[input.lan]!.vrf)
+  if (input.lan && base.interfaces[input.wan]!.vrf !== base.interfaces[input.lan]!.vrf)
     throw new Error('WAN and LAN must use the same VRF');
   if ([input.wan, input.lan].includes(SETUP_PPPOE))
     throw new Error('Select physical WAN and LAN interfaces, not the wizard logical WAN');
-  if (base.interfaces[input.wan]!.pppoe || base.interfaces[input.lan]!.pppoe)
+  if (base.interfaces[input.wan]!.pppoe || (input.lan && base.interfaces[input.lan]!.pppoe))
     throw new Error(
       'Existing PPPoE interfaces require explicit migration outside the setup wizard',
     );
   const doc = structuredClone(base);
   removeSetupPppoe(doc, input);
   const wan = doc.interfaces[input.wan]!;
-  const lan = doc.interfaces[input.lan]!;
-  const pool = setupPool(input.lanAddress);
   const wanName = input.wanMode === 'pppoe' ? SETUP_PPPOE : input.wan;
   if (input.wanMode === 'pppoe') {
     if (
@@ -195,8 +209,23 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
   delete wan.dhcpClient;
   delete wan.pppoe;
   if (input.wanMode === 'dhcp') wan.dhcpClient = { setBroadcastFlag: false };
+  doc.routing.static = doc.routing.static.filter(
+    (r) => r.description !== 'Setup WAN default route',
+  );
+  if (input.wanMode === 'static')
+    doc.routing.static.push({
+      prefix: '0.0.0.0/0',
+      vrf: wan.vrf,
+      nextHops: [{ address: input.wanGateway!, interface: input.wan, weight: 1 }],
+      distance: 1,
+      blackhole: false,
+      description: 'Setup WAN default route',
+    });
+  if (!input.lan) return RootConfig.parse(doc);
+  const lan = doc.interfaces[input.lan]!;
+  const pool = setupPool(input.lanAddress!);
   lan.enabled = true;
-  lan.ipv4 = [input.lanAddress];
+  lan.ipv4 = [input.lanAddress!];
   lan.ipv6 = [];
   delete lan.unnumbered;
   delete lan.dhcpClient;
@@ -207,7 +236,7 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
     hostIfType: 'tap',
   };
   doc.services.dhcp.servers['setup-lan'] = {
-    enabled: input.dhcp,
+    enabled: input.dhcp!,
     family: 'ipv4',
     vrf: lan.vrf,
     interfaces: [input.lan],
@@ -231,18 +260,6 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
         }
       : {},
   };
-  doc.routing.static = doc.routing.static.filter(
-    (r) => r.description !== 'Setup WAN default route',
-  );
-  if (input.wanMode === 'static')
-    doc.routing.static.push({
-      prefix: '0.0.0.0/0',
-      vrf: wan.vrf,
-      nextHops: [{ address: input.wanGateway!, interface: input.wan, weight: 1 }],
-      distance: 1,
-      blackhole: false,
-      description: 'Setup WAN default route',
-    });
   doc.nat = {
     ...doc.nat,
     enabled: true,

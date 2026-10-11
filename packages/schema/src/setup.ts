@@ -203,12 +203,21 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
     pools: [],
   };
   wan.enabled = true;
-  wan.ipv4 = input.wanMode === 'static' ? [input.wanAddress!] : [];
-  wan.ipv6 = [];
+  wan.ipv4 =
+    input.wanMode === 'static'
+      ? !input.lan && input.wanAddress === base.interfaces[input.wan]!.ipv4[0]
+        ? [...base.interfaces[input.wan]!.ipv4]
+        : [input.wanAddress!]
+      : [];
+  if (input.lan) wan.ipv6 = [];
   delete wan.unnumbered;
   delete wan.dhcpClient;
   delete wan.pppoe;
-  if (input.wanMode === 'dhcp') wan.dhcpClient = { setBroadcastFlag: false };
+  if (input.wanMode === 'dhcp')
+    wan.dhcpClient =
+      !input.lan && base.interfaces[input.wan]!.dhcpClient
+        ? { ...base.interfaces[input.wan]!.dhcpClient }
+        : { setBroadcastFlag: false };
   if (input.lan) {
     doc.routing.static = doc.routing.static.filter(
       (r) => r.description !== 'Setup WAN default route',

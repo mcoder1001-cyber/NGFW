@@ -127,6 +127,35 @@ describe('setup builder', () => {
       ),
     ).toThrow('existing default route');
   });
+  it('preserves unedited IPv4 aliases, IPv6 and DHCP client options during WAN-only setup', () => {
+    const original = RootConfig.parse({
+      interfaces: {
+        wan0: {
+          ipv4: ['203.0.113.2/24', '198.51.100.2/24'],
+          ipv6: ['2001:db8::2/64'],
+        },
+      },
+    });
+    const staticInput = {
+      ...wanOnly(),
+      wanMode: 'static' as const,
+      wanAddress: '203.0.113.2/24',
+      wanGateway: '203.0.113.1',
+    };
+    const unchanged = buildSetup(original, staticInput, at);
+    expect(unchanged.interfaces.wan0!.ipv4).toEqual(original.interfaces.wan0!.ipv4);
+    expect(unchanged.interfaces.wan0!.ipv6).toEqual(original.interfaces.wan0!.ipv6);
+    expect(validateConfig(unchanged)).toEqual({ ok: true, config: unchanged });
+    const changed = buildSetup(original, { ...staticInput, wanAddress: '203.0.113.3/24' }, at);
+    expect(changed.interfaces.wan0!.ipv4).toEqual(['203.0.113.3/24']);
+    const dhcpBase = RootConfig.parse({
+      interfaces: { wan0: { dhcpClient: { setBroadcastFlag: true }, ipv6: ['2001:db8::2/64'] } },
+    });
+    const dhcp = buildSetup(dhcpBase, wanOnly(), at);
+    expect(dhcp.interfaces.wan0!.dhcpClient).toEqual({ setBroadcastFlag: true });
+    expect(dhcp.interfaces.wan0!.ipv6).toEqual(dhcpBase.interfaces.wan0!.ipv6);
+    expect(validateConfig(dhcp)).toEqual({ ok: true, config: dhcp });
+  });
   it('requires legacy LAN settings together without imposing them on WAN-only input', () => {
     expect(SetupInputSchema.safeParse(wanOnly()).success).toBe(true);
     expect(SetupInputSchema.safeParse({ ...wanOnly(), lan: 'lan0' }).success).toBe(false);

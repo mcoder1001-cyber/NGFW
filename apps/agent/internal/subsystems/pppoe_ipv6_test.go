@@ -107,8 +107,8 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 	}
 	ipup := func() {
 		t.Helper()
-		cmd := exec.Command(filepath.Join(paths.IPUpDir, "ngfw-tap0")) //nolint:gosec // rendered hook in this private test directory
-		cmd.Env = append(os.Environ(), "PPP_IPPARAM=ngfw-tap0", "IPLOCAL=198.51.100.5", "IPREMOTE=198.51.100.1")
+		cmd := exec.Command(filepath.Join(paths.IPUpDir, "ngfw-tap0"), "ppp0", "dev", "0", "198.51.100.5", "198.51.100.1", "ngfw-tap0") //nolint:gosec // rendered hook in this private test directory
+		cmd.Env = append(os.Environ(), "IPLOCAL=198.51.100.5", "IPREMOTE=198.51.100.1")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatal(err, string(out))
 		}
@@ -165,8 +165,8 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 	check("unchanged", dualAddrs, dualRoutes)
 	// IPCP can go down independently while IPv6CP remains up. The down hook
 	// still carries the old addresses, which must no longer be mirrored.
-	cmd4 := exec.Command(filepath.Join(paths.IPDownDir, "ngfw-tap0")) //nolint:gosec // rendered private test hook
-	cmd4.Env = append(os.Environ(), "PPP_IPPARAM=ngfw-tap0", "IPLOCAL=198.51.100.5", "IPREMOTE=198.51.100.1")
+	cmd4 := exec.Command(filepath.Join(paths.IPDownDir, "ngfw-tap0"), "ppp0", "dev", "0", "198.51.100.5", "198.51.100.1", "ngfw-tap0") //nolint:gosec // rendered private test hook
+	cmd4.Env = append(os.Environ(), "IPLOCAL=198.51.100.5", "IPREMOTE=198.51.100.1")
 	if out, err := cmd4.CombinedOutput(); err != nil {
 		t.Fatal(err, string(out))
 	}
@@ -177,8 +177,8 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 	state6("phase=up\nppp_iface=ppp0\naddr=2001:db8:9::100/128\naddr=2001:db8:a:0:1:2:3:4/64\ngw=fe80::9\n")
 	check("renumbered", []string{"198.51.100.5/32", "2001:db8:9::100/128", "2001:db8:a:0:1:2:3:4/128"}, dualRoutes)
 	// IPv6 down (the real ipv6-down hook) withdraws IPv6 only
-	cmd := exec.Command(filepath.Join(paths.IPv6DownDir, "ngfw-tap0")) //nolint:gosec // rendered hook in this private test directory
-	cmd.Env = append(os.Environ(), "PPP_IPPARAM=ngfw-tap0", "PPP_IFACE=ppp0")
+	cmd := exec.Command(filepath.Join(paths.IPv6DownDir, "ngfw-tap0"), "ppp0", "dev", "0", "fe80::1:2", "fe80::9", "ngfw-tap0") //nolint:gosec // rendered hook in this private test directory
+	cmd.Env = os.Environ()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatal(err, string(out))
 	}

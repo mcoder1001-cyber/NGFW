@@ -1,9 +1,11 @@
 package desired
 
 import (
+	"fmt"
 	"google.golang.org/protobuf/proto"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/tapv2"
+	ren "ngfw/agent/internal/renderers/pppoe"
 	"strings"
 	"testing"
 )
@@ -87,4 +89,30 @@ func TestCarrierVLANCompleteProjectionHasRewriteAndManifest(t *testing.T) {
 	if len(rejected.errors) == 0 || len(rejected.kvs) != 0 {
 		t.Fatal("insufficient parent MTU emitted partial carrier")
 	}
+}
+
+func TestCarrierTapCandidateCollisionEmitsNothing(t *testing.T) {
+	seen := map[uint32]ren.CarrierSpec{}
+	for i := 0; i < 4096; i++ {
+		name := fmt.Sprintf("ppp%d", i)
+		parent := fmt.Sprintf("wan%d", i)
+		spec, err := ren.NewCarrierSpec("ngfw", name, parent, 1492)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, _ := spec.TapIDs()
+		if previous, ok := seen[raw]; ok {
+			sink := &pppoeSink{}
+			PppoeCarriers(sink, map[string]*ngfwv1.Interface{
+				previous.Logical: {Pppoe: &ngfwv1.Pppoe{Parent: proto.String(previous.Parent)}}, previous.Parent: {Enabled: proto.Bool(true)},
+				name: {Pppoe: &ngfwv1.Pppoe{Parent: proto.String(parent)}}, parent: {Enabled: proto.Bool(true)},
+			}, "ngfw")
+			if len(sink.errors) == 0 || len(sink.kvs) != 0 || !strings.Contains(fmt.Sprint(sink.errors), "internal PPP TAP identifiers collide") {
+				t.Fatalf("collision was not refused before mutation: %v / %d", sink.errors, len(sink.kvs))
+			}
+			return
+		}
+		seen[raw] = spec
+	}
+	t.Fatal("finite TAP pair range unexpectedly had no collision")
 }

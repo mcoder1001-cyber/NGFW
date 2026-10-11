@@ -1,9 +1,11 @@
 #!/bin/sh
-# ngfw-agent PPPoE {{.Kind}} hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
-# IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+# ngfw-agent PPPoE {{.Kind}} hook (F-pppoe-client). pppd passes the interface as argument 1
+# and ipparam as argument 6, and exports IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session
 # and writes a state file the agent reads. Rendered; hand edits are overwritten.
 set -eu
-[ "${PPP_IPPARAM:-}" = {{quoted .Remotename}} ] || exit 0
+[ "${6:-}" = {{quoted .Remotename}} ] || exit 0
+iface="${1:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
 dir={{quoted .StateDir}}
 f="$dir/{{ident .HostIf}}.state"
 mkdir -p "$dir"
@@ -12,7 +14,7 @@ tmp="$f.tmp.$$"
 {{if .Carrier}}  echo "session_generation=$(cat /proc/sys/kernel/random/uuid)"
 {{end}}  echo "phase={{.Phase}}"
   echo "hostif={{ident .HostIf}}"
-  echo "ppp_iface=${PPP_IFACE:-}"
+  echo "ppp_iface=$iface"
   echo "local=${IPLOCAL:-}"
   echo "peer=${IPREMOTE:-}"
   echo "dns1=${DNS1:-}"

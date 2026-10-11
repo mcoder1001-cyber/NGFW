@@ -1,0 +1,17 @@
+ubuntu-26.04
+2026-10-10T09:15:53Z
+active
+active
+active
+ngfw-agent	0.1.0~dev+4c8d1b247c6b
+ngfw-api	0.1.0~dev+4c8d1b247c6b
+vpp v26.06-release+ngfw3 built by root on ubuntu-26.04 at 2026-06-21T14:02:56
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+local0                            0     down          0/0/0/0       
+{"status":"ok","service":"ngfw-api","version":"0.1.0-dev","time":"2026-10-10T09:15:54.061Z"} HTTP:200
+{"type":"https://ngfw.dev/problems/not-found","title":"Not found","status":404,"detail":"Cannot GET /api/v1/ready","instance":"/api/v1/ready"} HTTP:404
+{"type":"https://ngfw.dev/problems/unauthorized","title":"Unauthorized","status":401,"detail":"authentication required","instance":"/api/v1/state/interfaces"} HTTP:401
+{"type":"https://ngfw.dev/problems/not-found","title":"Not found","status":404,"detail":"Cannot GET /api/v1/state/routing/wan-groups","instance":"/api/v1/state/routing/wan-groups"} HTTP:404
+carrier-helper-absent
+MainPID=8102
+NRestarts=0

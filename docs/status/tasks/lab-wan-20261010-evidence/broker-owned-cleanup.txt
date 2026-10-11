@@ -1,0 +1,4 @@
+w20 actual original broker empty list completed before private campaigns.
+Own token ngp-83f6c4ae3e5c request/result removed after verifying identity; unit inactive.
+No carrier namespace provisioning or PPP unit start. No foreign files removed.
+Initial receipt wrong field and second concurrent same-owner collision preserved; not claimed as passing acceptance.

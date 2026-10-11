@@ -1,0 +1,22 @@
+{
+  "token_inode": [
+    2050,
+    3108525
+  ],
+  "dirs": [
+    "ppp",
+    "ppp/ip-down.d",
+    "ppp/ip-up.d",
+    "ppp/ipv6-down.d",
+    "ppp/ipv6-up.d",
+    "ppp/peers"
+  ],
+  "files": {
+    "ppp/ip-down": "7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796",
+    "ppp/ip-up": "81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771",
+    "ppp/ipv6-down": "8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83",
+    "ppp/ipv6-up": "569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677",
+    "ppp/resolv.conf": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "all_exact_original_dispatchers_and_empty_resolver": true
+}

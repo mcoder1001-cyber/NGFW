@@ -1,0 +1,15 @@
+drwxr-xr-x  8 root root 4096 Oct  4 15:02 /usr/lib/ngfw/api
+drwxr-xr-x 19 root root 4096 Oct  4 15:02 /usr/lib/ngfw/api/dist
+drwxr-xr-x  8 root root 4096 Oct  4 15:02 /usr/lib/ngfw/api/node_modules
+/.
+/usr
+/usr/lib
+/usr/lib/ngfw
+/usr/lib/ngfw/api
+/usr/lib/ngfw/api/.env.example
+/usr/lib/ngfw/api/bootstrap-db.mjs
+/usr/lib/ngfw/api/dist
+/usr/lib/ngfw/api/dist/actions
+/usr/lib/ngfw/api/dist/actions/actions.controller.d.ts
+/usr/lib/ngfw/api/dist/actions/actions.controller.js
+/usr/lib/ngfw/api/dist/actions/actions.controller.js.map

@@ -1,6 +1,7 @@
 package pppoe
 
 import (
+	"fmt"
 	"net/netip"
 	"testing"
 )
@@ -48,5 +49,24 @@ func TestCarrierSpecRefusesOverlapsAndParentReuse(t *testing.T) {
 	b.Parent = a.Logical
 	if err := CheckCarrierPrefixes([]CarrierSpec{a, b}, nil); err == nil {
 		t.Fatal("accepted carrier chain")
+	}
+}
+
+func TestCarrierTapCandidatesFitVPPAndRemainStable(t *testing.T) {
+	seen := map[uint32]bool{}
+	for i := 0; i < 100000; i++ {
+		spec, err := NewCarrierSpec("ngfw", fmt.Sprintf("ppp%d", i), "wan", 1492)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, transit := spec.TapIDs()
+		againRaw, againTransit := spec.TapIDs()
+		if raw < 2 || raw > 8190 || raw%2 != 0 || transit != raw+1 || transit > 8191 || raw != againRaw || transit != againTransit {
+			t.Fatalf("unsupported/unstable candidate %d/%d", raw, transit)
+		}
+		seen[raw] = true
+	}
+	if !seen[2] || !seen[8190] {
+		t.Fatal("did not exercise both supported pair boundaries")
 	}
 }

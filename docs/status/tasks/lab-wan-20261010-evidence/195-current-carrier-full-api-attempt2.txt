@@ -1,0 +1,39 @@
+ROOT_HOST_IDENTITY_BEFORE {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+CHILD_UTS_BEFORE {"namespace": "uts:[4026533284]", "hostname": "ngfw"}
+PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS
+DISPOSABLE_VPP pid=2483 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-2481
+host-w20raw
+host-w20lan
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+host-w20lan                       2     down         9000/0/0/0     
+host-w20raw                       1     down         9000/0/0/0     
+local0                            0     down          0/0/0/0       
+show interface: Interface not specified...
+REAL_API_COMMIT {"revision": 1, "candidate_sha256": "af784c3b06c5d544b8d9d628bdb558491d1098045c64f39438198d412182c2a1", "plan": [{"key": "interface.admin-state/host-w20lan", "op": "create", "pointer": "/interfaces/host-w20lan/enabled", "subsystem": "interfaces"}, {"key": "interface.admin-state/host-w20raw", "op": "create", "pointer": "/interfaces/host-w20raw/enabled", "subsystem": "interfaces"}, {"key": "pppoe.carrier.tap/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface.admin-state/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "l2.xconnect/host-w20raw", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "l2.xconnect/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "pppoe.carrier.tap/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp", "subsystem": "interfaces"}, {"key": "interface-ip/w20ppp/169.254.169.57/30", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface-ip/w20ppp/fd0d:dfe2:1c29:8c69::1/126", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface.admin-state/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/enabled", "subsystem": "interfaces"}, {"key": "interface.mtu/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/pppoe/mtu", "subsystem": "interfaces"}, {"key": "pppoe.client.config/ngfw", "op": "create", "pointer": "/interfaces", "subsystem": "interfaces"}], "warnings": [{"pointer": "/interfaces/w20ppp/pppoe/passwordRef", "message": "the password reference must resolve in the agent secret cache before apply", "rule": "pppoe.secret-unavailable"}, {"pointer": "/management/aaa", "message": "management.aaa is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/backup", "message": "management.backup is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/tls", "message": "management.tls is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/nat/ipfix", "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))", "rule": "agent.unsupported-field"}, {"pointer": "/services/ipfix/flowprobe", "message": "flowprobe parameters are applied only with at least one monitored interface", "rule": "agent.unsupported-field"}, {"pointer": "/services/lldp", "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)", "rule": "agent.write-only"}, {"pointer": "/services/ntp", "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare", "rule": "agent.unsupported-field"}]}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-wan-20261010/docs/status/tasks/lab-wan-20261010-carrier-api.py", line 69, in <module>
+    live=wait_up(api);print('REAL_AGENT_WIRING_API_PAP_IPCP_STATE '+json.dumps(live),flush=True)
+  File "/root/ngfw-wt/lab-wan-20261010/docs/status/tasks/lab-wan-20261010-carrier-api.py", line 45, in wait_up
+    raise Refused('real API/current Wiring PPP did not become up')
+scenario.Refused: real API/current Wiring PPP did not become up
+DISPOSABLE_VPP_STOPPED pid=2483
+CHILD_UTS_AFTER {"namespace": "uts:[4026533284]", "hostname": "ngfw"}
+REAL_PEER_LOG
+
+REAL_PEER_RA_LOG
+real peer PPP did not appear
+
+OWNED_CHILD_MOUNTS_REMOVED PASS
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS
+ROOT_HOST_IDENTITY_AFTER {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+SHARED_HOST_IDENTITY_UNCHANGED PASS

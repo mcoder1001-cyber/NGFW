@@ -1,0 +1,21 @@
+ngfw-agent sha256=e4d0226297a7b98d458722e1d27709989c5eb63342bb552bb7e18339f377eb06
+ngfw-agentctl sha256=b3208c9513a0aaac74ce2ad2659759310cd6ae38272d3a32ee3b42d194c74e31
+ngfw-vpp-preflight sha256=768961fe463470203776403732d67cb7f9da707ab8de46337c7c88cf5834bd17
+DISPOSABLE_VPP pid=465941 runtime=/tmp/ngfw-lab-wan250-20261010/repo/.scratch/isolated-vpp-465939
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:88: net.ipv4.ping_group_range = 0 0
+        
+    acceptance_test.go:89: private NAT engine prerequisite; engine enable installation excluded from acceptance
+    acceptance_test.go:91: create role ngfw_w20
+        create database ngfw_w20 (owner ngfw_w20)
+        check  ngfw_w20 as ngfw_w20 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w20/pg.env (0600) · DSN postgres://ngfw_w20:<redacted>@127.0.0.1:5432/ngfw_w20
+        
+    acceptance_test.go:91: start ngfw-agent: fork/exec /run/w20/multiwan-host-to15uisb/ngfw-agent: permission denied
+    acl_test.go:177: pg-test drop w20: <nil>
+        drop   database ngfw_w20
+        drop   role ngfw_w20
+        ok     nothing named ngfw_w20 / ngfw_w20 remains
+--- FAIL: TestMultiWANRealAPI (2.99s)
+FAIL
+DISPOSABLE_VPP_STOPPED pid=465941

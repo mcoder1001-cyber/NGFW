@@ -1,0 +1,34 @@
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=79ea45eb061d739046da22adb142aceb35e60b570f9fc10102bf125c7601571f
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+DISPOSABLE_VPP pid=4129351 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-4129349
+host-w20raw
+host-w20lan
+=== RUN   TestWANCurrentCarrierLive
+2026/10/10 10:48:14 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+2026/10/10 10:48:17 INFO interface sanitized (VPP V19/V21 inherited state) interface=pppr-0ddfe21c298c sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 10:48:18 INFO interface sanitized (VPP V19/V21 inherited state) interface=w20ppp sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+    zz_wan_native_carrier_test.go:106: actual native raw=3 transit=4 namespace=ngp-0ddfe21c298c
+2026/10/10 10:48:31 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+    zz_wan_native_carrier_test.go:144: REAL_CURRENT_RUNTIME_PAP_IPCP_MIRROR_FORWARDING_READY PASS
+    zz_wan_native_carrier_test.go:146: [ip netns exec ns-w20-carrier-lan ping -n -c 3 -W 2 100.64.20.1]: exit status 1: PING 100.64.20.1 (100.64.20.1) 56(84) bytes of data.
+        
+        --- 100.64.20.1 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 2060ms
+        
+2026/10/10 10:48:36 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+2026/10/10 10:48:38 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 10:48:38 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+--- FAIL: TestWANCurrentCarrierLive (24.54s)
+FAIL
+DISPOSABLE_VPP_STOPPED pid=4129351
+REAL_PEER_LOG
+
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS

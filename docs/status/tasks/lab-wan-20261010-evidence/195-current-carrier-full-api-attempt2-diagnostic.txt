@@ -1,0 +1,4 @@
+Real API revision1 APPLY_STATUS_APPLIED created14 unchanged11.
+Actual scheduler log has no parent AFPacket or namespace creation/deletion. Namespace device/inode unchanged after commit.
+Original fixed unit journal: pppd cannot open /etc/ppp/peers/carrier because child-rendered /var/lib token is hidden from PID1 unit. No peer authentication occurred.
+Reverse owned child mount cleanup PASS; original assets and root identity unchanged.

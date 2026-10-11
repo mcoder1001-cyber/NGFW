@@ -56,8 +56,8 @@ func TestPppoeRenderedHookUpDownWithdrawAndRepair(t *testing.T) {
 	}
 	hook := func(dir string) {
 		t.Helper()
-		cmd := exec.Command(filepath.Join(dir, "ngfw-tap0")) //nolint:gosec // only the rendered hook in this private test directory
-		cmd.Env = append(os.Environ(), "PPP_IPPARAM=ngfw-tap0", "IPLOCAL=198.51.100.5", "IPREMOTE=198.51.100.1", "DNS1=192.0.2.53")
+		cmd := exec.Command(filepath.Join(dir, "ngfw-tap0"), "ppp0", "dev", "0", "198.51.100.5", "198.51.100.1", "ngfw-tap0") //nolint:gosec // only the rendered hook in this private test directory
+		cmd.Env = append(os.Environ(), "IPLOCAL=198.51.100.5", "IPREMOTE=198.51.100.1", "DNS1=192.0.2.53")
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatal(err, string(output))
 		}

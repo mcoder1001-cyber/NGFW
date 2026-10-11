@@ -1,0 +1,77 @@
+== NGFW CI gate: quick ==
+worktree  /root/ngfw-wt/lab-wan-20261010
+branch    codex/lab-wan-20261010 @ 1f2f8f7a3   (base: origin/main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/ngfw-turbo · go /root/.cache/go-build
+logs      /tmp/ngfw-lab-wan-20261010/ci/lab-wan-20261010-20261010-095013-3765651
+WARN uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+      ?? .scratch
+      ?? docs/status/tasks/lab-wan-20261010-evidence/ci-quick.txt
+      ?? node_modules
+      ?? scripts/__pycache__/
+      ?? test/topology/multiwan-host-acceptance/__pycache__/
+
+== contract guard: HEAD vs origin/main ==
+no contract files changed in the 8 commit(s) of HEAD since origin/main (4908716b4)
+
+== tools (golangci-lint, gitleaks) ==
+golangci-lint 2.13.2
+gitleaks 8.30.1
+
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+Lockfile is up to date, resolution step is skipped Done in 2.4s using pnpm v12.5.1 
+
+== generate + generated-output gate ==
+
+CI GATE FAILED — 'pnpm gen' failed
+--- last 60 lines of /tmp/ngfw-lab-wan-20261010/ci/lab-wan-20261010-20261010-095013-3765651/04-pnpm-gen.log ---
+$ pnpm gen
+$ turbo run gen
+
+   • Packages in scope: @ngfw/api, @ngfw/api-client, @ngfw/proto, @ngfw/schema, @ngfw/ui-kit, @ngfw/web, @ngfw/yang
+   • Running gen in 7 packages
+   • Remote caching disabled
+
+@ngfw/ui-kit:gen: cache bypass, force executing 58303f132ba807db
+@ngfw/schema:gen: cache bypass, force executing a6a5f32cc067702f
+@ngfw/schema:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/ui-kit:gen: $ echo 'ui-kit: nothing to generate'
+@ngfw/ui-kit:gen: ui-kit: nothing to generate
+@ngfw/ui-kit:build: cache hit, replaying logs 9b56f0191234ddff
+@ngfw/ui-kit:build: $ tsc -p tsconfig.build.json
+@ngfw/schema:gen: schema: wrote root + 14 domain schemas + openapi components
+@ngfw/schema:build: cache hit, replaying logs 1dcfde4246a4588d
+@ngfw/schema:build: $ tsc -p tsconfig.json
+@ngfw/yang:gen: cache bypass, force executing e19382725d26438d
+@ngfw/proto:gen: cache bypass, force executing 5f06d9246d219a86
+@ngfw/yang:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/proto:gen: $ bash ./gen.sh
+@ngfw/yang:gen: yang: wrote 14 modules to generated/
+@ngfw/yang:build: cache hit, replaying logs 2b039e736b977070
+@ngfw/yang:build: $ tsc -p tsconfig.json
+@ngfw/proto:gen: proto: generated Go → apps/agent/gen (ngfw/v1 + ngfw/model), TS → packages/proto/gen/ts (ngfw/v1)
+@ngfw/proto:build: cache hit, replaying logs 7991f9dcfe69bd1b
+@ngfw/proto:build: $ tsc -p tsconfig.build.json
+@ngfw/api:gen: cache bypass, force executing 4b8ac048acea4258
+@ngfw/api:gen: $ echo 'api: nothing to generate'
+@ngfw/api:gen: api: nothing to generate
+@ngfw/api:build: cache hit, replaying logs e2a81ae5d7ad701f
+@ngfw/api:build: $ tsc -p tsconfig.build.json
+@ngfw/api-client:gen: cache bypass, force executing 2d21481135982a98
+@ngfw/api-client:gen: $ pnpm --filter @ngfw/api openapi:built && openapi-typescript openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts
+@ngfw/api-client:gen: Error: ERR_PNPM_UNSAFE_TASK_RUN_STATE_PATH
+@ngfw/api-client:gen: 
+@ngfw/api-client:gen:   × Refusing to use task run state directory at /root/ngfw-wt/lab-wan-
+@ngfw/api-client:gen:   │ 20261010/node_modules because it is a symbolic link or not a directory
+@ngfw/api-client:gen: 
+@ngfw/api-client:gen: [ELIFECYCLE] Command failed with exit code 1.
+@ngfw/api-client#gen:  ERROR  command (/root/ngfw-wt/lab-wan-20261010/packages/api-client) /usr/bin/pnpm run gen exited (1)
+
+ Tasks:    10 successful, 11 total
+Cached:    5 cached, 11 total
+  Time:    37.779s 
+Failed:    @ngfw/api-client#gen
+
+ ERROR  run failed: command  exited (1)
+[ELIFECYCLE] Command failed with exit code 1.
+logs: /tmp/ngfw-lab-wan-20261010/ci/lab-wan-20261010-20261010-095013-3765651

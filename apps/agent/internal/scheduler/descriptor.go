@@ -217,6 +217,16 @@ type WriteOnlyInPlaceCreator interface {
 	CreatePreservesDependents() bool
 }
 
+// ReadOnlyRequirement is an explicit opt-in for a descriptor whose Create only
+// reads and validates an existing external requirement. It must never mutate the
+// backend, acquire ownership or create an object. Rechecking a requirement must
+// preserve existing dependents, including during cached write-only resyncs.
+// The real check still runs and any missing/mismatched requirement fails normally.
+// Update and Delete retain their normal dependency semantics.
+type ReadOnlyRequirement interface {
+	CreateIsReadOnly() bool
+}
+
 // Descriptor implements Create/Update/Delete/Retrieve/Dependencies for one object type. One
 // descriptor per VPP object type or daemon config unit; see internal/descriptors/README.md
 // for how to write one and internal/scheduler/example_descriptor_test.go for a worked

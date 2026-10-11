@@ -1,0 +1,4 @@
+ok  	ngfw/agent/internal/descriptors/natcommon	1.117s
+ok  	ngfw/agent/internal/descriptors/nat44ed	1.256s
+ok  	ngfw/agent/internal/scheduler	4.631s
+ok  	ngfw/agent/internal/multiwan	2.229s

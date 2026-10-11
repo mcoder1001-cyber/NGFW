@@ -1,0 +1,113 @@
+ROOT_HOST_IDENTITY_BEFORE {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+DISPOSABLE_VPP pid=103134 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-103132
+host-w20raw
+host-w20lan
+=== RUN   TestWANCurrentCarrierLive
+2026/10/10 12:09:15 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+2026/10/10 12:09:17 INFO interface sanitized (VPP V19/V21 inherited state) interface=pppr-0ddfe21c298c sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 12:09:18 INFO interface sanitized (VPP V19/V21 inherited state) interface=w20ppp sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+    zz_wan_native_carrier_test.go:110: actual native raw=3 transit=4 namespace=ngp-0ddfe21c298c
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=57.405625ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=45.394902ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=51.319869ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=43.3854ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=40.332022ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=47.728415ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=43.697454ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=39.643814ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=42.141523ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=41.586982ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=45.868079ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=43.937466ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=3.82078537s bounded5s=true error=PPP NCP changed during forwarding verification
+2026/10/10 12:09:33 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[2001:db8:20::2/128] router6=fd0d:dfe2:1c29:8c69::2 default_route=true mss_clamp=true
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=3.839358602s bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:165: REAL_CURRENT_RUNTIME_PAP_IPCP_MIRROR_FORWARDING_READY PASS
+    zz_wan_native_carrier_test.go:169: OWNED_TRANSIT_LOCAL_ROUTE <nil>: local 169.254.169.58 from 169.254.169.57 dev lo table local 
+            cache <local> iif pt0ddfe21c298c 
+    zz_wan_native_carrier_test.go:183: BOUNDED_FILTERED_ICMP_CAPTURE tcpdump: WARNING: any: That device doesn't support promiscuous mode
+        (Promiscuous mode not supported on the "any" device)
+        tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+        listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+        12:09:34.771900 pt0ddfe21c298c In  IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 38374, seq 2, length 64
+        12:09:34.771950 ppp0  Out IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 38374, seq 2, length 64
+        12:09:34.773204 ppp0  In  IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 38374, seq 2, length 64
+        12:09:34.773269 pt0ddfe21c298c Out IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 38374, seq 2, length 64
+    zz_wan_native_carrier_test.go:193: REAL_LAN_VPP_TRANSIT_KERNEL_PPP_IPV4_PACKETS PASS
+2026/10/10 12:09:39 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[2001:db8:20::2/128] router6=fd0d:dfe2:1c29:8c69::2 default_route=true mss_clamp=true
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=3.85919725s bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:209: REAL_CURRENT_RUNTIME_IPV6_RA_MIRROR_LAN_PACKETS PASS
+    zz_wan_native_carrier_test.go:218: REAL_MSS_CLAMP_READBACK IPv4=1452 IPv6=1432 RX_TX=3 PASS
+    zz_wan_native_carrier_test.go:234: REAL_TCP_SYN_MSS_1452_PACKET PASS tcpdump: listening on ppp0, link-type LINUX_SLL (Linux cooked v1), snapshot length 262144 bytes
+        12:09:42.070264 IP (tos 0x0, ttl 62, id 44391, offset 0, flags [DF], proto TCP (6), length 60)
+            10.20.1.2.57506 > 100.64.20.1.20020: Flags [S], cksum 0x964e (correct), seq 1997434714, win 64240, options [mss 1452,sackOK,TS val 3090376184 ecr 0,nop,wscale 13], length 0
+        1 packet captured
+        1 packet received by filter
+        0 packets dropped by kernel
+2026/10/10 12:09:42 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[2001:db8:20::2/128] router6=fd0d:dfe2:1c29:8c69::2 default_route=true mss_clamp=true
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=44.525519ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=47.31745ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=45.196545ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=45.514383ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=46.028582ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=41.751402ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=44.945418ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=42.402032ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=40.736457ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=40.948045ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=42.544926ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=43.241744ms bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=3.730846194s bounded5s=true error=PPP NCP changed during forwarding verification
+2026/10/10 12:09:56 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=true
+    zz_wan_native_carrier_test.go:140: REAL_RUNTIME_POLL elapsed=3.875745785s bounded5s=true error=<nil>
+    zz_wan_native_carrier_test.go:251: REAL_CURRENT_RUNTIME_RECONNECT PASS
+    zz_wan_native_carrier_test.go:264: REAL_LAN_VPP_NATIVE_NAT_PPP_PACKETS PASS NAT44 ED sessions:
+        -------- thread 0 vpp_main: 1 sessions --------
+            i2o 10.20.1.2 proto ICMP port 39104 fib 0
+            o2i 100.64.20.10 proto ICMP port 39104 fib 0
+               external host 100.64.20.1:39104
+               i2o flow: match: saddr 10.20.1.2 sport 39104 daddr 100.64.20.1 dport 39104 proto ICMP fib_idx 0 rewrite: saddr 100.64.20.10 daddr 100.64.20.1 icmp-id 39104 txfib 0 
+               o2i flow: match: saddr 100.64.20.1 sport 39104 daddr 100.64.20.10 dport 39104 proto ICMP fib_idx 0 rewrite: saddr 100.64.20.1 daddr 10.20.1.2 icmp-id 39104 txfib 0 
+               index 0
+               last heard 46.54
+               timeout in 59.99
+               total pkts 6, total bytes 504
+               dynamic translation
+        
+2026/10/10 12:09:58 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=true
+2026/10/10 12:10:01 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 12:10:01 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+--- PASS: TestWANCurrentCarrierLive (46.71s)
+PASS
+DISPOSABLE_VPP_STOPPED pid=103134
+REAL_PEER_LOG
+
+REAL_PEER_RA_LOG
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+
+OWNED_CHILD_MOUNTS_REMOVED PASS
+OWNED_INACTIVE_RUNTIME_TOKEN_REMOVED PASS
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS
+ROOT_HOST_IDENTITY_AFTER {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+SHARED_HOST_IDENTITY_UNCHANGED PASS

@@ -1,0 +1,13 @@
+/usr/bin/node
+/usr/bin/pg_isready
+/usr/bin/valkey-cli
+/usr/bin/psql
+/usr/bin/python3
+/usr/sbin/ip
+/usr/bin/unshare
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs            16G  619M   16G   4% /tmp
+tmpfs            16G   66M   16G   1% /dev/shm
+active
+active
+inactive

@@ -1,0 +1,4 @@
+Primary pinned-family source: https://github.com/FDio/vpp/blob/stable/2606/src/plugins/tap/tap.c
+Fetched actual FDio source stable/2606. TAP_MAX_INSTANCE=8192 (line34); explicit ID collision refusal and ID>8192 refusal (lines449-472), exact error 'cannot find free interface id'. Native .195 attempt3 observed same diagnostic for actual current derived ID0x40000000..0x7fffffff. Bound is code evidence; native attempt remains failed until actual supported-ID rerun.
+Approved minimal product candidate pair raw2..8190 even, transitraw+1<=8191. Not an allocator that proves availability; existing read-only all-live TAP admission must prove collision absence, and desired duplicate candidates refuse before emitting any object.
+0c1ba33ff3d969136ad2f38dabe014df8fd0803693d0c7c2d3c754dad4b14590  /tmp/ngfw-lab-wan-20261010/vpp-tap.c

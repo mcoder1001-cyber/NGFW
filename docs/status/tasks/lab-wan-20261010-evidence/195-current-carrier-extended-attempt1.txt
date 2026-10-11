@@ -1,0 +1,64 @@
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+DISPOSABLE_VPP pid=4157054 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-4157047
+host-w20raw
+host-w20lan
+=== RUN   TestWANCurrentCarrierLive
+2026/10/10 11:07:13 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+2026/10/10 11:07:14 INFO interface sanitized (VPP V19/V21 inherited state) interface=pppr-0ddfe21c298c sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 11:07:15 INFO interface sanitized (VPP V19/V21 inherited state) interface=w20ppp sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+    zz_wan_native_carrier_test.go:108: actual native raw=3 transit=4 namespace=ngp-0ddfe21c298c
+2026/10/10 11:07:31 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[2001:db8:20::2/128] router6=fd0d:dfe2:1c29:8c69::2 default_route=true mss_clamp=true
+    zz_wan_native_carrier_test.go:151: REAL_CURRENT_RUNTIME_PAP_IPCP_MIRROR_FORWARDING_READY PASS
+    zz_wan_native_carrier_test.go:155: OWNED_TRANSIT_LOCAL_ROUTE <nil>: local 169.254.169.58 from 169.254.169.57 dev lo table local 
+            cache <local> iif pt0ddfe21c298c 
+    zz_wan_native_carrier_test.go:169: BOUNDED_FILTERED_ICMP_CAPTURE tcpdump: WARNING: any: That device doesn't support promiscuous mode
+        (Promiscuous mode not supported on the "any" device)
+        tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+        listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+        11:07:32.163039 pt0ddfe21c298c In  IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30090, seq 2, length 64
+        11:07:32.163078 ppp0  Out IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30090, seq 2, length 64
+        11:07:32.163836 ppp0  In  IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30090, seq 2, length 64
+        11:07:32.163875 pt0ddfe21c298c Out IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30090, seq 2, length 64
+        11:07:33.165069 pt0ddfe21c298c In  IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30090, seq 3, length 64
+        11:07:33.165110 ppp0  Out IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30090, seq 3, length 64
+        11:07:33.165978 ppp0  In  IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30090, seq 3, length 64
+        11:07:33.166025 pt0ddfe21c298c Out IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30090, seq 3, length 64
+    zz_wan_native_carrier_test.go:179: REAL_LAN_VPP_TRANSIT_KERNEL_PPP_IPV4_PACKETS PASS
+2026/10/10 11:07:37 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[2001:db8:20::2/128] router6=fd0d:dfe2:1c29:8c69::2 default_route=true mss_clamp=true
+    zz_wan_native_carrier_test.go:195: REAL_CURRENT_RUNTIME_IPV6_RA_MIRROR_LAN_PACKETS PASS
+    zz_wan_native_carrier_test.go:196: REAL_MSS_CLAMP_STATE show: unknown input `mss-clamp'
+2026/10/10 11:07:39 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[2001:db8:20::2/128] router6=fd0d:dfe2:1c29:8c69::2 default_route=true mss_clamp=true
+2026/10/10 11:07:53 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=true
+    zz_wan_native_carrier_test.go:212: REAL_CURRENT_RUNTIME_RECONNECT PASS
+2026/10/10 11:07:53 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=true
+2026/10/10 11:07:56 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 11:07:56 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+--- PASS: TestWANCurrentCarrierLive (44.28s)
+PASS
+DISPOSABLE_VPP_STOPPED pid=4157054
+REAL_PEER_LOG
+
+REAL_PEER_RA_LOG
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS

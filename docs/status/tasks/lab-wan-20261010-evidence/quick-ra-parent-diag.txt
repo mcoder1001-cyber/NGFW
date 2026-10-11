@@ -1,0 +1,9 @@
+=== RUN   TestWANDiagProtectedTemp
+    zz_wan_diag_test.go:3: root /tmp/w20/TestWANDiagProtectedTemp2173024326/001 tmp /run/w20 render <nil>
+    zz_wan_diag_test.go:3: parent remote-access: isolated runtime boundary refused
+    zz_wan_diag_test.go:3: fd 4 <nil>
+    zz_wan_diag_test.go:3: stat {Dev:39 Ino:2584985 Nlink:1 Mode:33152 Uid:0 Gid:0 _:0 Rdev:0 Size:302 Blksize:4096 Blocks:8 Atim:{Sec:1791627019 Nsec:519498898} Mtim:{Sec:1791627019 Nsec:519498898} Ctim:{Sec:1791627019 Nsec:519498898} _:[0 0 0]}
+    zz_wan_diag_test.go:3: read remote-access: verified engine lifecycle unavailable
+--- PASS: TestWANDiagProtectedTemp (0.00s)
+PASS
+ok  	ngfw/agent/internal/ra_vpn	0.063s

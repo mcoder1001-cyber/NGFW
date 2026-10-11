@@ -74,10 +74,11 @@ func (s CarrierSpec) TransitHost() string { return "pt" + strings.TrimPrefix(s.T
 // RawLogical returns the owned raw TAP logical identity.
 func (s CarrierSpec) RawLogical() string { return "pppr-" + strings.TrimPrefix(s.Token(), "ngp-") }
 
-// TapIDs are stable candidates; live admission refuses any existing ID collision.
+// TapIDs are stable candidates within VPP TAP's supported instance range.
+// Zero is excluded; live admission refuses every existing ID collision.
 func (s CarrierSpec) TapIDs() (raw, transit uint32) {
 	digest := sha256.Sum256([]byte(s.Owner + "\x00" + s.Logical))
-	raw = binary.BigEndian.Uint32(digest[8:12])&0x3ffffffe | 0x40000000
+	raw = (binary.BigEndian.Uint32(digest[8:12])%4095)*2 + 2
 	return raw, raw + 1
 }
 

@@ -1,0 +1,31 @@
+• turbo 2.11.2
+
+   • Packages in scope: @ngfw/api
+   • Running build in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@ngfw/schema:gen: cache bypass, force executing a6a5f32cc067702f
+@ngfw/schema:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/schema:gen: schema: wrote root + 14 domain schemas + openapi components
+@ngfw/schema:build: cache hit, replaying logs 1dcfde4246a4588d
+@ngfw/schema:build: $ tsc -p tsconfig.json
+@ngfw/proto:gen: cache bypass, force executing 5f06d9246d219a86
+@ngfw/yang:gen: cache bypass, force executing e19382725d26438d
+@ngfw/yang:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/proto:gen: $ bash ./gen.sh
+@ngfw/yang:gen: yang: wrote 14 modules to generated/
+@ngfw/yang:build: cache hit, replaying logs 2b039e736b977070
+@ngfw/yang:build: $ tsc -p tsconfig.json
+@ngfw/proto:gen: proto: generated Go → apps/agent/gen (ngfw/v1 + ngfw/model), TS → packages/proto/gen/ts (ngfw/v1)
+@ngfw/proto:build: cache hit, replaying logs 7991f9dcfe69bd1b
+@ngfw/proto:build: $ tsc -p tsconfig.build.json
+@ngfw/api:gen: cache bypass, force executing 4b8ac048acea4258
+@ngfw/api:gen: $ echo 'api: nothing to generate'
+@ngfw/api:gen: api: nothing to generate
+@ngfw/api:build: cache hit, replaying logs e2a81ae5d7ad701f
+@ngfw/api:build: $ tsc -p tsconfig.build.json
+
+ Tasks:    8 successful, 8 total
+Cached:    4 cached, 8 total
+  Time:    55.349s 
+

@@ -1,0 +1,5 @@
+--- FAIL: TestNonOwnerRequirementResyncPreservesLivePoolSessions (0.00s)
+    requirement_resync_test.go:55: requirement replay reads=4 writes=0 pool deletes=3 surviving sessions=0
+FAIL
+FAIL	ngfw/agent/internal/descriptors/natcommon	0.022s
+FAIL

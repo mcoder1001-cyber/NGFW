@@ -1,0 +1,37 @@
+ngfw-agent sha256=e10417a365a90c6081ec2a78f171cd11b6384d7671e92641146c7d99509b9207
+ngfw-agentctl sha256=b3208c9513a0aaac74ce2ad2659759310cd6ae38272d3a32ee3b42d194c74e31
+ngfw-vpp-preflight sha256=768961fe463470203776403732d67cb7f9da707ab8de46337c7c88cf5834bd17
+DISPOSABLE_VPP pid=3657239 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-3657230
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:88: net.ipv4.ping_group_range = 0 0
+        
+    acceptance_test.go:89: create role ngfw_w20
+        create database ngfw_w20 (owner ngfw_w20)
+        check  ngfw_w20 as ngfw_w20 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w20/pg.env (0600) · DSN postgres://ngfw_w20:<redacted>@127.0.0.1:5432/ngfw_w20
+        
+    acceptance_test.go:89: started ngfw-agent pid 3658405 (log /run/ngfw-test/w20/acl/agent.log)
+    acceptance_test.go:89: started ngfw-api pid 3658442 (log /run/ngfw-test/w20/acl/api.log)
+    acceptance_test.go:89: ngfw-api did not come up on 12000:
+        file:///root/ngfw-wt/lab-wan-20261010/apps/api/dist/config.js:158
+                throw new Error(`invalid environment: ${issues.join('; ')}`);
+                      ^
+        
+        Error: invalid environment: NGFW_VALKEY_DB: Too big: expected number to be <=15
+            at loadEnv (file:///root/ngfw-wt/lab-wan-20261010/apps/api/dist/config.js:158:15)
+            at file:///root/ngfw-wt/lab-wan-20261010/apps/api/dist/main.js:11:13
+            at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+            at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+            at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+        
+        Node.js v22.23.2
+    stack_test.go:199: stopped ngfw-agent pid 3658405
+    acl_test.go:177: pg-test drop w20: <nil>
+        drop   database ngfw_w20
+        drop   role ngfw_w20
+        ok     nothing named ngfw_w20 / ngfw_w20 remains
+--- FAIL: TestMultiWANRealAPI (22.58s)
+FAIL
+FAIL	ngfw/test/topology/acl	22.599s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3657239

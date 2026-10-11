@@ -1,0 +1,1 @@
+08f8d6f4bcab376a6eff1374330c58cd6093d609947f01964cd90d4e4eec78b4  /tmp/ngfw-lab-wan250-20261010/bin/carrier-live.test

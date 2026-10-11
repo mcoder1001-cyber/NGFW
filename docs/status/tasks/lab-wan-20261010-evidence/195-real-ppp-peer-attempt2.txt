@@ -1,0 +1,35 @@
+REAL_RP_PPPOE_PAP_DIAL_UP PASS
+PING 100.64.20.1 (100.64.20.1) 56(84) bytes of data.
+64 bytes from 100.64.20.1: icmp_seq=1 ttl=64 time=0.099 ms
+64 bytes from 100.64.20.1: icmp_seq=2 ttl=64 time=0.143 ms
+64 bytes from 100.64.20.1: icmp_seq=3 ttl=64 time=0.132 ms
+
+--- 100.64.20.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2075ms
+rtt min/avg/max/mdev = 0.099/0.124/0.143/0.018 ms
+
+
+100.64.20.1 dev ppp0 proto kernel scope link src 100.64.20.10 
+
+100.64.20.10 dev ppp0 proto kernel scope link src 100.64.20.1 
+
+
+Plugin rp-pppoe.so loaded.
+PPP session is 1
+Connected to 32:57:B6:6F:F0:73 via interface w20pc
+Using interface ppp0
+Connect: ppp0 <--> w20pc
+Remote message: Login ok
+PAP authentication succeeded
+peer from calling number 32:57:B6:6F:F0:73 authorized
+local  IP address 100.64.20.10
+remote IP address 100.64.20.1
+
+REAL_PPP_IPV4_PING PASS 3 packets transmitted, 3 received, 0% packet loss, time 2075ms
+REAL_PPP_PEER_LOSS_WITHDRAWAL PASS
+REAL_PPP_WRONG_PASSWORD_REJECTION PASS
+Traceback (most recent call last):
+  File "/tmp/ngfw-lab-wan-20261010/ppp-peer.py", line 44, in <module>
+    p=client('NGFW_TEST_PSK_w20','reconnect-log');assert wait(up),'real PPP reconnect failed';print('REAL_PPP_RECONNECT PASS')
+                                                         ~~~~^^^^
+AssertionError: real PPP reconnect failed

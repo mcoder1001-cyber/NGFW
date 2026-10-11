@@ -1,0 +1,2 @@
+ok  	ngfw/agent/internal/renderers/pppoe	4.175s
+ok  	ngfw/agent/internal/desired	1.374s

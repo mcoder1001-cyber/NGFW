@@ -1,0 +1,52 @@
+TEMP_GENUINE_RUNTIME /usr/sbin/pppd da4500bda31e7944ba279cf52ba5c296ea30523343abecb76c97fddf7c125f9a
+TEMP_GENUINE_RUNTIME /usr/sbin/pppoe-server 42434e28c7b95bacbe562caeed09ca1a071f547d8d008b650872e5ef0feb64de
+TEMP_GENUINE_RUNTIME /usr/lib/pppd/2.5.2/pppoe.so 9db46149c218bcd55617a6baf9deaa71fde1329af2a27c4e0a82d0f965f138cf
+TEMP_GENUINE_ALIAS /usr/lib/pppd/2.5.2/rp-pppoe.so pppoe.so
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+DISPOSABLE_VPP pid=489482 runtime=/tmp/ngfw-lab-wan250-20261010/repo/.scratch/isolated-vpp-489480
+host-w20raw
+host-w20lan
+=== RUN   TestWANCurrentCarrierLive
+2026/10/10 14:29:14 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+2026/10/10 14:29:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=pppr-0ddfe21c298c sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 14:29:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=w20ppp sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+    zz_wan_native_carrier_test.go:108: actual native raw=3 transit=4 namespace=ngp-0ddfe21c298c
+    zz_wan_native_carrier_test.go:146: REAL_CURRENT_RUNTIME_PAP_IPCP_MIRROR_FORWARDING_READY PASS
+2026/10/10 14:29:25 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+    zz_wan_native_carrier_test.go:150: OWNED_TRANSIT_LOCAL_ROUTE <nil>: local 169.254.169.58 from 169.254.169.57 dev lo table local 
+            cache <local> iif pt0ddfe21c298c 
+    zz_wan_native_carrier_test.go:164: BOUNDED_FILTERED_ICMP_CAPTURE tcpdump: WARNING: any: That device doesn't support promiscuous mode
+        (Promiscuous mode not supported on the "any" device)
+        tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+        listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+        14:29:26.970233 pt0ddfe21c298c In  IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30959, seq 2, length 64
+        14:29:26.970292 ppp0  Out IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30959, seq 2, length 64
+        14:29:26.971327 ppp0  In  IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30959, seq 2, length 64
+        14:29:26.971370 pt0ddfe21c298c Out IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30959, seq 2, length 64
+        14:29:27.972312 pt0ddfe21c298c In  IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30959, seq 3, length 64
+        14:29:27.972349 ppp0  Out IP 10.20.1.2 > 100.64.20.1: ICMP echo request, id 30959, seq 3, length 64
+        14:29:27.973183 ppp0  In  IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30959, seq 3, length 64
+        14:29:27.973220 pt0ddfe21c298c Out IP 100.64.20.1 > 10.20.1.2: ICMP echo reply, id 30959, seq 3, length 64
+    zz_wan_native_carrier_test.go:174: REAL_LAN_VPP_TRANSIT_KERNEL_PPP_IPV4_PACKETS PASS
+2026/10/10 14:29:28 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+    zz_wan_native_carrier_test.go:188: REAL_CURRENT_RUNTIME_RECONNECT PASS
+2026/10/10 14:29:36 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+2026/10/10 14:29:36 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+2026/10/10 14:29:38 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 14:29:38 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+--- PASS: TestWANCurrentCarrierLive (24.19s)
+PASS
+DISPOSABLE_VPP_STOPPED pid=489482
+REAL_PEER_LOG
+
+SHARED_VPP_BEFORE MainPID=8102,NRestarts=0,
+SHARED_VPP_AFTER MainPID=8102,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS
+TEMP_GENUINE_RUNTIME_REMOVED PASS

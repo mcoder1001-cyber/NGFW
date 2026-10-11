@@ -1,0 +1,7 @@
+--- FAIL: TestIPv6OldAdmissionRejectedAfterReopen (40.05s)
+    lifecycle_test.go:470: pppoe: owned IPv6 shutdown failed: renderers: /usr/bin/python3: context deadline exceeded
+    lifecycle_test.go:65: fixture cleanup: pppoe: owned IPv6 shutdown failed: renderers: /usr/bin/python3: context deadline exceeded
+FAIL
+FAIL	ngfw/agent/internal/renderers/pppoe	111.060s
+ok  	ngfw/agent/internal/desired	58.656s
+FAIL

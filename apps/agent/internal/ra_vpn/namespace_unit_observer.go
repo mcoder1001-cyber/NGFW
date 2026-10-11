@@ -111,7 +111,7 @@ func unitObserverManager(ctx context.Context, instance string, target, server bo
 		return ErrEngine
 	}
 	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-observer@"+numeric+".socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
-	if err != nil || fields["FragmentPath"] != unitObserverSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != socketPath+" (SequentialPacket)" {
+	if err != nil || !managerSupplierSocketProperties(fields, unitObserverSocket, socketPath, server.Complete()) {
 		return ErrEngine
 	}
 	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-observer@"+numeric+".service", "MainPID,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")

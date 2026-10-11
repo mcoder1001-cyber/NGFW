@@ -1,4 +1,4 @@
-# PPPoE and RA completion work — acceptance remains open
+# PPPoE accepted; RA canonical acceptance remains open
 
 Base main d44c68edccd16e8adc9ac2545c0b61f5154ed36e; 210/212 merged.
 
@@ -182,3 +182,31 @@ Fresh formal helper builds use the existing Debian prepare.sh flags (-s -w);
 previous diagnostic helper builds included debug sections. The installed agent
 uses the unchanged packaging CGO0/trimpath build. No production build recipe
 or binary authority rule is changed.
+
+### Merge and remaining engine activation
+
+PR228 exact deb4ecb2049df5c7720b91e83ccda32b86a89c48 merged as
+14c940f585cc61739cbb2a624d561f960ffee6e1. Final branch mandatory38140671164
+PASS21m16s, packaging38140671199 PASS25s. Main incorporated an independent
+setup-only contract change; its agent/runtime/deployment code is identical to
+the tested source. Main38142531175 is running; packaging38142531220 PASS.
+PPPoE host task is accepted; RA remains running.
+
+Source8 original canonical driver remains FAIL. Isolated diagnostic46 with
+eight CPUs and the genuine existing /dev/vhost-net bound into the native guest
+created namespace, TAPs, interfaces, routes and ACL transport, then failed
+remote-access.engine activation and rollback. Diagnostic ELFs do not prove
+formal acceptance. Missing vhost device explained the preceding TAP syscall
+failure; no host modules were loaded and no production units/capabilities or
+deadlines changed. Other retained cohorts failed readiness or namespace
+capture at the existing D-Bus timeout. Further engine diagnostics are required.
+
+The private-unit observer has the same original Accept=no socket lifecycle
+as the target supplier. Source inspection found its manager validation still
+required listening even after a complete serving supplier response. It now
+uses the same fixed-role lifecycle predicate; exact unit fragment/path, all
+remaining image/identity/capability checks and timing budgets are retained.
+Cross-role/altered-property and consecutive-capture controls pass; full RA
+package race suite PASS3.431s. This repairs an additional deterministic
+observation obstruction; diagnostic46's earlier engine failure is still being
+traced and is not asserted to be caused by this predicate.

@@ -21,3 +21,26 @@ func TestTargetSupplierSocketLifecycleProperties(t *testing.T) {
 		fields[field] = original
 	}
 }
+
+func TestUnitObserverSocketConsecutiveCaptureLifecycle(t *testing.T) {
+	path := "/run/ngfw-ra-ipc/observers/17.sock"
+	fields := map[string]string{"FragmentPath": unitObserverSocket, "DropInPaths": "", "ActiveState": "active", "SubState": "listening", "Listen": path + " (SequentialPacket)"}
+	if !managerSupplierSocketProperties(fields, unitObserverSocket, path, false) || managerSupplierSocketProperties(fields, unitObserverSocket, path, true) {
+		t.Fatal("idle observation is only a preliminary prerequisite")
+	}
+	fields["SubState"] = "running"
+	if !managerSupplierSocketProperties(fields, unitObserverSocket, path, true) || !managerSupplierSocketProperties(fields, unitObserverSocket, path, false) {
+		t.Fatal("serving and preceding post-ACK supplier must remain observable")
+	}
+	if managerSupplierSocketProperties(fields, targetSupplierSocket, path, true) || managerSupplierSocketProperties(fields, targetSupplierSocket, path, false) {
+		t.Fatal("target role substituted for the observer's fixed unit")
+	}
+	for _, key := range []string{"FragmentPath", "DropInPaths", "ActiveState", "SubState", "Listen"} {
+		original := fields[key]
+		fields[key] = "foreign"
+		if managerSupplierSocketProperties(fields, unitObserverSocket, path, true) || managerSupplierSocketProperties(fields, unitObserverSocket, path, false) {
+			t.Fatal("accepted foreign observer socket property", key)
+		}
+		fields[key] = original
+	}
+}

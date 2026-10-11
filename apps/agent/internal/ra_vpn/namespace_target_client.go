@@ -263,13 +263,17 @@ func (p *SystemdNamespaceTargets) validateUnits(ctx context.Context, target, ser
 }
 
 func targetSupplierSocketProperties(fields map[string]string, socketPath string, serving bool) bool {
+	return managerSupplierSocketProperties(fields, targetSupplierSocket, socketPath, serving)
+}
+
+func managerSupplierSocketProperties(fields map[string]string, fragment, socketPath string, serving bool) bool {
 	// Before connecting, the preceding supplier may still be completing its
 	// post-ACK checks. Accept=no keeps the socket running during that exit.
 	// This preliminary observation grants no authority: the response must still
 	// prove the complete current supplier, whose socket must be running.
 	state := fields["SubState"]
 	validState := state == "running" || !serving && state == "listening"
-	return fields["FragmentPath"] == targetSupplierSocket && fields["DropInPaths"] == "" && fields["ActiveState"] == "active" && validState && fields["Listen"] == socketPath+" (SequentialPacket)"
+	return fields["FragmentPath"] == fragment && fields["DropInPaths"] == "" && fields["ActiveState"] == "active" && validState && fields["Listen"] == socketPath+" (SequentialPacket)"
 }
 func namespaceSystemdProperties(ctx context.Context, unit, properties string) (map[string]string, error) {
 	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)

@@ -45,3 +45,28 @@ func TestWANUnwiredEmptyConfigurationIsReadable(t *testing.T) {
 		t.Fatal("configured unwired monitor reported healthy empty state")
 	}
 }
+
+func TestWANDurableSaveRetainsUnchangedCleanupGeneration(t *testing.T) {
+	s := newSvc(t, coretest.New(), t.TempDir())
+	if err := s.st.save(); err != nil {
+		t.Fatal(err)
+	}
+	saved := s.st.wanSaved
+	if err := s.st.save(); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	current, err := s.withCurrentWAN(context.Background(), saved, func(context.Context) error { called = true; return nil })
+	if err != nil || !current || !called {
+		t.Fatal("identical durable save discarded pending cleanup", current, err, called)
+	}
+	s.st.desired.Interfaces = map[string]*ngfwv1.Interface{"wan": {Ipv4: []string{"192.0.2.2/24"}}}
+	if err := s.st.save(); err != nil {
+		t.Fatal(err)
+	}
+	called = false
+	current, err = s.withCurrentWAN(context.Background(), saved, func(context.Context) error { called = true; return nil })
+	if err != nil || current || called {
+		t.Fatal("changed durable WAN generation allowed stale cleanup", current, err, called)
+	}
+}

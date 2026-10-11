@@ -96,3 +96,26 @@ all subsequent exact unit, cgroup, executable, boot and capability proofs
 remain. No units, authority masks or timing budgets changed. Diagnostic
 binaries are not acceptance. Fresh canonical activation remains required;
 RA stays open.
+
+### Subsequent actual source93 observations
+
+The genuine source93 agent SHA256
+c6a13be4779dc40551dbd2ac4fad45860bfb96ec657fe8491ecfb2f7339834db
+passed the full real-API PPPoE driver on both hosts and the full extended
+1000-flow / automatic-NAT / restart / selective dead-link / PBR MultiWAN
+acceptance on .195. MultiWAN on .250 still exposed an observation/save race:
+resync durably saves the same WAN settings but replaces their snapshot pointer,
+invalidating an in-flight cleanup. The strict transaction-locked pointer check
+is retained. Durable save now preserves that pointer only when the complete
+WAN snapshot (interfaces, VRFs, NAT, WAN groups and PBR) is protobuf-equal.
+A meaningful regression verifies that identical saves retain cleanup authority
+and changed WAN settings revoke it. Packet acceptance of this later source is
+still pending.
+
+The genuine original-unit native RA cohort became operational and entered the
+unmodified canonical test. Its baseline Retrieve exposed missing fixture base
+policy, then an unloaded LCP plugin. The exact package nft renderer is loaded
+inside the independent network namespace and genuine linux_cp/linux_nl plugins
+are explicitly enabled. These are fixture prerequisites; baseline rejection
+was retained, with no partial desired-state fallback. Canonical activation,
+restart, rollback, API/browser and final-source CI remain pending.

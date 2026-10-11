@@ -2248,13 +2248,13 @@ tasks:
     files_owned:
       "- NEW files in P11's renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/ngfw-ra*.tmpl (prefer
       a separate conf.d `ngfw-ra.conf`, a 0600 `ngfw-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11's templates), apps/agent/internal/renderers/strongswan/testdata/ra-*"
-    branch: "codex/ra-manager-signals-20261010"
-    worktree: "/root/ngfw-wt/ra-manager-signals-20261010"
+    branch: "codex/pppoe-ra-closeout-20261011"
+    worktree: "/tmp/ngfw-complete-20261011"
     owner: "routing_acceptance"
     started: ''
     finished: ''
     notes: ''
-    worker_status: "full canonical appliance acceptance remains open; bounded transport repair is reviewed and tested"
+    worker_status: "canonical source8 transport/namespace/TAP/routes/ACL created in isolated native diagnostic; engine activation and full EAP/restart/rollback/API/browser acceptance remain open; active diagnostic work"
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
     advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
     completion_receipt_20261008: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."
@@ -4291,10 +4291,10 @@ tasks:
     parked_on: ""
     branch: "codex/lab-wan-20261010"
     worktree: "/root/ngfw-wt/lab-wan-20261010"
-    owner: "wan_acceptance"
+    owner: "merged PR228"
     started: ''
-    finished: ''
-    state: "running"
+    finished: "2026-10-11T13:16:09.341951+00:00"
+    state: "merged"
     wbs: []
     prompt: ''
     id: F-pppoe-client-host
@@ -4313,10 +4313,11 @@ tasks:
     notes: "follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here | 2026-09-28 spawned (Agent tool, developer) slot 9, envelope /root/ngfw-wt/F-pppoe-client-host.envelope.md, base main@f1f885a6 | 2026-09-28 done d2bc7776 CI PASSED: D-168 wiring (client mirror, runtime subsystem, PppoeReconnect) + real-VPP smoke; owed: interfaces.pppoe→Session projection (F-default-vpp-nics files + secret channel), live dial after ppp install; panel RV-H2 | round 1 done 3fc010c5 CI PASSED (R4 B1/M1/M2, R2, R7 addressed); verify round R4+R7 | verify MAJOR + MINORs fixed, ff0cf852 CI PASSED (maxPending 15 after igmp merge) → merge queue | merged 990d36bb | 2026-10-09 completion candidate33db7c63: accepted non-lab source consolidated, focused regressions and generation recorded in carrier-finish-20261009-wip.md; final cumulative reviews, hosted CI and merge pending. Native acceptance NOT RUN; historical entries above retained. | 2026-10-09 final closeout: Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
     integration_receipt_20261007: "PR196 merged4ce03004e8a5f7d7a093ab634c5004c9127cce9c: PPPoE IPv6 source. No fresh CI by explicit owner request. Product discovery/encapsulation, LAN delegated-prefix and full host packet/browser acceptance remain open; state parked retained."
 
-    worker_status: "full acceptance remains open: native NAT transit-address selection and .195 original11-second peer recovery failure"
+    worker_status: "dual-host extended PPPoE and MultiWAN acceptance PASS; PR228 merged; final branch CI PASS; post-merge main CI38142531175 PASS"
     completion_receipt_20261008: "Kernel-carrier, exclusive raw-parent transport, distinct logical transit identity, PD LAN application and WAN readiness integration actively being implemented on published isolated checkpoints. PR210 lifecycle source staged in PR214; not lab-only and not complete."
     completion_receipt_20261009: "Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
     acceptance_receipt_20261010: "Actual current native PPP195/250 PASS: genuine PAP/IPCP, state, original broker Configure, exact transit local policy, VPP mirror, LAN IPv4 forwarding3/3 and real reconnect renegotiation. All temporary original assets cleaned; shared VPP unchanged. Full Wiring/agent Apply/API, IPv6/MSS/NAT, peer-loss/wrong-password/password evidence and browser acceptance remain open. PR221 not Done."
+    acceptance_receipt_20261011: "PR228 source deb4ecb2049df5c7720b91e83ccda32b86a89c48 merged14c940f585cc61739cbb2a624d561f960ffee6e1; mandatory38140671164 and packaging38140671199 PASS. Source61 genuine agent SHA83e7b49dd071ddc34bb45ffc21467eecacb2c9756825bcb0fcf6453e9dbcbb62 + carrier dc8e4a2d: explicit extended real-API tests PASS on195/250: IPv4/IPv6 LAN packets, automatic negotiated-address NAT, MSS1452/1432 RX/TX, Reconnect, peer withdrawal, original11s restart10.275/10.346s, wrong-password rejection/recovery, credential absence and committed cleanup. PPP/MultiWAN implementation unchanged by subsequent RA-only changes. Both full original1000-flow MultiWAN tests PASS100.42/79.50s. Real en/fa endpoint login/drawer captures PASS; that browser cohort later failed IPv6 recovery, retained separately from the subsequent complete extended PASS. Old no-extended-flag runs excluded. Shared-host OOM incident remains disclosed. Sanitized receipts: docs/status/tasks/pppoe-ra-completion-20261011-evidence.json and wip.md."
   - template: ''
     parked_on: ''
     branch: task/F-dashboard-prom-alarms-host-codex

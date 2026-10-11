@@ -368,3 +368,22 @@ APPLIED30.196s, finishing about39.77s after restart. Native76 is timing-diagnost
 only; actual engine Create9.380s, unit Start6.807s and connect resync30.769s.
 These modified diagnostic ELFs cannot establish acceptance. Both-host native
 execution, full restart/TLS/rollback and actual API/browser remain open.
+
+
+The exact source20 ELF/unit/provider cohort is verified SHA-for-SHA on250. Its
+first launcher fails139 before guest startup because vendor libc was paired with
+the host loader; the retry uses the genuine paired vendor loader/library closure
+without host installation or library changes. The real250 campaign then passes
+EAP/VIP/DNS/selectors/ESP/VPP ACL traffic but fails original30s recovery and
+cleanup (149.65s whole failed campaign). This is partial progress, not acceptance.
+Shared250 VPP remains8102/NRestarts0.
+
+Source21 optimizes only one read-only handoff Verify: its fresh post-capture for
+one fixed target becomes the next target's pre-capture in the same operation.
+Every target retains pre/post linkage; every Acquire retains two independent
+manager captures. Export/Remove keep separate original capture pairs, four-role
+requests and exact compensation. No snapshot or ELF proof crosses another Verify.
+Owned real child MNT/image controls reject intermediate generation/image/closure,
+cancellation, reused snapshot and second-hop failure; all descriptors are closed.
+Source21 full RA race PASS3.525s; scoped lint PASS0issues. Fresh original native
+execution must still prove30s recovery, TLS, baseline rollback and API/browser.

@@ -13023,13 +13023,13 @@ export interface operations {
             /** Format: ipv4 */
             wanGateway?: string;
             /** Interface */
-            lan: string;
+            lan?: string;
             /**
              * IPv4 CIDR
              * Format: cidrv4
              */
-            lanAddress: string;
-            dhcp: boolean;
+            lanAddress?: string;
+            dhcp?: boolean;
             /** @default false */
             rerun?: boolean;
           };
@@ -13131,13 +13131,13 @@ export interface operations {
             /** Format: ipv4 */
             wanGateway?: string;
             /** Interface */
-            lan: string;
+            lan?: string;
             /**
              * IPv4 CIDR
              * Format: cidrv4
              */
-            lanAddress: string;
-            dhcp: boolean;
+            lanAddress?: string;
+            dhcp?: boolean;
             /** @default false */
             rerun?: boolean;
           };

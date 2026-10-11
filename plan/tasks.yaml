@@ -2248,13 +2248,13 @@ tasks:
     files_owned:
       "- NEW files in P11's renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/ngfw-ra*.tmpl (prefer
       a separate conf.d `ngfw-ra.conf`, a 0600 `ngfw-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11's templates), apps/agent/internal/renderers/strongswan/testdata/ra-*"
-    branch: "codex/ra-auth-frame-sync-20261011"
+    branch: "codex/ra-canonical-peer-completion-20261011"
     worktree: "/tmp/ngfw-complete-20261011"
     owner: "routing_acceptance"
     started: ''
     finished: ''
     notes: ''
-    worker_status: "PR229 merged with mandatory CI PASS; bounded PID1 authentication/query synchronization regression and full RA race PASS; fresh original canonical activation and full EAP/restart/rollback/API/browser acceptance remain open"
+    worker_status: "PR230 merged with mandatory and main CI PASS; original engine activation and genuine EAP/VIP advance after fixing independent peer credential/library fixtures; DNS comment parsing corrected; full native traffic/restart/TLS/rollback/API/browser acceptance remains open"
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
     advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
     completion_receipt_20261008: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."

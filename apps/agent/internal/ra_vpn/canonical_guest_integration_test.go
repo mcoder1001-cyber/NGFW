@@ -351,6 +351,26 @@ func canonicalRADocument(t *testing.T) *ngfwv1.DesiredState {
 	return state
 }
 
+// The fixture retains its client CA/CRL for the later TLS scenarios. The EAP
+// peer snapshot owns only server credentials, as required by the same strict
+// credential validation used by the responder.
+func canonicalEAPPeerCredentials(credentials Credentials) Credentials {
+	return Credentials{Certificate: credentials.Certificate, PrivateKey: credentials.PrivateKey}
+}
+
+func TestCanonicalEAPPeerCredentialsPreserveSeparateTLSFixture(t *testing.T) {
+	credentials, now := productionRACredentials(t)
+	if VerifyCredentials(credentials, "vpn.example.test", true, now) != nil ||
+		VerifyCredentials(credentials, "vpn.example.test", false, now) == nil {
+		t.Fatal("combined TLS fixture or EAP trust rejection invalid")
+	}
+	peer := canonicalEAPPeerCredentials(credentials)
+	if VerifyCredentials(peer, "vpn.example.test", false, now) != nil ||
+		VerifyCredentials(credentials, "vpn.example.test", true, now) != nil {
+		t.Fatal("EAP peer selection invalidated server credentials or later TLS trust")
+	}
+}
+
 func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, proposal *ngfwv1.IpsecProposal, credentials Credentials, password []byte, generation string) (strongswan.ViciConn, *NetworkPlan, *canonicalDNSOwnership) {
 	t.Helper()
 	if profile == nil || proposal == nil || os.Getenv("NGFW_RA_ENGINE_ROOT") == "" || os.Getenv("NGFW_RA_HELPER") == "" {
@@ -447,7 +467,7 @@ func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, propo
 	}
 	resolvePath := filepath.Join(root, "daemon/client-resolv.conf")
 	files.Daemon = []byte(strings.Replace(string(files.Daemon), "vici {", "resolve { file = "+resolvePath+"\n }\n vici {", 1))
-	if e := WriteSnapshot(plan.Instance, PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: credentials, CertificateName: "server", Identity: "vpn.example.test"}, time.Now()); e != nil {
+	if e := WriteSnapshot(plan.Instance, PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: canonicalEAPPeerCredentials(credentials), CertificateName: "server", Identity: "vpn.example.test"}, time.Now()); e != nil {
 		t.Fatal("peer private snapshot")
 	}
 	// #nosec G304 -- exclusive creation at a fixed basename within the newly verified root-private owned client snapshot directory.
@@ -651,8 +671,8 @@ func canonicalGuestDNS(t *testing.T, plan *NetworkPlan) {
 	}
 	nameservers := 0
 	for _, line := range strings.Split(string(raw), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
+		fields := strings.Fields(strings.SplitN(line, "#", 2)[0])
+		if len(fields) == 0 {
 			continue
 		}
 		if fields[0] == "nameserver" {

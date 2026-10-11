@@ -1,0 +1,3 @@
+NGFW_TIMING BEGIN agent.build 2026-10-10T11:54:00.371777572Z
+go build -trimpath -ldflags "-s -w -X main.version=e624d05e1" -o bin/ngfw-agent ./cmd/ngfw-agent
+NGFW_TIMING END agent.build 2026-10-10T11:54:01.747429280Z

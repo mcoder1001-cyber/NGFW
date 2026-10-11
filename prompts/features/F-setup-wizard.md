@@ -14,9 +14,13 @@ existing domains.
 
 ## Scope — build exactly this
 1. **Steps**: (1) language + time zone + NTP; (2) admin password change (mandatory, policy-checked); (3) hostname;
-   (4) WAN: pick interface, DHCP / static / PPPoE (PPPoE only if F-pppoe-client is merged); (5) LAN: interface, address,
-   DHCP server on/off with a suggested pool; (6) defaults: outbound NAT on WAN, LAN→WAN allow, block inbound, management
-   only from LAN; (7) summary showing the exact config diff → one commit (with confirm timer).
+   (4) WAN: detect and prefill the existing uplink, connection mode, IPv4 address and gateway from running configuration
+   and live agent observations; allow the administrator to edit every WAN field. Use DHCP / static / PPPoE
+   (PPPoE only if F-pppoe-client is merged). Ambiguous detection requires explicit selection; late observations must
+   not overwrite administrator edits. Do not take over host management NICs.
+   (5) review the touched sections; (6) summary showing the exact config diff → one commit (with confirm timer).
+   There is no LAN creation step. Preserve existing LAN, DHCP, NAT, ACL and management configuration. WAN-only
+   requests omit the legacy LAN fields; older explicit LAN callers keep their existing behavior.
 2. Wizard state is kept client-side until the final commit; nothing is applied step by step. Back/next, validation per step
    through the normal schema validation endpoint.
 3. Re-runnable from System → "Run setup wizard" (warns that it overwrites the touched sections).
@@ -24,8 +28,9 @@ existing domains.
 5. **Docs**: `docs/user/getting-started.md`.
 
 ## Acceptance (paste the evidence)
-- [ ] Factory box → wizard → LAN client gets DHCP and reaches the Internet through NAT on the rig (pasted)
-- [ ] Management reachable from LAN only after the wizard (pasted)
+- [ ] Existing WAN settings are prefilled and editable; unchanged static defaults do not create duplicate routes
+- [ ] WAN-only setup preserves existing LAN, DHCP, NAT, firewall and management settings
+- [ ] Management access and confirmed-commit rollback verified on the isolated rig (pasted)
 - [ ] Screenshots of every step, fa (RTL) and en
 - [ ] `tools/ci.sh --base main` green
 

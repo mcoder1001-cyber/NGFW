@@ -4,7 +4,7 @@ User request (2026-10-11): discover and prefill WAN settings from the system, al
 
 Branch: codex/setup-system-wan-no-lan-20261011
 Worktree: /root/.codex/worktrees/f077/NGFW
-Implementation baseline: codex/root-ngfw-synced-20261003 (d2d55984d); original desktop checkout ba55d2744 did not contain setup implementation.
+Implementation initially located in codex/root-ngfw-synced-20261003 (d2d55984d), then task commits rebased onto origin/main (76362bdc7). Original desktop checkout ba55d2744 did not contain setup implementation.
 
 Owned files: packages/schema/src/setup.ts and setup.test.ts; apps/api/src/features/setup/controller.ts and controller.test.ts; apps/web/src/domains/system/setup/**; apps/web/src/locales/{en,fa}/setup.json; apps/web/test/e2e/screens/setup.mjs; docs/user/getting-started.md; task status and generated API client artifacts.
 

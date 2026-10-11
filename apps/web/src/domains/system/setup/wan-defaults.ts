@@ -27,7 +27,10 @@ export function wanDefaults(
     const size = 2 ** (32 - Number(prefix));
     return Math.floor(number(ip) / size) === Math.floor(number(address) / size);
   };
-  const hopInterface = (hop: { interface?: string; address?: string }, vrf: string) => {
+  const hopInterface = (
+    hop: { interface?: string | undefined; address?: string | undefined },
+    vrf: string,
+  ) => {
     if (hop.interface) return hop.interface;
     const matching = names.filter(
       (name) =>

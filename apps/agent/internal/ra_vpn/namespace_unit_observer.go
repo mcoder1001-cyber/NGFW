@@ -26,7 +26,9 @@ type SystemdUnitObservation struct{}
 func NewSystemdUnitObservation() UnitObservationProvider { return &SystemdUnitObservation{} }
 
 func unitObserverInstallation() error {
-	if validateNamespaceBrokerExecutable(unitObserverExecutable) != nil || numericPublisherInstallation() != nil {
+	// The numeric installation proof independently hashes this same fixed broker
+	// ELF/receipt, so a second whole-ELF hash here duplicates that one capture.
+	if numericPublisherInstallation() != nil {
 		return ErrEngine
 	}
 	for _, item := range []struct{ path, digest string }{

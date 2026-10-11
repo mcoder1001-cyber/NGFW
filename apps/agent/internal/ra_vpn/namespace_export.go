@@ -1,15 +1,11 @@
 package ravpn
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -76,23 +72,39 @@ func (h *FixedNamespaceHandoff) targets(ctx context.Context) ([]MountTarget, err
 }
 
 // Preflight verifies installed broker and read-only manager supplier prerequisites.
-func (h *FixedNamespaceHandoff) Preflight(ctx context.Context) error {
+func (h *FixedNamespaceHandoff) Preflight(ctx context.Context) (result error) {
 	if h == nil || h.Provider == nil || h.Provider.Preflight(ctx) != nil {
 		return ErrBoundary
 	}
 	executable := h.executable()
-	if !filepath.IsAbs(executable) || filepath.Clean(executable) != executable || validateNamespaceBrokerExecutable(executable) != nil {
+	if !filepath.IsAbs(executable) || filepath.Clean(executable) != executable {
 		return ErrBoundary
 	}
+	proof, err := newBrokerExecutableProof(ctx, executable)
+	if err != nil {
+		return ErrBoundary
+	}
+	defer func() {
+		if proof.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
 	dispatcher := h.Dispatcher
 	if dispatcher == nil {
 		dispatcher = &SystemdNamespaceBroker{Executable: executable}
 	}
 	attested, ok := dispatcher.(NamespaceBrokerAttestedFDDispatch)
-	if !ok || attested.Preflight(ctx) != nil {
+	if !ok {
 		return ErrBoundary
 	}
-	return nil
+	if fixed, ok := attested.(*SystemdNamespaceBroker); ok {
+		if fixed.preflightUsing(ctx, proof) != nil {
+			return ErrBoundary
+		}
+	} else if attested.Preflight(ctx) != nil {
+		return ErrBoundary
+	}
+	return proof.Verify(ctx, executable)
 }
 func uniqueMountTargets(targets []MountTarget) []MountTarget {
 	var out []MountTarget
@@ -323,17 +335,17 @@ func writeNamespaceExport(record namespaceExportRecord, replace bool) error {
 	return directory.Sync()
 }
 
-func validateNamespaceBrokerExecutable(path string) error {
-	data, e := trustedInstallationFile(path, 32<<20, true)
-	if e != nil || len(data) < 4 || !bytes.Equal(data[:4], []byte{0x7f, 'E', 'L', 'F'}) {
+func validateNamespaceBrokerExecutable(path string) (result error) {
+	proof, err := newBrokerExecutableProof(context.Background(), path)
+	if err != nil {
 		return ErrBoundary
 	}
-	receipt, e := trustedInstallationFile(path+".sha256", 128, false)
-	digest := sha256.Sum256(data)
-	if e != nil || strings.TrimSpace(string(receipt)) != hex.EncodeToString(digest[:]) {
-		return ErrBoundary
-	}
-	return nil
+	defer func() {
+		if proof.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
+	return proof.Verify(context.Background(), path)
 }
 
 // NewFixedNamespaceHandoff constructs a lazy broker with no filesystem effects.

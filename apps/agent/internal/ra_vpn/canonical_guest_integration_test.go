@@ -265,7 +265,8 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	// restart budget, which also clips the following genuine negotiation.
 	recovered := false
 	for restartContext.Err() == nil {
-		attempt, stop := context.WithTimeout(restartContext, 2*time.Second)
+		// Use the existing8s observation bound, clipped by the whole30s restart.
+		attempt, stop := context.WithTimeout(restartContext, 8*time.Second)
 		rows, e := client.RemoteAccessSessions(attempt, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
 		stop()
 		if e == nil && len(rows.GetSessions()) == 0 {

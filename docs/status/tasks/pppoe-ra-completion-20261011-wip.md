@@ -341,3 +341,18 @@ private exec-capable temporary path: earlier runs exceeded the unchanged SNMP
 path-length guard; /run alone also disallows execution. Those failures are retained.
 Owned inactive68–71 roots are archived with evidence hashes after repeated process,
 root-inode and mount checks. Complete canonical acceptance remains pending.
+
+
+Native73 source19 first recovers the actual engine automatically: connect resync
+APPLIED33.180s, finishing about42.56s after restart. The original30s readiness
+assertion and baseline rollback still fail; full canonical acceptance remains open.
+Source20 removes duplicate whole-broker hashes within one handoff preflight using
+a capture-local held proof, retaining fresh canonical reopen/stamps and all fixed
+unit/capability/socket guards. The independent unit observer uses its existing
+numeric installation proof, which already hashes the same fixed broker/receipt,
+instead of a duplicate hash. Standalone broker validation streams the whole ELF
+through a fresh proof; no cross-call/capture/process cache is introduced.
+The added readiness poll uses the existing8s observation bound, always clipped by
+the original whole30s restart context; initial2s polling was shorter than the
+verified observation path. Source20 full RA race PASS3.838s. Fresh original native
+execution must prove that recovery actually meets30s.

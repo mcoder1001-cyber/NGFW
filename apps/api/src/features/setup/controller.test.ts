@@ -63,6 +63,33 @@ describe('setup staging and security', () => {
     );
   });
   const body = () => ({ input, baseRevision: 1, completedAt: new Date().toISOString() });
+  it('previews and stages WAN-only live inventory while preserving existing LAN policy', async () => {
+    interfaceState.mockResolvedValue({
+      interfaces: [
+        InterfaceState.fromPartial({ name: 'liveWan', swIfIndex: 4, vrf: 'default', type: 'dpdk' }),
+      ],
+    });
+    const wan = { ...input };
+    delete wan.lan;
+    delete wan.lanAddress;
+    delete wan.dhcp;
+    const liveBody = { ...body(), input: SetupInputSchema.parse({ ...wan, wan: 'liveWan' }) };
+    const running = RootConfig.parse((await ds.getRunning()).doc);
+    const preview = await c.preview(liveBody, request());
+    expect(preview.changes.some((change) => change.pointer.startsWith('/interfaces/lan0'))).toBe(
+      false,
+    );
+    await c.stage({ ...liveBody, current, password }, request());
+    const candidate = RootConfig.parse((await repo.candidate()).payload);
+    expect(candidate.interfaces.liveWan?.dhcpClient).toBeDefined();
+    expect(candidate.interfaces.lan0).toEqual(running.interfaces.lan0);
+    expect(candidate.services.dhcp).toEqual(running.services.dhcp);
+    expect(candidate.nat).toEqual(running.nat);
+    expect(candidate.acl).toEqual(running.acl);
+    expect(candidate.management.users[0]?.role).toBe('admin');
+    expect(interfaceState).toHaveBeenCalledWith(['liveWan']);
+    expect(Object.keys(candidate.interfaces)).toEqual(['wan0', 'lan0', 'liveWan']);
+  });
   it('previews and atomically stages PPPoE references on a distinct observed WAN', async () => {
     repo.putSecret('password/isp');
     interfaceState.mockResolvedValue({

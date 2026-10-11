@@ -42,7 +42,7 @@ export class SetupController {
       throw problems.badRequest('setup summary expired; preview again');
     try {
       const base = RootConfig.parse(running.doc);
-      const selected = [body.input.wan, body.input.lan];
+      const selected = body.input.lan ? [body.input.wan, body.input.lan] : [body.input.wan];
       if (
         selected.some(
           (name) => name === 'local0' || base.interfaces[name]?.physical?.owner === 'host',

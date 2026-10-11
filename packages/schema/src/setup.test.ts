@@ -67,6 +67,66 @@ describe('setup builder', () => {
     expect(doc.system.setup.completed).toBe(true);
     expect(validateConfig(doc)).toEqual({ ok: true, config: doc });
   });
+  it('reuses a prefilled ordinary WAN default route and updates its gateway without duplicates', () => {
+    const original = RootConfig.parse({
+      interfaces: { wan0: { ipv4: ['203.0.113.2/24'] }, other0: {} },
+      routing: {
+        static: [
+          {
+            prefix: '0.0.0.0/0',
+            nextHops: [{ address: '203.0.113.1', interface: 'wan0' }],
+            description: 'Existing uplink',
+            distance: 20,
+          },
+          {
+            prefix: '198.51.100.0/24',
+            nextHops: [{ interface: 'other0' }],
+            description: 'Keep this route',
+          },
+        ],
+      },
+    });
+    const staticInput = {
+      ...wanOnly(),
+      wanMode: 'static' as const,
+      wanAddress: '203.0.113.2/24',
+      wanGateway: '203.0.113.1',
+    };
+    const reused = buildSetup(original, staticInput, at);
+    expect(reused.routing.static).toEqual(original.routing.static);
+    expect(validateConfig(reused)).toEqual({ ok: true, config: reused });
+    const updated = buildSetup(original, { ...staticInput, wanGateway: '203.0.113.9' }, at);
+    expect(updated.routing.static[0]).toEqual({
+      ...original.routing.static[0],
+      nextHops: [{ ...original.routing.static[0]!.nextHops[0], address: '203.0.113.9' }],
+    });
+    expect(updated.routing.static[1]).toEqual(original.routing.static[1]);
+    expect(validateConfig(updated)).toEqual({ ok: true, config: updated });
+    const dhcp = buildSetup(original, wanOnly(), at);
+    expect(dhcp.routing.static).toEqual([original.routing.static[1]]);
+    expect(validateConfig(dhcp)).toEqual({ ok: true, config: dhcp });
+  });
+  it('recognizes gateway-only WAN routes and refuses overriding another interface default', () => {
+    const original = RootConfig.parse({
+      interfaces: { wan0: { ipv4: ['203.0.113.2/24'] }, other0: {} },
+      routing: { static: [{ prefix: '0.0.0.0/0', nextHops: [{ address: '203.0.113.1' }] }] },
+    });
+    expect(buildSetup(original, wanOnly(), at).routing.static).toEqual([]);
+    original.routing.static[0]!.nextHops = [{ interface: 'other0', weight: 1 }];
+    expect(buildSetup(original, wanOnly(), at).routing.static).toEqual(original.routing.static);
+    expect(() =>
+      buildSetup(
+        original,
+        {
+          ...wanOnly(),
+          wanMode: 'static',
+          wanAddress: '203.0.113.2/24',
+          wanGateway: '203.0.113.1',
+        },
+        at,
+      ),
+    ).toThrow('existing default route');
+  });
   it('requires legacy LAN settings together without imposing them on WAN-only input', () => {
     expect(SetupInputSchema.safeParse(wanOnly()).success).toBe(true);
     expect(SetupInputSchema.safeParse({ ...wanOnly(), lan: 'lan0' }).success).toBe(false);

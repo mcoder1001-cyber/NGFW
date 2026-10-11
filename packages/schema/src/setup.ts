@@ -209,10 +209,46 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
   delete wan.dhcpClient;
   delete wan.pppoe;
   if (input.wanMode === 'dhcp') wan.dhcpClient = { setBroadcastFlag: false };
-  doc.routing.static = doc.routing.static.filter(
-    (r) => r.description !== 'Setup WAN default route',
-  );
-  if (input.wanMode === 'static')
+  if (input.lan) {
+    doc.routing.static = doc.routing.static.filter(
+      (r) => r.description !== 'Setup WAN default route',
+    );
+  } else {
+    const selectedWanDefault = (route: RootConfig['routing']['static'][number]) =>
+      route.vrf === wan.vrf &&
+      route.prefix === '0.0.0.0/0' &&
+      route.nextHops.length > 0 &&
+      route.nextHops.every((hop) => {
+        if (hop.interface) return hop.interface === input.wan;
+        if (!hop.address) return false;
+        return base.interfaces[input.wan]!.ipv4.some((cidr) => {
+          const [address = '', prefix = ''] = cidr.split('/');
+          const size = 2 ** (32 - Number(prefix));
+          return (
+            Math.floor(ipv4Number(address) / size) === Math.floor(ipv4Number(hop.address!) / size)
+          );
+        });
+      });
+    if (input.wanMode !== 'static') {
+      doc.routing.static = doc.routing.static.filter((route) => !selectedWanDefault(route));
+    } else {
+      const existing = doc.routing.static.find(
+        (route) => route.vrf === wan.vrf && route.prefix === '0.0.0.0/0',
+      );
+      if (existing) {
+        if (!selectedWanDefault(existing) || existing.nextHops.length !== 1)
+          throw new Error(
+            'Configure the existing default route outside setup before changing this WAN',
+          );
+        existing.nextHops[0]!.address = input.wanGateway!;
+      }
+    }
+  }
+  if (
+    input.wanMode === 'static' &&
+    (input.lan ||
+      !doc.routing.static.some((route) => route.vrf === wan.vrf && route.prefix === '0.0.0.0/0'))
+  )
     doc.routing.static.push({
       prefix: '0.0.0.0/0',
       vrf: wan.vrf,

@@ -146,6 +146,7 @@ func TestNumericPublisherPipelineReorderedRepliesAndFailureRetirement(t *testing
 			transport := &managerDBusTransport{conn: client, pending: make(map[uint32]bool)}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
+			transport.authContext = ctx
 			callbackDone := make(chan struct{})
 			stop := context.AfterFunc(ctx, func() { defer close(callbackDone); _ = transport.Close() })
 			defer func() {

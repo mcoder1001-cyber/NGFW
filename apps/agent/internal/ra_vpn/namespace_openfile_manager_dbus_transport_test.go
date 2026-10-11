@@ -53,6 +53,7 @@ func TestNumericPublisherManagerDBusGenericAuthenticationHasNoFDNegotiation(t *t
 	transport := &managerDBusTransport{conn: client, pending: make(map[uint32]bool)}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+	transport.authContext = ctx
 	bus, err := dbus.NewConn(transport, dbus.WithContext(ctx))
 	if err != nil {
 		t.Fatal(err)
@@ -122,6 +123,56 @@ func TestNumericPublisherManagerDBusGenericAuthenticationHasNoFDNegotiation(t *t
 	}
 	if err := transport.Close(); err != nil {
 		t.Fatal("idempotent transport cleanup", err)
+	}
+}
+
+func TestNumericPublisherManagerDBusBeginWaitsForCompletePeerConsumption(t *testing.T) {
+	client, server := managerDBusOwnedPair(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	transport := &managerDBusTransport{conn: client, authContext: ctx, authStage: 3}
+	done := make(chan error, 1)
+	go func() { _, err := transport.Write([]byte("BEGIN\r\n")); done <- err }()
+	select {
+	case err := <-done:
+		t.Fatal("BEGIN completed before the peer consumed it", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	var first [3]byte
+	if _, err := io.ReadFull(server, first[:]); err != nil || string(first[:]) != "BEG" {
+		t.Fatal("partial BEGIN receive", err)
+	}
+	select {
+	case err := <-done:
+		t.Fatal("partial consumption released the binary phase", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	var last [4]byte
+	if _, err := io.ReadFull(server, last[:]); err != nil || string(last[:]) != "IN\r\n" {
+		t.Fatal("complete BEGIN receive", err)
+	}
+	select {
+	case err := <-done:
+		if err != nil || !transport.binary {
+			t.Fatal("consumed BEGIN did not enter binary phase", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("consumed BEGIN remained blocked")
+	}
+}
+
+func TestNumericPublisherManagerDBusBeginConsumptionUsesOriginalDeadline(t *testing.T) {
+	client, _ := managerDBusOwnedPair(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	transport := &managerDBusTransport{conn: client, authContext: ctx, authStage: 3}
+	if _, err := transport.Write([]byte("BEGIN\r\n")); err != ErrBoundary || transport.binary || ctx.Err() == nil {
+		t.Fatal("unconsumed authentication escaped the caller deadline", err)
+	}
+	transport.authContext = context.Background()
+	transport.authStage = 3
+	if _, err := transport.Write([]byte("BEGIN\r\n")); err != ErrBoundary || transport.binary {
+		t.Fatal("unbounded authentication context admitted", err)
 	}
 }
 

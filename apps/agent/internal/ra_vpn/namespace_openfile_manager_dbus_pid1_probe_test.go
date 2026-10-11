@@ -49,7 +49,7 @@ func managerDBusActualPID1ReadOnlyVersion(t *testing.T, queries, connections int
 				raw.Close()
 				t.Fatal("unexpected transport")
 			}
-			transport := &managerDBusTransport{conn: conn, pending: make(map[uint32]bool)}
+			transport := &managerDBusTransport{conn: conn, authContext: ctx, pending: make(map[uint32]bool)}
 			defer transport.Close()
 			deadline, ok := ctx.Deadline()
 			if !ok || conn.SetDeadline(deadline) != nil || held.Verify() != nil || !managerDBusPeer(conn, identity) {

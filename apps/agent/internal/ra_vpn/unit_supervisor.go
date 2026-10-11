@@ -269,6 +269,37 @@ func (u SystemdUnits) observe(ctx context.Context, p *NetworkPlan, pid int, allo
 	return id, nil
 }
 
+// observeStarting classifies one fresh two-capture observation as helper or
+// daemon. Both classifications use the same held descriptors without intervening
+// mutation. A fresh manager PID and full live process identity close the boundary;
+// Runtime independently observes again before credential loading.
+func (u SystemdUnits) observeStarting(ctx context.Context, p *NetworkPlan, pid int) (UnitIdentity, bool, error) {
+	if u.Observation == nil || p == nil || pid <= 1 {
+		return UnitIdentity{}, false, ErrEngine
+	}
+	snapshot, err := u.Observation.Acquire(ctx, p.Instance)
+	if snapshot != nil {
+		defer func() { _ = snapshot.Close() }()
+	}
+	if err != nil {
+		return UnitIdentity{}, false, ErrEngine
+	}
+	id, err := verifyUnitSnapshot(p, snapshot, true)
+	if err != nil || id.PID != pid {
+		return UnitIdentity{}, false, ErrEngine
+	}
+	if _, err = verifyUnitSnapshot(p, snapshot, false); err != nil {
+		return id, false, ErrEngine
+	}
+	name, err := unitName(p)
+	fresh, readErr := u.pid(ctx, name)
+	live := (bootid.Reader{}).ForPID(id.PID)
+	if err != nil || readErr != nil || fresh != id.PID || !live.Complete() || live.BootID != id.BootID || live.StartTime != id.StartTicks || ctx.Err() != nil {
+		return id, false, ErrEngine
+	}
+	return id, true, nil
+}
+
 // Observe verifies the exact private daemon process and namespace.
 func (u SystemdUnits) Observe(ctx context.Context, p *NetworkPlan) (UnitIdentity, error) {
 	name, e := unitName(p)
@@ -342,16 +373,16 @@ func (u SystemdUnits) Start(ctx context.Context, p *NetworkPlan) (UnitIdentity, 
 	defer deadline.Stop()
 	for {
 		if pid, e := u.pid(ctx, name); e == nil && pid > 1 {
-			if id, e := u.observe(ctx, p, pid, true); e == nil {
+			id, ready, e := u.observeStarting(ctx, p, pid)
+			if id.Valid() {
 				if captured.Valid() && captured != id {
 					return captured, ErrEngine
 				}
 				captured = id
 			}
-		}
-		id, e := u.Observe(ctx, p)
-		if e == nil {
-			return id, nil
+			if e == nil && ready {
+				return id, nil
+			}
 		}
 		select {
 		case <-ctx.Done():

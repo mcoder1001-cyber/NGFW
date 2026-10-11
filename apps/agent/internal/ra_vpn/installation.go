@@ -74,7 +74,11 @@ func trustedInstallationFile(path string, limit int64, executable bool) ([]byte,
 	if unix.Fstat(child, &s) != nil || s.Uid != 0 || s.Mode&unix.S_IFMT != unix.S_IFREG || s.Mode&0022 != 0 || s.Size > limit || executable && s.Mode&0111 == 0 {
 		return nil, ErrEngine
 	}
-	data, e := io.ReadAll(io.LimitReader(f, limit+1))
+	// Reserve the held regular file's bounded size plus ReadFrom's EOF probe.
+	// The limit still rejects growth; fresh ownership/path/image checks remain.
+	buffer := bytes.NewBuffer(make([]byte, 0, int(s.Size)+bytes.MinRead))
+	_, e = buffer.ReadFrom(io.LimitReader(f, limit+1))
+	data := buffer.Bytes()
 	if e != nil || len(data) > int(limit) {
 		return nil, ErrEngine
 	}

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
@@ -279,6 +280,7 @@ func (s *FileEngineStore) Remove(instance string) error {
 // LazyEngineStore opens the protected record store only when it is needed.
 type LazyEngineStore struct {
 	StateDir, Owner string
+	mu              sync.Mutex
 	store           *FileEngineStore
 }
 
@@ -296,6 +298,8 @@ func (s *LazyEngineStore) open() error {
 
 // List reads bounded authenticated public generation records.
 func (s *LazyEngineStore) List() ([]EngineRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.StateDir == "" {
 		return nil, nil
 	}
@@ -310,6 +314,8 @@ func (s *LazyEngineStore) List() ([]EngineRecord, error) {
 
 // Save atomically persists one verified public generation record.
 func (s *LazyEngineStore) Save(r EngineRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if e := s.open(); e != nil {
 		return e
 	}
@@ -318,6 +324,8 @@ func (s *LazyEngineStore) Save(r EngineRecord) error {
 
 // Remove unlinks only the authenticated owned record.
 func (s *LazyEngineStore) Remove(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.store == nil {
 		if _, e := os.Lstat(filepath.Join(s.StateDir, "ra-engine")); os.IsNotExist(e) {
 			return nil
@@ -331,6 +339,8 @@ func (s *LazyEngineStore) Remove(id string) error {
 
 // Close releases the protected store directory descriptor.
 func (s *LazyEngineStore) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.store != nil {
 		_ = s.store.Close()
 		s.store = nil

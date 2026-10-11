@@ -17,6 +17,8 @@ Restart=always
 RestartSec=3
 RuntimeDirectory=ngfw
 RuntimeDirectoryMode=0750
+# RA snapshots and namespace bindings survive an agent restart.
+RuntimeDirectoryPreserve=restart
 StateDirectory=ngfw/agent
 StateDirectoryMode=0750
 UMask=0027

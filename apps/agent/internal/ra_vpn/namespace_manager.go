@@ -44,10 +44,30 @@ const namespaceBrokerUnit = "/usr/lib/systemd/system/ngfw-ra-namespace-broker@.s
 const expectedNamespaceBrokerUnit = "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91"
 
 // Preflight verifies the protected broker executable and fixed manager template.
-func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
-	if validateNamespaceBrokerExecutable(b.Executable) != nil {
+func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) (result error) {
+	proof, err := newBrokerExecutableProof(ctx, b.Executable)
+	if err != nil {
 		return ErrBoundary
 	}
+	defer func() {
+		if proof.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
+	return b.preflightUsing(ctx, proof)
+}
+
+// preflightUsing is limited to this single handoff preflight. The caller owns
+// the proof; every independent preflight/capture creates and hashes a fresh one.
+func (b *SystemdNamespaceBroker) preflightUsing(ctx context.Context, proof *brokerExecutableProof) (result error) {
+	if proof.Verify(ctx, b.Executable) != nil {
+		return ErrBoundary
+	}
+	defer func() {
+		if result == nil && proof.Verify(ctx, b.Executable) != nil {
+			result = ErrBoundary
+		}
+	}()
 	unit, e := trustedInstallationFile(namespaceBrokerUnit, 16384, false)
 	digest := sha256.Sum256(unit)
 	if e != nil || hex.EncodeToString(digest[:]) != expectedNamespaceBrokerUnit {

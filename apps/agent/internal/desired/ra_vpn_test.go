@@ -64,6 +64,24 @@ func TestRemoteAccessEnabledProjectionRequiresPrivateOwnedRangeAndPolicies(t *te
 	if !found {
 		t.Fatal("engine absent")
 	}
+	// Real public Retrieve must retain the dependencies needed to project the
+	// observed profile again, rather than returning dangling references.
+	observed := new(ngfwv1.DesiredState)
+	AssembleRA(observed, s.kvs, map[string]bool{"vpn": true})
+	expectedVPN := proto.Clone(ds.GetVpn()).(*ngfwv1.VpnConfig)
+	expectedVPN.RemoteAccess["road"].Enabled = proto.Bool(true)
+	if !proto.Equal(observed.GetVpn(), expectedVPN) {
+		t.Fatal("observed RA lost its exact proposal or certificate references")
+	}
+	unmanaged := new(ngfwv1.DesiredState)
+	AssembleRA(unmanaged, s.kvs, map[string]bool{"routing": true})
+	if unmanaged.GetVpn() != nil {
+		t.Fatal("unmanaged RA readback changed VPN")
+	}
+	observed.Vpn.Ipsec.Proposals["modern"].Ike.Encr = proto.String("aes128")
+	if ds.GetVpn().GetIpsec().GetProposals()["modern"].GetIke().GetEncr() != "aes256" {
+		t.Fatal("RA readback aliases the observed engine proposal")
+	}
 	for _, ids := range []TunnelIDSpan{{Lo: 8190, Hi: 8192}, {All: true}} {
 		env.IDs = ids
 		boundary := &sink{}

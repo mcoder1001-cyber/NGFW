@@ -43,17 +43,373 @@
     "195": 100.42,
     "250": 79.5
   },
-  "ra": "open; canonical activation/rollback fail; no completion claim",
+  "ra": "completed: both-host canonical native and actual API/browser/900-second peer cleanup acceptance",
   "ra_authentication_synchronization": {
     "prior_reviewed_merge": "d14f1901bc9f57823366ee0708462b4a5678d941",
     "original_query_seconds": 2,
     "original_query_byte_limit": 16384,
     "race_seconds": 3.545,
-    "canonical_acceptance": "not yet passed",
+    "canonical_acceptance": "passed by final product30 native campaigns on both hosts",
     "private_log_sha256": {
       "ra-auth-drain-old-red.private.txt": "6fe6f35be1d9382baa57dfc1bd8f2be5a0d6f790fbb77701144610aa45b5e62e",
       "ra-auth-drain-source10-race-attempt2.private.txt": "efc1a38d6b9a1045708a58f22e45194919f3e0ed0ae3513dcde947cd84f7baa3",
       "native55-pid1-syscalls.private.txt": "f108738614cdeb635cc7850cfc4e67abda132c2e546e8bd53947704a148bdb07"
     }
+  },
+  "ra_restart_controls_20261011": {
+    "task_complete": false,
+    "main_pr231_ci": 38152724713,
+    "main_pr231_ci_pass": true,
+    "ra_race_source17_seconds": 3.74,
+    "ra_race_source18_seconds": 3.994,
+    "real_xfrm_old_reader_failed": true,
+    "xfrm_exact_owned_id": 1,
+    "restart_deadline_seconds": 30,
+    "cleanup_deadline_seconds": 30,
+    "native69_whole_campaign_pass": false,
+    "native70_whole_campaign_pass": false,
+    "native67_baseline_cleanup_seconds": 22.929,
+    "broker_proof_capture_local": true,
+    "native68_cpu_profile_diagnostic_only": true,
+    "historical_results_not_current_acceptance": true
+  },
+  "ra_current_acceptance": {
+    "task_complete": true,
+    "pull_request": "https://github.com/mcoder1001-cyber/NGFW/pull/232",
+    "product_build": 30,
+    "native_fixture_build": 30,
+    "api_fixture_build": 35,
+    "fixture_source": "f96278cf29759d97f547f0f643558a0d952fc9fb",
+    "production_files_sha256": {
+      "usr/sbin/ngfw-agent": "59362a3a05769bf62d2b048020b02330cf2d35cc3cff29e0b9775bb8ea4fd10d",
+      "usr/lib/ngfw/ngfw-ra-namespace-broker": "097122d4ccffa9a5ac60dc51ab372ff046b45089e4f93c75e02b6c93fc336781",
+      "usr/lib/ngfw/ngfw-ra-daemon": "8dbe63de7f44f42bc0e8b442c21486e6226987b1aaade0a501fa23cc8b332b74",
+      "fixture/peer-helper": "8dbe63de7f44f42bc0e8b442c21486e6226987b1aaade0a501fa23cc8b332b74",
+      "usr/lib/systemd/system/ngfw-agent.service": "b09a055b58532eca575b80a2c126ed44e1bf1b0a0e3c64cf90705379a12e66ff",
+      "usr/lib/x86_64-linux-gnu/ossl-modules/legacy.so": "794f02e35c7b9bde0d6b8470cdaa80bcb3df2e34b10f82bb2af0552ebceea5aa",
+      "usr/lib/systemd/system/ngfw-ra@.service": "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246",
+      "usr/lib/systemd/system/ngfw-ra-observer@.socket": "d8bdf79f7767d13c0a6c679f317d7450e8439a5a110ef306f601dd9487f294c4",
+      "usr/lib/systemd/system/ngfw-ra-observer@.service": "0864b67dafc24b2ff3fb1d68ff3bb06cc3cd84c977db59b151daa3bff2455a6a",
+      "usr/lib/systemd/system/ngfw-ra-namespace-broker.socket": "f8b139a683fbcf447304672c085d031cc4fd7d8d0fc36ed137db257b80787308",
+      "usr/lib/systemd/system/ngfw-ra-openfile.socket": "e548b49466216b1254bd41cf9cb04d9d2ae342d1b8b228848a2362ba48b08147",
+      "usr/lib/systemd/system/ngfw-ra-targets@.service": "9acdbfad058b5210977f1327c693b1b656ac6f195a91203068760946ebb1b810",
+      "usr/lib/systemd/system/ngfw-ra-namespace-broker@.service": "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91",
+      "usr/lib/systemd/system/ngfw-ra-targets@.socket": "2220b219ac28517fa39663f4b991b697757b3a04e585d35257e4e3c0758e2130",
+      "usr/lib/systemd/system/ngfw-ra-openfile.service": "447e0ee2fc549280f3f6dbdc012e85e9430405dae535231d6ff432b7415c6559",
+      "usr/lib/systemd/system/vpp.service": "6b004cdaa5b541c5d836eb45b65204d3b38a3081ce11717c9d3be6b4268c1716",
+      "usr/lib/systemd/system/vpp.service.d/vpp-firstboot.conf": "a0ccadfaaa4c6d8217ddd7294cf33bb3b1d837e09a083b8d51d9969e0112ad82"
+    },
+    "fixture_binary_sha256": "e8a8354a7e2d66eb5bacff2e1be05f307038810da25b7e2ac6c6e6384aa60ce6",
+    "native_full": {
+      "195": {
+        "seconds": 236.51,
+        "restart_seconds": 26.040085725,
+        "log_sha256": "c34a17e3e98baf66b9e0701c0bd742668c2e9e2916845eda3bb4b85ae7314cc9"
+      },
+      "250": {
+        "seconds": 230.41,
+        "restart_seconds": 25.821022867,
+        "log_sha256": "2c9e300aaf03ac7e252a011a0d6d0724143a87ffc948e58a745d185ecc71dbc3"
+      }
+    },
+    "restart_bound_seconds": 30,
+    "cleanup_bound_seconds": 30,
+    "api_hosts": {
+      "195": {
+        "whole_hold_pass": true,
+        "hold_seconds": 900.16,
+        "hold_log_sha256": "2246899c38fa030a74d40b1b8fd8f4beac00b914f5ca5dae2bcf7f9edaec6f76",
+        "browser_coverage": {
+          "verified_views": [
+            [
+              "admin",
+              "en",
+              "dark"
+            ],
+            [
+              "admin",
+              "en",
+              "light"
+            ],
+            [
+              "admin",
+              "fa",
+              "dark"
+            ],
+            [
+              "admin",
+              "fa",
+              "light"
+            ],
+            [
+              "readonly",
+              "en",
+              "dark"
+            ],
+            [
+              "readonly",
+              "en",
+              "light"
+            ],
+            [
+              "readonly",
+              "fa",
+              "dark"
+            ],
+            [
+              "readonly",
+              "fa",
+              "light"
+            ]
+          ],
+          "attempts": [
+            {
+              "log_sha256": "d7d0264306ceee587771513524d77a892abbc52c5acdb694f262518cc15259b5",
+              "verified_views": [
+                [
+                  "admin",
+                  "en",
+                  "light"
+                ],
+                [
+                  "admin",
+                  "en",
+                  "dark"
+                ],
+                [
+                  "admin",
+                  "fa",
+                  "light"
+                ],
+                [
+                  "admin",
+                  "fa",
+                  "dark"
+                ],
+                [
+                  "readonly",
+                  "en",
+                  "light"
+                ]
+              ],
+              "whole_attempt_failed": true
+            },
+            {
+              "log_sha256": "5a4f15b55122e77550fe92839c94576c1f8e05aea32028f66e0adb5153be495c",
+              "verified_views": [
+                [
+                  "readonly",
+                  "en",
+                  "dark"
+                ],
+                [
+                  "readonly",
+                  "fa",
+                  "light"
+                ],
+                [
+                  "readonly",
+                  "fa",
+                  "dark"
+                ]
+              ],
+              "whole_attempt_failed": false
+            }
+          ],
+          "genuine_admin_disconnect_and_new_id": true,
+          "screenshots": {
+            "ra195-admin-disconnect.png": "ace9985b01cd939b31993374bfc28e73ee0c0441427c6b36cf235026e4294c28",
+            "ra195-admin-en-dark.png": "7f0a6bbb55cb0249b29f1315aa79d0001eb2f29e2fb9e1a6aa0ffbd91043716a",
+            "ra195-admin-en-light.png": "f3683c6a4651c3c1ccb6c03fb55aee9fa9428555ed11d4156d22d1cd0edab316",
+            "ra195-admin-fa-dark.png": "68a1f213660abea95f19a85ee552149678a42ef2cf32623a356fdd9771bf379a",
+            "ra195-admin-fa-light.png": "a1cae2a9940a84118295589ba641e3b9349be26267e3fc8a6e49709c5db52320",
+            "ra195-readonly-en-dark.png": "457470acc6b399e4558fb9249eec90f1157256653faaaddd714329ef8944e773",
+            "ra195-readonly-en-light.png": "dec913308a9279a991534635368402b2aaac6aa1637598c1056170e218704247",
+            "ra195-readonly-fa-dark.png": "4271fac078f3b296582fefc22a30277ff0a9c278a061543c490d8dcd77443f32",
+            "ra195-readonly-fa-light.png": "e54e152e29fe75f2551658c6b316c9a6ba2286c05cfe6279ae82d1334d6f0da3"
+          }
+        },
+        "public_security": {
+          "all_audit_rows_checked": 215,
+          "config_candidate_export_no_secrets": true,
+          "readonly_real_sessions_get": true,
+          "readonly_disconnect_http403": true,
+          "owned_session_unchanged": true
+        },
+        "overlapping_pool_http400": true,
+        "normal_baseline_restore": true,
+        "baseline_exact_except_normal_preserved_manager_users": true,
+        "no_active_ra_instance_units_or_peer_netns_or_ra_taps": true,
+        "owned_services_cleanup": {
+          "own_database_role_dropped": true,
+          "own_valkey_prefix_empty": true,
+          "removed_own_keys_count": 87,
+          "guest_pid1_stopped": true,
+          "shared_host_services_preserved": true
+        },
+        "receipt_sha256": {
+          "public-security95-final35.private.log": "de574dbe59d708bd1866e11410d81a0a061b8e5df64b482873cdef6dfea97e1a",
+          "restore95-final35-attempt2.private.log": "288a14d74daee8fc98209f342a0573738462b9988b5f4ca388b0ed39dc28490f",
+          "verify-baseline95-final35-attempt2.private.log": "b2b80b47a45ac5494fb8ea536226f085535bc3321ef7ffed1cbc32b9de13e5c5",
+          "physical35-final.private.log": "35a75e6a859968412f2a6d8014b63c5852cd868d30427b1dd7e6393c7f143a4a",
+          "browser35-combined-coverage.private.json": "b05f065e6c2e7dbe17652c3cc2678c66e765aa7d47bbfb2652b464bf9fd0ecba",
+          "owned-services-cleanup.private.json": "178f881ac90cfce1971dbddfed745a9f036125e4a0ebf94f401cd6cb64a01e22"
+        }
+      },
+      "250": {
+        "whole_hold_pass": true,
+        "hold_seconds": 900.19,
+        "hold_log_sha256": "64993f417ccc608b544dca7466663ef6e6390eb7f0cc9f972fb5c3eb23626ae4",
+        "browser_coverage": {
+          "verified_views": [
+            [
+              "admin",
+              "en",
+              "dark"
+            ],
+            [
+              "admin",
+              "en",
+              "light"
+            ],
+            [
+              "admin",
+              "fa",
+              "dark"
+            ],
+            [
+              "admin",
+              "fa",
+              "light"
+            ],
+            [
+              "readonly",
+              "en",
+              "dark"
+            ],
+            [
+              "readonly",
+              "en",
+              "light"
+            ],
+            [
+              "readonly",
+              "fa",
+              "dark"
+            ],
+            [
+              "readonly",
+              "fa",
+              "light"
+            ]
+          ],
+          "attempts": [
+            {
+              "log_sha256": "cf56b596b665e9e2e37290e0e831439b530de41e14a0e196b8f399393ca20b88",
+              "verified_views": [
+                [
+                  "admin",
+                  "en",
+                  "light"
+                ],
+                [
+                  "admin",
+                  "en",
+                  "dark"
+                ],
+                [
+                  "admin",
+                  "fa",
+                  "light"
+                ],
+                [
+                  "admin",
+                  "fa",
+                  "dark"
+                ],
+                [
+                  "readonly",
+                  "en",
+                  "light"
+                ],
+                [
+                  "readonly",
+                  "en",
+                  "dark"
+                ]
+              ],
+              "whole_attempt_failed": true
+            },
+            {
+              "log_sha256": "9b44aa50afe2f67ab53e2422388b638282fbcb1b947a8a7538ca84cfcdc75199",
+              "verified_views": [
+                [
+                  "readonly",
+                  "fa",
+                  "light"
+                ],
+                [
+                  "readonly",
+                  "fa",
+                  "dark"
+                ]
+              ],
+              "whole_attempt_failed": false
+            }
+          ],
+          "genuine_admin_disconnect_and_new_id": true,
+          "screenshots": {
+            "ra250-admin-disconnect.png": "9504f696086e42373739f297a4a1ad1f08a49c1d93a25a3ca73101d645782f40",
+            "ra250-admin-en-dark.png": "75077a0fc68064da244ff60529266d3092936520a1d2576843765b6f58f8b477",
+            "ra250-admin-en-light.png": "6a14497864351bbb9710dc9be76a5b83e4dc8d679bc3b2b54df2e6eb67deb8b8",
+            "ra250-admin-fa-dark.png": "fc6531746993e4c78ad6109648b45eb79ba595a76cf8903f08843a80b614c2d7",
+            "ra250-admin-fa-light.png": "7cf1e61d88059d44b4a4d88c40c4735652201a74c2806fa350a47f71f5308976",
+            "ra250-readonly-en-dark.png": "1a2f8d711c1e5cd369d439b3a94003f8490095999edc045171d559df083bb937",
+            "ra250-readonly-en-light.png": "5efb8006f5c02feddd689e65c42e6e25e8ec376c16ff8051a064445bf693abb4",
+            "ra250-readonly-fa-dark.png": "680711cb8802d461a249c9f49950ad6a3e08e50196f0bd5344e75a287644f351",
+            "ra250-readonly-fa-light.png": "1326daf8408e35eb0cfa6ba48e3830a1a7ad14afd199a40d373b940f55b0e9e9"
+          }
+        },
+        "public_security": {
+          "all_audit_rows_checked": 193,
+          "config_candidate_export_no_secrets": true,
+          "readonly_real_sessions_get": true,
+          "readonly_disconnect_http403": true,
+          "owned_session_unchanged": true
+        },
+        "overlapping_pool_http400": true,
+        "normal_baseline_restore": true,
+        "baseline_exact_except_normal_preserved_manager_users": true,
+        "no_active_ra_instance_units_or_peer_netns_or_ra_taps": true,
+        "owned_services_cleanup": {
+          "own_database_role_dropped": true,
+          "own_valkey_prefix_empty": true,
+          "removed_own_keys_count": 71,
+          "guest_pid1_stopped": true,
+          "shared_host_services_preserved": true
+        },
+        "receipt_sha256": {
+          "public-security35-final.private.log": "7e270a51eab3ee0f2b0f0acea6a53746a50aa1401bbd344d26dc8ac05dc00ead",
+          "restore35-final.private.log": "288a14d74daee8fc98209f342a0573738462b9988b5f4ca388b0ed39dc28490f",
+          "verify-baseline35-final.private.log": "b2b80b47a45ac5494fb8ea536226f085535bc3321ef7ffed1cbc32b9de13e5c5",
+          "physical35-final.private.log": "7fe9993379d5f8ad91035c8d795c80f9c147b2a2c189c56b41369bb76415163a",
+          "browser35-combined-coverage.private.json": "fb258fb4107ad6345b4f246bb74b856c0c69ba244ebdddb420c2e5e048f74bf8",
+          "owned-services-cleanup.private.json": "e145de93ce76fb519896e05fdc07e42445142261c865b0cbba6a81ae31c6ae3b"
+        }
+      }
+    },
+    "implementation_ci": {
+      "mandatory": 38171610069,
+      "packaging": 38171610048,
+      "conclusion": "success"
+    },
+    "final_integration_ci": "PR232 checks and subsequent main workflow must succeed before completion is reported",
+    "historical_failures_retained": true,
+    "lab_limitations": [
+      "Finite opaque mutual-TLS transport to independent native PID1/network namespace guests; no full installed appliance or QEMU campaign claim.",
+      "Initial browser attempts timed out on a subset of views; the missing views were verified through normal fresh login under the same successful held-peer run.",
+      "The .195 lab API process became unresponsive after byte-bridge replacement; only that owned process was restarted before the successful normal baseline restore. Root cause unproven; no continuous API uptime claim.",
+      "EAP-RADIUS renderer golden coverage is separate from live EAP-MSCHAPv2 and EAP-TLS; no live RADIUS server claim."
+    ]
   }
 }

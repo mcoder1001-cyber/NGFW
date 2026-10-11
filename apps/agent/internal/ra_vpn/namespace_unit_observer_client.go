@@ -230,6 +230,10 @@ func (capture *unitObserverCapture) close() {
 func (p *SystemdUnitObservation) Acquire(ctx context.Context, instance string) (*UnitProcessSnapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	if p == nil || !p.captures.acquire(ctx) {
+		return nil, ErrEngine
+	}
+	defer p.captures.release()
 	first, err := p.acquireOnce(ctx, instance)
 	if err != nil {
 		return nil, ErrEngine

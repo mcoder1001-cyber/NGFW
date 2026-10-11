@@ -25,7 +25,7 @@ type namespaceTargetResponse struct {
 
 // RunNamespaceTargetProvider serves exactly one read-only bounded observation.
 // PID1 preopens five fixed roles before dropping all capabilities.
-func RunNamespaceTargetProvider(instance string) error {
+func RunNamespaceTargetProvider(instance string) (resultErr error) {
 	pid, err := strconv.ParseInt(instance, 10, 32)
 	if err != nil || pid <= 1 || strconv.FormatInt(pid, 10) != instance || os.Geteuid() != 0 || validateNamespaceBrokerProcess(os.Getpid(), 0) != nil {
 		return ErrBoundary
@@ -65,6 +65,15 @@ func RunNamespaceTargetProvider(instance string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	proof, err := newBrokerExecutableProof(ctx, targetSupplierExecutable)
+	if err != nil {
+		return ErrBoundary
+	}
+	defer func() {
+		if proof.Close() != nil {
+			resultErr = ErrBoundary
+		}
+	}()
 	if boundUnitObserverSocket(ctx, listener) != nil {
 		return ErrBoundary
 	}
@@ -106,7 +115,7 @@ func RunNamespaceTargetProvider(instance string) error {
 		return ErrBoundary
 	}
 	probe := &SystemdNamespaceTargets{}
-	if probe.validateUnits(ctx, expected, server) != nil {
+	if probe.validateUnits(ctx, expected, server, proof) != nil {
 		return ErrBoundary
 	}
 	response := namespaceTargetResponse{Server: server, Source: request.Source, Targets: snapshot.Targets}
@@ -119,7 +128,7 @@ func RunNamespaceTargetProvider(instance string) error {
 		return ErrBoundary
 	}
 	ack, _, err := receiveUnitObserverPacket(socket, 0)
-	if err != nil || string(ack) != "OK" || ctx.Err() != nil || verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || !(bootid.Reader{}).ForPID(int(pid)).Equal(expected) || !(bootid.Reader{}).ForPID(1).Equal(manager) || !(bootid.Reader{}).ForPID(os.Getpid()).Equal(server) || validateTargetHeldImages(snapshot) != nil || probe.validateUnits(ctx, expected, server) != nil {
+	if err != nil || string(ack) != "OK" || ctx.Err() != nil || verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || !(bootid.Reader{}).ForPID(int(pid)).Equal(expected) || !(bootid.Reader{}).ForPID(1).Equal(manager) || !(bootid.Reader{}).ForPID(os.Getpid()).Equal(server) || validateTargetHeldImages(snapshot) != nil || probe.validateUnits(ctx, expected, server, proof) != nil {
 		return ErrBoundary
 	}
 	return nil

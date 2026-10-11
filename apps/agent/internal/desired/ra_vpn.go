@@ -187,5 +187,33 @@ func AssembleRA(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool)
 			ds.Vpn.RemoteAccess = map[string]*ngfwv1.RemoteAccessProfile{}
 		}
 		ds.Vpn.RemoteAccess[spec.Profile] = proto.Clone(spec.Configuration).(*ngfwv1.RemoteAccessProfile)
+		// The observed engine holds the exact referenced proposal and public PKI
+		// references. Keep its readback self-contained for API reconciliation.
+		if ds.Vpn.Ipsec == nil {
+			ds.Vpn.Ipsec = &ngfwv1.IpsecConfig{}
+		}
+		if ds.Vpn.Ipsec.Proposals == nil {
+			ds.Vpn.Ipsec.Proposals = map[string]*ngfwv1.IpsecProposal{}
+		}
+		if _, exists := ds.Vpn.Ipsec.Proposals[spec.Configuration.GetProposal()]; !exists {
+			ds.Vpn.Ipsec.Proposals[spec.Configuration.GetProposal()] = proto.Clone(spec.Proposal).(*ngfwv1.IpsecProposal)
+		}
+		if ds.Vpn.Pki == nil {
+			ds.Vpn.Pki = &ngfwv1.PkiConfig{}
+		}
+		if ds.Vpn.Pki.Certificates == nil {
+			ds.Vpn.Pki.Certificates = map[string]*ngfwv1.PkiCertificate{}
+		}
+		if _, exists := ds.Vpn.Pki.Certificates[spec.Configuration.GetCertificate()]; !exists && spec.ServerCertificate != nil {
+			ds.Vpn.Pki.Certificates[spec.Configuration.GetCertificate()] = proto.Clone(spec.ServerCertificate).(*ngfwv1.PkiCertificate)
+		}
+		if spec.ClientCA != nil {
+			if ds.Vpn.Pki.Cas == nil {
+				ds.Vpn.Pki.Cas = map[string]*ngfwv1.PkiCa{}
+			}
+			if _, exists := ds.Vpn.Pki.Cas[spec.Configuration.GetClientCa()]; !exists {
+				ds.Vpn.Pki.Cas[spec.Configuration.GetClientCa()] = proto.Clone(spec.ClientCA).(*ngfwv1.PkiCa)
+			}
+		}
 	}
 }

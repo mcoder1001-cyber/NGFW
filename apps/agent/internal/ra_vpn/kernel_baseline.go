@@ -18,7 +18,7 @@ type observedLink struct {
 	Info  struct {
 		Kind string `json:"info_kind"`
 		Data struct {
-			ID uint32 `json:"if_id"`
+			ID json.RawMessage `json:"if_id"`
 		} `json:"info_data"`
 	} `json:"linkinfo"`
 }

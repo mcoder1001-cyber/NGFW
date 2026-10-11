@@ -17,7 +17,27 @@ func TestIntegrationPrivateEAPTLSCertificateAcceptance(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) { runPrivateEAPWithCertificate(t, false, scenario) })
 	}
 }
+
+type tlsClientCase struct{ Certificate, PrivateKey []byte }
+
 func tlsCredentialsFixture(t *testing.T, scenario string) (Credentials, []byte, []byte, time.Time) {
+	t.Helper()
+	credentials, cases, now := tlsCredentialsCasesFixture(t)
+	selected, ok := cases[scenario]
+	if !ok {
+		t.Fatal("unknown TLS fixture case")
+	}
+	for name, other := range cases {
+		if name != scenario {
+			clear(other.PrivateKey)
+		}
+	}
+	return credentials, selected.Certificate, selected.PrivateKey, now
+}
+
+// One responder trusts one CA and a CRL revoking only the second client. All
+// three real client keys exercise that same trust policy without reconfiguring it.
+func tlsCredentialsCasesFixture(t *testing.T) (Credentials, map[string]tlsClientCase, time.Time) {
 	t.Helper()
 	now := time.Now().UTC()
 	key := func() *ecdsa.PrivateKey {
@@ -52,31 +72,37 @@ func tlsCredentialsFixture(t *testing.T, scenario string) (Credentials, []byte, 
 		return encode("CERTIFICATE", der), encode("PRIVATE KEY", private)
 	}
 	serverCert, serverKey := issue("vpn.example.test", 102, x509.ExtKeyUsageServerAuth, ca, caKey)
-	clientCA, clientCAKey := ca, caKey
-	if scenario == "foreign" {
-		clientCAKey = key()
-		foreign := *caTemplate
-		foreign.SerialNumber = big.NewInt(201)
-		foreign.Subject.CommonName = "Foreign private CA"
-		foreign.SubjectKeyId = []byte{99, 1, 2, 3}
-		der, e := x509.CreateCertificate(rand.Reader, &foreign, &foreign, &clientCAKey.PublicKey, clientCAKey)
-		if e != nil {
-			t.Fatal(e)
-		}
-		clientCA, e = x509.ParseCertificate(der)
-		if e != nil {
-			t.Fatal(e)
-		}
+	validCert, validKey := issue("client", 103, x509.ExtKeyUsageClientAuth, ca, caKey)
+	revokedCert, revokedKey := issue("client", 104, x509.ExtKeyUsageClientAuth, ca, caKey)
+	foreignKey := key()
+	foreign := *caTemplate
+	foreign.SerialNumber = big.NewInt(201)
+	foreign.Subject.CommonName = "Foreign private CA"
+	foreign.SubjectKeyId = []byte{99, 1, 2, 3}
+	foreignDER, e := x509.CreateCertificate(rand.Reader, &foreign, &foreign, &foreignKey.PublicKey, foreignKey)
+	if e != nil {
+		t.Fatal(e)
 	}
-	clientCert, clientKey := issue("client", 103, x509.ExtKeyUsageClientAuth, clientCA, clientCAKey)
-	crl := &x509.RevocationList{Number: big.NewInt(1), ThisUpdate: now.Add(-time.Minute), NextUpdate: now.Add(time.Hour)}
-	if scenario == "revoked" {
-		crl.RevokedCertificateEntries = []x509.RevocationListEntry{{SerialNumber: big.NewInt(103), RevocationTime: now.Add(-time.Minute)}}
+	foreignCA, e := x509.ParseCertificate(foreignDER)
+	if e != nil {
+		t.Fatal(e)
 	}
+	foreignCert, foreignClientKey := issue("client", 105, x509.ExtKeyUsageClientAuth, foreignCA, foreignKey)
+	crl := &x509.RevocationList{Number: big.NewInt(1), ThisUpdate: now.Add(-time.Minute), NextUpdate: now.Add(time.Hour), RevokedCertificateEntries: []x509.RevocationListEntry{{SerialNumber: big.NewInt(104), RevocationTime: now.Add(-time.Minute)}}}
 	crlDER, e := x509.CreateRevocationList(rand.Reader, crl, ca, caKey)
 	if e != nil {
 		t.Fatal(e)
 	}
 	caPEM := encode("CERTIFICATE", caDER)
-	return Credentials{Certificate: append(serverCert, caPEM...), PrivateKey: serverKey, ClientCA: caPEM, ClientCRL: encode("X509 CRL", crlDER)}, clientCert, clientKey, now
+	return Credentials{Certificate: append(serverCert, caPEM...), PrivateKey: serverKey, ClientCA: caPEM, ClientCRL: encode("X509 CRL", crlDER)}, map[string]tlsClientCase{"valid": {validCert, validKey}, "revoked": {revokedCert, revokedKey}, "foreign": {foreignCert, foreignClientKey}}, now
+}
+
+func TestTLSClientCasesShareSelectiveRevocationPolicy(t *testing.T) {
+	credentials, cases, _ := tlsCredentialsCasesFixture(t)
+	defer clear(credentials.PrivateKey)
+	for _, name := range []string{"valid", "revoked", "foreign"} {
+		client := cases[name]
+		canonicalValidateTLSFixture(t, name, credentials, client.Certificate, client.PrivateKey)
+		clear(client.PrivateKey)
+	}
 }

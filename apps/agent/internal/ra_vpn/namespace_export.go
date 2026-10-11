@@ -1,15 +1,11 @@
 package ravpn
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -76,23 +72,39 @@ func (h *FixedNamespaceHandoff) targets(ctx context.Context) ([]MountTarget, err
 }
 
 // Preflight verifies installed broker and read-only manager supplier prerequisites.
-func (h *FixedNamespaceHandoff) Preflight(ctx context.Context) error {
+func (h *FixedNamespaceHandoff) Preflight(ctx context.Context) (result error) {
 	if h == nil || h.Provider == nil || h.Provider.Preflight(ctx) != nil {
 		return ErrBoundary
 	}
 	executable := h.executable()
-	if !filepath.IsAbs(executable) || filepath.Clean(executable) != executable || validateNamespaceBrokerExecutable(executable) != nil {
+	if !filepath.IsAbs(executable) || filepath.Clean(executable) != executable {
 		return ErrBoundary
 	}
+	proof, err := newBrokerExecutableProof(ctx, executable)
+	if err != nil {
+		return ErrBoundary
+	}
+	defer func() {
+		if proof.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
 	dispatcher := h.Dispatcher
 	if dispatcher == nil {
 		dispatcher = &SystemdNamespaceBroker{Executable: executable}
 	}
 	attested, ok := dispatcher.(NamespaceBrokerAttestedFDDispatch)
-	if !ok || attested.Preflight(ctx) != nil {
+	if !ok {
 		return ErrBoundary
 	}
-	return nil
+	if fixed, ok := attested.(*SystemdNamespaceBroker); ok {
+		if fixed.preflightUsing(ctx, proof) != nil {
+			return ErrBoundary
+		}
+	} else if attested.Preflight(ctx) != nil {
+		return ErrBoundary
+	}
+	return proof.Verify(ctx, executable)
 }
 func uniqueMountTargets(targets []MountTarget) []MountTarget {
 	var out []MountTarget
@@ -133,16 +145,50 @@ func (h *FixedNamespaceHandoff) Export(ctx context.Context, plan *NetworkPlan) e
 
 // Verify reads back every owned binding without repairing namespace state.
 func (h *FixedNamespaceHandoff) Verify(ctx context.Context, plan *NetworkPlan) error {
-	record, e := readNamespaceExport(plan)
-	if e != nil || record.Pending {
+	record, err := readNamespaceExport(plan)
+	if err != nil || record.Pending {
 		return ErrBoundary
 	}
-	current, e := h.targets(ctx)
-	if e != nil || !sameMountTargets(current, record.Targets) {
+	before, err := h.capture(ctx)
+	if err != nil {
 		return ErrBoundary
 	}
-	for _, target := range uniqueMountTargets(current) {
-		if h.call(ctx, "verify", plan, target) != nil {
+	return verifyHeldTargetChain(ctx, record.Targets, before, func(call context.Context, target MountTarget, snapshot *NamespaceTargetSnapshot) (*NamespaceTargetSnapshot, error) {
+		bounded, cancel := context.WithTimeout(call, 15*time.Second)
+		defer cancel()
+		return h.callWithCapture(bounded, "verify", plan, target, snapshot)
+	})
+}
+
+// One read-only Verify owns this entire chain. The fresh post-capture of the
+// first fixed target is also the pre-capture of the next target: no action lies
+// between those boundaries. Each target retains independent pre/post captures;
+// every Acquire still contains its two independent manager observations. No
+// snapshot or executable proof is reused by another Verify call.
+func verifyHeldTargetChain(ctx context.Context, expected []MountTarget, before *NamespaceTargetSnapshot, verify func(context.Context, MountTarget, *NamespaceTargetSnapshot) (*NamespaceTargetSnapshot, error)) (result error) {
+	current := before
+	defer func() {
+		if current != nil && current.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
+	if ctx.Err() != nil || current == nil || current.Validate() != nil || !sameMountTargets(current.Targets[:], expected) || verify == nil {
+		return ErrBoundary
+	}
+	for _, target := range uniqueMountTargets(expected) {
+		if ctx.Err() != nil {
+			return ErrBoundary
+		}
+		next, err := verify(ctx, target, current)
+		if err != nil || ctx.Err() != nil || next == current || !current.SameTargets(next) {
+			if next != nil {
+				_ = next.Close()
+			}
+			return ErrBoundary
+		}
+		old := current
+		current = next
+		if old.Close() != nil {
 			return ErrBoundary
 		}
 	}
@@ -188,6 +234,17 @@ func (h *FixedNamespaceHandoff) call(ctx context.Context, operation string, plan
 		return ErrBoundary
 	}
 	defer func() { _ = before.Close() }()
+	after, err := h.callWithCapture(bounded, operation, plan, target, before)
+	if after != nil {
+		defer func() { _ = after.Close() }()
+	}
+	return err
+}
+
+func (h *FixedNamespaceHandoff) callWithCapture(bounded context.Context, operation string, plan *NetworkPlan, target MountTarget, before *NamespaceTargetSnapshot) (*NamespaceTargetSnapshot, error) {
+	if bounded.Err() != nil || plan == nil || plan.Validate() != nil || before.Validate() != nil {
+		return nil, ErrBoundary
+	}
 	role := -1
 	for index, observed := range before.Targets {
 		if observed.Boot.Equal(target.Boot) && observed.MountInode == target.MountInode {
@@ -196,31 +253,31 @@ func (h *FixedNamespaceHandoff) call(ctx context.Context, operation string, plan
 	}
 	source := (bootid.Reader{}).ForPID(os.Getpid())
 	if role < 0 || !source.Equal(before.Source) {
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
 	self, err := unix.Open("/proc/self/ns/mnt", unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
 	defer func() { _ = unix.Close(self) }()
 	var selfStat unix.Stat_t
 	if unix.Fstat(self, &selfStat) != nil || brokerNamespaceFD(self, unix.CLONE_NEWNS, selfStat.Ino) != nil {
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
 	host, err := unix.Open(filepath.Join(InstanceRoot, plan.Instance, "hostnetns"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
 	defer func() { _ = unix.Close(host) }()
 	private, err := unix.Open(filepath.Join(InstanceRoot, plan.Instance, "netns"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
 	defer func() { _ = unix.Close(private) }()
 	request := NamespaceBrokerMessage{Operation: operation, Instance: plan.Instance, Source: MountTarget{source, selfStat.Ino}, Targets: append([]MountTarget(nil), before.Targets[:]...), Target: target, HostNamespace: plan.HostNamespaceInode, Namespace: plan.NamespaceInode}
 	fds := [4]int{int(before.Files[role].Fd()), host, private, self}
 	if validateAttestedBrokerFDs(request, fds) != nil {
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
 	dispatcher := h.Dispatcher
 	if dispatcher == nil {
@@ -228,13 +285,16 @@ func (h *FixedNamespaceHandoff) call(ctx context.Context, operation string, plan
 	}
 	attested, ok := dispatcher.(NamespaceBrokerAttestedFDDispatch)
 	if !ok {
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
 	operationError := attested.RunAttestedFDs(bounded, request, fds)
 	after, afterError := h.capture(bounded)
-	if after != nil {
-		defer func() { _ = after.Close() }()
-	}
+	accepted := false
+	defer func() {
+		if !accepted && after != nil {
+			_ = after.Close()
+		}
+	}()
 	unchanged := afterError == nil && before.SameTargets(after) && (bootid.Reader{}).ForPID(source.PID).Equal(source)
 	if operationError != nil || !unchanged {
 		// Only undo this operation's exact owned exports while the original namespace
@@ -244,9 +304,10 @@ func (h *FixedNamespaceHandoff) call(ctx context.Context, operation string, plan
 			request.Operation = "remove"
 			_ = attested.RunAttestedFDs(bounded, request, fds)
 		}
-		return ErrBoundary
+		return nil, ErrBoundary
 	}
-	return nil
+	accepted = true
+	return after, nil
 }
 
 func readNamespaceExport(plan *NetworkPlan) (namespaceExportRecord, error) {
@@ -323,17 +384,17 @@ func writeNamespaceExport(record namespaceExportRecord, replace bool) error {
 	return directory.Sync()
 }
 
-func validateNamespaceBrokerExecutable(path string) error {
-	data, e := trustedInstallationFile(path, 32<<20, true)
-	if e != nil || len(data) < 4 || !bytes.Equal(data[:4], []byte{0x7f, 'E', 'L', 'F'}) {
+func validateNamespaceBrokerExecutable(path string) (result error) {
+	proof, err := newBrokerExecutableProof(context.Background(), path)
+	if err != nil {
 		return ErrBoundary
 	}
-	receipt, e := trustedInstallationFile(path+".sha256", 128, false)
-	digest := sha256.Sum256(data)
-	if e != nil || strings.TrimSpace(string(receipt)) != hex.EncodeToString(digest[:]) {
-		return ErrBoundary
-	}
-	return nil
+	defer func() {
+		if proof.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
+	return proof.Verify(context.Background(), path)
 }
 
 // NewFixedNamespaceHandoff constructs a lazy broker with no filesystem effects.

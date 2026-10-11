@@ -2240,7 +2240,7 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: "running"
+    state: "merged"
     parked_on: ""
     wbs:
       - D6.9
@@ -2248,17 +2248,18 @@ tasks:
     files_owned:
       "- NEW files in P11's renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/ngfw-ra*.tmpl (prefer
       a separate conf.d `ngfw-ra.conf`, a 0600 `ngfw-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11's templates), apps/agent/internal/renderers/strongswan/testdata/ra-*"
-    branch: "codex/ra-canonical-peer-completion-20261011"
+    branch: "codex/ra-restart-held-proofs-20261011"
     worktree: "/tmp/ngfw-complete-20261011"
     owner: "routing_acceptance"
     started: ''
-    finished: ''
+    finished: '2026-10-11'
     notes: ''
-    worker_status: "PR230 merged with mandatory and main CI PASS; original engine activation and genuine EAP/VIP advance after fixing independent peer credential/library fixtures; DNS comment parsing corrected; full native traffic/restart/TLS/rollback/API/browser acceptance remains open"
+    worker_status: "completed; PR232 source and both-host canonical/API/browser/900-second cleanup accepted; owned workers stopped; implementation mandatory38171610069 and packaging38171610048 PASS; final integration checks tracked on PR232"
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
     advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
     completion_receipt_20261008: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."
     acceptance_receipt_20261010: "Actual both-host private EAP/TLS/VICI/ESP/VRF/ACL tests PASS; 250 genuine artifact ABI preflight FAIL. Supplemental guest5 Health works but operational=false engine-not-ready; specific underlying cause unproven. New authenticated read-only PID1 probe during already-authorized PPP unit lifecycle observed actual type4 signals mixed with replies, rejected by current source. Narrow bounded signal-handling fix under implementation/review, original budgets retained. Full canonical supplier/session/identity/recovery/API/browser acceptance remains open; not Done."
+    final_acceptance_20261011: "product30 native PASS195236.51s/250230.41s, original restart26.040s/25.821s under30; same product API fixture35 whole holds900.16s/900.19s PASS with 8 actual UI views per host, real admin reconnect, readonly403, overlapping-pool400, secret scans, normal baseline/physical cleanup; private failures retained; docs/status/tasks/pppoe-ra-completion-20261011-evidence.json"
   - id: P10
     title: Debian packaging + systemd + install (26.04, our VPP debs)
     prompt: prompts/P10-packaging-deb.md

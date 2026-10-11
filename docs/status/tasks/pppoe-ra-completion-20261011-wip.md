@@ -1,3 +1,18 @@
+# PPPoE and RA completion receipts
+
+Final acceptance completed on 2026-10-11. PPPoE is merged through PR228; RA source and closeout are submitted together in PR232. The board records 212/212 source tasks as merged once this PR is integrated; final PR and main CI are checked before reporting integration complete.
+
+- PPPoE: both-host normal API IPv4/IPv6 default route, NAT/MSS, RX/TX, reconnect, peer-loss withdrawal, wrong PAP refusal, restart recovery and baseline cleanup PASS. Original 11-second bound retained: .195 10.275s, .250 10.346s. Multi-WAN original flow/packet, weighting, NAT, dead-member and PBR campaign also PASS on both hosts.
+- RA final product30: complete canonical native campaign PASS .195 236.51s and .250 230.41s, including actual EAP/VIP/DNS/split selectors, selected VRF and both ACL directions, ESP-only packet capture, bad password, actual valid/revoked/foreign EAP-TLS, real VICI disconnect, original-agent restart, physical and baseline cleanup. Restart 26.040085725s / 25.821022867s is inside the original 30 seconds.
+- Same product binaries, API fixture35: whole actual 900-second hold PASS .195 900.16s / .250 900.19s, no skip; genuine admin UI disconnect and different new ID, overlapping second pool HTTP400 at its exact pointer, eight real UI views per host (admin/readonly, en/fa, light/dark), RTL, readonly HTTP403 with the actual session unchanged, and public config/candidate/export/capability/audit secret scanning PASS. Initial browser subset timeouts are retained; missing views passed through fresh normal login under the same successful hold. The original whole-run, reconnect and cleanup budgets were not increased.
+- Both normal public API baseline restores PASS. Running equals each captured baseline except manager users that the normal API preserves. The .250 baseline is its first committed disabled foundation, not an empty pre-bootstrap database. Actual readback shows no active RA instance services, peer namespaces, or RA TAPs; .250 retains the two loopbacks from that disabled foundation. Peer status is stopped only after strict cleanup. Both owned guest PID1s exited, APIs/previews/byte bridges stopped, own PG databases/roles dropped, and only owned Valkey prefixes removed. Shared .195 VPP PID556416/NRestarts1 and .250 VPP PID8102/NRestarts0 plus FRR PID4575 remain as recorded before final runs.
+
+Implementation head f96278cf29759d97f547f0f643558a0d952fc9fb passed mandatory CI38171610069 and packaging38171610048. Final documentation-head checks and actual merged-main checks are recorded in PR232. Public hashes, actual results, failed-attempt distinctions and screenshots' hashes are in `pppoe-ra-completion-20261011-evidence.json`; raw logs and credentials stay private.
+
+Lab limits: these are independent native PID1/network namespace guests using finite reviewed opaque mutual-TLS byte transport, not a full installed appliance or QEMU test. The .195 lab API process became unresponsive after transport replacement; only the owned normal API process was restarted, then real API baseline restore and exact readback passed. The cause is unproven and continuous API uptime is not claimed. Live RADIUS is not claimed; EAP-RADIUS golden rendering and actual EAP-MSCHAPv2/EAP-TLS are separate evidence.
+
+## Historical attempts (superseded by the final receipts above)
+
 # PPPoE accepted; RA canonical acceptance remains open
 
 Base main d44c68edccd16e8adc9ac2545c0b61f5154ed36e; 210/212 merged.
@@ -284,3 +299,252 @@ also fail the original30s cleanup deadline. Fresh corrected complete traffic,
 restart under30s, TLS, rollback and real API/browser acceptance remain required.
 Owned inactive59/61/62/63/64 roots were removed only after process/root-inode/mount
 checks, with protected observations/evidence and hashes retained.
+
+
+### Restart recovery controls (source13–18; task remains running)
+
+PR231 exact27d185103a6b1239c7b8056a6ffe58e33a7ec1ab mandatory38151031338
+PASS, merged e2958df326e207c61c8d28148bb1e2ebab62faa1. Main38152724713 PASS. These fixture corrections do not close RA.
+
+Native65 obtains genuine EAP, VIP, DNS, selectors and encrypted traffic through
+selected VPP VRF/ACL. Restart reveals systemd removes RuntimeDirectory=/run/ngfw,
+including the owned engine snapshot and independent peer. The actual agent unit
+now uses RuntimeDirectoryPreserve=restart; regular stop still clears it, and its
+exact integrity digest is updated. Native66 proves peer survival but recovery
+still fails. No deadline or capability change is made.
+
+Bounded protected-file reads preallocate the already-validated file size while
+retaining the same limit+1 read and ownership/path checks. A private 16MiB ELF
+benchmark improves 73.971ms/36.23MB allocated to35.861ms/16.79MB. Native67 still
+fails its added8s readiness prewait, but complete baseline cleanup passes22.929s
+under the original30s. That prewait failure is not evidence the original30s
+restart limit failed. Native68 CPU profiling is diagnostic only: SHA256 accounts
+for310/390ms of one helper profile. Its campaign fails; no acceptance is claimed.
+
+Each namespace target capture now independently hashes and holds protected broker
+ELF and receipt descriptors. Fresh canonical reopen, full file stamps and complete
+process boot identity are checked at later boundaries. Proofs are local to one
+capture/process; there is no shared cache, cross-capture or restart authority.
+Mutation, same-byte inode replacement, writable-parent, cancellation, wrong-path,
+closed-proof and digest mismatch controls pass. Source17 full RA race PASS3.740s.
+
+Restart readiness, real negotiation and final observation now share the original
+30s context. Native69 source17 and native70 source18 both pass genuine encrypted
+traffic but fail actual30s recovery and cleanup; neither is a complete campaign.
+The real kernel reports XFRM if_id as the JSON string"0x1". A disposable actual
+network namespace reproduces it; the prior reader fails the roundtrip test. The
+reader now accepts exactly numeric1 or canonical"0x1", preserving the exact-ID
+ownership guard. Old-source regression FAIL0.065s; source18 full RA race PASS3.994s.
+This fixes a real reader error, but native70 shows another recovery failure remains.
+
+Early failed campaigns retain the independent resolver file/peer namespace when
+strongSwan replaces its inode: the foreign-replacement cleanup guard is retained.
+Full restart, EAP-TLS valid/revoked/foreign-CA, transport rollback, both-host genuine
+API/license/session/second-pool400 and en/fa browser acceptance remain required.
+
+
+Native71 repeats the real30s recovery failure. Native72 is diagnostic only: its
+daemon reports a bounded startup phase into its owned private writable directory;
+no acceptance or cleanup success is attributed to that modified diagnostic ELF.
+A live, root-inode/scope/PID1-verified collector captures namespace-8: the existing
+outer-rule reader rejects table100. A disposable actual network namespace shows
+iproute2 returns table as JSON string"100", while the guard expects numeric100.
+The reader now accepts exactly those two representations; other tables and foreign
+string formats remain refused. Real-kernel old-source control FAIL0.061s; source19
+full RA race PASS3.675s. Source18 subsystem race PASS33.541s after shortening its
+private exec-capable temporary path: earlier runs exceeded the unchanged SNMP
+path-length guard; /run alone also disallows execution. Those failures are retained.
+Owned inactive68–71 roots are archived with evidence hashes after repeated process,
+root-inode and mount checks. Complete canonical acceptance remains pending.
+
+
+Native73 source19 first recovers the actual engine automatically: connect resync
+APPLIED33.180s, finishing about42.56s after restart. The original30s readiness
+assertion and baseline rollback still fail; full canonical acceptance remains open.
+Source20 removes duplicate whole-broker hashes within one handoff preflight using
+a capture-local held proof, retaining fresh canonical reopen/stamps and all fixed
+unit/capability/socket guards. The independent unit observer uses its existing
+numeric installation proof, which already hashes the same fixed broker/receipt,
+instead of a duplicate hash. Standalone broker validation streams the whole ELF
+through a fresh proof; no cross-call/capture/process cache is introduced.
+The added readiness poll uses the existing8s observation bound, always clipped by
+the original whole30s restart context; initial2s polling was shorter than the
+verified observation path. Source20 full RA race PASS3.838s. Fresh original native
+execution must prove that recovery actually meets30s.
+
+
+PR232 source2d6546bfe mandatory38155671841 fails scoped Go security lint on
+synthetic ELF mode0700 and the intentional writable-parent mutation test. Each
+case now has a narrow documented rule annotation: execute permission is required
+by the owner-only synthetic ELF control, and mode0770 is the isolated rejection
+input. No production rule is disabled. Scoped RA/daemon/subsystem lint PASS0issues.
+Source20 subsystem race PASS33.570s. Native75 still fails30s: automatic resync
+APPLIED30.196s, finishing about39.77s after restart. Native76 is timing-diagnostic
+only; actual engine Create9.380s, unit Start6.807s and connect resync30.769s.
+These modified diagnostic ELFs cannot establish acceptance. Both-host native
+execution, full restart/TLS/rollback and actual API/browser remain open.
+
+
+The exact source20 ELF/unit/provider cohort is verified SHA-for-SHA on250. Its
+first launcher fails139 before guest startup because vendor libc was paired with
+the host loader; the retry uses the genuine paired vendor loader/library closure
+without host installation or library changes. The real250 campaign then passes
+EAP/VIP/DNS/selectors/ESP/VPP ACL traffic but fails original30s recovery and
+cleanup (149.65s whole failed campaign). This is partial progress, not acceptance.
+Shared250 VPP remains8102/NRestarts0.
+
+Source21 optimizes only one read-only handoff Verify: its fresh post-capture for
+one fixed target becomes the next target's pre-capture in the same operation.
+Every target retains pre/post linkage; every Acquire retains two independent
+manager captures. Export/Remove keep separate original capture pairs, four-role
+requests and exact compensation. No snapshot or ELF proof crosses another Verify.
+Owned real child MNT/image controls reject intermediate generation/image/closure,
+cancellation, reused snapshot and second-hop failure; all descriptors are closed.
+Source21 full RA race PASS3.525s; scoped lint PASS0issues. Fresh original native
+execution must still prove30s recovery, TLS, baseline rollback and API/browser.
+
+
+Source21 normal native77 passes genuine EAP and ESP/VPP ACL traffic. Automatic
+recovery reaches authenticated empty-session readback, but final observed session
+fails the original whole30s restart context. Connect resync is APPLIED26.056s;
+engine creation precedes its end by8.52s. Whole canonical campaign FAIL150.45s,
+including retained DNS ownership refusal on failure cleanup. No TLS/rollback
+completion or whole-task PASS is inferred. Exact c54e47d PR232 mandatory38157714653
+and packaging38157714649 both PASS, but PR232 is still open.
+
+Source22 permits concurrent read-only Runtime Ready/Records/Sessions under a
+shared lock while lifecycle changes retain the exclusive lock. Each production
+observation adapter serializes its own two fresh socket captures with cancellation
+inside its original5s budget. No capture is cached. LazyEngineStore serializes
+its first open and directory operations. A control proves Sessions proceeds during
+held readiness and lifecycle mutation waits; another proves cancelled capture
+waits preserve the token. RA race PASS3.653s, subsystem race PASS32.524s, scoped
+lint PASS0issues. Normal native78 is running with original budgets. Agent uses
+normal unstripped build; helpers use production packaging's -s -w, all CGO0.
+Complete native/TLS/rollback and both-host API/browser evidence remains open.
+
+
+Source22 normal native78: automatic empty-session readback29.403s and genuine
+negotiation29.428s; final observed session FAIL under the unchanged whole30s
+context. Whole canonical FAIL150.93s. Source23 normal native79 similarly reaches
+readback29.045s and negotiation29.068s, then fails final observation; no completion.
+Source23 changes classify helper/daemon from one fresh held two-capture snapshot
+in Unit.Start, retaining a fresh manager PID and complete live process identity.
+Runtime still independently observes again before loading credentials. Full RA
+race PASS3.810s. Source23 native80 adds timing logs only and is diagnostic, never
+an acceptance receipt: create6.752s, Start4.320s, each two-capture target/unit
+acquisition approximately2s; complete unchanged export repair discarded one
+fresh initial snapshot before starting another pre/post pair. Instrumented
+Acquire's cancelled flag includes its own deferred cancellation and must not be
+interpreted as proof of a caller deadline failure.
+
+Source24 retains that initial snapshot only for read-only verification of complete
+unchanged stopped exports, using the same fresh pre/post chain. Partial exports,
+generation replacement and mutating dispatch retain separate captures and all
+existing guards. RA race PASS3.662s, subsystem race PASS32.271s, scoped lint
+PASS0issues. Normal native81 on195 and native250-source24 are running; all18
+manifest files on250 match the local81 cohort exactly. No full campaign PASS
+is asserted. Inactive owned guests77–80 have their private observations/evidence
+retained with SHA receipts before removal; the lab services were preserved.
+
+Actual API/browser preparation uses an owned PostgreSQL role/database, normal
+bootstrap-admin login HTTP200, normal configured licence trust key (no licence
+issued/uploaded yet), fresh public PKI and an isolated byte-only bridge transport.
+Normal API/schema/web builds pass. Existing real Chrome154.0.8037.97 runs through
+Playwright; the new browser download failed403 and is retained as failed setup,
+not acceptance. No live agent/API/browser campaign or whole RA completion is
+inferred from these prerequisites.
+
+Source24 mandatory CI run38161228779 and packaging38161228790 PASS.
+Original full source24 campaigns recovered sessions on195/250 within30s but
+failed at the later repeated TLS Apply against the unchanged240s deadline.
+Fixture25 configures one real responder CA/CRL and three matching client-key
+cases; its revoked case failed because an earlier same-identity peer credential
+could be selected. Fixture26 clears only disposable peer VICI credentials and
+requires actual get-keys readback to contain exactly the selected key. Both
+hosts then passed valid, revoked and foreign actual TLS outcomes, with restart
+readback26.905s/26.782s, but failed at duplicate physical-dump stream Close.
+The generated VPP RPC client closes on terminal control-ping and returns EOF
+only after successful Close; fixture27 consumes that success without closing
+the already-closed stream again. Original dump bounds and rollback assertions
+remain. RA race PASS4.589s, lint PASS0issues; whole fixture27 reruns pending.
+API hold captures the real DNS ownership after each verified connected view.
+Private API84 setup failed because the minimal guest lacks seq; a fresh API86
+uses bounded shell arithmetic instead. Normal login, actual capabilities200,
+PKI import, secrets, signed licence upload and valid-state readback pass.
+Foundation commit failed on nspawn replacing the guest localtime package link;
+only the independently owned guest link was restored. A subsequent commit had
+unknown outcome after actual transport loss; no API/browser acceptance claimed.
+
+Full normal product24/fixture27 on250 PASS231.07s with campaignEXIT0:
+actual EAP/ESP, unchanged normal Apply, original-unit restart26.407s readback,
+TLS valid/revoked/foreign, physical transport ownership, connection/pool removal
+and complete baseline rollback. Local87 failed248.26s at VPN rollback against
+unchanged240s budget; cleanup Apply completed, but this is not local acceptance.
+Concurrent local API work and VPP health timeouts were observed; cause remains
+unproven. Local revalidation is required. Private failed roots83/84/85/87 were
+retained with SHA receipts and removed only after all-process root identity and
+mount checks proved inactivity.
+
+API86 normal public activation and complete baseline restore PASS. Its read-only
+hold failed on exact profile equality: real Retrieve contains the public schema's
+materialized DPD enabled/30/150/restart and rekey14400/3600/false defaults.
+Fixture28 expects these exact values, preserving every endpoint, secret reference,
+proposal and policy equality assertion. RA race PASS3.462s and lint PASS0issues.
+Fresh owned API88 is prepared with VPP main core1 within the original eight CPU
+budget to avoid sharing main core0 with the independent full campaign.
+The minimal guest's localtime link pointed directly into zoneinfo; nspawn causation
+was not proven. The package-required link was restored only in owned guests.
+API86 SIGSYS occurred when applying hostname through nspawn's syscall policy;
+its owned UTS was initialized to the normal appliance hostname ngfw without
+changing host UTS. API88 selects that hostname at launch, timezone initialization
+off and journal linking disabled. These are fixture prerequisites, not product
+unit overrides or whole API/browser acceptance.
+
+Normal local product24/fixture28 repeat PASS229.58s, campaignEXIT0, original
+restart readback26.619s; both full canonical hosts now pass that product cohort.
+API28 still failed: genuine Retrieve returned road but omitted its referenced
+IKE proposal (VPN readback contained only remoteAccess). EngineSpec already
+holds the observed exact proposal and public certificate/CA references.
+AssembleRA now restores these references from the verified engine objects,
+clones them and preserves already assembled entries. No credentials or private
+key values enter readback. Regression checks exact dependency reconstruction,
+unmanaged-domain exclusion and lack of proposal aliasing. An initial assertion
+was corrected to account for the existing nil-enabled means true normalization;
+a missing server-certificate guard handles incomplete synthetic records.
+Desired race PASS34.798s, RA race PASS3.462s, agent race PASS61.781s using the
+original short protected test directory (an earlier long Unix path failed).
+Scoped lint PASS0issues. Product30/fixture30 normal full reruns and API/browser
+campaigns remain pending; prior full cohort receipts remain retained.
+
+Final product30 full canonical PASS on195236.51s and250230.41s, both EXIT0.
+All original packet/auth/restart/TLS/physical/VICI/baseline assertions ran without
+skip; remote restart readback25.795s, negotiation25.821s. Subsystem race PASS33.810s.
+API88 failed after an explicit stop/start binary replacement removed runtime
+state; it is retained as a failed upgrade setup, not acceptance. Fresh API91
+boots product30 with the original production unit and no staged agent state.
+API fixture-only coordinator time allows its existing900s hold plus bounded
+setup/rollback; production240s/30s/30s and VICI10s limits stay unchanged.
+API30 hold failed by reusing a ten-second authenticated VICI session past its
+socket deadline. Fixture31 opens a fresh PID/start/namespace-bound VICI session
+inside each observation subtest, closes it at subtest end and leaves the genuine
+peer process alive. DNS ownership is captured after validated actual DNS readback.
+RA race PASS3.632s, lint PASS0issues. An early manager script incorrectly expected
+a disjoint second pool to fail. The task requires overlapping pools400; the
+correct control stages an overlapping second pool, requires validate400 with the
+second pool pointer, checks running unchanged and discards the draft back to the
+exact original candidate. No unsupported one-pool product restriction was added.
+Fresh finite private TLS transport credentials are generated through the reviewed
+byte bridge. Actual API/browser and final held-peer cleanup remain pending.
+
+Source 31 actual API negatives and normal readonly-user commits passed on both hosts. The held API-peer campaigns did not complete: host 195 stopped at a session-observation error during concurrent browser attempts, and host 250 stopped after the UI removed the SA because the fixture tried to terminate an already absent peer SA. Their DNS ownership cleanup correctly refused an uncaptured rewritten resolver inode; the failed roots and private logs remain retained. Source 32 inventories the exact private peer connection and bounded SA count before reconnecting, terminates only a present owned SA, and captures the owned resolve-plugin inode after IKE removal. The 900-second hold, authenticated VICI deadlines, original canonical product binaries, and all API/browser assertions are unchanged. Fresh source 32 API campaigns remain pending; no completion is claimed.
+
+Source 32 host250 confirmed a normal browser admin disconnect (HTTP200, disconnected=true), disappearance of the selected old session ID, and a different genuinely negotiated session ID. Its hold still failed at the subsequent fail-closed public observation during the IKE transition; later browser views consequently lacked a client. Source 33 requires a complete exact one-session public readback after initiate inside the unchanged 15-second reconnect context, retries only the observed FailedPrecondition transition, rejects other failures/multiple sessions/stale IDs, and verifies actual DNS before continuing. Race PASS3.795s, lint PASS0issues. Local fresh API92 enablement separately failed publisher queued-input checkpoint13; the degraded root and complete journals are retained. Its normal-source repeat API93 enabled successfully after the older owned fixture scopes were stopped. Actual API/browser holds remain pending.
+
+Source 33 API holds failed again at complete runtime observation; private diagnostic-only agent images separated handoff, unit and VICI failures and located a unit observation refusal (one elapsed5145ms, caller context still live). Concurrent UI/held-peer reads consume the unchanged five-second two-capture observation budget, so failure remains closed. The diagnostic source changes were retained privately and removed from the PR; frozen normal product30 binaries are used for final acceptance. Fixture34 bounds fresh retries of only FailedPrecondition observations to15s, inside the unchanged900s whole hold, never returns a substituted/cached snapshot, and still rejects other statuses or stale/multiple sessions. Tests prove exact fresh success, immediate PermissionDenied, shorter caller deadline and cancellation. RA race PASS3.935s, lint PASS0issues. Private browser verification uses its own genuine login response rather than an older saved JWT and allows the UI's normal30s query refetch within a finite90s display wait; product/API/VICI/restart budgets stay unchanged. Fresh two-host final cohorts remain pending.
+
+### API fixture 35: owned DNS shutdown boundary
+
+Product 30 / fixture 34 held the actual API peer for 900.17 seconds on .195 and 900.24 seconds on .250, with all eight browser views, genuine admin disconnect/reconnect, overlapping-pool rejection, public/export/audit secret scanning and readonly API 403 passing on both hosts. Both whole test results nevertheless failed at resolver cleanup: SIGTERM of the still-connected private client rewrote its DNS file after the last captured inode. These are retained failed runs, not acceptance. Both normal public API baseline restores subsequently passed; the .250 restore request began shortly before the hold deadline but completed after it.
+
+Fixture 35 registers a bounded, authenticated final VICI inventory and exact `ra-client` termination before client process shutdown, then captures the resolver inode while that owned process remains alive. Existing nofollow, parent/inode, root ownership and link-count cleanup checks remain unchanged. Product binaries and the original 900-second hold, 30-second cleanup and native restart budgets are unchanged. RA race tests passed (5.116s). Fresh independent fixture-35 API guests are running; final acceptance remains pending.

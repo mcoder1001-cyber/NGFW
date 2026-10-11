@@ -1,5 +1,7 @@
 # Actual API/browser campaign handoff
 
+Final execution completed on 2026-10-11: normal product30 / API fixture35 passed both independent native PID1/network namespace guest holds (900.16s / 900.19s), all eight actual UI view assertions per host, genuine disconnect/reconnect, negative pool and readonly checks, public secret scanning, and real baseline/physical cleanup. See [final receipts](pppoe-ra-completion-20261011-wip.md) and [public hashes and results](pppoe-ra-completion-20261011-evidence.json). The historical recipe below predates that execution; its pending statements and QEMU transport plan describe preparation, not current task status.
+
 This is an execution recipe, not an acceptance receipt. Supplier readiness and the canonical packet campaign remain prerequisites. The API caller is the manager; the independent QEMU coordinator owns the guest. No fake agent, database seed, direct sealed-store staging, or disabled licence guard is permitted.
 
 ## Licence and private inputs

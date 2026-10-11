@@ -28,7 +28,7 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 ## Remaining implementation / review
 
-- F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; PR232 source24 race/lint pass; complete unchanged stopped-export readback retains initial fresh capture; exact18-file cohort runs original canonical tests on195 and250; prior22/23 final-session timeout failures retained; TLS/rollback and actual both-host API/browser acceptance remain open)
+- F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; PR232 product30 full canonical PASS195236.51s and250230.41s with original restart/TLS/packet/physical/baseline assertions; race/lint pass; fixture31 opens fresh authenticated peer VICI sessions; actual API/browser and held-peer cleanup running; prior failures retained)
 
 ## Parked
 

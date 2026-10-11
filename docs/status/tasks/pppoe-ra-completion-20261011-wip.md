@@ -501,3 +501,23 @@ Desired race PASS34.798s, RA race PASS3.462s, agent race PASS61.781s using the
 original short protected test directory (an earlier long Unix path failed).
 Scoped lint PASS0issues. Product30/fixture30 normal full reruns and API/browser
 campaigns remain pending; prior full cohort receipts remain retained.
+
+Final product30 full canonical PASS on195236.51s and250230.41s, both EXIT0.
+All original packet/auth/restart/TLS/physical/VICI/baseline assertions ran without
+skip; remote restart readback25.795s, negotiation25.821s. Subsystem race PASS33.810s.
+API88 failed after an explicit stop/start binary replacement removed runtime
+state; it is retained as a failed upgrade setup, not acceptance. Fresh API91
+boots product30 with the original production unit and no staged agent state.
+API fixture-only coordinator time allows its existing900s hold plus bounded
+setup/rollback; production240s/30s/30s and VICI10s limits stay unchanged.
+API30 hold failed by reusing a ten-second authenticated VICI session past its
+socket deadline. Fixture31 opens a fresh PID/start/namespace-bound VICI session
+inside each observation subtest, closes it at subtest end and leaves the genuine
+peer process alive. DNS ownership is captured after validated actual DNS readback.
+RA race PASS3.632s, lint PASS0issues. An early manager script incorrectly expected
+a disjoint second pool to fail. The task requires overlapping pools400; the
+correct control stages an overlapping second pool, requires validate400 with the
+second pool pointer, checks running unchanged and discards the draft back to the
+exact original candidate. No unsupported one-pool product restriction was added.
+Fresh finite private TLS transport credentials are generated through the reviewed
+byte bridge. Actual API/browser and final held-peer cleanup remain pending.

@@ -1142,7 +1142,7 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 			canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence+1, "stopped", prior)
 		}
 	})
-	peer, plan, dnsOwnership := canonicalGuestPeer(t, profile, proposal, credentials, password, "api-"+input.Generation)
+	_, plan, dnsOwnership := canonicalGuestPeer(t, profile, proposal, credentials, password, "api-"+input.Generation)
 	for ctx.Err() == nil {
 		rows, readErr := client.RemoteAccessSessions(ctx, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
 		if ctx.Err() != nil {
@@ -1151,36 +1151,44 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 		if readErr != nil || len(rows.GetSessions()) > 1 {
 			t.Fatal("API peer observed session boundary")
 		}
-		if len(rows.GetSessions()) == 0 {
-			sequence++
-			canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence, "disconnected", prior)
-			attempt, stop := context.WithTimeout(ctx, 15*time.Second)
-			if prior != "" {
-				terminated, terminateErr := peer.Call(attempt, "terminate", privateMessage("ike", "ra-client", "timeout", "2000"))
-				if terminateErr != nil || terminated == nil {
-					stop()
-					t.Fatal("API peer stale owned SA removal")
-				}
-			}
-			result, initiateErr := peer.Call(attempt, "initiate", privateMessage("child", "protected", "timeout", "12000"))
-			stop()
-			if initiateErr != nil || result == nil || result.Get("success") != "yes" {
-				t.Fatal("API peer genuine bounded reconnect")
-			}
-		} else {
-			row := rows.GetSessions()[0]
-			if row.GetId() != prior {
+		// Each real VICI operation has its own authenticated ten-second socket;
+		// the independent peer process remains alive throughout the hold.
+		if !t.Run("live-peer-observation", func(t *testing.T) {
+			peer := freshPrivateVICI(t, plan)
+			if len(rows.GetSessions()) == 0 {
 				sequence++
-				canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence, "connected", row.GetId())
-				prior = row.GetId()
+				canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence, "disconnected", prior)
+				attempt, stop := context.WithTimeout(ctx, 15*time.Second)
+				if prior != "" {
+					terminated, terminateErr := peer.Call(attempt, "terminate", privateMessage("ike", "ra-client", "timeout", "2000"))
+					if terminateErr != nil || terminated == nil {
+						stop()
+						t.Fatal("API peer stale owned SA removal")
+					}
+				}
+				result, initiateErr := peer.Call(attempt, "initiate", privateMessage("child", "protected", "timeout", "12000"))
+				stop()
+				if initiateErr != nil || result == nil || result.Get("success") != "yes" {
+					t.Fatal("API peer genuine bounded reconnect")
+				}
+			} else {
+				row := rows.GetSessions()[0]
+				if row.GetId() != prior {
+					sequence++
+					canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence, "connected", row.GetId())
+					prior = row.GetId()
+				}
+				if len(row.GetAddresses()) != 1 {
+					t.Fatal("API peer observed VIP")
+				}
+				canonicalGuestDNS(t, plan)
+				dnsOwnership.Capture(t)
+				canonicalNegotiatedSelectors(t, peer, row.GetAddresses()[0])
 			}
-			if len(row.GetAddresses()) != 1 {
-				t.Fatal("API peer observed VIP")
-			}
-			canonicalNegotiatedSelectors(t, peer, row.GetAddresses()[0])
-			canonicalGuestDNS(t, plan)
-			dnsOwnership.Capture(t)
+		}) {
+			return
 		}
+
 		select {
 		case <-ctx.Done():
 		case <-time.After(time.Second):

@@ -485,3 +485,19 @@ its owned UTS was initialized to the normal appliance hostname ngfw without
 changing host UTS. API88 selects that hostname at launch, timezone initialization
 off and journal linking disabled. These are fixture prerequisites, not product
 unit overrides or whole API/browser acceptance.
+
+Normal local product24/fixture28 repeat PASS229.58s, campaignEXIT0, original
+restart readback26.619s; both full canonical hosts now pass that product cohort.
+API28 still failed: genuine Retrieve returned road but omitted its referenced
+IKE proposal (VPN readback contained only remoteAccess). EngineSpec already
+holds the observed exact proposal and public certificate/CA references.
+AssembleRA now restores these references from the verified engine objects,
+clones them and preserves already assembled entries. No credentials or private
+key values enter readback. Regression checks exact dependency reconstruction,
+unmanaged-domain exclusion and lack of proposal aliasing. An initial assertion
+was corrected to account for the existing nil-enabled means true normalization;
+a missing server-certificate guard handles incomplete synthetic records.
+Desired race PASS34.798s, RA race PASS3.462s, agent race PASS61.781s using the
+original short protected test directory (an earlier long Unix path failed).
+Scoped lint PASS0issues. Product30/fixture30 normal full reruns and API/browser
+campaigns remain pending; prior full cohort receipts remain retained.

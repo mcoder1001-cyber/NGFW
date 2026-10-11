@@ -1,0 +1,1400 @@
+{
+  "pid1_start_unchanged": true,
+  "fixed_method": "Properties.Get Manager.Version",
+  "subscribe_or_unit_changes": false,
+  "connections": [
+    {
+      "attempt": 1,
+      "peer": [
+        1,
+        0,
+        0
+      ],
+      "duration": 0.909,
+      "counted_bytes_including_auth": 16002,
+      "frames": [
+        {
+          "type": 2,
+          "header": "6c020101190000000100000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000200000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000300000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000400000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000500000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000006000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000007000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401016500000008000000a2000000",
+          "size": 285,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uoss"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000009000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b80300000a000000de000000",
+          "size": 1192,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101880000000b000000a0000000",
+          "size": 312,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000c00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000d00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000e00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000f00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001000000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001100000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001200000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001300000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001400000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001500000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001600000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001700000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001800000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001900000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001a00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001b00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001c00000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c040101880000001d00000098000000",
+          "size": 304,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401015b0000001e00000099000000",
+          "size": 267,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uos"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101a80300001f000000be000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/shutdown_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000020000000b6000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/basic_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000021000000b6000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/sysinit_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000022000000d6000000",
+          "size": 1176,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/system_2dngfw_5cx2dpppoe_5cx2dbroker_2eslice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101cd00000023000000c6000000",
+          "size": 421,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/systemd_2djournald_2esocket",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000024000000c6000000",
+          "size": 1160,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/systemd_2djournald_2esocket",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000025000000ce000000",
+          "size": 1327,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/systemd_2dtmpfiles_2dsetup_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        }
+      ],
+      "error": "reply byte bound"
+    },
+    {
+      "attempt": 2,
+      "peer": [
+        1,
+        0,
+        0
+      ],
+      "duration": 0.998,
+      "counted_bytes_including_auth": 16102,
+      "frames": [
+        {
+          "type": 2,
+          "header": "6c020101190000000100000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000002000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000003000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000004000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000005000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000600000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000700000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000800000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000900000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000a00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000b00000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000c000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d80300000d000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101650000000e000000a2000000",
+          "size": 285,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uoss"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000f000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b803000010000000de000000",
+          "size": 1192,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401018800000011000000a0000000",
+          "size": 312,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001200000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001300000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001400000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001500000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001600000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001700000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001800000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001900000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001a00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001b00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001c00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001d00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001e00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001f00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000002000000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000002100000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000002200000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c040101880000002300000098000000",
+          "size": 304,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401015b0000002400000099000000",
+          "size": 267,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uos"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101a803000025000000be000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/shutdown_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000026000000b6000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/basic_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        }
+      ],
+      "error": "reply byte bound"
+    },
+    {
+      "attempt": 3,
+      "peer": [
+        1,
+        0,
+        0
+      ],
+      "duration": 0.88,
+      "counted_bytes_including_auth": 15985,
+      "frames": [
+        {
+          "type": 2,
+          "header": "6c020101190000000100000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000002000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000003000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000400000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000500000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000600000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000700000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000800000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000900000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000a000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d80300000b000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101650000000c000000a2000000",
+          "size": 285,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uoss"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000d000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b80300000e000000de000000",
+          "size": 1192,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d83f6c4ae3e5c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101880000000f000000a0000000",
+          "size": 312,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001000000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001100000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001200000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001300000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001400000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001500000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001600000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001700000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001800000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001900000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001a00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001b00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001c00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001d00000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c040101880000001e00000098000000",
+          "size": 304,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401015b0000001f00000099000000",
+          "size": 267,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uos"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101a803000020000000be000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/shutdown_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000021000000b6000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/basic_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000022000000b6000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/sysinit_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000023000000d6000000",
+          "size": 1176,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/system_2dngfw_5cx2dpppoe_5cx2dbroker_2eslice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101cd00000024000000c6000000",
+          "size": 421,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/systemd_2djournald_2esocket",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        }
+      ],
+      "error": "reply byte bound"
+    },
+    {
+      "attempt": 4,
+      "peer": [
+        1,
+        0,
+        0
+      ],
+      "duration": 0.869,
+      "counted_bytes_including_auth": 15985,
+      "frames": [
+        {
+          "type": 2,
+          "header": "6c020101190000000100000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000002000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000003000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000400000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000500000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000600000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000700000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000800000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000900000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000000a00000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000b000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d80300000c000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101650000000d000000a2000000",
+          "size": 285,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uoss"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000e000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b80300000f000000de000000",
+          "size": 1192,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401018800000010000000a0000000",
+          "size": 312,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001100000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001200000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001300000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001400000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001500000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001600000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001700000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001800000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001900000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001a00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001b00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001c00000037000000",
+          "size": 97
+        },
+        {
+          "type": 2,
+          "header": "6c020101190000001d00000037000000",
+          "size": 97
+        },
+        {
+          "type": 4,
+          "header": "6c040101880000001e00000098000000",
+          "size": 304,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401015b0000001f00000099000000",
+          "size": 267,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uos"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101a803000020000000be000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/shutdown_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000021000000b6000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/basic_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000022000000b6000000",
+          "size": 1144,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/sysinit_2etarget",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b003000023000000d6000000",
+          "size": 1176,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/system_2dngfw_5cx2dpppoe_5cx2dbroker_2eslice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101cd00000024000000c6000000",
+          "size": 421,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/systemd_2djournald_2esocket",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        }
+      ],
+      "error": "reply byte bound"
+    },
+    {
+      "attempt": 5,
+      "peer": [
+        1,
+        0,
+        0
+      ],
+      "duration": 0.908,
+      "counted_bytes_including_auth": 16301,
+      "frames": [
+        {
+          "type": 4,
+          "header": "6c0401014f04000001000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000002000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000003000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000004000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000005000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d803000006000000de000000",
+          "size": 1224,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401016500000007000000a2000000",
+          "size": 285,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uoss"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f04000008000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101b803000009000000de000000",
+          "size": 1192,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dbroker_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101880000000a000000a0000000",
+          "size": 312,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "UnitRemoved",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "so"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000b000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dcarrier_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d00300000c000000de000000",
+          "size": 1216,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dcarrier_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401015c0000000d00000099000000",
+          "size": 268,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1",
+            "interface": "org.freedesktop.systemd1.Manager",
+            "member": "JobNew",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "uos"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c0401014f0400000e000000de000000",
+          "size": 1343,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dcarrier_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        },
+        {
+          "type": 4,
+          "header": "6c040101d00300000f000000de000000",
+          "size": 1216,
+          "signal_metadata": {
+            "path": "/org/freedesktop/systemd1/unit/ngfw_2dpppoe_2dcarrier_40ngp_2d0ddfe21c298c_2eservice",
+            "interface": "org.freedesktop.DBus.Properties",
+            "member": "PropertiesChanged",
+            "sender": "org.freedesktop.systemd1",
+            "signature": "sa{sv}as"
+          }
+        }
+      ],
+      "error": "reply byte bound"
+    }
+  ]
+}

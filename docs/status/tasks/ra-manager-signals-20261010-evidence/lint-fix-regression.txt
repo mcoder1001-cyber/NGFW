@@ -1,0 +1,122 @@
+=== RUN   TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter
+=== RUN   TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/wrong-first-id
+=== RUN   TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/replaced-last-id
+=== RUN   TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/bad-type
+=== RUN   TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/cancel
+=== RUN   TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/missing
+--- PASS: TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/wrong-first-id (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/replaced-last-id (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/bad-type (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/cancel (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusFixedQueryChecksEveryRoleBeforeAndAfter/missing (0.00s)
+=== RUN   TestNumericPublisherManagerDBusProtectedMetadataAndReplacement
+--- PASS: TestNumericPublisherManagerDBusProtectedMetadataAndReplacement (0.00s)
+=== RUN   TestManagerDBusSignalClosedPublicWhitelist
+--- PASS: TestManagerDBusSignalClosedPublicWhitelist (0.00s)
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-path
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-interface
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-member
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/wrong-signature
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/signal-reply-serial
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/unix-fd-header
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-property-path
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/version
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/flags
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/zero-serial
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-header
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-body
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/truncated
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/trailing
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/padding
+--- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming (0.01s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-path (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-interface (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-member (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/wrong-signature (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/signal-reply-serial (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/unix-fd-header (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-property-path (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/version (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/flags (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/zero-serial (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-header (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-body (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/truncated (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/trailing (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/padding (0.00s)
+=== RUN   TestManagerDBusSignalBeforePendingReply
+--- PASS: TestManagerDBusSignalBeforePendingReply (0.00s)
+=== RUN   TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget
+=== RUN   TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/flood
+=== RUN   TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/orphan-reply
+=== RUN   TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/unknown-metadata
+=== RUN   TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/count-limit
+--- PASS: TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget (0.01s)
+    --- PASS: TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/flood (0.00s)
+    --- PASS: TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/orphan-reply (0.00s)
+    --- PASS: TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/unknown-metadata (0.00s)
+    --- PASS: TestManagerDBusSignalTransportKeepsBoundaryAndOriginalBudget/count-limit (0.00s)
+=== RUN   TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody
+=== RUN   TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody/false
+=== RUN   TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody/true
+--- PASS: TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody (0.00s)
+    --- PASS: TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody/false (0.00s)
+    --- PASS: TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody/true (0.00s)
+=== RUN   TestNumericPublisherManagerDBusGenericAuthenticationHasNoFDNegotiation
+--- PASS: TestNumericPublisherManagerDBusGenericAuthenticationHasNoFDNegotiation (0.00s)
+=== RUN   TestNumericPublisherManagerDBusTransportRejectsAuthOverflowAndCancelsRead
+--- PASS: TestNumericPublisherManagerDBusTransportRejectsAuthOverflowAndCancelsRead (0.00s)
+=== RUN   TestNumericPublisherManagerDBusTransportClosesUnexpectedRights
+--- PASS: TestNumericPublisherManagerDBusTransportClosesUnexpectedRights (0.00s)
+=== RUN   TestNumericPublisherManagerDBusTransportRejectsForeignReplyAndTotalOverflow
+--- PASS: TestNumericPublisherManagerDBusTransportRejectsForeignReplyAndTotalOverflow (0.00s)
+=== RUN   TestNumericPublisherManagerDBusTransportClosesRightsBeforeMalformedControl
+--- PASS: TestNumericPublisherManagerDBusTransportClosesRightsBeforeMalformedControl (0.00s)
+=== RUN   TestNumericPublisherManagerDBusAncillaryTruncationStillClosesDeliveredRights
+--- PASS: TestNumericPublisherManagerDBusAncillaryTruncationStillClosesDeliveredRights (0.00s)
+=== RUN   TestNumericPublisherManagerDBusTypesPreserveOriginalPredicates
+--- PASS: TestNumericPublisherManagerDBusTypesPreserveOriginalPredicates (0.01s)
+=== RUN   TestNumericPublisherManagerDBusTypesRefuseMalformedValues
+--- PASS: TestNumericPublisherManagerDBusTypesRefuseMalformedValues (0.00s)
+=== RUN   TestNumericPublisherManagerDBusFixedInterfacesAndForeignRoles
+2026/10/10 11:45:47 remote-access publisher-manager-query checkpoint=1 deadline_exceeded=false canceled=true elapsed_ms=0
+2026/10/10 11:45:47 remote-access publisher-manager-query checkpoint=2 deadline_exceeded=false canceled=false elapsed_ms=0
+--- PASS: TestNumericPublisherManagerDBusFixedInterfacesAndForeignRoles (0.00s)
+=== RUN   TestNumericPublisherManagerDBusDecodedCompositeConversion
+--- PASS: TestNumericPublisherManagerDBusDecodedCompositeConversion (0.00s)
+=== RUN   TestNumericPublisherManagerDBusWireValidClosedVariants
+--- PASS: TestNumericPublisherManagerDBusWireValidClosedVariants (0.00s)
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/property-signature
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/unknown-fixed-array
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/huge-inner-string
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/huge-header
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/zero-serial
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/wrong-protocol
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/signal
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/map
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/rights-signature
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/huge-body
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/trailing
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/bad-nul
+=== RUN   TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/bad-padding
+--- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation (0.01s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/property-signature (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/unknown-fixed-array (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/huge-inner-string (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/huge-header (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/zero-serial (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/wrong-protocol (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/signal (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/map (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/rights-signature (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/huge-body (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/trailing (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/bad-nul (0.00s)
+    --- PASS: TestNumericPublisherManagerDBusWireRefusesBeforeDecoderAllocation/bad-padding (0.00s)
+=== RUN   TestNumericPublisherManagerDBusWireDuplicateHeaderAndArrayLengths
+--- PASS: TestNumericPublisherManagerDBusWireDuplicateHeaderAndArrayLengths (0.00s)
+PASS
+ok  	ngfw/agent/internal/ra_vpn	1.303s

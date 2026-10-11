@@ -1,0 +1,119 @@
+{
+  "source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+  "build": "Exact deploy/debian/ngfw/prepare.sh agent38 and RA helpers52 flags, CGO_ENABLED=0; sequential GOMAXPROCS2/-p1",
+  "tracked_compilation_source_before_after_equal": true,
+  "prior_cgo1_loan": "Preserved separately with actual guest8 FAIL; no CGO/capability fallback",
+  "binaries": [
+    {
+      "path": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-agent",
+      "sha256": "72d396a187d0159bf39502daaa16b7670887203c54c49bac6915e3f767ffa898",
+      "bytes": 53006467,
+      "go_build_metadata": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-agent: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-agent\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/ftrvxmtrx/fd\tv0.0.0-20150925145434-c6d800382fff\th1:zk1wwii7uXmI0znwU+lqg+wFL9G5+vm5I+9rv2let60=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/gosnmp/gosnmp\tv1.43.1\th1:7wsShHqUxP7BPAv3AkGA+PyZBknrJktN0R+yxtlJSog=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n",
+      "file": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-agent: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=hXwkCvkc6Gh0euuAz7ai/_HRAHm7qpc_9vq3Pi_NQ/Dm5vf1aG6Kvgz8o8Eqj4/g6yPCyCBPqE1h3435hzj, BuildID[sha1]=1306e6fe9e9cc469913871052f522b2d1fd19b2b, with debug_info, not stripped\n"
+    },
+    {
+      "path": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-ra-daemon",
+      "sha256": "48f9ec89fc7abd9d9a1dac80bcb4cbc7bb7379314f48a0b27fa253ff54693a38",
+      "bytes": 15491234,
+      "go_build_metadata": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-ra-daemon: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-ra-daemon\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n",
+      "file": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-ra-daemon: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=O_pXOr4oAWyegQ0EH_jf/vhpSVX8yYRQkQsDXyoKo/N-7OxFGv3fA8GPgDK7Re/YW9m5dXv-auCO9uTQ3cA, BuildID[sha1]=1c485a919375ce4f6f4f695746c8606e2fc70d42, stripped\n"
+    },
+    {
+      "path": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-ra-namespace-broker",
+      "sha256": "c8a4b99515aa7994d59f2e7b1870bd945c5090c7b9992972ebb541b6c3829145",
+      "bytes": 15843490,
+      "go_build_metadata": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-ra-namespace-broker: go1.26.0\n\tpath\tngfw/agent/cmd/ngfw-ra-namespace-broker\n\tmod\tngfw/agent\t(devel)\t\n\tdep\tgithub.com/fsnotify/fsnotify\tv1.9.0\th1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=\n\tdep\tgithub.com/godbus/dbus/v5\tv5.2.2\th1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=\n\tdep\tgithub.com/lunixbochs/struc\tv0.0.0-20200521075829-a4cb8d33dbbe\th1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=\n\tdep\tgithub.com/strongswan/govici\tv0.8.2\th1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=\n\tdep\tgo.fd.io/govpp\tv0.13.0\th1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=\n\tdep\tgolang.org/x/net\tv0.57.0\th1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260706201446-f0a921348800\th1:qEHAMpSaUhtD0p3NbEEI83HwNGFxEwaSJ1G9PLnCBZE=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n",
+      "file": "/tmp/ngfw-ra-static-20261010/loan9/ngfw-ra-namespace-broker: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=BFMF-BcCyYGHykwCbrQ5/FzE2gq6i8KPWxR8r-4UO/oGXlkj5smmwxyTgVzZW0/yNQn5ybJ2KH3gPbLxCSy, BuildID[sha1]=d2812a957771e9d14188498a5e84443ae31e4fee, stripped\n"
+    }
+  ],
+  "canonical_ra_units_and_agent_hardening": [
+    {
+      "path": "deploy/systemd/ngfw-ra@.service",
+      "sha256": "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra@.service"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-observer@.service",
+      "sha256": "0864b67dafc24b2ff3fb1d68ff3bb06cc3cd84c977db59b151daa3bff2455a6a",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-observer@.service"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-targets@.service",
+      "sha256": "9acdbfad058b5210977f1327c693b1b656ac6f195a91203068760946ebb1b810",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-targets@.service"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-namespace-broker@.service",
+      "sha256": "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-namespace-broker@.service"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-openfile.service",
+      "sha256": "447e0ee2fc549280f3f6dbdc012e85e9430405dae535231d6ff432b7415c6559",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-openfile.service"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-observer@.socket",
+      "sha256": "d8bdf79f7767d13c0a6c679f317d7450e8439a5a110ef306f601dd9487f294c4",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-observer@.socket"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-namespace-broker.socket",
+      "sha256": "f8b139a683fbcf447304672c085d031cc4fd7d8d0fc36ed137db257b80787308",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-namespace-broker.socket"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-openfile.socket",
+      "sha256": "e548b49466216b1254bd41cf9cb04d9d2ae342d1b8b228848a2362ba48b08147",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-openfile.socket"
+    },
+    {
+      "path": "deploy/systemd/ngfw-ra-targets@.socket",
+      "sha256": "2220b219ac28517fa39663f4b991b697757b3a04e585d35257e4e3c0758e2130",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-ra-targets@.socket"
+    },
+    {
+      "path": "deploy/systemd/ngfw-agent.service",
+      "sha256": "0578ae4713eaed060b6b2551633136456c400f8f4a1a980f7624305633bcc54f",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-agent.service"
+    },
+    {
+      "path": "deploy/hardening/systemd/ngfw-agent.service.d/10-ngfw-hardening.conf",
+      "sha256": "e2895894312a43ff2d60c4ba0e741c5b3276ec3be9b64a8b46e7c6fc65e8f7bc",
+      "exact_source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+      "byte_equal_e624": true,
+      "loan_path": "/tmp/ngfw-ra-static-20261010/loan9/units/ngfw-agent.service.d/10-ngfw-hardening.conf"
+    }
+  ],
+  "canonical_asset_count": 11,
+  "canonical_driver": {
+    "path": "/tmp/ngfw-ra-static-20261010/loan9/ra-canonical.test",
+    "sha256": "d7c92c9bf5c6d12b4de22656add433e014208c9668b68e4a3140aec0cf96bac3",
+    "bytes": 28213677,
+    "source": "372ee1d4b1d8017613ce60c8243d6b51a76573f5",
+    "build": "CGO_ENABLED=0 go test -c -trimpath ./internal/ra_vpn; default tags; no execution",
+    "go_build_metadata": "/tmp/ngfw-ra-static-20261010/loan9/ra-canonical.test: go1.26.0\n\tpath\tngfw/agent/internal/ra_vpn.test\n\tmod\tngfw/agent\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n",
+    "file": "/tmp/ngfw-ra-static-20261010/loan9/ra-canonical.test: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=53t8cqBTDJw_e9CB2tom/RtHTohB_jrv-DdyvBKlb/p_kmGHNiMUuP5JjHTGZz/Ev3ZzqjfUqasulVtrNhZ, BuildID[sha1]=990db1d4ebf6d11c0a31c900b8a30df6354587e0, with debug_info, not stripped\n",
+    "execution": "NOT RUN; genuine selected suite permitted only after observed supplier readiness"
+  }
+}

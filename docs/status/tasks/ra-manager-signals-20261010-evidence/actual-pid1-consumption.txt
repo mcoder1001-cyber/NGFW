@@ -1,0 +1,23 @@
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112355.188375756
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=20 signals=15 counted-bytes=15808 limit=16384 query-budget=2s
+    namespace_openfile_manager_dbus_pid1_probe_test.go:98: actual read-only query failed under unchanged budgets dbus: connection closed by user
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112356.058766937
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=23 signals=15 counted-bytes=16179 limit=16384 query-budget=2s
+    namespace_openfile_manager_dbus_pid1_probe_test.go:98: actual read-only query failed under unchanged budgets dbus: connection closed by user
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112357.040033851
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=20 signals=15 counted-bytes=15888 limit=16384 query-budget=2s
+    namespace_openfile_manager_dbus_pid1_probe_test.go:98: actual read-only query failed under unchanged budgets dbus: connection closed by user
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112357.903907724
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=20 signals=14 counted-bytes=15714 limit=16384 query-budget=2s
+    namespace_openfile_manager_dbus_pid1_probe_test.go:98: actual read-only query failed under unchanged budgets remote-access: isolated runtime boundary refused
+=== RUN   TestManagerDBusActualPID1ReadOnlyVersion/112358.771787939
+    namespace_openfile_manager_dbus_pid1_probe_test.go:96: read-only fixed replies=0 signals=15 counted-bytes=16301 limit=16384 query-budget=2s
+    namespace_openfile_manager_dbus_pid1_probe_test.go:98: actual read-only query failed under unchanged budgets remote-access: isolated runtime boundary refused
+--- FAIL: TestManagerDBusActualPID1ReadOnlyVersion (4.51s)
+    --- FAIL: TestManagerDBusActualPID1ReadOnlyVersion/112355.188375756 (0.87s)
+    --- FAIL: TestManagerDBusActualPID1ReadOnlyVersion/112356.058766937 (0.98s)
+    --- FAIL: TestManagerDBusActualPID1ReadOnlyVersion/112357.040033851 (0.86s)
+    --- FAIL: TestManagerDBusActualPID1ReadOnlyVersion/112357.903907724 (0.87s)
+    --- FAIL: TestManagerDBusActualPID1ReadOnlyVersion/112358.771787939 (0.93s)
+FAIL

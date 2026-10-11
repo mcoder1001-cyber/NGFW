@@ -189,7 +189,7 @@ PR228 exact deb4ecb2049df5c7720b91e83ccda32b86a89c48 merged as
 14c940f585cc61739cbb2a624d561f960ffee6e1. Final branch mandatory38140671164
 PASS21m16s, packaging38140671199 PASS25s. Main incorporated an independent
 setup-only contract change; its agent/runtime/deployment code is identical to
-the tested source. Main38142531175 is running; packaging38142531220 PASS.
+the tested source. Main38142531175 PASS; packaging38142531220 PASS.
 PPPoE host task is accepted; RA remains running.
 
 Source8 original canonical driver remains FAIL. Isolated diagnostic46 with
@@ -210,3 +210,9 @@ Cross-role/altered-property and consecutive-capture controls pass; full RA
 package race suite PASS3.431s. This repairs an additional deterministic
 observation obstruction; diagnostic46's earlier engine failure is still being
 traced and is not asserted to be caused by this predicate.
+
+Source9 exact e8a72fd77 PR229 mandatory38143207221 PASS17m54s.
+Read-only actual host PID1 probe: five connections with40 fixed Version replies
+each within original2s/16384-byte bounds, plus one ordinary request PASS.
+Native diagnostic49 still failed namespace capture; fixed outgoing property
+request metadata is valid. This host probe does not certify guest activation.

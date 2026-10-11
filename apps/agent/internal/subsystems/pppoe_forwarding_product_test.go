@@ -16,6 +16,7 @@ import (
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/l2"
+	tapapi "ngfw/agent/binapi/tapv2"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	desc "ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/renderers"
@@ -62,12 +63,16 @@ func (r *forwardingProductRunner) Run(ctx context.Context, c renderers.Command) 
 }
 
 type forwardingProductFixture struct {
-	rt      *PppoeRuntime
-	run     *forwardingProductRunner
-	session pppoe.Session
-	mirror  desc.Mirror
-	rows    []*interfaces.SwInterfaceDetails
-	reverse bool
+	rt            *PppoeRuntime
+	run           *forwardingProductRunner
+	session       pppoe.Session
+	mirror        desc.Mirror
+	rows          []*interfaces.SwInterfaceDetails
+	reverse       bool
+	addresses     []string
+	addressWrites []*interfaces.SwInterfaceAddDelAddress
+	addressFault  func(*interfaces.SwInterfaceAddDelAddress) error
+	nativeFault   bool
 }
 
 func newForwardingProductFixture(t *testing.T) *forwardingProductFixture {
@@ -83,7 +88,7 @@ func newForwardingProductFixture(t *testing.T) *forwardingProductFixture {
 	rt.runner = run
 	rt.carrierReady = map[string]carrierForwarding{}
 	rt.applied[s.Iface] = s
-	f := &forwardingProductFixture{rt: rt, run: run, session: s, mirror: desc.Mirror{LocalIPv4: "192.0.2.10/32", PeerIPv4: "192.0.2.1"}, reverse: true}
+	f := &forwardingProductFixture{rt: rt, run: run, session: s, addresses: []string{spec.VPP4()}, mirror: desc.Mirror{Interface: s.Iface, LocalIPv4: "192.0.2.10/32", PeerIPv4: "192.0.2.1"}, reverse: true}
 	for i, name := range []string{spec.Parent, spec.RawLogical(), s.Iface} {
 		idx := uint32(i + 1)
 		tag := ""
@@ -106,14 +111,51 @@ func newForwardingProductFixture(t *testing.T) *forwardingProductFixture {
 		}
 		return out, nil
 	})
+	v.On("sw_interface_tap_v2_dump", func(api.Message) ([]api.Message, error) {
+		_, id := spec.TapIDs()
+		namespace := spec.Token()
+		if f.nativeFault {
+			namespace = "foreign"
+		}
+		return []api.Message{&tapapi.SwInterfaceTapV2Details{SwIfIndex: 3, ID: id, HostNamespace: namespace, HostIfName: spec.TransitHost(), HostMtuSize: s.MTU}}, nil
+	})
 	v.On("ip_address_dump", func(message api.Message) ([]api.Message, error) {
 		req := message.(*ip.IPAddressDump)
-		address := spec.VPP4()
+		addresses := f.addresses
 		if req.IsIPv6 {
-			address = spec.VPP6()
+			addresses = []string{spec.VPP6()}
 		}
-		prefix, err := ip_types.ParsePrefix(address)
-		return []api.Message{&ip.IPAddressDetails{Prefix: ip_types.AddressWithPrefix(prefix)}}, err
+		var out []api.Message
+		for _, address := range addresses {
+			prefix, err := ip_types.ParseAddressWithPrefix(address)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, &ip.IPAddressDetails{Prefix: prefix})
+		}
+		return out, nil
+	})
+	v.On("sw_interface_add_del_address", func(message api.Message) ([]api.Message, error) {
+		req := message.(*interfaces.SwInterfaceAddDelAddress)
+		f.addressWrites = append(f.addressWrites, req)
+		address := req.Prefix.String()
+		if req.IsAdd {
+			f.addresses = append(f.addresses, address)
+		} else {
+			var kept []string
+			for _, prefix := range f.addresses {
+				if prefix != address {
+					kept = append(kept, prefix)
+				}
+			}
+			f.addresses = kept
+		}
+		if f.addressFault != nil {
+			if err := f.addressFault(req); err != nil {
+				return nil, err
+			}
+		}
+		return []api.Message{&interfaces.SwInterfaceAddDelAddressReply{}}, nil
 	})
 	dir := rt.sessionStateDir(s)
 	if err = os.MkdirAll(dir, 0700); err != nil {

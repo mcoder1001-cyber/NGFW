@@ -19,6 +19,7 @@ func TestBrokerExecutableProofRejectsBoundaryChanges(t *testing.T) {
 			path := filepath.Join(dir, "broker")
 			body := []byte{0x7f, 'E', 'L', 'F', 1, 2, 3, 4}
 			digest := sha256.Sum256(body)
+			// #nosec G306 -- owner-only synthetic ELF needs execute permission for the executable boundary control; contains no credentials.
 			if err := os.WriteFile(path, body, 0700); err != nil {
 				t.Fatal(err)
 			}
@@ -33,6 +34,7 @@ func TestBrokerExecutableProofRejectsBoundaryChanges(t *testing.T) {
 			ctx := context.Background()
 			switch scenario {
 			case "body":
+				// #nosec G306 -- owner-only synthetic ELF needs execute permission for the executable boundary control; contains no credentials.
 				if err := os.WriteFile(path, []byte{0x7f, 'E', 'L', 'F', 4, 3, 2, 1}, 0700); err != nil {
 					t.Fatal(err)
 				}
@@ -44,10 +46,12 @@ func TestBrokerExecutableProofRejectsBoundaryChanges(t *testing.T) {
 				if err := os.Rename(path, path+".original"); err != nil {
 					t.Fatal(err)
 				}
+				// #nosec G306 -- owner-only synthetic ELF needs execute permission for the executable boundary control; contains no credentials.
 				if err := os.WriteFile(path, body, 0700); err != nil {
 					t.Fatal(err)
 				}
 			case "writable-parent":
+				// #nosec G302 -- deliberate writable-parent mutation must be refused; isolated fixture contains no confidential data.
 				if err := os.Chmod(dir, 0770); err != nil {
 					t.Fatal(err)
 				}
@@ -75,10 +79,12 @@ func TestBrokerExecutableProofRequiresFullMatchingELFDigest(t *testing.T) {
 	path := filepath.Join(dir, "broker")
 	body := []byte{0x7f, 'E', 'L', 'F', 1, 2, 3, 4}
 	digest := sha256.Sum256(body)
+	// #nosec G306 -- owner-only synthetic ELF needs execute permission for the executable boundary control; contains no credentials.
 	if err := os.WriteFile(path, body, 0700); err != nil {
 		t.Fatal(err)
 	}
 	body[7]++
+	// #nosec G306 -- owner-only synthetic ELF needs execute permission for the executable boundary control; contains no credentials.
 	if err := os.WriteFile(path, body, 0700); err != nil {
 		t.Fatal(err)
 	}

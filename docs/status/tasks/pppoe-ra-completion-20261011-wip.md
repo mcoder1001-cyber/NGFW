@@ -356,3 +356,15 @@ The added readiness poll uses the existing8s observation bound, always clipped b
 the original whole30s restart context; initial2s polling was shorter than the
 verified observation path. Source20 full RA race PASS3.838s. Fresh original native
 execution must prove that recovery actually meets30s.
+
+
+PR232 source2d6546bfe mandatory38155671841 fails scoped Go security lint on
+synthetic ELF mode0700 and the intentional writable-parent mutation test. Each
+case now has a narrow documented rule annotation: execute permission is required
+by the owner-only synthetic ELF control, and mode0770 is the isolated rejection
+input. No production rule is disabled. Scoped RA/daemon/subsystem lint PASS0issues.
+Source20 subsystem race PASS33.570s. Native75 still fails30s: automatic resync
+APPLIED30.196s, finishing about39.77s after restart. Native76 is timing-diagnostic
+only; actual engine Create9.380s, unit Start6.807s and connect resync30.769s.
+These modified diagnostic ELFs cannot establish acceptance. Both-host native
+execution, full restart/TLS/rollback and actual API/browser remain open.

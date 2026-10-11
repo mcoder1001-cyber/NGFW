@@ -1,0 +1,47 @@
+{
+  "source": "61c82b65b2295991f1602c88eaaac0e71b7e8197",
+  "agent_sha256": "83e7b49dd071ddc34bb45ffc21467eecacb2c9756825bcb0fcf6453e9dbcbb62",
+  "carrier_sha256": "dc8e4a2df34537f89bf85f33d60636e5fb1ac7797e9d6c6f606dffcf5a9784a7",
+  "ci": {
+    "mandatory_run": 38137613429,
+    "packaging_run": 38137613401,
+    "conclusion": "success"
+  },
+  "private_log_receipts": [
+    {
+      "name": "ppp195-source6-EXTENDED-attempt2.txt",
+      "sha256": "d049c36dbe75fc3df12d4a8d95a310a263b0c1e6159d242f3b9052cdef531a70",
+      "result": "pass"
+    },
+    {
+      "name": "ppp250-source6-EXTENDED-PASS.private.txt",
+      "sha256": "71d7cb3a116b6ab57bc0694ce7f187f927052096199c2d32b95cbf52c02b962a",
+      "result": "pass"
+    },
+    {
+      "name": "multiwan195-source6.txt",
+      "sha256": "c0d9e73ac237650018b6f1213b80cd44e69394e80c7662da6b8dd60f83efd331",
+      "result": "pass"
+    },
+    {
+      "name": "multiwan250-source6-PASS.private.txt",
+      "sha256": "cdf627cc8bce54d34e98c543bfd7c993f4660be8301a2cfad48a5e57b28c3cce",
+      "result": "pass"
+    },
+    {
+      "name": "ppp195-source6-EXTENDED-browser.txt",
+      "sha256": "d65ae0fde785ccfa47f5abb94a13bf56b2a5605e4b07a65ced4aa72e1ed88ced",
+      "result": "failed-later-IPv6-recovery; browser-login-en-fa-pass"
+    }
+  ],
+  "pppoe_restart_seconds": {
+    "195": 10.275,
+    "250": 10.346
+  },
+  "original_restart_bound_seconds": 11,
+  "multiwan_full_original_test_seconds": {
+    "195": 100.42,
+    "250": 79.5
+  },
+  "ra": "open; canonical activation/rollback fail; no completion claim"
+}

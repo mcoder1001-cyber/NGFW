@@ -101,7 +101,9 @@ RA stays open.
 
 The genuine source93 agent SHA256
 c6a13be4779dc40551dbd2ac4fad45860bfb96ec657fe8491ecfb2f7339834db
-passed the full real-API PPPoE driver on both hosts and the full extended
+passed the baseline real-API PPPoE driver on both hosts (the extended flag
+was accidentally omitted, so these runs do not prove NAT/MSS/peer restart/
+wrong-password acceptance) and the full extended
 1000-flow / automatic-NAT / restart / selective dead-link / PBR MultiWAN
 acceptance on .195. MultiWAN on .250 still exposed an observation/save race:
 resync durably saves the same WAN settings but replaces their snapshot pointer,
@@ -119,3 +121,44 @@ inside the independent network namespace and genuine linux_cp/linux_nl plugins
 are explicitly enabled. These are fixture prerequisites; baseline rejection
 was retained, with no partial desired-state fallback. Canonical activation,
 restart, rollback, API/browser and final-source CI remain pending.
+
+### Final source61 PPPoE and MultiWAN acceptance
+
+Product Go source 61c82b65b2295991f1602c88eaaac0e71b7e8197, static
+agent SHA256 83e7b49dd071ddc34bb45ffc21467eecacb2c9756825bcb0fcf6453e9dbcbb62;
+carrier helper SHA256 dc8e4a2df34537f89bf85f33d60636e5fb1ac7797e9d6c6f606dffcf5a9784a7.
+Mandatory hosted CI 38137613429 PASS (21m13s); packaging 38137613401 PASS.
+The entire local unchanged quick gate passed at c28 (33m51s); that earlier
+local gate is not asserted to cover later Go changes.
+
+Both final PPPoE drivers explicitly used NGFW_WAN_API_EXTENDED=1. On .195
+and .250 all original extended assertions PASS: actual three-packet IPv4/IPv6
+forwarding, default automatic NAT with the negotiated address, native MSS
+1452/1432 in RX/TX, explicit reconnect, loss withdrawal, peer restart and
+recovered packets, real wrong-password error, restored credential and cleared
+errors, both credentials absent from raw logs/config/audit, committed cleanup.
+Restart times were 10.275s and 10.346s against the unchanged 11s criterion.
+The first .195 extended browser run passed genuine endpoint login in English
+and Persian and captured the real active PPP drawer, but FAILED later IPv6
+recovery after peer restart. Its failure is retained; a subsequent full extended
+run passed. The screenshot has a generic engine-observation warning behind
+the drawer. No browser run is represented as full lifecycle acceptance.
+Earlier source93 and initial source61 baseline runs omitted the extended flag;
+the misleading full-acceptance interpretation above is corrected here.
+
+Both final original extended MultiWAN tests PASS (.195 100.42s, .250 79.50s):
+1000 plain flows, 1000 automatic-NAT flows, stable weighted distribution, real
+VPP session persistence after agent restart, complete selective dead-link
+cleanup within the original budget with healthy sessions preserved, restored
+health, PBR precedence over a more-specific ordinary route and 1000 stable
+PBR flows. The private package-identity wrapper changes no shared identity.
+Cleanup and post-incident shared VPP identity checks PASS; the earlier OOM
+incident remains disclosed above. Raw evidence stays private/root0600.
+
+RA is still open. Original-unit native source61 readiness, baseline Retrieve
+and foundation Apply pass after genuine package fixture prerequisites are
+present. Original canonical activation fails at namespace handoff; rollback
+also fails, leaving the isolated agent degraded. These failed cohorts are
+not canonical acceptance, and no EAP connection, restart, rollback or browser
+completion is claimed. No production units, capability masks or deadlines
+were changed to admit these cohorts.

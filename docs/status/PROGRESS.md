@@ -28,7 +28,7 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 ## Remaining implementation / review
 
-- F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; PR229 merged with mandatory CI PASS; bounded PID1 authentication/query synchronization regression and full RA race PASS; fresh original canonical activation and full EAP/restart/rollback/API/browser acceptance remain open)
+- F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; PR230 merged with mandatory and main CI PASS; original engine activation and genuine EAP/VIP advance after fixing independent peer credential/library fixtures; DNS comment parsing corrected; full native traffic/restart/TLS/rollback/API/browser acceptance remains open)
 
 ## Parked
 

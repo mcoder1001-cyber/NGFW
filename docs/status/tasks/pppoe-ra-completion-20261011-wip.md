@@ -221,7 +221,7 @@ request metadata is valid. This host probe does not certify guest activation.
 
 PR229 exact32f2899a37136bff723fc50b120a8e58f1fc1fab mandatory38145016303
 PASS, merged asd14f1901bc9f57823366ee0708462b4a5678d941. PPPoE board closure
-is now on main; RA remains running. Merged-main38146549365 is in progress.
+is now on main; RA remains running. Merged-main38146549365 was cancelled when superseded by PR230.
 
 Diagnostic55 actual private PID1 syscall trace shows BEGIN and the first fixed
 VPP Id request received together; corresponding replies were attempted after
@@ -247,3 +247,40 @@ transport; full current RA race suite PASS3.545s after supplying the existing
 bounded context in the owned pipeline fixture. The first local run failed those
 fixture constructors; its failure is retained. Fresh original canonical
 activation, EAP/TLS, restart, rollback, API and browser proof remains required.
+
+
+### Genuine canonical peer fixture corrections
+
+PR230 exact f0cf81f3b mandatory38146843479 PASS, merged as
+c0ba3a1dd2a1c04009a95a7fb6495363e196147c. Main38147967231 PASS.
+Native56–64 now activate the original engine and obtain fresh VICI readback.
+These are progress observations; no full canonical campaign has passed.
+
+Native57 found a strict credential refusal: the disposable EAP peer passed the
+combined CA/CRL bundle retained for later TLS cases into an EAP-only snapshot.
+The test now selects only the server certificate/key for that snapshot, preserving
+the full separate TLS bundle and the production trust guard. A real certificate
+control checks both EAP rejection/selection and subsequent TLS validity.
+
+Native58/59 identified independent launcher prerequisites: its original protected
+artifact/workspace paths must remain under private /dev/shm. The corrected fixture
+uses its own mode0700 256MiB shm mount, without changing shared host mode1777 or
+the launcher guard. Native60–63 start the genuine peer but fail initiate. Native62
+was stopped after a failed diagnostic compilation; no acceptance is attributed.
+
+Native63 private VICI control-log shows IKE proposal selection and successful server
+certificate authentication, followed by failed MSCHAPv2 NT-response generation.
+The independent guest omitted the genuine Ubuntu OpenSSL legacy provider from its
+runtime library closure. The actual libssl3t64 package already depends on this
+provider; no production dependency or ABI change is needed. Native64 with that real
+library succeeds at initiate and observed VIP/negotiated selectors, then exposes
+another test-fixture error: the DNS reader rejects strongSwan's normal inline comment.
+It now strips comments while preserving the exact expected address/count checks.
+
+The final RA package race suite PASS3.512s using a protected /run temporary parent.
+Two earlier local runs used /tmp, whose writable ancestor is rejected by the existing
+protected-file tests; those failures are retained. Native64 and earlier campaigns
+also fail the original30s cleanup deadline. Fresh corrected complete traffic,
+restart under30s, TLS, rollback and real API/browser acceptance remain required.
+Owned inactive59/61/62/63/64 roots were removed only after process/root-inode/mount
+checks, with protected observations/evidence and hashes retained.

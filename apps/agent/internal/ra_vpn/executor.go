@@ -87,7 +87,7 @@ func ConfigureNamespace(ctx context.Context, instance string) error {
 		case "inner0":
 			inner = true
 		case "xfrm0":
-			if item.Info.Kind != "xfrm" || item.Info.Data.ID != 1 {
+			if item.Info.Kind != "xfrm" || !ownedXfrmInterfaceID(item.Info.Data.ID) {
 				return &NamespaceFailure{Step: 4}
 			}
 			addXfrm = false
@@ -211,4 +211,10 @@ func ownedFirewall(data []byte, instance string) (bool, error) {
 		found = true
 	}
 	return found, nil
+}
+
+// iproute2 emits the actual XFRM if_id as a canonical hexadecimal string.
+// Numeric1 remains supported for older readback fixtures; no other ID is owned.
+func ownedXfrmInterfaceID(raw json.RawMessage) bool {
+	return string(raw) == "1" || string(raw) == `"0x1"`
 }

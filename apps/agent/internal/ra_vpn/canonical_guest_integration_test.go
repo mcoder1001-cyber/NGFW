@@ -189,9 +189,14 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 		t.Fatal("actual fresh unit VICI session readback")
 	}
 	peer, peerPlan, dnsOwnership := canonicalGuestPeer(t, desired.GetVpn().GetRemoteAccess()["road"], desired.GetVpn().GetIpsec().GetProposals()["ra-proposal"], credentials, password, transaction)
+	var restartContext context.Context
 	initiate := func(success bool) {
 		t.Helper()
-		response, e := peer.Call(ctx, "initiate", privateMessage("child", "protected", "timeout", "20000"))
+		callContext := ctx
+		if restartContext != nil {
+			callContext = restartContext
+		}
+		response, e := peer.Call(callContext, "initiate", privateMessage("child", "protected", "timeout", "20000"))
 		if success && (e != nil || response == nil || response.Get("success") != "yes") {
 			t.Fatal("canonical responder actual peer authentication failed")
 		}
@@ -202,7 +207,11 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	observe := func(want int) []*ngfwv1.RemoteAccessSession {
 		t.Helper()
 		for stop := time.Now().Add(8 * time.Second); time.Now().Before(stop); time.Sleep(50 * time.Millisecond) {
-			rows, e := client.RemoteAccessSessions(ctx, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
+			callContext := ctx
+			if restartContext != nil {
+				callContext = restartContext
+			}
+			rows, e := client.RemoteAccessSessions(callContext, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
 			if e == nil && len(rows.GetSessions()) == want {
 				return rows.GetSessions()
 			}
@@ -244,9 +253,32 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	// This fixed restart is reachable only after the live independent guest marker
 	// and PID1 systemd proof above. No Apply occurs after the agent restart.
 	restartAt := time.Now()
+	var restartCancel context.CancelFunc
+	restartContext, restartCancel = context.WithTimeout(ctx, 30*time.Second)
+	defer restartCancel()
 	// #nosec G204 -- fixed command/unit inside the independently guarded disposable guest, no caller argv.
-	if exec.CommandContext(ctx, "/usr/bin/systemctl", "restart", "ngfw-agent.service").Run() != nil {
+	if exec.CommandContext(restartContext, "/usr/bin/systemctl", "restart", "ngfw-agent.service").Run() != nil {
 		t.Fatal("canonical guest agent restart")
+	}
+	// Type=simple start completion precedes automatic RA recovery. Require a
+	// fresh authenticated empty-session readback within the original whole30s
+	// restart budget, which also clips the following genuine negotiation.
+	recovered := false
+	for restartContext.Err() == nil {
+		attempt, stop := context.WithTimeout(restartContext, 2*time.Second)
+		rows, e := client.RemoteAccessSessions(attempt, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
+		stop()
+		if e == nil && len(rows.GetSessions()) == 0 {
+			recovered = true
+			break
+		}
+		select {
+		case <-restartContext.Done():
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	if !recovered {
+		t.Fatal("canonical recovered engine readback exceeded original30s restart budget")
 	}
 	peer = freshPrivateVICI(t, peerPlan)
 	initiate(true)
@@ -254,6 +286,8 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	if elapsed := time.Since(restartAt); elapsed >= 30*time.Second {
 		t.Fatal("canonical agent reconnect exceeded30s")
 	}
+	restartCancel()
+	restartContext = nil
 	t.Log("canonical live EAP/VIP/selected FIB both ACL directions, ESP-only wire, wrong-password refusal, observed disconnect and agent reconnect under30s PASS")
 	for _, scenario := range []string{"valid", "revoked", "foreign"} {
 		tlsCredentials, certificate, key, _ := tlsCredentialsFixture(t, scenario)

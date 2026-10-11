@@ -71,8 +71,21 @@ type namespaceTargetCapture struct {
 	Server   bootid.Identity
 }
 
-func (p *SystemdNamespaceTargets) acquireOnce(ctx context.Context, expected, source bootid.Identity) (*namespaceTargetCapture, error) {
-	if p.validateUnits(ctx, expected, bootid.Identity{}) != nil {
+func (p *SystemdNamespaceTargets) acquireOnce(ctx context.Context, expected, source bootid.Identity) (capture *namespaceTargetCapture, resultErr error) {
+	proof, err := newBrokerExecutableProof(ctx, p.executable())
+	if err != nil {
+		return nil, ErrBoundary
+	}
+	defer func() {
+		if proof.Close() != nil {
+			if capture != nil {
+				_ = capture.Snapshot.Close()
+			}
+			capture = nil
+			resultErr = ErrBoundary
+		}
+	}()
+	if p.validateUnits(ctx, expected, bootid.Identity{}, proof) != nil {
 		return nil, ErrBoundary
 	}
 	path, pathErr := NamespaceTargetSocket(expected.PID)
@@ -118,7 +131,7 @@ func (p *SystemdNamespaceTargets) acquireOnce(ctx context.Context, expected, sou
 		return nil, ErrBoundary
 	}
 	snapshot := &NamespaceTargetSnapshot{Targets: response.Targets, Source: response.Source, Files: [2]*os.File{files[0], files[1]}, Executables: [2]*os.File{files[2], files[3]}}
-	if snapshot.Validate() != nil || validateTargetHeldImages(snapshot) != nil || p.validateUnits(ctx, expected, response.Server) != nil {
+	if snapshot.Validate() != nil || validateTargetHeldImages(snapshot) != nil || p.validateUnits(ctx, expected, response.Server, proof) != nil {
 		return nil, ErrBoundary
 	}
 	fresh, err := p.expected(ctx)
@@ -207,8 +220,8 @@ func targetSupplierControlGroup(pid int, group string) bool {
 	return group == "/system.slice/"+unit || group == "/system.slice/system-ngfw\\x2dra\\x2dtargets.slice/"+unit
 }
 
-func (p *SystemdNamespaceTargets) validateUnits(ctx context.Context, target, server bootid.Identity) error {
-	if p == nil || p.executable() != targetSupplierExecutable || validateNamespaceBrokerExecutable(p.executable()) != nil || readTargetsOpenFile(target) != nil {
+func (p *SystemdNamespaceTargets) validateUnits(ctx context.Context, target, server bootid.Identity, proof *brokerExecutableProof) error {
+	if p == nil || p.executable() != targetSupplierExecutable || proof.Verify(ctx, p.executable()) != nil || readTargetsOpenFile(target) != nil {
 		return ErrBoundary
 	}
 	for _, item := range []struct{ path, digest string }{{targetSupplierSocket, targetSupplierSocketDigest}, {targetSupplierService, targetSupplierServiceDigest}} {
@@ -259,7 +272,10 @@ func (p *SystemdNamespaceTargets) validateUnits(ctx context.Context, target, ser
 	if verifyBrokerVPPUnitIdentity(ctx, MountTarget{Boot: target}) != nil {
 		return ErrBoundary
 	}
-	return readTargetsOpenFile(target)
+	if readTargetsOpenFile(target) != nil {
+		return ErrBoundary
+	}
+	return proof.Verify(ctx, p.executable())
 }
 
 func targetSupplierSocketProperties(fields map[string]string, socketPath string, serving bool) bool {

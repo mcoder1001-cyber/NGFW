@@ -284,3 +284,45 @@ also fail the original30s cleanup deadline. Fresh corrected complete traffic,
 restart under30s, TLS, rollback and real API/browser acceptance remain required.
 Owned inactive59/61/62/63/64 roots were removed only after process/root-inode/mount
 checks, with protected observations/evidence and hashes retained.
+
+
+### Restart recovery controls (source13–18; task remains running)
+
+PR231 exact27d185103a6b1239c7b8056a6ffe58e33a7ec1ab mandatory38151031338
+PASS, merged e2958df326e207c61c8d28148bb1e2ebab62faa1. Main38152724713 PASS. These fixture corrections do not close RA.
+
+Native65 obtains genuine EAP, VIP, DNS, selectors and encrypted traffic through
+selected VPP VRF/ACL. Restart reveals systemd removes RuntimeDirectory=/run/ngfw,
+including the owned engine snapshot and independent peer. The actual agent unit
+now uses RuntimeDirectoryPreserve=restart; regular stop still clears it, and its
+exact integrity digest is updated. Native66 proves peer survival but recovery
+still fails. No deadline or capability change is made.
+
+Bounded protected-file reads preallocate the already-validated file size while
+retaining the same limit+1 read and ownership/path checks. A private 16MiB ELF
+benchmark improves 73.971ms/36.23MB allocated to35.861ms/16.79MB. Native67 still
+fails its added8s readiness prewait, but complete baseline cleanup passes22.929s
+under the original30s. That prewait failure is not evidence the original30s
+restart limit failed. Native68 CPU profiling is diagnostic only: SHA256 accounts
+for310/390ms of one helper profile. Its campaign fails; no acceptance is claimed.
+
+Each namespace target capture now independently hashes and holds protected broker
+ELF and receipt descriptors. Fresh canonical reopen, full file stamps and complete
+process boot identity are checked at later boundaries. Proofs are local to one
+capture/process; there is no shared cache, cross-capture or restart authority.
+Mutation, same-byte inode replacement, writable-parent, cancellation, wrong-path,
+closed-proof and digest mismatch controls pass. Source17 full RA race PASS3.740s.
+
+Restart readiness, real negotiation and final observation now share the original
+30s context. Native69 source17 and native70 source18 both pass genuine encrypted
+traffic but fail actual30s recovery and cleanup; neither is a complete campaign.
+The real kernel reports XFRM if_id as the JSON string"0x1". A disposable actual
+network namespace reproduces it; the prior reader fails the roundtrip test. The
+reader now accepts exactly numeric1 or canonical"0x1", preserving the exact-ID
+ownership guard. Old-source regression FAIL0.065s; source18 full RA race PASS3.994s.
+This fixes a real reader error, but native70 shows another recovery failure remains.
+
+Early failed campaigns retain the independent resolver file/peer namespace when
+strongSwan replaces its inode: the foreign-replacement cleanup guard is retained.
+Full restart, EAP-TLS valid/revoked/foreign-CA, transport rollback, both-host genuine
+API/license/session/second-pool400 and en/fa browser acceptance remain required.

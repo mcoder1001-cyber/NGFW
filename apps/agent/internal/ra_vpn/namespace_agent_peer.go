@@ -14,7 +14,7 @@ import (
 )
 
 // Pin exact reviewed product source fragments, independently of broker/daemon units.
-const expectedAgentUnitSHA256 = "0578ae4713eaed060b6b2551633136456c400f8f4a1a980f7624305633bcc54f"
+const expectedAgentUnitSHA256 = "b09a055b58532eca575b80a2c126ed44e1bf1b0a0e3c64cf90705379a12e66ff"
 const expectedAgentHardeningSHA256 = "e2895894312a43ff2d60c4ba0e741c5b3276ec3be9b64a8b46e7c6fc65e8f7bc"
 
 // verifyFixedAgentPeer authenticates the fixed agent unit and its configured

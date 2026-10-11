@@ -55,5 +55,21 @@
       "ra-auth-drain-source10-race-attempt2.private.txt": "efc1a38d6b9a1045708a58f22e45194919f3e0ed0ae3513dcde947cd84f7baa3",
       "native55-pid1-syscalls.private.txt": "f108738614cdeb635cc7850cfc4e67abda132c2e546e8bd53947704a148bdb07"
     }
+  },
+  "ra_restart_controls_20261011": {
+    "task_complete": false,
+    "main_pr231_ci": 38152724713,
+    "main_pr231_ci_pass": true,
+    "ra_race_source17_seconds": 3.74,
+    "ra_race_source18_seconds": 3.994,
+    "real_xfrm_old_reader_failed": true,
+    "xfrm_exact_owned_id": 1,
+    "restart_deadline_seconds": 30,
+    "cleanup_deadline_seconds": 30,
+    "native69_whole_campaign_pass": false,
+    "native70_whole_campaign_pass": false,
+    "native67_baseline_cleanup_seconds": 22.929,
+    "broker_proof_capture_local": true,
+    "native68_cpu_profile_diagnostic_only": true
   }
 }

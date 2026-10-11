@@ -28,7 +28,7 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 ## Remaining implementation / review
 
-- F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; canonical source8 transport/namespace/TAP/routes/ACL created in isolated native diagnostic; engine activation and full EAP/restart/rollback/API/browser acceptance remain open; active diagnostic work)
+- F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; PR229 merged with mandatory CI PASS; bounded PID1 authentication/query synchronization regression and full RA race PASS; fresh original canonical activation and full EAP/restart/rollback/API/browser acceptance remain open)
 
 ## Parked
 

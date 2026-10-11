@@ -2,11 +2,13 @@ package ravpn
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"io"
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -14,19 +16,20 @@ import (
 // managerDBusTransport supplies only prevalidated bounded bytes to godbus's
 // generic transport, which does not negotiate or accept Unix descriptors.
 type managerDBusTransport struct {
-	conn      *net.UnixConn
-	mu        sync.Mutex
-	readMu    sync.Mutex
-	closed    atomic.Bool
-	closeOnce sync.Once
-	closeErr  error
-	binary    bool
-	authStage uint8
-	written   int
-	read      int
-	signals   int
-	buffer    []byte
-	pending   map[uint32]bool
+	conn        *net.UnixConn
+	authContext context.Context
+	mu          sync.Mutex
+	readMu      sync.Mutex
+	closed      atomic.Bool
+	closeOnce   sync.Once
+	closeErr    error
+	binary      bool
+	authStage   uint8
+	written     int
+	read        int
+	signals     int
+	buffer      []byte
+	pending     map[uint32]bool
 }
 
 func (t *managerDBusTransport) Close() error {
@@ -196,6 +199,7 @@ func (t *managerDBusTransport) Write(data []byte) (int, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	originalLength := len(data)
+	begin := false
 	if t.closed.Load() || len(data) == 0 {
 		return 0, ErrBoundary
 	}
@@ -237,7 +241,13 @@ func (t *managerDBusTransport) Write(data []byte) (int, error) {
 			if !bytes.Equal(data, []byte("BEGIN\r\n")) {
 				return 0, ErrBoundary
 			}
-			t.binary = true
+			if t.authContext == nil || t.authContext.Err() != nil {
+				return 0, ErrBoundary
+			}
+			if _, bounded := t.authContext.Deadline(); !bounded {
+				return 0, ErrBoundary
+			}
+			begin = true
 		default:
 			return 0, ErrBoundary
 		}
@@ -254,5 +264,46 @@ func (t *managerDBusTransport) Write(data []byte) (int, error) {
 		}
 		return 0, err
 	}
+	if err == nil && begin {
+		if err := t.drainAuthentication(); err != nil {
+			return 0, err
+		}
+		t.binary = true
+	}
 	return originalLength, err
+}
+
+// Keep BEGIN out of the peer's first binary read. Some sd-bus event loops do
+// not schedule a complete method frame already buffered during authentication
+// until another socket event arrives. Waiting for the authenticated peer to
+// consume BEGIN avoids that stall without sending another command, negotiating
+// descriptors or extending the original query deadline. Queue consumption is
+// only transport synchronization; it supplies no unit or identity authority.
+func (t *managerDBusTransport) drainAuthentication() error {
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
+	for {
+		if t.authContext.Err() != nil || t.closed.Load() {
+			return ErrBoundary
+		}
+		raw, err := t.conn.SyscallConn()
+		if err != nil {
+			return ErrBoundary
+		}
+		queued := -1
+		var ioctlErr error
+		if raw.Control(func(fd uintptr) {
+			queued, ioctlErr = unix.IoctlGetInt(int(fd), unix.TIOCOUTQ)
+		}) != nil || ioctlErr != nil || queued < 0 {
+			return ErrBoundary
+		}
+		if queued == 0 {
+			return nil
+		}
+		select {
+		case <-t.authContext.Done():
+			return ErrBoundary
+		case <-tick.C:
+		}
+	}
 }

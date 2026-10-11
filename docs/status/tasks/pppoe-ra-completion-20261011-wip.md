@@ -216,3 +216,34 @@ Read-only actual host PID1 probe: five connections with40 fixed Version replies
 each within original2s/16384-byte bounds, plus one ordinary request PASS.
 Native diagnostic49 still failed namespace capture; fixed outgoing property
 request metadata is valid. This host probe does not certify guest activation.
+
+### Authentication boundary synchronization
+
+PR229 exact32f2899a37136bff723fc50b120a8e58f1fc1fab mandatory38145016303
+PASS, merged asd14f1901bc9f57823366ee0708462b4a5678d941. PPPoE board closure
+is now on main; RA remains running. Merged-main38146549365 is in progress.
+
+Diagnostic55 actual private PID1 syscall trace shows BEGIN and the first fixed
+VPP Id request received together; corresponding replies were attempted after
+2.003s at client disconnect and failed EPIPE. Independent literal read-only
+requests also timed out during the same period. A private Go stack captured
+the SDK reader waiting for the reply; five ordinary VPP role probes otherwise
+completed in9–15ms. These are diagnostic observations, not canonical acceptance.
+Native50 mistakenly copied the added agent diagnostic into /usr/bin instead
+of the original /usr/sbin ExecStart, so its added diagnostic was not executed.
+Earlier copied journals included prior boots; subsequent collections use -b.
+Retained private logs preserve these limits. Owned inactive cohorts40/41/44/46/
+47/49/50 were removed only after process/root-inode/mount checks and log hashes.
+
+The transport now waits until the peer consumes BEGIN before allowing binary
+requests, using the owned Unix socket's TIOCOUTQ and the original caller-clipped
+2s context. It sends the same fixed authentication/property bytes and performs
+no Hello, descriptor negotiation, extra requests or deadline/capability changes.
+Socket queue consumption grants no identity or unit authority. Protected socket,
+PID1 credential, reply framing, serial, role, byte and ancillary guards remain.
+The owned stream primitive proves partial consumption retains a queued packet
+and complete consumption releases it. New regressions FAIL against the prior
+transport; full current RA race suite PASS3.545s after supplying the existing
+bounded context in the owned pipeline fixture. The first local run failed those
+fixture constructors; its failure is retained. Fresh original canonical
+activation, EAP/TLS, restart, rollback, API and browser proof remains required.

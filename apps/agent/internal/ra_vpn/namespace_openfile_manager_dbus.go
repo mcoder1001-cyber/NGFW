@@ -194,7 +194,7 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 		}
 		return nil, ErrBoundary
 	}
-	transport := &managerDBusTransport{conn: conn, pending: make(map[uint32]bool)}
+	transport := &managerDBusTransport{conn: conn, authContext: ctx, pending: make(map[uint32]bool)}
 	defer func() {
 		if transport.Close() != nil {
 			checkpoint = 10

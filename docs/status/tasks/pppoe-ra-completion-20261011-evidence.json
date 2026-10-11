@@ -43,5 +43,17 @@
     "195": 100.42,
     "250": 79.5
   },
-  "ra": "open; canonical activation/rollback fail; no completion claim"
+  "ra": "open; canonical activation/rollback fail; no completion claim",
+  "ra_authentication_synchronization": {
+    "prior_reviewed_merge": "d14f1901bc9f57823366ee0708462b4a5678d941",
+    "original_query_seconds": 2,
+    "original_query_byte_limit": 16384,
+    "race_seconds": 3.545,
+    "canonical_acceptance": "not yet passed",
+    "private_log_sha256": {
+      "ra-auth-drain-old-red.private.txt": "6fe6f35be1d9382baa57dfc1bd8f2be5a0d6f790fbb77701144610aa45b5e62e",
+      "ra-auth-drain-source10-race-attempt2.private.txt": "efc1a38d6b9a1045708a58f22e45194919f3e0ed0ae3513dcde947cd84f7baa3",
+      "native55-pid1-syscalls.private.txt": "f108738614cdeb635cc7850cfc4e67abda132c2e546e8bd53947704a148bdb07"
+    }
+  }
 }

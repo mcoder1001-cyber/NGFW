@@ -216,7 +216,7 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
   if (input.wanMode === 'dhcp')
     wan.dhcpClient =
       !input.lan && base.interfaces[input.wan]!.dhcpClient
-        ? { ...base.interfaces[input.wan]!.dhcpClient }
+        ? { ...base.interfaces[input.wan]!.dhcpClient! }
         : { setBroadcastFlag: false };
   if (input.lan) {
     doc.routing.static = doc.routing.static.filter(

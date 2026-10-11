@@ -15,7 +15,9 @@ import (
 	"fmt"
 	"github.com/strongswan/govici/vici"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -1189,10 +1191,37 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 					dnsOwnership.Capture(t)
 				}
 				result, initiateErr := peer.Call(attempt, "initiate", privateMessage("child", "protected", "timeout", "12000"))
-				stop()
 				if initiateErr != nil || result == nil || result.Get("success") != "yes" {
+					stop()
 					t.Fatal("API peer genuine bounded reconnect")
 				}
+				// A complete fail-closed inventory may briefly reject the IKE
+				// transition. Require an exact public readback inside the same
+				// original reconnect budget before resuming stable observations.
+				for {
+					observed, observeErr := client.RemoteAccessSessions(attempt, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
+					if observeErr == nil && len(observed.GetSessions()) == 1 {
+						row := observed.GetSessions()[0]
+						if len(row.GetAddresses()) != 1 || len(row.GetId()) != 64 || row.GetId() == prior {
+							stop()
+							t.Fatal("API peer reconnect generation and VIP")
+						}
+						break
+					}
+					if len(observed.GetSessions()) > 1 || observeErr != nil && status.Code(observeErr) != codes.FailedPrecondition {
+						stop()
+						t.Fatal("API peer reconnect public observation refused")
+					}
+					select {
+					case <-attempt.Done():
+						stop()
+						t.Fatal("API peer reconnect public observation deadline")
+					case <-time.After(100 * time.Millisecond):
+					}
+				}
+				stop()
+				canonicalGuestDNS(t, plan)
+				dnsOwnership.Capture(t)
 			} else {
 				row := rows.GetSessions()[0]
 				if row.GetId() != prior {

@@ -1,5 +1,10 @@
 # ngfw-agent PPPoE client (F-pppoe-client) — session {{ident .HostIf}}. Rendered; hand edits are overwritten.
 plugin rp-pppoe.so
+{{- if .Carrier}}
+# Bound discovery retries; persist applies the configured holdoff between cycles.
+pppoe-padi-timeout 2
+pppoe-padi-attempts 2
+{{- end}}
 nic-{{ident .HostIf}}
 {{- if .ServiceName}}
 rp_pppoe_service {{quoted .ServiceName}}

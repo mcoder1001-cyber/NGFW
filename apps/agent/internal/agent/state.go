@@ -161,7 +161,12 @@ func (s *state) save() error {
 		return fmt.Errorf("state: %s: %w", stateFile, err)
 	}
 	// Publish only after the authoritative write. Mirror failures remain durable.
-	s.wanSaved = wanSnapshot(s.desired)
+	// Resync and unrelated domain commits retain the same WAN generation, so
+	// an in-flight dead-link cleanup is not discarded by an identical save.
+	nextWAN := wanSnapshot(s.desired)
+	if !proto.Equal(s.wanSaved, nextWAN) {
+		s.wanSaved = nextWAN
+	}
 	if saveHook != nil {
 		if err := saveHook("mirror"); err != nil {
 			return fmt.Errorf("%w: %w", errMirror, err)

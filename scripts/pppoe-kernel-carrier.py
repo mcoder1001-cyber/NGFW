@@ -689,6 +689,23 @@ class Carrier:
         raw, transit_name = link_names(token)
         if type(accept_default_route) is not bool:
             raise ValueError('accept_default_route must be boolean')
+        record = self.load(token, generation)
+        if (record.get('configured') is True
+                and record.get('accept_default_route') is accept_default_route):
+            # Polls must not close the firewall or replace policy rules on an
+            # already-converged carrier. The flag alone is never readiness:
+            # repeat the complete live namespace/link/address/route/firewall
+            # proof before returning without writes. Validation drift uses the
+            # original guarded withdrawal and repair; I/O errors still refuse.
+            try:
+                self.verify(token, generation)
+            except ValueError:
+                pass
+            except Exception:
+                self.withdraw(token, generation)
+                raise
+            else:
+                return record
         record = self.withdraw(token, generation)
         if record['spec']['mtu'] < 1280 and accept_default_route:
             raise ValueError('IPv6 policy is unsupported below MTU1280')

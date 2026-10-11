@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -86,5 +87,10 @@ func TestCarrierPeerProvidesHookIdentityToFixedDialer(t *testing.T) {
 	data := files[filepath.Join(r.paths.PeersDir, "carrier")].Content
 	if !strings.Contains(string(data), "\nipparam "+session.Remotename()+"\n") {
 		t.Fatal("fixed carrier dialer cannot pass hook identity")
+	}
+	for _, option := range []string{"pppoe-padi-timeout 2", "pppoe-padi-attempts 2", "persist", "holdoff " + strconv.FormatUint(uint64(session.HoldoffSec), 10), "maxfail " + strconv.FormatUint(uint64(session.MaxFail), 10)} {
+		if !strings.Contains(string(data), "\n"+option+"\n") {
+			t.Fatal("carrier discovery or reconnect policy lost", option)
+		}
 	}
 }

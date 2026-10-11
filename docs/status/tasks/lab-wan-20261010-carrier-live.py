@@ -115,6 +115,12 @@ if len(sys.argv)>1:
     run('ip','-n','ns-w20-carrier-lan','addr','add','10.20.1.2/24','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','route','add','default','via','10.20.1.1')
     log=(d/'server.log').open('w');(d/'server.log').chmod(0o600);p=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','pppoe-server','-F','-k','-I','w20is','-L','100.64.20.1','-R','100.64.20.10','-N','1','-O',str(options)],stdout=log,stderr=log,start_new_session=True);processes.append((p,log));time.sleep(.5)
     peer_proc=Path('/proc')/str(p.pid)
+    # Wait for the actual ip-netns-exec transition, then keep all identity guards.
+    peer_ready=time.monotonic()+2
+    while time.monotonic()<peer_ready:
+     if p.poll() is not None:break
+     if Path(os.readlink(peer_proc/'exe')).name=='pppoe-server':break
+     time.sleep(.02)
     peer_stat=(peer_proc/'stat').read_text().split(') ',1)[1].split()
     peer_ns=(peer_proc/'ns/net').stat();expected_ns=Path('/run/netns/ns-w20-carrier-isp').stat()
     assert [peer_ns.st_dev,peer_ns.st_ino]==[expected_ns.st_dev,expected_ns.st_ino] and os.getpgid(p.pid)==p.pid

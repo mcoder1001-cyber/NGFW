@@ -99,7 +99,7 @@ func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Se
 	if err = desc.VerifyCarrierVLANReadiness(ctx, rt.vpp, rt.owner, *s.Carrier); err != nil {
 		return carrierForwarding{}, err
 	}
-	if err = rt.verifyCarrierVPP(ctx, s, ifs, idx); err != nil {
+	if err = rt.verifyCarrierVPP(ctx, s, ifs, idx, m.LocalIPv4 != ""); err != nil {
 		return carrierForwarding{}, err
 	}
 	admission, err := os.ReadFile(filepath.Join(rt.sessionStateDir(s), s.HostIf+".ipv6.admission"))
@@ -113,6 +113,23 @@ func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Se
 	afterGeneration, err := rt.carrierSessionGeneration(s)
 	if err != nil || afterGeneration != sessionGeneration {
 		return carrierForwarding{}, errors.New("PPP NCP changed during forwarding verification")
+	}
+	// Track the learned address before the first write, including a partially
+	// completed primary-address repair. Failed preparation remains withdrawable.
+	if rt.mirrored == nil {
+		rt.mirrored = map[string]desc.Mirror{}
+	}
+	rt.mirrored[s.Iface] = m
+	if err = rt.promoteCarrierIPv4(ctx, s, m, idx); err != nil {
+		return carrierForwarding{}, err
+	}
+	after, err = rt.carrierInvocation(ctx, s)
+	if err != nil || after != invocation {
+		return carrierForwarding{}, errors.New("PPP process changed during primary address repair")
+	}
+	afterGeneration, err = rt.carrierSessionGeneration(s)
+	if err != nil || afterGeneration != sessionGeneration {
+		return carrierForwarding{}, errors.New("PPP NCP changed during primary address repair")
 	}
 	epoch := lease.Generation + ":" + strings.TrimSpace(string(admission)) + ":" + sessionGeneration + ":" + invocation
 	return carrierForwarding{lease: lease, mirror: m, admission: strings.TrimSpace(string(admission)), epoch: epoch, until: time.Now().Add(3 * time.Second)}, nil
@@ -190,7 +207,7 @@ func (rt *PppoeRuntime) carrierInvocation(ctx context.Context, s pppoe.Session) 
 	return id, nil
 }
 
-func (rt *PppoeRuntime) verifyCarrierVPP(ctx context.Context, s pppoe.Session, ifs *df6.Interfaces, transit uint32) error {
+func (rt *PppoeRuntime) verifyCarrierVPP(ctx context.Context, s pppoe.Session, ifs *df6.Interfaces, transit uint32, repairIPv4 bool) error {
 	parent, err := ifs.Index(s.Carrier.Parent)
 	if err != nil {
 		return err
@@ -235,7 +252,12 @@ func (rt *PppoeRuntime) verifyCarrierVPP(ctx context.Context, s pppoe.Session, i
 	if !forward || !reverse {
 		return errors.New("raw PPP cross-connect is incomplete")
 	}
+	// IPv4 is checked and recovered by promoteCarrierIPv4 after all admission
+	// proofs. Its deterministic transit can be absent after an interrupted repair.
 	for _, is6 := range []bool{false, true} {
+		if !is6 && repairIPv4 {
+			continue
+		}
 		if is6 && s.MTU < 1280 {
 			continue
 		}

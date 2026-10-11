@@ -211,6 +211,42 @@ class CarrierTests(unittest.TestCase):
         self.assertNotIn(RAW, policy)
         self.assertEqual(policy.count('policy drop'), 3)
 
+    def test_converged_configure_repeats_live_proof_without_packet_outage(self):
+        c = MemoryCarrier()
+        c.configure(c.token, 'a' * 32)
+        baseline = dict(c.record)
+        start = len(c.calls)
+        c.configure(c.token, 'a' * 32)
+        reads = c.calls[start:]
+        self.assertTrue(reads)
+        self.assertEqual(c.record, baseline)
+        self.assertTrue(all(data is None for _, data in reads))
+        self.assertFalse(any(word in command for command, _ in reads
+                             for word in ('add', 'delete', 'replace', 'set')))
+        self.assertTrue(c.verify(c.token, 'a' * 32)['verified'])
+
+    def test_converged_flag_does_not_admit_foreign_link(self):
+        c = MemoryCarrier()
+        c.configure(c.token, 'a' * 32)
+        start = len(c.calls)
+        c.extra = [{'ifname': 'foreign0', 'ifindex': 9}]
+        with self.assertRaises(ValueError):
+            c.configure(c.token, 'a' * 32)
+        self.assertFalse(c.record['configured'])
+        self.assertFalse(any(data == carrier.nft_policy(True, TOKEN)
+                             for _, data in c.calls[start:]))
+
+    def test_configure_live_read_failure_withdraws_before_refusing(self):
+        c = MemoryCarrier()
+        c.configure(c.token, 'a' * 32)
+        start = len(c.calls)
+        c.failure = 'show'
+        with self.assertRaises(RuntimeError):
+            c.configure(c.token, 'a' * 32)
+        self.assertFalse(c.record['configured'])
+        self.assertIn(carrier.nft_policy(False, TOKEN),
+                      [data for _, data in c.calls[start:]])
+
     def test_partial_failure_keeps_forwarding_closed(self):
         c = MemoryCarrier()
         c.failure = '101'

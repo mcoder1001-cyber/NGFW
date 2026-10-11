@@ -1146,6 +1146,34 @@ func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
 		}
 	})
 	_, plan, dnsOwnership := canonicalGuestPeer(t, profile, proposal, credentials, password, "api-"+input.Generation)
+	// End the owned IKE session before stopping the client. The resolve plugin
+	// replaces its file when an active SA is removed, including on SIGTERM.
+	// Capture that authenticated transition while the exact client is alive;
+	// the existing cleanup still refuses later inode or directory replacement.
+	t.Cleanup(func() {
+		peer := freshPrivateVICI(t, plan)
+		cleanup, stop := context.WithTimeout(context.Background(), 30*time.Second)
+		defer stop()
+		stats, err := peer.Call(cleanup, "stats", nil)
+		if err != nil || stats == nil {
+			t.Fatal("API peer final owned inventory")
+		}
+		ikeStats, ok := stats.Get("ikesas").(*vici.Message)
+		if !ok || ikeStats == nil {
+			t.Fatal("API peer final IKE inventory")
+		}
+		count, err := strconv.ParseUint(fmt.Sprint(ikeStats.Get("total")), 10, 64)
+		if err != nil || count > 1 {
+			t.Fatal("API peer final bounded IKE inventory")
+		}
+		if count == 1 {
+			removed, err := peer.Call(cleanup, "terminate", privateMessage("ike", "ra-client", "timeout", "2000"))
+			if err != nil || removed == nil || removed.Get("success") != "yes" {
+				t.Fatal("API peer final genuine IKE removal")
+			}
+		}
+		dnsOwnership.Capture(t)
+	})
 	for ctx.Err() == nil {
 		rows, readErr := canonicalAPIHeldSessionRead(ctx, func(read context.Context) (*ngfwv1.RemoteAccessSessionsResponse, error) {
 			return client.RemoteAccessSessions(read, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})

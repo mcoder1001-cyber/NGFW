@@ -191,7 +191,7 @@ export function SetupWizardPage() {
         (!values.wanPppoe || !SetupInputSchema.shape.wanPppoe.safeParse(values.wanPppoe).success)
       )
         throw new Error(t('pppoeRequired'));
-      if (step === 1 && (password.length < 12 || current === '' || current === password))
+      if (step === 1 && (password.length < 1 || current === '' || current === password))
         throw new Error(t('passwordPolicy'));
       if (step === 4) {
         const input = SetupInputSchema.parse(values);

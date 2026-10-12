@@ -50,6 +50,17 @@ class Firstboot(unittest.TestCase):
                    NGFW_BOOTSTRAP_ADMIN_PASSWORD='fixture-only-bootstrap')
         return root, credentials, entry, env
 
+    def test_missing_administrator_variables_use_product_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, credentials, entry, env = self.fixture(directory)
+            env.pop('NGFW_BOOTSTRAP_ADMIN_USER', None)
+            env.pop('NGFW_BOOTSTRAP_ADMIN_PASSWORD', None)
+            runuser = root / 'bin/runuser'
+            runuser.write_text(runuser.read_text() + '\nif [[ "$*" == *bootstrap-db.mjs* ]]; then [[ $NGFW_BOOTSTRAP_ADMIN_USER == admin && $NGFW_BOOTSTRAP_ADMIN_PASSWORD == admin ]]; fi\n')
+            subprocess.run(['bash', str(entry)], env=env, check=True, capture_output=True)
+            self.assertFalse(credentials.exists())
+            self.assertTrue((root / 'var/lib/ngfw/firstboot-complete').exists())
+
     def test_completed_marker_still_runs_unit_cleanup_after_crash(self):
         with tempfile.TemporaryDirectory() as directory:
             root, credentials, entry, env = self.fixture(directory)

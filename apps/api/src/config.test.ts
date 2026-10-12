@@ -3,12 +3,25 @@ import { databaseUrl, loadEnv } from './config.js';
 
 describe('loadEnv', () => {
   it('defaults, empty = unset, coercion', () => {
-    const env = loadEnv({ NGFW_JWT_SECRET: '', NGFW_HTTP_PORT: '3100', NGFW_COOKIE_SECURE: 'true' });
+    const env = loadEnv({
+      NGFW_JWT_SECRET: '',
+      NGFW_HTTP_PORT: '3100',
+      NGFW_COOKIE_SECURE: 'true',
+    });
     expect(env.NGFW_JWT_SECRET).toBeUndefined();
     expect(env.NGFW_HTTP_PORT).toBe(3100);
     expect(env.NGFW_COOKIE_SECURE).toBe(true);
     expect(env.NGFW_ACCESS_TTL_SEC).toBe(900);
     expect(env.NGFW_LOGIN_MAX_FAILURES).toBe(10);
+    expect(env.NGFW_BOOTSTRAP_ADMIN_USER).toBe('admin');
+    expect(env.NGFW_BOOTSTRAP_ADMIN_PASSWORD).toBe('admin');
+  });
+
+  it('accepts short production bootstrap overrides', () => {
+    expect(
+      loadEnv({ NODE_ENV: 'production', NGFW_BOOTSTRAP_ADMIN_PASSWORD: 'a' })
+        .NGFW_BOOTSTRAP_ADMIN_PASSWORD,
+    ).toBe('a');
   });
 
   it('NGFW_DEV_WEAK_PASSWORDS is off unless explicitly set', () => {
@@ -25,7 +38,9 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ NGFW_DEV_WEAK_PASSWORDS: '1', NODE_ENV: 'production' })).toThrow(
       /NGFW_DEV_WEAK_PASSWORDS: development only/,
     );
-    expect(loadEnv({ NGFW_DEV_WEAK_PASSWORDS: '0', NODE_ENV: 'production' }).NGFW_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(
+      loadEnv({ NGFW_DEV_WEAK_PASSWORDS: '0', NODE_ENV: 'production' }).NGFW_DEV_WEAK_PASSWORDS,
+    ).toBe(false);
     expect(loadEnv({ NODE_ENV: 'production' }).NGFW_DEV_WEAK_PASSWORDS).toBe(false);
   });
 

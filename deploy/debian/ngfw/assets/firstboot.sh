@@ -11,7 +11,8 @@ if [[ -e /var/lib/ngfw/firstboot-complete ]]; then
 fi
 [[ -f /etc/ngfw/bootstrap.env && ! -L /etc/ngfw/bootstrap.env ]] || { echo 'missing bootstrap.env' >&2; exit 1; }
 [[ $(stat -c '%u:%a' /etc/ngfw/bootstrap.env) == 0:600 ]] || { echo 'bootstrap.env must be root-owned 0600' >&2; exit 1; }
-[[ -n ${NGFW_BOOTSTRAP_ADMIN_USER:-} && -n ${NGFW_BOOTSTRAP_ADMIN_PASSWORD:-} ]] || { echo 'missing bootstrap administrator' >&2; exit 1; }
+export NGFW_BOOTSTRAP_ADMIN_USER=${NGFW_BOOTSTRAP_ADMIN_USER:-admin}
+export NGFW_BOOTSTRAP_ADMIN_PASSWORD=${NGFW_BOOTSTRAP_ADMIN_PASSWORD:-admin}
 # Fixed SQL identifiers; no bootstrap values enter a shell or SQL command.
 runuser -u postgres -- psql -X -v ON_ERROR_STOP=1 -d postgres >/dev/null <<'SQL'
 SELECT 'CREATE ROLE ngfw LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname='ngfw')

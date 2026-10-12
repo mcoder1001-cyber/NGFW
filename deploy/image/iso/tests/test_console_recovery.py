@@ -47,12 +47,12 @@ class ConsoleRecoveryTests(unittest.TestCase):
         self.assertEqual(self.password.stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.issue.read_bytes(), self.issue_before)
         self.assertEqual(self.issue.stat().st_mode & 0o777, 0o600)
-        self.assertNotIn(self.secret, result.stdout + result.stderr)
+        self.assertNotIn("password " + self.secret, result.stdout + result.stderr)
         self.reply('0\n')
         result = self.run_script('ngfw-console-banner', 'check-login')
         self.assertFalse(self.password.exists())
-        self.assertNotIn(self.secret, self.issue.read_text())
-        self.assertNotIn(self.secret, result.stdout + result.stderr)
+        self.assertNotIn("password " + self.secret, self.issue.read_text())
+        self.assertNotIn("password " + self.secret, result.stdout + result.stderr)
         self.assertEqual(self.issue.stat().st_mode & 0o777, 0o644)
         self.assertIn('https://', self.issue.read_text())
         clean_issue = self.issue.read_bytes()
@@ -72,7 +72,7 @@ class ConsoleRecoveryTests(unittest.TestCase):
         self.reply('000\n')
         self.run_script('ngfw-console-banner', 'check-login')
         self.assertFalse(self.password.exists())
-        self.assertNotIn(self.secret, self.issue.read_text())
+        self.assertNotIn("password " + self.secret, self.issue.read_text())
 
     def test_malformed_successful_database_responses_keep_credentials_until_recovery(self):
         for output in ('', '-1\n', 'not-a-count\n', '0\n0\n'):

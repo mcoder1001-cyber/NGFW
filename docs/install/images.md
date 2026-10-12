@@ -91,7 +91,7 @@ NIC and use the explicit interface name supplied during the build.
 
 Cloud-init VM datasources are `NoCloud` and `ConfigDrive`. Supply a seed image or
 config drive for host naming and permitted SSH public keys; no default Unix user
-or password login is enabled. API admin credentials are generated separately by
+or password login is enabled. The default API login is `admin` / `admin`, provisioned separately by
 P14's firstboot unit and displayed once on the console. SSH host keys and machine
 identity are generated per clone. A compatibility symlink maps P14's
 `firstboot.done` observation to P10's current atomically published
@@ -144,7 +144,7 @@ Do not enable or reconfigure SR-IOV on the shared host from this workflow.
 Deferred real acceptance requires a disposable VM for each hypervisor and approved
 cloud accounts. Boot with BIOS and UEFI where applicable; verify each filesystem
 label/mount, rootB unmounted, management DHCP and serial console; confirm the
-once-only random API admin password, successful admin login/password cleanup,
+once-only default API admin password, successful admin login/password cleanup,
 unique machine-id and SSH keys across two clones, `ngfw-firstboot` completion,
 PostgreSQL/nftables/ngfw-agent/API/web health, VPP 26.06 and `dpdk { no-pci }`;
 reboot and repeat state/health checks. Inspect the management firewall and verify

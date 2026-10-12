@@ -20,8 +20,8 @@ import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { useEnrolmentToken, useMfaReset, useSetPassword } from './queries';
 
-/** P06/TD-2: ≥ 12 characters (the API enforces it too). */
-const MIN_PASSWORD = 12;
+/** P06/TD-2: non-empty passwords (the API enforces it too). */
+const MIN_PASSWORD = 1;
 const LTR = { dir: 'ltr' } as const;
 
 /**

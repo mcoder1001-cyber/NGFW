@@ -112,7 +112,7 @@ const Env = z
 
     /** First admin (D-048): created at boot when app_user is empty. */
     NGFW_BOOTSTRAP_ADMIN_USER: z.string().default('admin'),
-    NGFW_BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),
+    NGFW_BOOTSTRAP_ADMIN_PASSWORD: z.string().min(1).max(1024).default('admin'),
 
     /** Candidate lock: a lock untouched for longer than this may be taken over by another user. */
     NGFW_LOCK_TTL_SEC: z.coerce.number().int().min(1).default(1800),

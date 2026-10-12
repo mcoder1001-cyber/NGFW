@@ -173,7 +173,7 @@ describe('setup wizard', () => {
       fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
     ).toBe(false);
   });
-  it('refuses a weak password before advancing', async () => {
+  it('refuses an empty password before advancing', async () => {
     const fake = installFakeApi();
     await signIn();
     fake.on('GET /api/v1/config', { body: doc });
@@ -182,9 +182,7 @@ describe('setup wizard', () => {
     next();
     await screen.findByLabelText('Current password');
     next();
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent('at least 12 characters'),
-    );
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('non-empty'));
     expect(fake.calls.some((r) => r.path.includes('/setup/stage'))).toBe(false);
   });
   it('factory login redirects dashboard to setup', async () => {

@@ -126,7 +126,7 @@ English/US keyboard/UTC. Late commands use only the signed embedded pool to inst
 NGFW packages, purge unwanted packages and apply appliance/kernel settings.
 There is no default OS user or password SSH login. Optional root authorized keys
 are embedded only when explicitly supplied. The API bootstrap administrator's
-random password is generated on the target, not baked into the ISO.
+initial login is `admin` / `admin`. Bootstrap credential files are written on the target, not baked into the ISO.
 
 The console banner shows management address/HTTPS URL and bootstrap credentials.
 After firstboot is complete, a periodic database check removes the console password

@@ -1,0 +1,9 @@
+# Default admin credentials and short password policy
+
+Owner requested admin/admin for initial login and short non-empty passwords by default, including production. This explicitly supersedes the historical minimum-length and random-bootstrap defaults. Branch codex/default-admin-20261012; isolated worktree /tmp/ngfw-default-admin-20261012; base bf6a049180c96e7d61c98f898dfd3963a2e25251.
+
+Owned: API bootstrap configuration/password policy/tests; image bootstrap writer/tests; corresponding web password forms/locales/tests and generated OpenAPI; install docs. Existing-account seeding remains no-overwrite. Current passwords, permissions, TLS, hashing, rate limits and session invalidation stay on their normal paths. Backup archive passphrases retain their separate policy.
+
+Implementation complete. Generated OpenAPI refreshed through normal API/client generator (JSON is ignored build output; tracked TS types unchanged). API focused39/39 PASS; web setup5/5 PASS; image69/69 PASS; packaged firstboot7/7 PASS. Real PostgreSQL/Valkey API integration: default production admin/admin login, short one-character password change, empty rejection and existing-account preservation PASS; auth suite10/10 PASS. Combined TD2 suite hit its unchanged60s setup hook and skipped14 tests; retained as failure, isolated rerun in progress. Initial tests started before workspace dependencies built and failed collection; stabilized serial runs passed.
+
+Owned E2E prefix ad1210, Valkey db0 keys only ngfw:ad1210:e2e:*; harness drops only owned database/role and keys. No host appliance credential or OS/SSH password changed. Independent reviewer found stale td2 rejection expectation (fixed) and console banner minimum (fixed). Scoped lint and final reviewer verdict pending; next inspect /tmp/ngfw-default-admin-tools-20261012/td2-repeat.log and scoped-lint.log, then create PR and pass hosted CI before integration.

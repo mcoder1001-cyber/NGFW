@@ -132,7 +132,7 @@ describe('TD-2 e2e', () => {
       });
       expect(wrong.status).toBe(403);
       const short = await h.call(token, 'POST', '/api/v1/users/ro1/password', {
-        password: 'short',
+        password: '',
         current: PW.ro,
       });
       expect(short.status).toBe(400);

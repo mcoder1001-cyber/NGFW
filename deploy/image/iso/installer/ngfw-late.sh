@@ -12,7 +12,7 @@
 #  4. common/bin/ngfw-image-setup: banner + bootstrap-password units, kernel cmdline/sysctl/modules defaults; update-grub
 #  5. the NGFW archive keyring (P10's repo key) at /usr/share/keyrings/ngfw-archive-keyring.gpg, optional online repo
 #     entry (/cdrom/ngfw/apt-uri), optional root SSH keys (/cdrom/ngfw/ssh/authorized_keys), host name
-#  6. /etc/ngfw/bootstrap.env with a random admin password (ngfw-bootstrap-password; never printed or logged)
+#  6. /etc/ngfw/bootstrap.env with the default admin password (ngfw-bootstrap-password; never printed or logged)
 #  7. --luks ISOs: the per-install key moves from RAM to /etc/ngfw/luks/ngfw-luks.key (0400) and crypttab uses it
 #  8. checks: ngfw-meta + vpp installed at the pool's versions, /etc/ngfw/appliance present, firstboot enabled
 # Log: /var/log/ngfw-late.log in the installer, copied to /target/var/log/installer/ngfw-late.log (no secrets in it).

@@ -13,7 +13,8 @@ verified from deploy/vpp, not FD.io/upstream unsuffixed packages.
    `apt-get install ngfw-meta`; the installer must not start VPP before firstboot.
 2. Create `/etc/ngfw/bootstrap.env` as root, mode 0600, using a local secure editor.
    It contains `NGFW_BOOTSTRAP_ADMIN_USER` and `NGFW_BOOTSTRAP_ADMIN_PASSWORD` in
-   systemd EnvironmentFile syntax. Also specify `NGFW_BOOTSTRAP_MGMT_IF` as the
+   systemd EnvironmentFile syntax. The default initial login is `admin` / `admin`;
+   a custom non-empty password may be supplied instead. Also specify `NGFW_BOOTSTRAP_MGMT_IF` as the
    explicit existing management interface and optional comma-separated
    `NGFW_BOOTSTRAP_PUNT_IFS` as existing VPP/Linux-CP interfaces (no wildcard).
    Early firewall generation persists these nonsecret interface inputs separately

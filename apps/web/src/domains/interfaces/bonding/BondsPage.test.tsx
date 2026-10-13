@@ -66,8 +66,8 @@ describe('bond model', () => {
     expect(toBondRow(B0)).toMatchObject({ name: 'BondEthernet6000', mode: 'lacp', loadBalance: 'l34', members: 'tap6000 tap6001', active: '0/2', status: 'degraded' });
     expect(toBondRow(B1)).toMatchObject({ mode: 'active-backup', members: '', active: '', status: '' });
     const req = { page: 0, pageSize: 25, sort: [{ field: 'name', dir: 'desc' as const }], filter: [], filterLogic: 'and' as const, quickFilter: [] };
-    expect(pageOfBonds([B0, B1].map(toBondRow), req).rows.map((r) => r.name)).toEqual(['BondEthernet6001', 'BondEthernet6000']);
-    expect(pageOfBonds([B0, B1].map(toBondRow), { ...req, quickFilter: ['tap6001'] }).total).toBe(1);
+    expect(pageOfBonds([B0, B1].map((item) => toBondRow(item)), req).rows.map((r) => r.name)).toEqual(['BondEthernet6001', 'BondEthernet6000']);
+    expect(pageOfBonds([B0, B1].map((item) => toBondRow(item)), { ...req, quickFilter: ['tap6001'] }).total).toBe(1);
   });
 
   it('eligible members: NICs without L3, not bonds, loopbacks or members of another bond; own members stay', () => {

@@ -18,7 +18,7 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { StatusChip, useFormatters } from '@ngfw/ui-kit';
+import { StatusChip, useFormatters, useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -119,10 +119,15 @@ function DrawerBody({
 }) {
   const { t } = useTranslation('interfaces');
   const fmt = useFormatters();
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const state = useInterfacesState();
   const displayNames = useMemo(() => interfaceDisplayNames(state.data?.items ?? []), [state.data]);
-  const displayName = displayNames.get(name) ?? name;
+  const label = (value: string) => {
+    const shared = interfaceLabel(value);
+    return shared !== value ? shared : (displayNames.get(value) ?? value);
+  };
+  const displayName = label(name);
   const candidate = useCandidateInterfaces();
   const fresh = useFreshCandidate();
   const patch = usePatchInterfaces();
@@ -268,11 +273,6 @@ function DrawerBody({
           <CloseIcon />
         </IconButton>
       </Stack>
-      {displayName !== name && (
-        <Typography variant="caption" component="div" dir="ltr" sx={{ mb: 1 }}>
-          {name}
-        </Typography>
-      )}
       {(state.isPending || candidate.isPending) && <LinearProgress aria-label={t('loading')} />}
       {!live && !item?.inventoryOnly && state.isSuccess && (
         <Alert severity="info">{t('drawer.notInVpp')}</Alert>
@@ -299,7 +299,7 @@ function DrawerBody({
                     <bdi dir="ltr">{fmt.rate(rate.rxBps, BPS)}</bdi>
                     <span>{t('col.tx')}</span>
                     <bdi dir="ltr">{fmt.rate(rate.txBps, BPS)}</bdi>
-                    <Sparkline values={rate.history} label={t('trendLabel', { name })} />
+                    <Sparkline values={rate.history} label={t('trendLabel', { name: displayName })} />
                   </Stack>
                 ) : (
                   t('live.noRates')
@@ -324,7 +324,7 @@ function DrawerBody({
           <Table size="small" aria-label={t('inventory.title')}>
             <TableBody>
               {[
-                [t('inventory.netdev'), item.hostInventory?.netdev || '—'],
+                [t('inventory.netdev'), item.hostInventory?.netdev ? label(item.hostInventory.netdev) : '—'],
                 [t('inventory.pci'), item.hostInventory?.pci || '—'],
                 [t('inventory.driver'), item.hostInventory?.driver || '—'],
                 [t('live.mac'), item.hostInventory?.mac || '—'],
@@ -345,7 +345,7 @@ function DrawerBody({
         </>
       ) : isSub ? (
         <Alert severity="info">
-          {t('drawer.subHint', { parent: displayNames.get(parentName) ?? parentName })}
+          {t('drawer.subHint', { parent: label(parentName) })}
         </Alert>
       ) : (
         <>
@@ -466,8 +466,8 @@ function DrawerBody({
         <DialogContent>
           <Typography sx={{ mb: 1 }}>
             {ownerAction === 'host'
-              ? t('physical.releaseConfirm', { name })
-              : t('physical.reclaimConfirm', { name })}
+              ? t('physical.releaseConfirm', { name: displayName })
+              : t('physical.reclaimConfirm', { name: displayName })}
           </Typography>
           <Alert severity="warning">{t('physical.applyHint')}</Alert>
           {setOwner.isError && <ProblemAlert error={setOwner.error} sx={{ mt: 1 }} />}

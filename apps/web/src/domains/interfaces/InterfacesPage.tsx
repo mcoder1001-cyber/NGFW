@@ -159,7 +159,7 @@ export function InterfacesPage() {
           <Stack direction="row" gap={0.5} alignItems="center" sx={{ blockSize: '100%' }}>
             <Box
               component="span"
-              title={p.row.item.name}
+              title={p.row.name}
               dir="ltr"
               sx={{
                 fontFamily: (th) => th.ngfw.monoFontFamily,

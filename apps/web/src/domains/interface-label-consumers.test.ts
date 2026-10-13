@@ -28,9 +28,14 @@ describe('interface labels in network summaries', () => {
   it('formats MPLS paths and searchable route summaries with the same labels', () => {
     const path = { interface: 'vmxnet3-0/b/0/0', outLabels: [100], weight: 1 };
     expect(pathText(path, translate, label)).toContain('via Ethernet2');
-    const config = {
-      labelRoutes: [{ table: 'default', label: 20, eos: true, paths: [path] }],
-    } as Parameters<typeof labelRouteRows>[0];
+    const config: NonNullable<Parameters<typeof labelRouteRows>[0]> = {
+      interfaces: [],
+      tables: {},
+      labelRoutes: [{ table: 0, label: 20, eos: true, paths: [path] }],
+      ipBindings: [],
+      tunnels: {},
+      sr: { policies: {}, steering: [] },
+    };
     const row = labelRouteRows(config, translate, label)[0]!;
     expect(row.paths).toContain('via Ethernet2');
     expect(row.pathList[0]).toContainEqual({ text: 'Ethernet2', mono: true });

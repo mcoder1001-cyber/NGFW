@@ -41,10 +41,10 @@ describe('setup wizard', () => {
     async (lang) => {
       const fake = installFakeApi();
       await signIn();
-      fake.on('GET /api/v1/config', {
+      fake.on('GET /api/v1/config', () => ({
         body: RootConfig.parse({}),
         headers: { 'x-ngfw-revision': '1' },
-      });
+      }));
       fake.on('POST /api/v1/config/setup/preview', { body: { changes: [] } });
       fake.on('POST /api/v1/config/setup/stage', { body: { staged: true } });
       fake.on('POST /api/v1/config/validate', {

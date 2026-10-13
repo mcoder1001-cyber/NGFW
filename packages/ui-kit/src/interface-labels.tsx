@@ -2,10 +2,17 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 const EMPTY_LABELS: ReadonlyMap<string, string> = new Map();
 const InterfaceLabelsContext = createContext(EMPTY_LABELS);
+const EMPTY_HOST_INTERFACES: readonly string[] = [];
+const HostInterfacesContext = createContext(EMPTY_HOST_INTERFACES);
 
 /** Presentation only: map keys remain the identities used by configuration and actions. */
-export function InterfaceLabelsProvider({ labels, children }: { labels: ReadonlyMap<string, string>; children: ReactNode }) {
-  return <InterfaceLabelsContext.Provider value={labels}>{children}</InterfaceLabelsContext.Provider>;
+export function InterfaceLabelsProvider({ labels, hostInterfaces = EMPTY_HOST_INTERFACES, children }: { labels: ReadonlyMap<string, string>; hostInterfaces?: readonly string[]; children: ReactNode }) {
+  return <InterfaceLabelsContext.Provider value={labels}><HostInterfacesContext.Provider value={hostInterfaces}>{children}</HostInterfacesContext.Provider></InterfaceLabelsContext.Provider>;
+}
+
+/** Linux netdev choices supplied by the inventory, never inferred from dataplane logical names. */
+export function useHostInterfaces(): readonly string[] {
+  return useContext(HostInterfacesContext);
 }
 
 function lookup(labels: ReadonlyMap<string, string>, name: string): string {

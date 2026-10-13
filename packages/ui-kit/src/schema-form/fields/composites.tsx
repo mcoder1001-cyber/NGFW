@@ -198,7 +198,7 @@ function RecordKeyField({
       schema={s}
       hints={hints}
       widget={hints.widget}
-      options={hints.widget === 'interface-picker' ? ctx.interfaceOptions : undefined}
+      options={['interface-picker', 'host-interface-picker'].includes(hints.widget ?? '') ? ctx.interfaceOptions : undefined}
       value={field.value}
       onChange={(v) => field.onChange(v ?? '')}
       onBlur={field.onBlur}
@@ -255,7 +255,8 @@ function MultiSelectField({ schema, name, propPath, label, required, hints, read
 
 function ChipsField({ schema, name, propPath, label, required, hints, readOnly, items }: BoundFieldProps & { items: JsonSchema }) {
   const ctx = useSchemaFormContext();
-  const interfaceItems = ['interface-picker', 'host-interface-picker'].includes(hintsOf(items).widget ?? '');
+  const hostInterfaceItems = hintsOf(items).widget === 'host-interface-picker' || hints.widget === 'host-interface-picker';
+  const interfaceItems = hostInterfaceItems || hintsOf(items).widget === 'interface-picker' || hints.widget === 'interface-picker';
   const { field, fieldState } = useController({ name });
   const help = useHelpText(schema, hints, propPath);
   const err = fieldState.error?.message;
@@ -273,6 +274,7 @@ function ChipsField({ schema, name, propPath, label, required, hints, readOnly, 
       error={typeof err === 'string' ? err : undefined}
       helperText={help}
       interfaceItems={interfaceItems}
+      hostInterfaceItems={hostInterfaceItems}
       options={interfaceItems ? ctx.interfaceOptions : undefined}
       ltr={hints.widget === 'tag-picker' || isLtrString(items, hintsOf(items).widget)}
     />

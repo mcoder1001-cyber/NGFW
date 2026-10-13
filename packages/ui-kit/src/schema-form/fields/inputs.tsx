@@ -18,7 +18,7 @@ import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useId, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useInterfaceName, useInterfaceLabel } from '../../interface-labels.js';
+import { useHostInterfaces, useInterfaceName, useInterfaceLabel } from '../../interface-labels.js';
 import { UI_KIT_NS } from '../../i18n/index.js';
 import { IDENTIFIER_WIDGETS, isLtrString, typeOf } from '../schema-utils.js';
 import type { JsonSchema, UiHints } from '../types.js';
@@ -181,16 +181,18 @@ function InterfacePickerInput(props: PrimitiveInputProps) {
   const { t } = useTranslation(UI_KIT_NS);
   const interfaceLabel = useInterfaceLabel();
   const interfaceName = useInterfaceName();
+  const hostInterfaces = useHostInterfaces();
+  const options = props.options?.length ? props.options : (props.widget === 'host-interface-picker' ? hostInterfaces : []);
   const resolveValue = (value: string, selected: boolean) => {
-    if (selected && props.options?.includes(value)) return value;
-    const option = props.options?.find((name) => interfaceLabel(name) === value);
+    if (selected && options.includes(value)) return value;
+    const option = options.find((name) => interfaceLabel(name) === value);
     if (option !== undefined) return option;
     if (props.widget === 'host-interface-picker') {
       return typeof props.value === 'string' && interfaceLabel(props.value) === value ? props.value : value;
     }
     return interfaceName(value);
   };
-  return <SuggestInput {...props} suggestions={props.options ?? []} optionLabel={interfaceLabel} resolveValue={resolveValue} defaultHelp={t('form.interfacePickerHelp')} />;
+  return <SuggestInput {...props} suggestions={options} optionLabel={interfaceLabel} resolveValue={resolveValue} defaultHelp={t('form.interfacePickerHelp')} />;
 }
 
 function toNumberValue(raw: string): unknown {
@@ -415,11 +417,16 @@ function JsonInput(props: PrimitiveInputProps) {
 }
 
 /** Array of strings as chips (`widget: 'chips'`). */
-export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefined; interfaceItems?: boolean | undefined }) {
-  const { value, onChange, onBlur, label, required, readOnly, error, helperText, ltr = false, interfaceItems = false } = props;
+export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefined; interfaceItems?: boolean | undefined; hostInterfaceItems?: boolean | undefined }) {
+  const { value, onChange, onBlur, label, required, readOnly, error, helperText, ltr = false, interfaceItems = false, hostInterfaceItems = false } = props;
   const interfaceLabel = useInterfaceLabel();
   const interfaceName = useInterfaceName();
-  const resolveValue = (value: string, selected: boolean) => selected && props.options?.includes(value) ? value : (props.options?.find((option) => interfaceLabel(option) === value) ?? interfaceName(value));
+  const hostInterfaces = useHostInterfaces();
+  const options = props.options?.length ? props.options : (hostInterfaceItems ? hostInterfaces : []);
+  const resolveValue = (value: string, selected: boolean) => {
+    if (selected && options.includes(value)) return value;
+    return options.find((option) => interfaceLabel(option) === value) ?? (hostInterfaceItems ? value : interfaceName(value));
+  };
   const theme = useTheme();
   const items = Array.isArray(value) ? value.map(String) : [];
   return (
@@ -427,7 +434,7 @@ export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefi
       multiple
       freeSolo
       autoSelect
-      options={interfaceItems ? [...(props.options ?? [])] : []}
+      options={interfaceItems ? [...options] : []}
       getOptionLabel={interfaceItems ? interfaceLabel : undefined}
       filterOptions={createFilterOptions({ stringify: (option: string) => `${option} ${interfaceItems ? interfaceLabel(option) : ''}` })}
       value={items}

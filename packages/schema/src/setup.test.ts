@@ -30,6 +30,63 @@ describe('setup builder', () => {
     delete wan.dhcp;
     return SetupInputSchema.parse(wan);
   };
+  const withoutWan = () => {
+    const value = wanOnly();
+    delete value.wan;
+    delete value.wanMode;
+    return SetupInputSchema.parse(value);
+  };
+  it('completes setup without any interfaces when WAN is omitted', () => {
+    const original = RootConfig.parse({});
+    const doc = buildSetup(original, withoutWan(), at);
+    expect(doc.interfaces).toEqual({});
+    expect(doc.system.hostname).toBe('router');
+    expect(doc.system.setup).toEqual({ completed: true, completedAt: at });
+    expect(doc.services.ntp.servers[0]?.address).toBe('pool.ntp.org');
+    expect(validateConfig(doc)).toEqual({ ok: true, config: doc });
+    expect(original.system.setup.completed).toBe(false);
+  });
+  it('preserves every network object and even customized wizard PPPoE on a no-WAN rerun', () => {
+    const original = buildSetup(
+      base(),
+      {
+        ...input,
+        wanMode: 'pppoe',
+        wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' },
+      },
+      at,
+    );
+    original.interfaces['setup-pppoe']!.description = 'Customized after setup';
+    const snapshot = structuredClone(original);
+    const value = { ...withoutWan(), rerun: true, hostname: 'new-router' };
+    const doc = buildSetup(original, value, at);
+    expect(doc.interfaces).toEqual(snapshot.interfaces);
+    expect(doc.routing).toEqual(snapshot.routing);
+    expect(doc.nat).toEqual(snapshot.nat);
+    expect(doc.acl).toEqual(snapshot.acl);
+    expect(doc.services.dhcp).toEqual(snapshot.services.dhcp);
+    expect(doc.management).toEqual(snapshot.management);
+    expect(original).toEqual(snapshot);
+    expect(setupDiff(original, value, at).map((change) => change.pointer)).toEqual([
+      '/system/hostname',
+    ]);
+    expect(() => buildSetup(original, withoutWan(), at)).toThrow('rerun');
+  });
+  it('requires WAN and mode together and rejects orphan network settings', () => {
+    const value = withoutWan();
+    expect(SetupInputSchema.safeParse(value).success).toBe(true);
+    for (const extra of [
+      { wan: 'wan0' },
+      { wanMode: 'dhcp' },
+      { wanAddress: '203.0.113.2/24' },
+      { wanGateway: '203.0.113.1' },
+      { wanPppoe: { username: 'isp', passwordRef: 'password/isp' } },
+      { lan: 'lan0', lanAddress: '192.168.40.1/24', dhcp: true },
+      { lanAddress: '192.168.40.1/24' },
+      { dhcp: false },
+    ])
+      expect(SetupInputSchema.safeParse({ ...value, ...extra }).success).toBe(false);
+  });
   it('configures a single WAN while preserving LAN and every existing policy', () => {
     const configured = buildSetup(base(), input, at);
     const original = structuredClone(configured);

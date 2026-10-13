@@ -1,6 +1,13 @@
 import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { RootConfig, SetupInputSchema, InterfaceSchema, buildSetup, diff } from '@ngfw/schema';
+import {
+  RootConfig,
+  SetupInputSchema,
+  InterfaceSchema,
+  UserSchema,
+  buildSetup,
+  diff,
+} from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
 import { AuditUnavailableDoc } from '../../audit/audit.interceptor.js';
@@ -33,7 +40,7 @@ export class SetupController {
     private readonly agent: AgentClient,
   ) {}
 
-  private async proposed(body: z.infer<typeof Preview>) {
+  private async proposed(body: z.infer<typeof Preview>, bootstrapUsername?: string) {
     const running = await this.ds.getRunning();
     if ((running.revision?.id ?? 0) !== body.baseRevision)
       throw problems.conflict('setup-stale', 'running configuration changed; reload setup');
@@ -42,7 +49,9 @@ export class SetupController {
       throw problems.badRequest('setup summary expired; preview again');
     try {
       const base = RootConfig.parse(running.doc);
-      const selected = body.input.lan ? [body.input.wan, body.input.lan] : [body.input.wan];
+      const selected = [body.input.wan, body.input.lan].filter(
+        (name): name is string => name !== undefined,
+      );
       if (
         selected.some(
           (name) => name === 'local0' || base.interfaces[name]?.physical?.owner === 'host',
@@ -54,7 +63,9 @@ export class SetupController {
       const observed = [
         ...new Set([
           ...missing,
-          ...(body.input.wanMode === 'pppoe' ? [body.input.wan, 'setup-pppoe'] : []),
+          ...(body.input.wanMode === 'pppoe' && body.input.wan
+            ? [body.input.wan, 'setup-pppoe']
+            : []),
         ]),
       ];
       if (observed.length > 0) {
@@ -93,6 +104,12 @@ export class SetupController {
         }
       }
       const doc = buildSetup(source, body.input, body.completedAt);
+      if (
+        bootstrapUsername &&
+        !doc.management.users.some((u) => u.username === bootstrapUsername)
+      ) {
+        doc.management.users.push(UserSchema.parse({ username: bootstrapUsername, role: 'admin' }));
+      }
       await this.ds.validateSetupPreview(doc);
       return { base, doc };
     } catch (error) {
@@ -126,7 +143,10 @@ export class SetupController {
     @Body(new ZodPipe(Preview)) body: z.infer<typeof Preview>,
     @Req() req: NgfwRequest,
   ) {
-    const { base, doc } = await this.proposed(body);
+    const { base, doc } = await this.proposed(
+      body,
+      (await this.auth.isBootstrapAdmin(req.principal!)) ? req.principal!.username : undefined,
+    );
     req.audit = { resource: 'setup/preview', after: { baseRevision: body.baseRevision } };
     return {
       changes: [
@@ -152,8 +172,12 @@ export class SetupController {
   })
   @ApiOut(z.object({ staged: z.literal(true) }))
   async stage(@Body(new ZodPipe(Stage)) body: z.infer<typeof Stage>, @Req() req: NgfwRequest) {
-    await this.auth.checkSetupPassword(req.principal!, body.current, secureTransport(req));
-    const { doc } = await this.proposed(body);
+    const bootstrapAdmin = await this.auth.checkSetupPassword(
+      req.principal!,
+      body.current,
+      secureTransport(req),
+    );
+    const { doc } = await this.proposed(body, bootstrapAdmin ? req.principal!.username : undefined);
     const candidate = await this.ds.diff();
     if (candidate.changes.length > 0)
       throw problems.conflict(

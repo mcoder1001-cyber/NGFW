@@ -1,0 +1,32 @@
+# Setup interface list repair
+
+Branch: `codex/fix-setup-interface-list`, based on origin/main `2955461ea`.
+Owned files: `deploy/systemd/ngfw-api.service`, this status file.
+
+The appliance unit omitted the documented D-192 `NGFW_SEED_DEFAULT_NICS=1` opt-in. On 172.30.110.211 the agent returned all 18 physical NICs, with enp4s0 identified as management, but all rows were inventory-only. Setup correctly excludes such rows from WAN selection.
+
+Change: enable default NIC registration in the packaged appliance API unit. The API environment file can still override it; development's schema default stays disabled.
+
+Validation: `python3 deploy/debian/ngfw/tests/test_firstboot.py`: 7 tests passed. Independent read-only review found no actionable issues. A persistent systemd drop-in was installed on 211 and only ngfw-api restarted. API observations remain available with no observation errors; management remains unconfigured as a dataplane interface.
+
+Resolved: the user removed the pending BondEthernet0 change. The automatic retry then committed revision 1 with 17 data NICs. `/api/v1/state/interfaces` confirms all 17 physical dataplane configuration rows and no observation errors. enp4s0 remains inventory-only with no running interface configuration. ngfw-api, ngfw-agent and vpp are active. No data NICs are live in VPP yet; dataplane binding/traffic readiness is separate from list registration. No VPP restart was performed.
+
+Publication: remote branch `codex/fix-setup-interface-list` contains code commit `a45f82100`. Static CI check passed; 15 focused SetupWizardPage, setup regression and DashboardOverview tests passed. Draft PR: https://github.com/mcoder1001-cyber/NGFW/pull/234. Complete quick gate: frontend lint/typecheck/build and tests passed (35 Turbo tasks, 657 web tests); agent vet/lint passed. Agent race suite failed in unchanged ra_vpn tests TestTargetsOpenFileReadbackProtectsOwnedFile and TestObserverOpenFileReadbackProtectsOwnedFile with `remote-access: verified engine lifecycle unavailable`. Agent source has no diff from origin/main. PR remains draft; unrelated VPN failures are not hidden or changed. Full gate log: `/root/ngfw-wt/logs/ci/NGFW-20261013-123440-183396/10-agent.log`.
+
+## Setup administrator follow-up
+
+The next wizard error was `setup requires a configured local administrator`. The initial local account is stored in app_user with source=bootstrap, while factory management.users is empty. Owned files now also include auth/auth.service.ts, auth/setup-bootstrap.test.ts and features/setup/controller.ts/controller.test.ts.
+
+The existing TLS/JWT/current-password/session-generation/rate-limit checks are retained. Setup only adopts the caller when the current database row matches the caller's username, bootstrap provenance, enabled state and admin role. Preview and stage share the same UserSchema metadata; existing configured accounts are never overwritten. Password hashing and promotion remain in the normal atomic setup/commit flow.
+
+Validation: 28 setup/auth tests passed; changed-file ESLint passed; independent security review found no actionable findings. Typecheck and API build are being completed before deployment. Before editing, the local compiled auth service and setup controller SHA256 hashes exactly matched the appliance, enabling deployment of only the two changed modules. No administrator password will be changed by this repair; the user completes their wizard normally.
+
+Deployment completed: API typecheck/build passed and 23 additional auth/route/security tests passed (51 focused tests total). The two compiled modules and their source maps were installed on 211 with backups of the original modules; API restart succeeded and installed SHA256 values match the local build. Authenticated read-only `/config/setup/preview` returned 200, included administrator metadata and the redacted password operation, and left the candidate diff unchanged. No setup staging/commit or password change was performed on the user's behalf. User can retry their own wizard Review/Apply step. The earlier unrelated ra_vpn quick-gate failures remain documented; PR stays draft.
+
+## Optional WAN and requested merge
+
+User explicitly authorized committing and merging the repair, and requested optional WAN changes. WAN editing is now off by default in the wizard. Omitted WAN fields preserve every network section and avoid agent interface queries; explicit WAN callers must still supply a valid interface and connection mode. Disabling WAN editing excludes stale form values from both preview and stage. New English/Persian copy explains preservation. Docs and the real-browser preview script are updated.
+
+The two unchanged ra_vpn test failures were diagnosed as fixtures under world-writable /tmp being correctly rejected by ancestor protection. Positive fixtures now use private /root directories with cleanup and explicit writable-parent rejection cases; production security code is untouched. Focused and full ra_vpn race tests pass. Schema/API/UI focused verification and independent review are in progress; regenerate contract artifacts, publish checkpoints, run the unchanged full quick gate and hosted checks, then merge PR #234 with an expected-head check. Do not weaken CI or security checks.
+
+Optional-WAN focused verification completed: 23 schema tests, 21 API setup tests, and 23 web wizard/defaults tests passed. Schema build, API typecheck and independent review passed. Full ra_vpn race suite passed after fixture corrections. Contract/client/CLI outputs were regenerated from source (only generated TS setup request fields change). Final quick/hosted results and merge outcome will be recorded on PR #234 before merging; use that PR as the current final validation record.

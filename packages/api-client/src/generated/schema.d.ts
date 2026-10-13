@@ -13006,9 +13006,9 @@ export interface operations {
             /** Hostname */
             hostname: string;
             /** Interface */
-            wan: string;
+            wan?: string;
             /** @enum {string} */
-            wanMode: 'dhcp' | 'static' | 'pppoe';
+            wanMode?: 'dhcp' | 'static' | 'pppoe';
             wanPppoe?: {
               /** Username */
               username: string;
@@ -13114,9 +13114,9 @@ export interface operations {
             /** Hostname */
             hostname: string;
             /** Interface */
-            wan: string;
+            wan?: string;
             /** @enum {string} */
-            wanMode: 'dhcp' | 'static' | 'pppoe';
+            wanMode?: 'dhcp' | 'static' | 'pppoe';
             wanPppoe?: {
               /** Username */
               username: string;

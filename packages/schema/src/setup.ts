@@ -11,8 +11,8 @@ export const SetupInputSchema = z
     timezone,
     ntp: z.array(hostOrIp).min(1).max(16),
     hostname,
-    wan: parentInterfaceName,
-    wanMode: z.enum(['dhcp', 'static', 'pppoe']),
+    wan: parentInterfaceName.optional(),
+    wanMode: z.enum(['dhcp', 'static', 'pppoe']).optional(),
     wanPppoe: InterfacePppoeSchema.pick({ username: true, passwordRef: true }).optional(),
     wanAddress: ipv4Cidr.optional(),
     wanGateway: z.ipv4().optional(),
@@ -22,6 +22,27 @@ export const SetupInputSchema = z
     rerun: z.boolean().default(false),
   })
   .superRefine((s, ctx) => {
+    if (s.wan === undefined && s.wanMode !== undefined)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['wan'],
+        message: 'WAN mode requires a selected WAN interface',
+      });
+    if (s.wan !== undefined && s.wanMode === undefined)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['wanMode'],
+        message: 'Selected WAN requires a connection mode',
+      });
+    if (
+      s.wan === undefined &&
+      (s.wanAddress !== undefined || s.wanGateway !== undefined || s.lan !== undefined)
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['wan'],
+        message: 'Network settings require a selected WAN interface',
+      });
     if (s.wanMode === 'pppoe' && !s.wanPppoe)
       ctx.addIssue({
         code: 'custom',
@@ -34,7 +55,7 @@ export const SetupInputSchema = z
         path: ['wanPppoe'],
         message: 'PPPoE credentials require PPPoE WAN mode',
       });
-    if (s.wan === s.lan)
+    if (s.wan !== undefined && s.wan === s.lan)
       ctx.addIssue({ code: 'custom', path: ['lan'], message: 'WAN and LAN must differ' });
     if (s.wanMode === 'static' && (!s.wanAddress || !s.wanGateway))
       ctx.addIssue({
@@ -148,19 +169,36 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
   const input = SetupInputSchema.parse(raw);
   if (base.system.setup.completed && !input.rerun)
     throw new Error('Setup completed; explicit rerun acknowledgement required');
-  if (!base.interfaces[input.wan] || (input.lan && !base.interfaces[input.lan]))
+  const doc = structuredClone(base);
+  const updateSystem = () => {
+    doc.system.hostname = input.hostname;
+    doc.system.timezone = input.timezone;
+    doc.system.setup = { completed: true, completedAt };
+    doc.services.ntp = {
+      ...doc.services.ntp,
+      enabled: true,
+      servers: input.ntp.map((address) => ({ address, iburst: true, prefer: false, nts: false })),
+      pools: [],
+    };
+  };
+  if (input.wan === undefined) {
+    updateSystem();
+    return RootConfig.parse(doc);
+  }
+  const wanInterface = input.wan;
+  if (!base.interfaces[wanInterface] || (input.lan && !base.interfaces[input.lan]))
     throw new Error('Select existing interfaces');
-  if (input.lan && base.interfaces[input.wan]!.vrf !== base.interfaces[input.lan]!.vrf)
+  if (input.lan && base.interfaces[wanInterface]!.vrf !== base.interfaces[input.lan]!.vrf)
     throw new Error('WAN and LAN must use the same VRF');
   if ([input.wan, input.lan].includes(SETUP_PPPOE))
     throw new Error('Select physical WAN and LAN interfaces, not the wizard logical WAN');
-  if (base.interfaces[input.wan]!.pppoe || (input.lan && base.interfaces[input.lan]!.pppoe))
+  if (base.interfaces[wanInterface]!.pppoe || (input.lan && base.interfaces[input.lan]!.pppoe))
     throw new Error(
       'Existing PPPoE interfaces require explicit migration outside the setup wizard',
     );
-  const doc = structuredClone(base);
   removeSetupPppoe(doc, input);
-  const wan = doc.interfaces[input.wan]!;
+  updateSystem();
+  const wan = doc.interfaces[wanInterface]!;
   const wanName = input.wanMode === 'pppoe' ? SETUP_PPPOE : input.wan;
   if (input.wanMode === 'pppoe') {
     if (
@@ -170,7 +208,7 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
       wan.unnumbered ||
       Object.keys(wan.subinterfaces).length ||
       Object.values(doc.interfaces).some(
-        (iface) => iface.bond?.members[input.wan] || iface.pppoe?.parent === input.wan,
+        (iface) => iface.bond?.members[wanInterface] || iface.pppoe?.parent === input.wan,
       )
     )
       throw new Error(
@@ -193,20 +231,11 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
       },
     });
   }
-  doc.system.hostname = input.hostname;
-  doc.system.timezone = input.timezone;
-  doc.system.setup = { completed: true, completedAt };
-  doc.services.ntp = {
-    ...doc.services.ntp,
-    enabled: true,
-    servers: input.ntp.map((address) => ({ address, iburst: true, prefer: false, nts: false })),
-    pools: [],
-  };
   wan.enabled = true;
   wan.ipv4 =
     input.wanMode === 'static'
-      ? !input.lan && input.wanAddress === base.interfaces[input.wan]!.ipv4[0]
-        ? [...base.interfaces[input.wan]!.ipv4]
+      ? !input.lan && input.wanAddress === base.interfaces[wanInterface]!.ipv4[0]
+        ? [...base.interfaces[wanInterface]!.ipv4]
         : [input.wanAddress!]
       : [];
   if (input.lan) wan.ipv6 = [];
@@ -215,8 +244,8 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
   delete wan.pppoe;
   if (input.wanMode === 'dhcp')
     wan.dhcpClient =
-      !input.lan && base.interfaces[input.wan]!.dhcpClient
-        ? { ...base.interfaces[input.wan]!.dhcpClient! }
+      !input.lan && base.interfaces[wanInterface]!.dhcpClient
+        ? { ...base.interfaces[wanInterface]!.dhcpClient! }
         : { setBroadcastFlag: false };
   if (input.lan) {
     doc.routing.static = doc.routing.static.filter(
@@ -230,7 +259,7 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
       route.nextHops.every((hop) => {
         if (hop.interface) return hop.interface === input.wan;
         if (!hop.address) return false;
-        return base.interfaces[input.wan]!.ipv4.some((cidr) => {
+        return base.interfaces[wanInterface]!.ipv4.some((cidr) => {
           const [address = '', prefix = ''] = cidr.split('/');
           const size = 2 ** (32 - Number(prefix));
           return (

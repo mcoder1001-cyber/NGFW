@@ -359,7 +359,7 @@ function XconnectsTab() {
             </TableHead>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={`${r.table}:${interfaceLabel(r.rx)}`}>
+                <TableRow key={`${r.table}:${r.rx}`}>
                   <TableCell>{r.table === 'xconnects' ? t('xc.l2') : t('xc.l3')}</TableCell>
                   <TableCell dir="ltr" sx={MONO}>
                     {interfaceLabel(r.rx)}

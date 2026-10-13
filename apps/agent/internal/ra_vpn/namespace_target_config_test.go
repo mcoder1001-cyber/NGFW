@@ -73,6 +73,7 @@ func TestTargetsOpenFileReadbackProtectsOwnedFile(t *testing.T) {
 	if readTargetsOpenFileAt(path, identity) == nil {
 		t.Fatal("configuration under a group-writable parent accepted")
 	}
+	// #nosec G302 -- restore private directory traversal after the writable-parent negative fixture.
 	if err := os.Chmod(root, 0700); err != nil {
 		t.Fatal(err)
 	}

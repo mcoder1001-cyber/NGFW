@@ -12,7 +12,7 @@ export function interfaceDisplayNames(items: readonly InterfaceItem[]): Map<stri
         item.kind === 'interface' &&
         (item.physical ||
           item.hostInventory?.pci ||
-          HARDWARE_TYPES.has(item.state?.type.toLowerCase() ?? '')),
+          HARDWARE_TYPES.has(item.state?.type?.toLowerCase() ?? '')),
     )
     .sort((a, b) => {
       const pciA = (a.physical?.pci ?? a.hostInventory?.pci)?.toLowerCase();

@@ -36,6 +36,7 @@ async function reachWan() {
   next();
   await screen.findByLabelText(i18n.t('setup:hostname'));
   next();
+  fireEvent.click(await screen.findByRole('checkbox', { name: i18n.t('setup:configureWan') }));
   await screen.findByRole('combobox', { name: i18n.t('setup:wan') });
 }
 async function select(label: string, name: string) {

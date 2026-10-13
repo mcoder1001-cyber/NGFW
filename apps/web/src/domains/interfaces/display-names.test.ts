@@ -58,14 +58,14 @@ describe('physical interface display names', () => {
       },
     };
     const data = port('wan', '0000:02:00.0', '10000000');
-    expect(interfaceDisplayNames([data, management]).get('wan')).toBe('Ethernet2-10G');
-    expect(interfaceDisplayNames([data, management]).get('ens192')).toBe('Ethernet1-Unknown');
+    expect(interfaceDisplayNames([data, management]).get('wan')).toBe('Ethernet2');
+    expect(interfaceDisplayNames([data, management]).get('ens192')).toBe('Ethernet1');
     const registered = {
       ...management,
       inventoryOnly: false,
       physical: { pci: '0000:01:00.0', owner: 'dataplane' as const, builtIn: true },
     };
-    expect(interfaceDisplayNames([registered, data]).get('wan')).toBe('Ethernet2-10G');
+    expect(interfaceDisplayNames([registered, data]).get('wan')).toBe('Ethernet2');
   });
 
   it('numbers ports by PCI independently of response order and preserves logical identities', () => {
@@ -75,16 +75,16 @@ describe('physical interface display names', () => {
       port('lan1', '0000:04:00.0', '1000000'),
     ];
     expect([...interfaceDisplayNames(items).values()].sort()).toEqual([
-      'Ethernet1-1G',
-      'Ethernet2-1G',
-      'Ethernet3-10G',
+      'Ethernet1',
+      'Ethernet2',
+      'Ethernet3',
     ]);
-    expect(interfaceDisplayNames([...items].reverse()).get('wan')).toBe('Ethernet3-10G');
+    expect(interfaceDisplayNames([...items].reverse()).get('wan')).toBe('Ethernet3');
     const rows = interfaceRows(items);
     expect(rows.map((row) => [row.id, row.name, row.item.name])).toEqual([
-      ['lan1', 'Ethernet1-1G', 'lan1'],
-      ['lan2', 'Ethernet2-1G', 'lan2'],
-      ['wan', 'Ethernet3-10G', 'wan'],
+      ['lan1', 'Ethernet1', 'lan1'],
+      ['lan2', 'Ethernet2', 'lan2'],
+      ['wan', 'Ethernet3', 'wan'],
     ]);
     for (const query of ['Ethernet3', 'wan']) {
       expect(
@@ -101,7 +101,7 @@ describe('physical interface display names', () => {
     expect(items.map((item) => item.name)).toEqual(['wan', 'lan2', 'lan1']);
   });
 
-  it('includes released or offline ports, handles fractional speeds, and does not invent unknown speeds', () => {
+  it('keeps labels independent of missing, zero or negotiated link speed', () => {
     const released = port('lan1', '0000:01:00.0', null);
     released.physical!.owner = 'host';
     const items = [
@@ -111,10 +111,10 @@ describe('physical interface display names', () => {
       port('lan4', '0000:04:00.0', '0'),
     ];
     expect([...interfaceDisplayNames(items).values()]).toEqual([
-      'Ethernet1-Unknown',
-      'Ethernet2-2.5G',
-      'Ethernet3-100M',
-      'Ethernet4-Unknown',
+      'Ethernet1',
+      'Ethernet2',
+      'Ethernet3',
+      'Ethernet4',
     ]);
   });
 
@@ -128,9 +128,44 @@ describe('physical interface display names', () => {
     } as InterfaceItem;
     const loop = { ...port('loop0', '', null), physical: null };
     expect([...interfaceDisplayNames([sub, loop, parent]).values()]).toEqual([
-      'Ethernet1-10G.100',
+      'Ethernet1.100',
       'loop0',
-      'Ethernet1-10G',
+      'Ethernet1',
     ]);
+  });
+  it('labels native physical ports without treating virtual TAPs as hardware', () => {
+    const native = { ...port('uplink', '', '0'), physical: null };
+    native.state!.type = 'vmxnet3';
+    const tap = { ...port('tap0', '', '0'), physical: null };
+    tap.state!.type = 'virtio';
+    expect(interfaceDisplayNames([tap, native]).get('uplink')).toBe('Ethernet1');
+    expect(interfaceDisplayNames([tap, native]).get('tap0')).toBe('tap0');
+  });
+
+  it('resolves VPP and host names without overwriting another logical identity', () => {
+    const wan = port('wan', '0000:01:00.0', '0');
+    wan.state!.vppName = 'GigabitEthernet0/1/0';
+    wan.hostInventory = {
+      netdev: 'ens192',
+      pci: '0000:01:00.0',
+      driver: 'vmxnet3',
+      mac: '',
+      isManagement: false,
+      boundToDpdk: false,
+      linkUp: false,
+    };
+    const vlan = {
+      ...port('wan.100', '', '0'),
+      physical: null,
+      kind: 'subinterface',
+      parent: 'wan',
+    } as InterfaceItem;
+    vlan.state!.vppName = 'GigabitEthernet0/1/0.100';
+    const labels = interfaceDisplayNames([wan, vlan]);
+    expect(labels.get('ens192')).toBe('Ethernet1');
+    expect(labels.get('GigabitEthernet0/1/0')).toBe('Ethernet1');
+    expect(labels.get('GigabitEthernet0/1/0.100')).toBe('Ethernet1.100');
+    const other = port('ens192', '0000:02:00.0', null);
+    expect(interfaceDisplayNames([wan, other]).get('ens192')).toBe('Ethernet2');
   });
 });

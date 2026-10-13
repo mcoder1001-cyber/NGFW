@@ -47,6 +47,7 @@ import {
 import type { Rate } from './rates';
 import { Sparkline } from './Sparkline';
 import { SubinterfaceTable } from './subinterfaces/SubinterfaceTable';
+import { interfaceDisplayNames } from './display-names';
 
 /** Server pointers `/interfaces/<name>[/subinterfaces/<id>]/…` → pointers relative to the edited form. */
 export function problemFor(error: unknown, prefix: string): ProblemDetails | null {
@@ -120,6 +121,8 @@ function DrawerBody({
   const fmt = useFormatters();
   const perms = usePermissions();
   const state = useInterfacesState();
+  const displayNames = useMemo(() => interfaceDisplayNames(state.data?.items ?? []), [state.data]);
+  const displayName = displayNames.get(name) ?? name;
   const candidate = useCandidateInterfaces();
   const fresh = useFreshCandidate();
   const patch = usePatchInterfaces();
@@ -237,7 +240,7 @@ function DrawerBody({
     : [];
 
   return (
-    <Box sx={{ p: 2 }} role="region" aria-label={t('drawer.label', { name })}>
+    <Box sx={{ p: 2 }} role="region" aria-label={t('drawer.label', { name: displayName })}>
       <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
         <Typography
           component="h3"
@@ -265,6 +268,11 @@ function DrawerBody({
           <CloseIcon />
         </IconButton>
       </Stack>
+      {displayName !== name && (
+        <Typography variant="caption" component="div" dir="ltr" sx={{ mb: 1 }}>
+          {name}
+        </Typography>
+      )}
       {(state.isPending || candidate.isPending) && <LinearProgress aria-label={t('loading')} />}
       {!live && !item?.inventoryOnly && state.isSuccess && (
         <Alert severity="info">{t('drawer.notInVpp')}</Alert>
@@ -336,7 +344,9 @@ function DrawerBody({
           </Table>
         </>
       ) : isSub ? (
-        <Alert severity="info">{t('drawer.subHint', { parent: displayNames.get(parentName) ?? parentName })}</Alert>
+        <Alert severity="info">
+          {t('drawer.subHint', { parent: displayNames.get(parentName) ?? parentName })}
+        </Alert>
       ) : (
         <>
           <Typography component="h4" variant="subtitle1" gutterBottom>

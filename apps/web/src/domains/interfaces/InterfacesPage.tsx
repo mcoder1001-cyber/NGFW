@@ -22,6 +22,7 @@ import { usePermissions } from '../../auth/AuthProvider';
 import { ProblemAlert } from '../../config/ProblemAlert';
 import { PageHeader } from '../../shell/PageHeader';
 import { InterfaceDrawer } from './InterfaceDrawer';
+import { interfaceDisplayNames } from './display-names';
 import { addressesOf, adminStatus, linkStatus, type InterfaceItem } from './model';
 import { fetchInterfacesState, ifaceKeys, STATE_POLL_MS, usePatchInterfaces } from './queries';
 import { useIfaceRates, type Rate } from './rates';
@@ -62,6 +63,13 @@ export function toRow(item: InterfaceItem): Row {
   };
 }
 
+export function interfaceRows(items: readonly InterfaceItem[]): Row[] {
+  const names = interfaceDisplayNames(items);
+  return items
+    .map((item) => ({ ...toRow(item), name: names.get(item.name) ?? item.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
+}
+
 function cmp(a: unknown, b: unknown): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
   return String(a ?? '').localeCompare(String(b ?? ''), undefined, { numeric: true });
@@ -73,7 +81,9 @@ export function pageOf(rows: Row[], req: ServerPageRequest): { rows: Row[]; tota
   const q = req.quickFilter.map((x) => x.toLowerCase());
   if (q.length > 0)
     list = list.filter((r) =>
-      q.every((x) => `${r.name} ${r.item.name} ${r.type} ${r.addresses} ${r.vrf}`.toLowerCase().includes(x)),
+      q.every((x) =>
+        `${r.name} ${r.item.name} ${r.type} ${r.addresses} ${r.vrf}`.toLowerCase().includes(x),
+      ),
     );
   for (const f of req.filter) {
     const needle = String(f.value ?? '').toLowerCase();
@@ -351,7 +361,7 @@ export function InterfacesPage() {
           fetchPage={fetchPage}
           refetchInterval={STATE_POLL_MS}
           initialPageSize={25}
-          onRowClick={(p) => setSelected(p.row.name)}
+          onRowClick={(p) => setSelected(p.row.item.name)}
           sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
         />
       </Paper>

@@ -51,7 +51,7 @@ The screen is fully available in Persian (right-to-left); the drawer opens from 
 ## Interface names
 
 The interface table, detail drawer, VLAN table and dashboard traffic chart display physical ports as
-`Ethernet1-1G`, `Ethernet2-1G`, `Ethernet3-10G`, etc. Ports with a physical marker are numbered by ascending PCI
+`Ethernet1-1G`, `Ethernet2-1G`, `Ethernet3-10G`, etc. Ports with a physical marker or host inventory are numbered by ascending PCI
 address; unmarked live DPDK ports follow, ordered by VPP name. Sorting or filtering the table does not change the
 mapping. The suffix is the reported link speed (`2.5G` and `100M` are also supported); unavailable or zero speed
 appears as `Unknown`. It can change when the negotiated speed changes. A VLAN inherits its parent's label, for

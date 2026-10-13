@@ -51,7 +51,8 @@ The screen is fully available in Persian (right-to-left); the drawer opens from 
 ## Interface names
 
 Physical ports display as `Ethernet1`, `Ethernet2`, `Ethernet3`, etc. throughout the web
-interface, including routing, firewall, service and setup forms. Ports with a physical marker or
+interface, including routing, firewall, service and setup forms, and in human CLI interface
+and route views. Ports with a physical marker or
 host inventory are numbered by ascending PCI address; unmarked native hardware ports follow,
 ordered by VPP name. Sorting, filtering and changes in negotiated speed do not change a port's
 label. A missing or zero link speed never adds an `Unknown` suffix. Link speed remains a separate
@@ -59,9 +60,12 @@ live property where the engine reports it. A VLAN inherits its parent's label, f
 `Ethernet3.100`. Virtual interfaces retain their logical names.
 
 Reference pickers display the same labels and accept searches by either label or original name.
-Selections, configuration paths, REST requests and CLI commands continue to use the original
-logical identity. Host-service fields retain their Linux interface identities. Raw configuration
-JSON and diagnostic output remain suitable for API and CLI use.
+Selections, configuration paths, REST requests and CLI configuration commands continue to use
+the original logical identity. Host-service fields retain their Linux interface identities.
+`ngfw show interfaces Ethernet3` accepts the displayed port label; an ambiguous label is rejected.
+Operational completion uses the same labels. CLI `--json` output, configuration text and
+configuration commands preserve the original identities for scripts and round trips. If interface
+inventory cannot be retrieved while showing routes, the CLI retains the available raw route names.
 
 | name | what the agent does |
 |---|---|

@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
@@ -41,6 +42,7 @@ function Flags({ item, keys }: { item: Item; keys: string[] }) {
 
 /** Static & port forwards: 1:1 and port-forward static mappings, identity mappings, load-balanced mappings. */
 export function MappingsTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NAT_NS);
   return (
     <Box>
@@ -84,9 +86,9 @@ export function MappingsTab() {
         title={t('identity.title')}
         addLabel={t('identity.add')}
         emptyText={t('identity.none')}
-        itemLabel={(m, i) => str(m['ip']) || str(m['interface']) || String(i + 1)}
+        itemLabel={(m, i) => str(m['ip']) || interfaceLabel(str(m['interface'])) || String(i + 1)}
         columns={[
-          { label: t('col.address'), value: (m) => str(m['ip']) || str(m['interface']), ltr: true },
+          { label: t('col.address'), value: (m) => str(m['ip']) || interfaceLabel(str(m['interface'])), ltr: true },
           { label: t('col.protocol'), value: (m) => str(m['protocol']) || t('col.any') },
           { label: t('col.port'), value: (m) => str(m['port']) || t('col.any') },
           { label: t('col.vrf'), value: (m) => str(m['vrf']) || DEFAULT_VRF },

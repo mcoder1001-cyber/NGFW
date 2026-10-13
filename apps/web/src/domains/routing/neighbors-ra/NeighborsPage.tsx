@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -60,6 +61,7 @@ export function toRow(n: Neighbor): Row {
 
 /** Live ARP/ND table: server-side paged (the agent pages), polled, invalidated by `neighbor.events`. */
 function NeighborTable() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation([NS, UI_KIT_NS]);
   const fmt = useFormatters();
   const perms = usePermissions();
@@ -91,7 +93,7 @@ function NeighborTable() {
         flex: 1,
         renderCell: (p) => (
           <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
-            {p.row.interface}
+            {interfaceLabel(p.row.interface)}
           </Box>
         ),
       },
@@ -151,7 +153,7 @@ function NeighborTable() {
       },
       { field: 'vrf', headerName: t('col.vrf'), width: 110 },
     ],
-    [t, fmt],
+    [t, fmt, interfaceLabel],
   );
 
   const select = (
@@ -179,7 +181,7 @@ function NeighborTable() {
   const interfaceSelect = select(
     'interface',
     t('filter.interface'),
-    (names.data ?? []).map((n) => [n, n] as const),
+    (names.data ?? []).map((n) => [n, interfaceLabel(n)] as const),
   );
   const familySelect = select(
     'family',
@@ -270,6 +272,7 @@ function FlushDialog(props: {
   onClose: () => void;
   onDone: (r: ArpFlushResult) => void;
 }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const flush = useArpFlush();
   const [iface, setIface] = useState<string>(props.initial ?? '');
@@ -308,7 +311,7 @@ function FlushDialog(props: {
             <MenuItem value="">{t('flush.all')}</MenuItem>
             {props.interfaces.map((n) => (
               <MenuItem key={n} value={n} dir="ltr">
-                {n}
+                {interfaceLabel(n)}
               </MenuItem>
             ))}
           </TextField>

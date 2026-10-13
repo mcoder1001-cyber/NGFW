@@ -220,10 +220,11 @@ export function serviceText(m: ServiceMatch | undefined): string | null {
 export function targetText(
   target: { kind: string; interface?: string; zone?: string },
   t: Translate,
+  label: (name: string) => string = (name) => name,
 ): string {
   return target.kind === 'zone'
     ? t('target.zone', { zone: target.zone ?? '' })
-    : (target.interface ?? '');
+    : label(target.interface ?? '');
 }
 
 /** Pending marks of attachment rows: an entry of the candidate that is not in the running configuration. */

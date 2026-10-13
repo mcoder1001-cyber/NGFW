@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
@@ -25,11 +26,11 @@ interface FibRow extends RouteItem {
 }
 
 /** One path as text: "normal 10.2.1.2 via lan w=3 (table 0) resolve-via-host"; the table only when it is another one. */
-function pathText(p: RouteItem['paths'][number], table: number | undefined): string {
+function pathText(p: RouteItem['paths'][number], table: number | undefined, label: (name: string) => string): string {
   return [
     p.type,
     p.nextHop ?? '',
-    p.interface ? `via ${p.interface}` : '',
+    p.interface ? `via ${label(p.interface)}` : '',
     `w=${p.weight}`,
     p.nextHop && !p.interface && table !== undefined && p.tableId !== table ? `(table ${p.tableId})` : '',
     ...p.flags,
@@ -48,6 +49,7 @@ const PREFIX_RE = /^[0-9a-fA-F.:]+\/[0-9]{1,3}$/;
  * and the refresh button re-reads the page.
  */
 export function FibTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   useFibQueryDefaults();
   const refresh = useRefreshRoutes();
@@ -99,14 +101,14 @@ export function FibTab() {
         renderCell: (p) => (
           <Stack sx={{ py: 0.5 }}>
             {p.row.paths.map((x, i) => (
-              <Mono key={i}>{pathText(x, meta.tableId)}</Mono>
+              <Mono key={i}>{pathText(x, meta.tableId, interfaceLabel)}</Mono>
             ))}
           </Stack>
         ),
       },
       { field: 'statsIndex', headerName: t('fib.col.stats'), type: 'number', width: 110, sortable: false, filterable: false },
     ],
-    [t, meta.tableId],
+    [t, meta.tableId, interfaceLabel],
   );
 
   return (

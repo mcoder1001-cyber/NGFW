@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -612,6 +613,7 @@ export function MapsTab() {
 // ─── Interface attachments ───────────────────────────────────────────────────
 
 export function AttachmentsTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('qos-flat');
   const ed = useQosEditor();
   const [target, setTarget] = useState<AttachmentTarget | null>(null);
@@ -649,7 +651,7 @@ export function AttachmentsTab() {
           {rows.map((r) => (
             <TableRow key={r.name} hover>
               <TableCell dir="ltr" sx={MONO}>
-                {r.name}
+                {interfaceLabel(r.name)}
               </TableCell>
               <TableCell dir="ltr">{dash(r.input)}</TableCell>
               <TableCell dir="ltr">
@@ -669,7 +671,7 @@ export function AttachmentsTab() {
                   : t('none')}
               </TableCell>
               <RowActions
-                name={r.name}
+                name={interfaceLabel(r.name)}
                 disabled={ed.readOnly || ed.patch.isPending}
                 onEdit={() => setTarget({ name: r.name, cfg: r.cfg, editing: true })}
                 onRemove={() => void ed.remove(qosPath(INTERFACES, r.name))}

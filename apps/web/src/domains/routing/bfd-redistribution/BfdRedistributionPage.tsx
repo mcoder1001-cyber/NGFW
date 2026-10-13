@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTopic } from '@ngfw/ui-kit/ws';
 import { useState } from 'react';
@@ -31,6 +32,7 @@ const policyTargets = ['bgp', 'ospf', 'isis', 'rip'];
 const ROUTE_MAPS = 'routeMaps';
 const ROUTING = 'routing';
 export function BfdRedistributionPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('bfd-redistribution');
   const live = useQuery({
     queryKey: ['state', 'bfd'],
@@ -90,7 +92,7 @@ export function BfdRedistributionPage() {
           {live.data?.sessions.map((s) => (
             <TableRow key={`${s.engine}/${s.interface}/${s.peerAddress}`}>
               <TableCell>{s.engine}</TableCell>
-              <TableCell>{s.interface}</TableCell>
+              <TableCell>{interfaceLabel(s.interface)}</TableCell>
               <TableCell dir="ltr">{s.peerAddress}</TableCell>
               <TableCell>{t(`states.${s.state}`, { defaultValue: t('states.unknown') })}</TableCell>
               <TableCell dir="ltr">

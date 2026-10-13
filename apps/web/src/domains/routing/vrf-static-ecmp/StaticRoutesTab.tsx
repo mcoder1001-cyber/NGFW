@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Alert from '@mui/material/Alert';
@@ -47,6 +48,7 @@ const STATUS_CHIP: Record<RouteStatus, 'up' | 'down' | 'adminDown' | 'degraded'>
  * with its weight). The whole list is written back with one PUT of `routing/static` (the generic pointer route).
  */
 export function StaticRoutesTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const routing = useCandidate<{ static?: StaticRouteConfig[] }>('routing');
@@ -58,7 +60,7 @@ export function StaticRoutesTab() {
   // index of the edited route in the list as sent (the list is written in canonical order, so pointers follow it)
   const [sentIndex, setSentIndex] = useState<number | null>(null);
   const schema = useMemo(() => localizeSchema(staticRouteSchema(), (k, o) => t(k, o ?? {})), [t]);
-  const rows = useMemo(() => routeRows(routes.data), [routes.data]);
+  const rows = useMemo(() => routeRows(routes.data, interfaceLabel), [routes.data, interfaceLabel]);
   const ifNames = useMemo(
     () => Object.entries(ifs.data ?? {}).flatMap(([n, i]) => [n, ...Object.keys(i.subinterfaces ?? {}).map((s) => `${n}.${s}`)]),
     [ifs.data],

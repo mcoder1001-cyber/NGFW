@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -43,6 +44,7 @@ function portText(p: number | undefined, any: string): string {
 
 /** Services → Host stack (F-host-stack): session layer switch, app namespaces and the session-rules grid. */
 export function HostStackTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const live = useHostStackState();
@@ -135,7 +137,7 @@ export function HostStackTab() {
               <TableRow key={id}>
                 <TableCell>{id}</TableCell>
                 <TableCell>{n.vrf ?? DEFAULT_VRF}</TableCell>
-                <TableCell>{n.interface ?? ''}</TableCell>
+                <TableCell>{interfaceLabel(n.interface ?? '')}</TableCell>
                 <TableCell sx={END}>
                   <IconButton
                     aria-label={`${t('delete')} ${id}`}

@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -248,6 +249,7 @@ function DaemonChip({ status }: { status: ServerStatus | undefined }) {
 // ─── Servers ───────────────────────────────────────────────────────────────
 
 export function ServersTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('kea-dhcp-relay');
   const ed = useDhcpEditor();
   const status = useDhcpStatus();
@@ -307,7 +309,7 @@ export function ServersTab() {
               <TableCell>{t(`family.${r.family}`)}</TableCell>
               <TableCell dir="ltr">{r.vrf}</TableCell>
               <TableCell dir="ltr" sx={MONO}>
-                {r.interfaces.join(' ')}
+                {r.interfaces.map(interfaceLabel).join(' ')}
               </TableCell>
               <TableCell>{r.subnets}</TableCell>
               <TableCell>{r.enabled ? t('yes') : t('no')}</TableCell>
@@ -647,6 +649,7 @@ const RELAY_STATUS: Record<RelayStateName, 'up' | 'down' | 'degraded' | 'adminDo
 };
 
 export function RelaysTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('kea-dhcp-relay');
   const ed = useDhcpEditor();
   const state = useRelayState();
@@ -697,7 +700,7 @@ export function RelaysTab() {
                 {r.source}
               </TableCell>
               <TableCell dir="ltr" sx={MONO}>
-                {r.interfaces.join(' ')}
+                {r.interfaces.map(interfaceLabel).join(' ')}
               </TableCell>
               <TableCell>
                 {r.state === 'pending' ? (

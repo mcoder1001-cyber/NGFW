@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -58,6 +59,7 @@ interface RoutingDoc {
  * `routing` (the generic pointer route); the pending-change bar shows the diff and commits it.
  */
 export function PbrPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation([NS, 'config']);
   const fmt = useFormatters();
   const perms = usePermissions();
@@ -254,7 +256,7 @@ export function PbrPage() {
                     <Stack>
                       {paths.map((p, i) => (
                         <Box key={i} component="span" dir="ltr" sx={MONO}>
-                          {pathText(p, (k, o) => t(k, o ?? {}))}
+                          {pathText({ ...p, ...(p.interface ? { interface: interfaceLabel(p.interface) } : {}) }, (k, o) => t(k, o ?? {}))}
                         </Box>
                       ))}
                     </Stack>
@@ -356,7 +358,7 @@ export function PbrPage() {
                   <TableCell dir="ltr">{a.policy}</TableCell>
                   <TableCell>
                     <Box component="span" dir="ltr" sx={MONO}>
-                      {a.interface}
+                      {interfaceLabel(a.interface)}
                     </Box>
                   </TableCell>
                   <TableCell>{t(`family.${a.family ?? 'ipv4'}`)}</TableCell>

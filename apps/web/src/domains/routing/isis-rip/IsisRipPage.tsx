@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { LiveState } from './LiveState';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
@@ -27,6 +28,7 @@ const RIPNG = 'ripng' as const;
 export type TabKey = 'isis' | 'rip' | 'ripng';
 
 function Interfaces({ proto }: { proto: TabKey }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const cand = useCandidateRouting();
   const cfg = cand.data?.[proto];
@@ -55,7 +57,7 @@ function Interfaces({ proto }: { proto: TabKey }) {
           <TableBody>
             {rows.map(([name, i]) => (
               <TableRow key={name} data-testid={`${proto}-if-${name}`}>
-                <TableCell dir="ltr">{name}</TableCell>
+                <TableCell dir="ltr">{interfaceLabel(name)}</TableCell>
                 <TableCell>{i.passive ? t('yes') : t('no')}</TableCell>
                 {proto === 'isis' && <TableCell dir="ltr">{i.metric ?? t('none')}</TableCell>}
                 {proto === 'isis' && <TableCell dir="ltr">{i.circuitType ?? t('none')}</TableCell>}

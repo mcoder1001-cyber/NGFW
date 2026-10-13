@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import EditIcon from '@mui/icons-material/Edit';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -52,6 +53,7 @@ const esc = (s: string) => s.replace(/~/g, '~0').replace(/\//g, '~1');
  * drawer's security group. Edits are merge patches of the candidate; the pending-change bar commits them.
  */
 export function AdlPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation([NS, 'config']);
   const perms = usePermissions();
   const ifs = useCandidate<IfDoc>('interfaces');
@@ -142,7 +144,7 @@ export function AdlPage() {
               <TableRow key={r.name} data-testid={`sec-${r.name}`}>
                 <TableCell>
                   <Box component="span" dir="ltr" sx={MONO}>
-                    {r.name}
+                    {interfaceLabel(r.name)}
                   </Box>
                 </TableCell>
                 <TableCell>{urpfText(r.urpf, tr)}</TableCell>
@@ -155,7 +157,7 @@ export function AdlPage() {
                 <TableCell sx={{ textAlign: 'end' }}>
                   <IconButton
                     size="small"
-                    aria-label={t('adl.edit', { name: r.name })}
+                    aria-label={t('adl.edit', { name: interfaceLabel(r.name) })}
                     disabled={readOnly}
                     onClick={() => {
                       patchIfs.reset();
@@ -203,7 +205,7 @@ export function AdlPage() {
         fullWidth
         aria-labelledby="sec-title"
       >
-        <DialogTitle id="sec-title">{t('adl.editTitle', { name: editing ?? '' })}</DialogTitle>
+        <DialogTitle id="sec-title">{t('adl.editTitle', { name: interfaceLabel(editing ?? '') })}</DialogTitle>
         <DialogContent dividers>
           <Alert severity="info" sx={{ mb: 2 }}>
             {t('adl.physicalOnly')}

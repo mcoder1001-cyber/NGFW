@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -68,12 +69,13 @@ export function AttachmentDialog({
   onCancel: () => void;
   onSubmit: (name: string, value: Record<string, unknown>) => void;
 }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('qos-flat');
   return (
     <Dialog open={target !== null} onClose={onCancel} fullWidth maxWidth="md">
       <DialogTitle>
         {target?.editing
-          ? t('interfaces.editTitle', { name: target.name })
+          ? t('interfaces.editTitle', { name: interfaceLabel(target.name) })
           : t('interfaces.addTitle')}
       </DialogTitle>
       {target && (
@@ -118,6 +120,7 @@ function Body({
   onCancel: () => void;
   onSubmit: (name: string, value: Record<string, unknown>) => void;
 }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('qos-flat');
   const [name, setName] = useState(target.name);
   const [f, setF] = useState<AttachmentForm>(() => attachmentForm(target.cfg));
@@ -165,7 +168,7 @@ function Body({
     value: string,
     options: readonly string[],
     onChange: (v: string) => void,
-    opts: { none?: boolean; error?: string | undefined; helper?: string } = {},
+    opts: { none?: boolean; error?: string | undefined; helper?: string; interfaceName?: boolean } = {},
   ) => (
     <TextField
       select
@@ -179,7 +182,7 @@ function Body({
       {opts.none !== false && <MenuItem value={NONE}>{t('interfaces.none')}</MenuItem>}
       {options.map((o) => (
         <MenuItem key={o} value={o} dir="ltr">
-          {o}
+          {opts.interfaceName ? interfaceLabel(o) : o}
         </MenuItem>
       ))}
     </TextField>
@@ -189,7 +192,7 @@ function Body({
     label: string,
     value: string,
     onChange: (v: string) => void,
-    opts: { none?: boolean; error?: string | undefined; helper?: string } = {},
+    opts: { none?: boolean; error?: string | undefined; helper?: string; interfaceName?: boolean } = {},
   ) => (
     <TextField
       select
@@ -214,11 +217,12 @@ function Body({
       <DialogContent>
         <Stack gap={2} sx={{ pt: 1 }}>
           {target.editing ? (
-            <TextField label={t('interfaces.interface')} value={name} disabled slotProps={{ htmlInput: LTR }} />
+            <TextField label={t('interfaces.interface')} value={interfaceLabel(name)} disabled slotProps={{ htmlInput: LTR }} />
           ) : (
             select(t('interfaces.interface'), name, nameOptions, setName, {
               none: false,
-              ...(taken ? { error: t('dialog.nameTaken', { name }) } : {}),
+              interfaceName: true,
+              ...(taken ? { error: t('dialog.nameTaken', { name: interfaceLabel(name) }) } : {}),
               helper: t('interfaces.interfaceHelp'),
             })
           )}
@@ -246,6 +250,7 @@ function Body({
               <>
                 {sourceSelect(t('interfaces.storeSource'), f.storeSource, on.storeSource, {
                   none: false,
+              interfaceName: true,
                   error: err.storeSource,
                   helper: t('interfaces.storeHelp'),
                 })}
@@ -279,11 +284,13 @@ function Body({
             {f.egress === 'policer' &&
               select(t('interfaces.outputPolicer'), f.output, withCurrent(policers, f.output), on.output, {
                 none: false,
+              interfaceName: true,
                 error: err.output,
               })}
             {f.egress === 'shaper' &&
               select(t('interfaces.shaper'), f.shaper, withCurrent(shapers, f.shaper), on.shaper, {
                 none: false,
+              interfaceName: true,
                 error: err.shaper,
               })}
           </Stack>
@@ -296,10 +303,12 @@ function Body({
               <>
                 {select(t('interfaces.markMap'), f.markMap, withCurrent(maps, f.markMap), on.markMap, {
                   none: false,
+              interfaceName: true,
                   error: err.markMap,
                 })}
                 {sourceSelect(t('interfaces.markOutput'), f.markOutput, on.markOutput, {
                   none: false,
+              interfaceName: true,
                   error: err.markOutput,
                 })}
               </>

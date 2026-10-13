@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
@@ -24,6 +25,7 @@ const SUBTREE: Subtree = 'nptv6';
  * their status: write-only (VPP 26.06 has no npt66 dump; the agent re-applies every binding on each resync).
  */
 export function Nptv6Tab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const state = useNptv6State();
   return (
@@ -58,7 +60,7 @@ export function Nptv6Tab() {
               )}
               {state.data.bindings.map((b) => (
                 <TableRow key={`${b.interface}|${b.internal}`}>
-                  <TableCell dir="ltr">{b.interface}</TableCell>
+                  <TableCell dir="ltr">{interfaceLabel(b.interface)}</TableCell>
                   <TableCell dir="ltr">{b.internal}</TableCell>
                   <TableCell dir="ltr">{b.external}</TableCell>
                   <TableCell>{b.description ?? ''}</TableCell>

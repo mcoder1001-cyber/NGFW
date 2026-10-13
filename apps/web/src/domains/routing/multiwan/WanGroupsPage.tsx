@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
@@ -67,6 +68,7 @@ export function WanGroupsPage() {
 }
 
 function WanGroup({ g }: { g: WanGroupState }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('multiwan');
   return (
     <Box>
@@ -101,7 +103,7 @@ function WanGroup({ g }: { g: WanGroupState }) {
             {g.members.map((m) => (
               <TableRow key={m.interface}>
                 <TableCell dir="ltr">
-                  <bdi>{m.interface}</bdi>
+                  <bdi>{interfaceLabel(m.interface)}</bdi>
                   {g.mode === 'failover' && m.interface === g.active && (
                     <Chip
                       size="small"

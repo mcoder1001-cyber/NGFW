@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
@@ -874,6 +875,7 @@ function SteeringPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undef
 }
 
 function SteeringDialog({ cfg, onClose }: { cfg: Srv6View; onClose: () => void }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('srv6');
   const patch = usePatchSrv6();
   const fresh = useFreshSrv6();
@@ -965,7 +967,7 @@ function SteeringDialog({ cfg, onClose }: { cfg: Srv6View; onClose: () => void }
             >
               {(ifaces.data ?? []).map((n) => (
                 <MenuItem key={n} value={n} dir="ltr">
-                  {n}
+                  {interfaceLabel(n)}
                 </MenuItem>
               ))}
             </TextField>

@@ -87,23 +87,23 @@ export interface RouteRow {
 }
 
 /** "10.2.1.2 ×3 · 10.2.1.3 ×1", "via lan", "10.2.2.2 in default", or "" for a blackhole route. */
-export function pathsText(r: Pick<StaticRouteConfig, 'nextHops'>): string {
+export function pathsText(r: Pick<StaticRouteConfig, 'nextHops'>, label: (name: string) => string = (name) => name): string {
   const ecmp = r.nextHops.length > 1;
   return r.nextHops
     .map((h) => {
-      const where = [h.address, h.interface ? `via ${h.interface}` : '', h.vrf ? `in ${h.vrf}` : ''].filter(Boolean).join(' ');
+      const where = [h.address, h.interface ? `via ${label(h.interface)}` : '', h.vrf ? `in ${h.vrf}` : ''].filter(Boolean).join(' ');
       return ecmp ? `${where} ×${h.weight}` : where;
     })
     .join(' · ');
 }
 
-export function routeRows(routes: readonly StaticRouteConfig[] | undefined): RouteRow[] {
+export function routeRows(routes: readonly StaticRouteConfig[] | undefined, label: (name: string) => string = (name) => name): RouteRow[] {
   return (routes ?? []).map((r, index) => ({
     id: String(index),
     index,
     vrf: r.vrf,
     prefix: r.prefix,
-    paths: r.blackhole ? '' : pathsText(r),
+    paths: r.blackhole ? '' : pathsText(r, label),
     ecmp: r.nextHops.length > 1,
     distance: r.distance,
     viaFrr: r.viaFrr === true,

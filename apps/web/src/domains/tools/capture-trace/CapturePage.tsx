@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -55,6 +56,7 @@ function pointerErrors(err: unknown): Record<string, string> {
 }
 
 function Running({ c }: { c: CaptureFile }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const elapsed = c.startedAt
     ? Math.max(0, Math.round((Date.now() - Date.parse(c.startedAt)) / 1000))
@@ -62,7 +64,7 @@ function Running({ c }: { c: CaptureFile }) {
   const pct = Math.min(100, (elapsed / Math.max(1, c.seconds)) * 100);
   return (
     <Alert severity="info" sx={{ mb: 2 }} data-testid="capture-running">
-      {t('running', { id: c.id, iface: c.interface, elapsed, seconds: c.seconds })}
+      {t('running', { id: c.id, iface: interfaceLabel(c.interface), elapsed, seconds: c.seconds })}
       <LinearProgress variant="determinate" value={pct} sx={{ mt: 1 }} aria-label={t('progress')} />
     </Alert>
   );
@@ -165,6 +167,7 @@ function CaptureForm({ disabled }: { disabled: boolean }) {
 
 /** Tools › Packet capture (F-capture-trace, WBS D8.2): start a pcap capture, watch it, download / delete the files. */
 export function CapturePage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const admin = perms.manageUsers;
@@ -245,7 +248,7 @@ export function CapturePage() {
                 <TableRow key={c.id}>
                   <TableCell dir="ltr">{c.id}</TableCell>
                   <TableCell>{t(`state.${c.state}`, { defaultValue: c.state })}</TableCell>
-                  <TableCell dir="ltr">{c.interface}</TableCell>
+                  <TableCell dir="ltr">{interfaceLabel(c.interface)}</TableCell>
                   <TableCell>{c.packets}</TableCell>
                   <TableCell>{c.size}</TableCell>
                   <TableCell>

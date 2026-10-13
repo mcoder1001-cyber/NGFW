@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
@@ -24,6 +25,7 @@ import { multicastKeys, useMroutes, useMulticastGroups, usePimNeighbors } from '
 const ANY_SOURCE = '*';
 
 export function MulticastPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('igmp-mfib');
   const qc = useQueryClient();
   const groups = useMulticastGroups();
@@ -72,7 +74,7 @@ export function MulticastPage() {
               <TableBody>
                 {(groups.data?.groups ?? []).map((g, i) => (
                   <TableRow key={`${g.interface}-${g.group}-${i}`}>
-                    <TableCell dir="ltr">{g.interface}</TableCell>
+                    <TableCell dir="ltr">{interfaceLabel(g.interface)}</TableCell>
                     <TableCell dir="ltr">{g.group}</TableCell>
                     <TableCell dir="ltr">{g.sources.join(', ')}</TableCell>
                   </TableRow>
@@ -104,8 +106,8 @@ export function MulticastPage() {
                     <TableCell dir="ltr">{m.vrf}</TableCell>
                     <TableCell dir="ltr">{m.group}</TableCell>
                     <TableCell dir="ltr">{m.source || ANY_SOURCE}</TableCell>
-                    <TableCell dir="ltr">{m.accept}</TableCell>
-                    <TableCell dir="ltr">{m.forward.join(', ')}</TableCell>
+                    <TableCell dir="ltr">{interfaceLabel(m.accept)}</TableCell>
+                    <TableCell dir="ltr">{m.forward.map(interfaceLabel).join(', ')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -130,7 +132,7 @@ export function MulticastPage() {
               <TableBody>
                 {(pim.data?.neighbors ?? []).map((n, i) => (
                   <TableRow key={`${n.interface}-${n.address}-${i}`}>
-                    <TableCell dir="ltr">{n.interface}</TableCell>
+                    <TableCell dir="ltr">{interfaceLabel(n.interface)}</TableCell>
                     <TableCell dir="ltr">{n.address}</TableCell>
                     <TableCell dir="ltr" sx={{ textAlign: 'end' }}>{n.uptimeSec}</TableCell>
                   </TableRow>

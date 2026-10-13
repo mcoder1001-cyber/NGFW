@@ -83,7 +83,7 @@ function WanGroup({ g }: { g: WanGroupState }) {
         />
         {g.mode === 'failover' && g.active && (
           <Typography variant="body2" color="text.secondary">
-            {t('activeMember', { iface: g.active })}
+            {t('activeMember', { iface: interfaceLabel(g.active) })}
           </Typography>
         )}
       </Stack>
@@ -122,7 +122,9 @@ function WanGroup({ g }: { g: WanGroupState }) {
                   />
                 </TableCell>
                 <TableCell sx={{ textAlign: 'end' }}>{m.lossPct}%</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{m.latencyMs ? `${m.latencyMs} ms` : '—'}</TableCell>
+                <TableCell sx={{ textAlign: 'end' }}>
+                  {m.latencyMs ? `${m.latencyMs} ms` : '—'}
+                </TableCell>
                 <TableCell sx={{ textAlign: 'end' }}>{m.weight}</TableCell>
                 <TableCell sx={{ textAlign: 'end' }}>{m.priority}</TableCell>
               </TableRow>

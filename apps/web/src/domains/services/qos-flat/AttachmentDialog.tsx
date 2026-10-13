@@ -168,7 +168,12 @@ function Body({
     value: string,
     options: readonly string[],
     onChange: (v: string) => void,
-    opts: { none?: boolean; error?: string | undefined; helper?: string; interfaceName?: boolean } = {},
+    opts: {
+      none?: boolean;
+      error?: string | undefined;
+      helper?: string;
+      interfaceName?: boolean;
+    } = {},
   ) => (
     <TextField
       select
@@ -192,7 +197,12 @@ function Body({
     label: string,
     value: string,
     onChange: (v: string) => void,
-    opts: { none?: boolean; error?: string | undefined; helper?: string; interfaceName?: boolean } = {},
+    opts: {
+      none?: boolean;
+      error?: string | undefined;
+      helper?: string;
+      interfaceName?: boolean;
+    } = {},
   ) => (
     <TextField
       select
@@ -217,7 +227,12 @@ function Body({
       <DialogContent>
         <Stack gap={2} sx={{ pt: 1 }}>
           {target.editing ? (
-            <TextField label={t('interfaces.interface')} value={interfaceLabel(name)} disabled slotProps={{ htmlInput: LTR }} />
+            <TextField
+              label={t('interfaces.interface')}
+              value={interfaceLabel(name)}
+              disabled
+              slotProps={{ htmlInput: LTR }}
+            />
           ) : (
             select(t('interfaces.interface'), name, nameOptions, setName, {
               none: false,
@@ -233,9 +248,15 @@ function Body({
           />
           <Typography variant="subtitle2">{t('interfaces.ingress')}</Typography>
           <Stack direction="row" gap={2} flexWrap="wrap">
-            {select(t('interfaces.inputPolicer'), f.input, withCurrent(policers, f.input), on.input, {
-              error: err.input,
-            })}
+            {select(
+              t('interfaces.inputPolicer'),
+              f.input,
+              withCurrent(policers, f.input),
+              on.input,
+              {
+                error: err.input,
+              },
+            )}
             {sourceSelect(t('interfaces.record'), f.record, on.record, {
               error: err.record,
               helper: t('interfaces.recordHelp'),
@@ -243,14 +264,16 @@ function Body({
           </Stack>
           <Stack direction="row" gap={2} flexWrap="wrap" alignItems="center">
             <FormControlLabel
-              control={<Checkbox checked={f.storeOn} onChange={(e) => on.storeOn(e.target.checked)} />}
+              control={
+                <Checkbox checked={f.storeOn} onChange={(e) => on.storeOn(e.target.checked)} />
+              }
               label={t('interfaces.store')}
             />
             {f.storeOn && (
               <>
                 {sourceSelect(t('interfaces.storeSource'), f.storeSource, on.storeSource, {
                   none: false,
-              interfaceName: true,
+                  interfaceName: true,
                   error: err.storeSource,
                   helper: t('interfaces.storeHelp'),
                 })}
@@ -282,33 +305,47 @@ function Body({
               ))}
             </TextField>
             {f.egress === 'policer' &&
-              select(t('interfaces.outputPolicer'), f.output, withCurrent(policers, f.output), on.output, {
-                none: false,
-              interfaceName: true,
-                error: err.output,
-              })}
+              select(
+                t('interfaces.outputPolicer'),
+                f.output,
+                withCurrent(policers, f.output),
+                on.output,
+                {
+                  none: false,
+                  interfaceName: true,
+                  error: err.output,
+                },
+              )}
             {f.egress === 'shaper' &&
               select(t('interfaces.shaper'), f.shaper, withCurrent(shapers, f.shaper), on.shaper, {
                 none: false,
-              interfaceName: true,
+                interfaceName: true,
                 error: err.shaper,
               })}
           </Stack>
           <Stack direction="row" gap={2} flexWrap="wrap" alignItems="center">
             <FormControlLabel
-              control={<Checkbox checked={f.markOn} onChange={(e) => on.markOn(e.target.checked)} />}
+              control={
+                <Checkbox checked={f.markOn} onChange={(e) => on.markOn(e.target.checked)} />
+              }
               label={t('interfaces.mark')}
             />
             {f.markOn && (
               <>
-                {select(t('interfaces.markMap'), f.markMap, withCurrent(maps, f.markMap), on.markMap, {
-                  none: false,
-              interfaceName: true,
-                  error: err.markMap,
-                })}
+                {select(
+                  t('interfaces.markMap'),
+                  f.markMap,
+                  withCurrent(maps, f.markMap),
+                  on.markMap,
+                  {
+                    none: false,
+                    interfaceName: true,
+                    error: err.markMap,
+                  },
+                )}
                 {sourceSelect(t('interfaces.markOutput'), f.markOutput, on.markOutput, {
                   none: false,
-              interfaceName: true,
+                  interfaceName: true,
                   error: err.markOutput,
                 })}
               </>
@@ -345,7 +382,16 @@ function Body({
 }
 
 /** Pointers the dialog shows next to a field. */
-const FIELD_POINTERS = ['policer/input', 'policer/output', 'shaper', 'record', 'store/source', 'store/value', 'mark/map', 'mark/output'];
+const FIELD_POINTERS = [
+  'policer/input',
+  'policer/output',
+  'shaper',
+  'record',
+  'store/source',
+  'store/value',
+  'mark/map',
+  'mark/output',
+];
 
 function isShown(pointer: string, prefix: string): boolean {
   return FIELD_POINTERS.some((p) => pointer === `${prefix}/${p}`);

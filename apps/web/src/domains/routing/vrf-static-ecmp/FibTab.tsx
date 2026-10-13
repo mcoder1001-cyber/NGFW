@@ -12,11 +12,28 @@ import Typography from '@mui/material/Typography';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchRoutes, routeKeys, useCandidate, useFibQueryDefaults, useRefreshRoutes, type RouteItem, type RoutesQuery } from './api';
+import {
+  fetchRoutes,
+  routeKeys,
+  useCandidate,
+  useFibQueryDefaults,
+  useRefreshRoutes,
+  type RouteItem,
+  type RoutesQuery,
+} from './api';
 import { Mono } from './common';
 import { NS, type VrfsConfig } from './model';
 
-const SOURCES = ['', 'API', 'interface', 'adjacency', 'recursive-resolution', 'default-route', 'special', 'svs'] as const;
+const SOURCES = [
+  '',
+  'API',
+  'interface',
+  'adjacency',
+  'recursive-resolution',
+  'default-route',
+  'special',
+  'svs',
+] as const;
 const LTR = { dir: 'ltr' } as const;
 const FAMILIES = ['ipv4', 'ipv6'] as const;
 const AUTO_HEIGHT = () => 'auto' as const;
@@ -26,13 +43,19 @@ interface FibRow extends RouteItem {
 }
 
 /** One path as text: "normal 10.2.1.2 via lan w=3 (table 0) resolve-via-host"; the table only when it is another one. */
-function pathText(p: RouteItem['paths'][number], table: number | undefined, label: (name: string) => string): string {
+function pathText(
+  p: RouteItem['paths'][number],
+  table: number | undefined,
+  label: (name: string) => string,
+): string {
   return [
     p.type,
     p.nextHop ?? '',
     p.interface ? `via ${label(p.interface)}` : '',
     `w=${p.weight}`,
-    p.nextHop && !p.interface && table !== undefined && p.tableId !== table ? `(table ${p.tableId})` : '',
+    p.nextHop && !p.interface && table !== undefined && p.tableId !== table
+      ? `(table ${p.tableId})`
+      : '',
     ...p.flags,
   ]
     .filter(Boolean)
@@ -54,14 +77,26 @@ export function FibTab() {
   useFibQueryDefaults();
   const refresh = useRefreshRoutes();
   const vrfs = useCandidate<VrfsConfig>('vrfs');
-  const names = useMemo(() => ['default', ...Object.keys(vrfs.data ?? {}).filter((n) => n !== 'default').sort()], [vrfs.data]);
+  const names = useMemo(
+    () => [
+      'default',
+      ...Object.keys(vrfs.data ?? {})
+        .filter((n) => n !== 'default')
+        .sort(),
+    ],
+    [vrfs.data],
+  );
   const [vrf, setVrf] = useState('default');
   const [family, setFamily] = useState<'' | 'ipv4' | 'ipv6'>('');
   // what the user types vs the filter the grid uses: applied on Enter or blur, never per keystroke (each is a walk)
   const [prefixInput, setPrefixInput] = useState('');
   const [prefix, setPrefix] = useState('');
   const [source, setSource] = useState<string>('');
-  const [meta, setMeta] = useState<{ tableId?: number | undefined; retrievedAt?: string | undefined; error?: string }>({});
+  const [meta, setMeta] = useState<{
+    tableId?: number | undefined;
+    retrievedAt?: string | undefined;
+    error?: string;
+  }>({});
   const inputOk = prefixInput.trim() === '' || PREFIX_RE.test(prefixInput.trim());
   const applyPrefix = () => {
     if (inputOk) setPrefix(prefixInput.trim());
@@ -75,21 +110,39 @@ export function FibTab() {
       if (source) q.source = source;
       const r = await fetchRoutes(q, signal);
       setMeta({ tableId: r.tableId, retrievedAt: r.retrievedAt });
-      return { rows: r.items.map((it, i) => ({ ...it, id: `${req.page}:${i}:${it.prefix}` })), total: r.total };
+      return {
+        rows: r.items.map((it, i) => ({ ...it, id: `${req.page}:${i}:${it.prefix}` })),
+        total: r.total,
+      };
     },
     [vrf, family, prefix, source],
   );
 
   const columns = useMemo<GridColDef<FibRow>[]>(
     () => [
-      { field: 'prefix', headerName: t('fib.col.prefix'), minWidth: 190, flex: 1, sortable: false, filterable: false, renderCell: (p) => <Mono>{p.row.prefix}</Mono> },
+      {
+        field: 'prefix',
+        headerName: t('fib.col.prefix'),
+        minWidth: 190,
+        flex: 1,
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => <Mono>{p.row.prefix}</Mono>,
+      },
       {
         field: 'source',
         headerName: t('fib.col.source'),
         width: 170,
         sortable: false,
         filterable: false,
-        renderCell: (p) => <Chip size="small" variant="outlined" label={p.row.source} color={p.row.source === 'API' ? 'primary' : 'default'} />,
+        renderCell: (p) => (
+          <Chip
+            size="small"
+            variant="outlined"
+            label={p.row.source}
+            color={p.row.source === 'API' ? 'primary' : 'default'}
+          />
+        ),
       },
       {
         field: 'paths',
@@ -106,7 +159,14 @@ export function FibTab() {
           </Stack>
         ),
       },
-      { field: 'statsIndex', headerName: t('fib.col.stats'), type: 'number', width: 110, sortable: false, filterable: false },
+      {
+        field: 'statsIndex',
+        headerName: t('fib.col.stats'),
+        type: 'number',
+        width: 110,
+        sortable: false,
+        filterable: false,
+      },
     ],
     [t, meta.tableId, interfaceLabel],
   );
@@ -116,8 +176,20 @@ export function FibTab() {
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         {t('fib.intro')}
       </Typography>
-      <Stack direction={{ xs: 'column', md: 'row' }} gap={1} sx={{ mb: 1 }} alignItems={{ md: 'center' }}>
-        <TextField select size="small" label={t('fib.vrf')} value={vrf} onChange={(e) => setVrf(e.target.value)} sx={{ minInlineSize: 160 }}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        gap={1}
+        sx={{ mb: 1 }}
+        alignItems={{ md: 'center' }}
+      >
+        <TextField
+          select
+          size="small"
+          label={t('fib.vrf')}
+          value={vrf}
+          onChange={(e) => setVrf(e.target.value)}
+          sx={{ minInlineSize: 160 }}
+        >
           {names.map((n) => (
             <MenuItem key={n} value={n}>
               {n}
@@ -149,11 +221,24 @@ export function FibTab() {
             if (e.key === 'Enter') applyPrefix();
           }}
           error={!inputOk}
-          helperText={inputOk ? (prefixInput.trim() !== prefix ? t('fib.prefixApply') : ' ') : t('fib.badPrefix')}
+          helperText={
+            inputOk
+              ? prefixInput.trim() !== prefix
+                ? t('fib.prefixApply')
+                : ' '
+              : t('fib.badPrefix')
+          }
           slotProps={{ htmlInput: LTR }}
           sx={{ minInlineSize: 200 }}
         />
-        <TextField select size="small" label={t('fib.source')} value={source} onChange={(e) => setSource(e.target.value)} sx={{ minInlineSize: 180 }}>
+        <TextField
+          select
+          size="small"
+          label={t('fib.source')}
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          sx={{ minInlineSize: 180 }}
+        >
           {SOURCES.map((s) => (
             <MenuItem key={s} value={s}>
               {s === '' ? t('fib.any') : s}
@@ -161,9 +246,15 @@ export function FibTab() {
           ))}
         </TextField>
         <Box sx={{ flex: 1 }} />
-        {meta.tableId !== undefined && <Chip size="small" variant="outlined" label={t('fib.table', { id: meta.tableId })} />}
+        {meta.tableId !== undefined && (
+          <Chip size="small" variant="outlined" label={t('fib.table', { id: meta.tableId })} />
+        )}
         {meta.retrievedAt !== undefined && (
-          <Chip size="small" variant="outlined" label={t('fib.retrievedAt', { time: new Date(meta.retrievedAt).toLocaleTimeString() })} />
+          <Chip
+            size="small"
+            variant="outlined"
+            label={t('fib.retrievedAt', { time: new Date(meta.retrievedAt).toLocaleTimeString() })}
+          />
         )}
         <Tooltip title={t('fib.refreshHelp')}>
           <IconButton aria-label={t('fib.refresh')} onClick={refresh}>

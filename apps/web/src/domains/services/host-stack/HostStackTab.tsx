@@ -1,4 +1,5 @@
 import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, useInterfaceName } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -45,6 +46,7 @@ function portText(p: number | undefined, any: string): string {
 /** Services → Host stack (F-host-stack): session layer switch, app namespaces and the session-rules grid. */
 export function HostStackTab() {
   const interfaceLabel = useInterfaceLabel();
+  const interfaceName = useInterfaceName();
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const live = useHostStackState();
@@ -85,13 +87,25 @@ export function HostStackTab() {
           </>
         ) : (
           live.data && (
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap role="status">
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              flexWrap="wrap"
+              useFlexGap
+              role="status"
+            >
               <Chip
                 color={live.data.sessionEnabled ? 'success' : 'default'}
                 label={live.data.sessionEnabled ? t('sessionOn') : t('sessionOff')}
                 title={live.data.sessionDetail}
               />
-              <Chip label={t('ruleCount', { own: live.data.ruleCount, total: live.data.ruleCountTotal })} />
+              <Chip
+                label={t('ruleCount', {
+                  own: live.data.ruleCount,
+                  total: live.data.ruleCountTotal,
+                })}
+              />
               <Typography variant="body2">
                 {t('appliedNs', { list: live.data.namespaces.join(', ') || t('none') })}
               </Typography>
@@ -156,13 +170,23 @@ export function HostStackTab() {
           </TableBody>
         </Table>
         <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
-          <TextField size="small" label={t('col.id')} value={ns.id} onChange={(e) => setNs({ ...ns, id: e.target.value })} />
-          <TextField size="small" label={t('col.vrf')} value={ns.vrf} onChange={(e) => setNs({ ...ns, vrf: e.target.value })} />
+          <TextField
+            size="small"
+            label={t('col.id')}
+            value={ns.id}
+            onChange={(e) => setNs({ ...ns, id: e.target.value })}
+          />
+          <TextField
+            size="small"
+            label={t('col.vrf')}
+            value={ns.vrf}
+            onChange={(e) => setNs({ ...ns, vrf: e.target.value })}
+          />
           <TextField
             size="small"
             label={t('col.interface')}
-            value={ns.iface}
-            onChange={(e) => setNs({ ...ns, iface: e.target.value })}
+            value={interfaceLabel(ns.iface)}
+            onChange={(e) => setNs({ ...ns, iface: interfaceName(e.target.value) })}
           />
           <Button
             variant="outlined"
@@ -171,7 +195,10 @@ export function HostStackTab() {
               save({
                 namespaces: {
                   ...namespaces,
-                  [ns.id]: { vrf: ns.vrf || DEFAULT_VRF, ...(ns.iface ? { interface: ns.iface } : {}) },
+                  [ns.id]: {
+                    vrf: ns.vrf || DEFAULT_VRF,
+                    ...(ns.iface ? { interface: ns.iface } : {}),
+                  },
                 },
               });
               setNs({ id: '', vrf: DEFAULT_VRF, iface: '' });
@@ -226,13 +253,20 @@ export function HostStackTab() {
           </TableBody>
         </Table>
         <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
-          <TextField size="small" label={t('col.tag')} value={rule.tag} onChange={(e) => setRule({ ...rule, tag: e.target.value })} />
+          <TextField
+            size="small"
+            label={t('col.tag')}
+            value={rule.tag}
+            onChange={(e) => setRule({ ...rule, tag: e.target.value })}
+          />
           <TextField
             select
             size="small"
             label={t('col.transport')}
             value={rule.transport}
-            onChange={(e) => setRule({ ...rule, transport: e.target.value as HostStackRule['transport'] })}
+            onChange={(e) =>
+              setRule({ ...rule, transport: e.target.value as HostStackRule['transport'] })
+            }
           >
             {TRANSPORTS.map((x) => (
               <MenuItem key={x} value={x}>
@@ -240,14 +274,26 @@ export function HostStackTab() {
               </MenuItem>
             ))}
           </TextField>
-          <TextField size="small" label={t('col.local')} value={rule.local} onChange={(e) => setRule({ ...rule, local: e.target.value })} />
-          <TextField size="small" label={t('col.remote')} value={rule.remote} onChange={(e) => setRule({ ...rule, remote: e.target.value })} />
+          <TextField
+            size="small"
+            label={t('col.local')}
+            value={rule.local}
+            onChange={(e) => setRule({ ...rule, local: e.target.value })}
+          />
+          <TextField
+            size="small"
+            label={t('col.remote')}
+            value={rule.remote}
+            onChange={(e) => setRule({ ...rule, remote: e.target.value })}
+          />
           <TextField
             select
             size="small"
             label={t('col.action')}
             value={rule.action}
-            onChange={(e) => setRule({ ...rule, action: e.target.value as HostStackRule['action'] })}
+            onChange={(e) =>
+              setRule({ ...rule, action: e.target.value as HostStackRule['action'] })
+            }
           >
             {ACTIONS.map((x) => (
               <MenuItem key={x} value={x}>

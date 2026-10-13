@@ -162,7 +162,13 @@ function Toolbar({
       <Typography component="h3" variant="subtitle1" sx={{ flex: 1 }}>
         {title}
       </Typography>
-      <Button size="small" variant="contained" startIcon={<AddIcon />} disabled={disabled} onClick={onAdd}>
+      <Button
+        size="small"
+        variant="contained"
+        startIcon={<AddIcon />}
+        disabled={disabled}
+        onClick={onAdd}
+      >
         {addLabel}
       </Button>
     </Stack>
@@ -187,12 +193,22 @@ function RowActions({
     <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
       {children}
       {onEdit && (
-        <IconButton size="small" aria-label={t('actions.edit', { name })} disabled={disabled} onClick={onEdit}>
+        <IconButton
+          size="small"
+          aria-label={t('actions.edit', { name })}
+          disabled={disabled}
+          onClick={onEdit}
+        >
           <EditIcon fontSize="small" />
         </IconButton>
       )}
       {onRemove && (
-        <IconButton size="small" aria-label={t('actions.remove', { name })} disabled={disabled} onClick={onRemove}>
+        <IconButton
+          size="small"
+          aria-label={t('actions.remove', { name })}
+          disabled={disabled}
+          onClick={onRemove}
+        >
           <DeleteIcon fontSize="small" />
         </IconButton>
       )}
@@ -264,7 +280,15 @@ function Counters({ item }: { item: PolicerItem | undefined }) {
 }
 
 /** Reset button + confirmation (policer_reset refills the token buckets; VPP keeps the counters). */
-function ResetButton({ vppName, label, disabled }: { vppName: string; label: string; disabled: boolean }) {
+function ResetButton({
+  vppName,
+  label,
+  disabled,
+}: {
+  vppName: string;
+  label: string;
+  disabled: boolean;
+}) {
   const { t } = useTranslation('qos-flat');
   const reset = useResetPolicer();
   const [open, setOpen] = useState(false);
@@ -293,9 +317,15 @@ function ResetButton({ vppName, label, disabled }: { vppName: string; label: str
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>{reset.isSuccess ? t('dialog.close') : t('dialog.cancel')}</Button>
+          <Button onClick={() => setOpen(false)}>
+            {reset.isSuccess ? t('dialog.close') : t('dialog.cancel')}
+          </Button>
           {!reset.isSuccess && (
-            <Button variant="contained" disabled={reset.isPending} onClick={() => reset.mutate(vppName)}>
+            <Button
+              variant="contained"
+              disabled={reset.isPending}
+              onClick={() => reset.mutate(vppName)}
+            >
               {t('reset.confirm')}
             </Button>
           )}
@@ -308,7 +338,13 @@ function ResetButton({ vppName, label, disabled }: { vppName: string; label: str
 // ─── Policers ────────────────────────────────────────────────────────────────
 
 /** The rate/burst helper of the policer form: burst = rate × window (bytes for kbit/s, packets for packets/s). */
-function BurstHelper({ apply, value }: { apply: (patch: Record<string, unknown>) => void; value: unknown }) {
+function BurstHelper({
+  apply,
+  value,
+}: {
+  apply: (patch: Record<string, unknown>) => void;
+  value: unknown;
+}) {
   const { t } = useTranslation('qos-flat');
   const v = isObject(value) ? value : {};
   const [unit, setUnit] = useState<'kbps' | 'pps'>(v['rateUnit'] === 'pps' ? 'pps' : 'kbps');
@@ -352,7 +388,9 @@ function BurstHelper({ apply, value }: { apply: (patch: Record<string, unknown>)
           sx={{ inlineSize: 140 }}
         />
         <Typography variant="body2" aria-live="polite">
-          {unit === 'pps' ? t('helper.resultPackets', { n: burst }) : t('helper.resultBytes', { n: burst })}
+          {unit === 'pps'
+            ? t('helper.resultPackets', { n: burst })
+            : t('helper.resultBytes', { n: burst })}
         </Typography>
         <Button
           size="small"
@@ -373,7 +411,10 @@ function BurstHelper({ apply, value }: { apply: (patch: Record<string, unknown>)
 export function PolicersTab() {
   const { t } = useTranslation('qos-flat');
   const ed = useQosEditor();
-  const schema = useMemo(() => localize(policerItemSchema(), (k, o) => t(k, o ?? {}), 'policer'), [t]);
+  const schema = useMemo(
+    () => localize(policerItemSchema(), (k, o) => t(k, o ?? {}), 'policer'),
+    [t],
+  );
   const [target, setTarget] = useState<EditTarget | null>(null);
   const rows = policerRows(ed.qos, ed.state.data?.items);
   const submit = async (name: string, value: unknown) => {
@@ -414,7 +455,9 @@ export function PolicersTab() {
                   : t('rates.one', { cir: r.cir, unit: t(`unit.${r.rateUnit}`) })}
               </TableCell>
               <TableCell dir="ltr" sx={MONO}>
-                {r.eb !== undefined ? t('bursts.two', { cb: r.cb, eb: r.eb }) : t('bursts.one', { cb: r.cb })}
+                {r.eb !== undefined
+                  ? t('bursts.two', { cb: r.cb, eb: r.eb })
+                  : t('bursts.one', { cb: r.cb })}
               </TableCell>
               <Counters item={r.state} />
               <TableCell>
@@ -423,7 +466,9 @@ export function PolicersTab() {
               <RowActions
                 name={r.name}
                 disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={r.cfg ? () => setTarget({ name: r.name, value: r.cfg, editing: true }) : undefined}
+                onEdit={
+                  r.cfg ? () => setTarget({ name: r.name, value: r.cfg, editing: true }) : undefined
+                }
                 onRemove={r.cfg ? () => void ed.remove(qosPath(POLICERS, r.name)) : undefined}
               >
                 {r.state?.present && (
@@ -436,7 +481,9 @@ export function PolicersTab() {
       </Table>
       <SchemaDialog
         open={target !== null}
-        title={target?.editing ? t('policers.editTitle', { name: target.name }) : t('policers.addTitle')}
+        title={
+          target?.editing ? t('policers.editTitle', { name: target.name }) : t('policers.addTitle')
+        }
         target={target}
         existing={rows.map((r) => r.name)}
         schema={schema}
@@ -460,7 +507,10 @@ export function ShapersTab() {
   const { t } = useTranslation('qos-flat');
   const fmt = useFormatters();
   const ed = useQosEditor();
-  const schema = useMemo(() => localize(shaperItemSchema(), (k, o) => t(k, o ?? {}), 'shaper'), [t]);
+  const schema = useMemo(
+    () => localize(shaperItemSchema(), (k, o) => t(k, o ?? {}), 'shaper'),
+    [t],
+  );
   const [target, setTarget] = useState<EditTarget | null>(null);
   const rows = shaperRows(ed.qos, ed.state.data?.items);
   const submit = async (name: string, value: unknown) => {
@@ -496,7 +546,9 @@ export function ShapersTab() {
               <TableCell dir="ltr" sx={MONO}>
                 {r.name}
               </TableCell>
-              <TableCell dir="ltr">{t('rates.one', { cir: r.rateKbps, unit: t('unit.kbps') })}</TableCell>
+              <TableCell dir="ltr">
+                {t('rates.one', { cir: r.rateKbps, unit: t('unit.kbps') })}
+              </TableCell>
               <TableCell dir="ltr">
                 {r.burstBytes !== undefined && r.cfg?.burstBytes !== undefined
                   ? t('bursts.bytes', { n: fmt.integer(r.burstBytes) })
@@ -509,7 +561,9 @@ export function ShapersTab() {
               <RowActions
                 name={r.name}
                 disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={r.cfg ? () => setTarget({ name: r.name, value: r.cfg, editing: true }) : undefined}
+                onEdit={
+                  r.cfg ? () => setTarget({ name: r.name, value: r.cfg, editing: true }) : undefined
+                }
                 onRemove={r.cfg ? () => void ed.remove(qosPath(SHAPERS, r.name)) : undefined}
               >
                 {r.state?.present && (
@@ -522,7 +576,9 @@ export function ShapersTab() {
       </Table>
       <SchemaDialog
         open={target !== null}
-        title={target?.editing ? t('shapers.editTitle', { name: target.name }) : t('shapers.addTitle')}
+        title={
+          target?.editing ? t('shapers.editTitle', { name: target.name }) : t('shapers.addTitle')
+        }
         target={target}
         existing={rows.map((r) => r.name)}
         schema={schema}
@@ -655,19 +711,23 @@ export function AttachmentsTab() {
               </TableCell>
               <TableCell dir="ltr">{dash(r.input)}</TableCell>
               <TableCell dir="ltr">
-                {r.shaper
-                  ? t('interfaces.egressShaperValue', { name: r.shaper })
-                  : dash(r.output)}
+                {r.shaper ? t('interfaces.egressShaperValue', { name: r.shaper }) : dash(r.output)}
               </TableCell>
               <TableCell>{r.record ? t(`source.${r.record}`) : t('none')}</TableCell>
               <TableCell>
                 {r.store
-                  ? t('interfaces.storeValueText', { source: t(`source.${r.store.source ?? 'ip'}`), value: r.store.value })
+                  ? t('interfaces.storeValueText', {
+                      source: t(`source.${r.store.source ?? 'ip'}`),
+                      value: r.store.value,
+                    })
                   : t('none')}
               </TableCell>
               <TableCell>
                 {r.mark
-                  ? t('interfaces.markValueText', { map: r.mark.map, output: t(`source.${r.mark.output ?? 'ip'}`) })
+                  ? t('interfaces.markValueText', {
+                      map: r.mark.map,
+                      output: t(`source.${r.mark.output ?? 'ip'}`),
+                    })
                   : t('none')}
               </TableCell>
               <RowActions

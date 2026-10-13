@@ -289,7 +289,10 @@ export function optionalObjectsAsJson(schema: JsonSchema): JsonSchema {
             k,
             {
               ...p,
-              'x-ngfw-ui': { ...((p['x-ngfw-ui'] ?? {}) as Record<string, unknown>), widget: 'json' },
+              'x-ngfw-ui': {
+                ...((p['x-ngfw-ui'] ?? {}) as Record<string, unknown>),
+                widget: 'json',
+              },
             },
           ];
         }

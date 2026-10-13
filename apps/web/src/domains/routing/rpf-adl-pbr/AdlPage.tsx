@@ -205,7 +205,9 @@ export function AdlPage() {
         fullWidth
         aria-labelledby="sec-title"
       >
-        <DialogTitle id="sec-title">{t('adl.editTitle', { name: interfaceLabel(editing ?? '') })}</DialogTitle>
+        <DialogTitle id="sec-title">
+          {t('adl.editTitle', { name: interfaceLabel(editing ?? '') })}
+        </DialogTitle>
         <DialogContent dividers>
           <Alert severity="info" sx={{ mb: 2 }}>
             {t('adl.physicalOnly')}

@@ -1,4 +1,5 @@
 import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, useInterfaceName } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -25,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { useInterfacesState } from '../../interfaces/queries';
 import {
   downloadCapture,
   useCaptures,
@@ -71,6 +73,9 @@ function Running({ c }: { c: CaptureFile }) {
 }
 
 function CaptureForm({ disabled }: { disabled: boolean }) {
+  const interfaceLabel = useInterfaceLabel();
+  const interfaceName = useInterfaceName();
+  const interfaces = useInterfacesState();
   const { t } = useTranslation(NS);
   const start = useStartCapture();
   const [f, setF] = useState<CaptureRequest>({
@@ -82,6 +87,11 @@ function CaptureForm({ disabled }: { disabled: boolean }) {
     seconds: 30,
     snaplen: 9000,
   });
+  const captureInterface = (input: string) => {
+    const name = interfaceName(input);
+    const item = interfaces.data?.items?.find((i) => i.name === name || i.state?.vppName === name);
+    return item?.state?.vppName ?? name;
+  };
   const local = BPF_RE.test(f.bpf) ? '' : t('bpfInvalid');
   const server = pointerErrors(start.error);
   const set = (p: Partial<CaptureRequest>) => setF((o) => ({ ...o, ...p }));
@@ -114,8 +124,8 @@ function CaptureForm({ disabled }: { disabled: boolean }) {
         <TextField
           label={t('interface')}
           size="small"
-          value={f.interface}
-          onChange={(e) => set({ interface: e.target.value })}
+          value={interfaceLabel(f.interface)}
+          onChange={(e) => set({ interface: captureInterface(e.target.value) })}
           error={Boolean(server['interface'])}
           helperText={server['interface'] ?? t('interfaceHelp')}
         />

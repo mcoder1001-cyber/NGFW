@@ -20,11 +20,11 @@ const str = (v: unknown): string =>
   typeof v === 'string' || typeof v === 'number' ? String(v) : '';
 
 /** `ip:port`, `ip`, the interface or `pool <name>` of a mapping endpoint. */
-export function endpoint(e: unknown): string {
+export function endpoint(e: unknown, label: (name: string) => string = (name) => name): string {
   const o = (e ?? {}) as Item;
   const where =
     str(o['ip']) ||
-    (o['interface'] ? str(o['interface']) : o['pool'] ? `pool ${str(o['pool'])}` : '');
+    (o['interface'] ? label(str(o['interface'])) : o['pool'] ? `pool ${str(o['pool'])}` : '');
   return o['port'] !== undefined ? `${where}:${str(o['port'])}` : where;
 }
 
@@ -65,8 +65,12 @@ export function MappingsTab() {
                 : t('static.oneToOne'),
           },
           { label: t('col.protocol'), value: (m) => str(m['protocol']) || t('col.any') },
-          { label: t('col.local'), value: (m) => endpoint(m['local']), ltr: true },
-          { label: t('col.external'), value: (m) => endpoint(m['external']), ltr: true },
+          { label: t('col.local'), value: (m) => endpoint(m['local'], interfaceLabel), ltr: true },
+          {
+            label: t('col.external'),
+            value: (m) => endpoint(m['external'], interfaceLabel),
+            ltr: true,
+          },
           { label: t('col.vrf'), value: (m) => str(m['vrf']) || DEFAULT_VRF },
           { label: t('col.flags'), value: (m) => <Flags item={m} keys={MAPPING_FLAGS} /> },
           {
@@ -88,7 +92,11 @@ export function MappingsTab() {
         emptyText={t('identity.none')}
         itemLabel={(m, i) => str(m['ip']) || interfaceLabel(str(m['interface'])) || String(i + 1)}
         columns={[
-          { label: t('col.address'), value: (m) => str(m['ip']) || interfaceLabel(str(m['interface'])), ltr: true },
+          {
+            label: t('col.address'),
+            value: (m) => str(m['ip']) || interfaceLabel(str(m['interface'])),
+            ltr: true,
+          },
           { label: t('col.protocol'), value: (m) => str(m['protocol']) || t('col.any') },
           { label: t('col.port'), value: (m) => str(m['port']) || t('col.any') },
           { label: t('col.vrf'), value: (m) => str(m['vrf']) || DEFAULT_VRF },
@@ -103,12 +111,16 @@ export function MappingsTab() {
         columns={[
           { label: t('col.name'), value: (m) => str(m['name']), ltr: true },
           { label: t('col.protocol'), value: (m) => str(m['protocol']) },
-          { label: t('col.external'), value: (m) => endpoint(m['external']), ltr: true },
+          {
+            label: t('col.external'),
+            value: (m) => endpoint(m['external'], interfaceLabel),
+            ltr: true,
+          },
           {
             label: t('col.locals'),
             value: (m) =>
               ((m['locals'] as Item[] | undefined) ?? [])
-                .map((l) => `${endpoint(l)} (${str(l['probability'])})`)
+                .map((l) => `${endpoint(l, interfaceLabel)} (${str(l['probability'])})`)
                 .join(' '),
             ltr: true,
           },

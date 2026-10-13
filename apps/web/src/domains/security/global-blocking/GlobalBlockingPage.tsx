@@ -277,7 +277,11 @@ function ListRow({
       </TableCell>
       <TableCell>
         <Typography variant="body2">
-          {l.allInterfaces ? t('allInterfaces') : <bdi>{l.interfaces.map(interfaceLabel).join(', ')}</bdi>}
+          {l.allInterfaces ? (
+            t('allInterfaces')
+          ) : (
+            <bdi>{l.interfaces.map(interfaceLabel).join(', ')}</bdi>
+          )}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           {t(`direction.${l.direction}`)}

@@ -207,10 +207,11 @@ function Banners({
   state: HostAclState | undefined;
   running: HostAclConfig | undefined;
 }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   return (
     <Stack gap={1} sx={{ mb: 2 }}>
-      {banners(settings, state, running).map((b) => (
+      {banners(settings, state, running, interfaceLabel).map((b) => (
         <Alert key={b.key} severity={b.severity} role={b.severity === 'error' ? 'alert' : 'status'}>
           {t(b.key, b.params)}
         </Alert>

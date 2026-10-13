@@ -1,4 +1,4 @@
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, useInterfaceName } from '@ngfw/ui-kit';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -62,6 +62,7 @@ export function toRow(n: Neighbor): Row {
 /** Live ARP/ND table: server-side paged (the agent pages), polled, invalidated by `neighbor.events`. */
 function NeighborTable() {
   const interfaceLabel = useInterfaceLabel();
+  const interfaceName = useInterfaceName();
   const { t } = useTranslation([NS, UI_KIT_NS]);
   const fmt = useFormatters();
   const perms = usePermissions();
@@ -78,10 +79,19 @@ function NeighborTable() {
 
   const fetchPage = useCallback(
     async (req: ServerPageRequest, signal: AbortSignal) => {
-      const page = await fetchNeighbors(toQuery(req, filters), signal);
+      const query = toQuery(
+        {
+          ...req,
+          quickFilter: req.quickFilter.map((part) =>
+            part.split(/\s+/).map(interfaceName).join(' '),
+          ),
+        },
+        filters,
+      );
+      const page = await fetchNeighbors(query, signal);
       return { rows: page.items.map(toRow), total: page.total };
     },
-    [filters],
+    [filters, interfaceName],
   );
 
   const columns = useMemo<GridColDef<Row>[]>(

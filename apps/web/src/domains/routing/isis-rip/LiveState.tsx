@@ -78,7 +78,9 @@ export function LiveState({ proto }: { proto: TabKey }) {
                 <TableRow key={`${String(row['systemId'] ?? row['address'])}-${i}`}>
                   {columns.map((c) => (
                     <TableCell key={c} dir="ltr">
-                      {c === 'interface' ? interfaceLabel(String(row[c] ?? t('none'))) : String(row[c] ?? t('none'))}
+                      {c === 'interface'
+                        ? interfaceLabel(String(row[c] ?? t('none')))
+                        : String(row[c] ?? t('none'))}
                     </TableCell>
                   ))}
                 </TableRow>

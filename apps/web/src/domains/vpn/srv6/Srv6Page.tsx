@@ -169,6 +169,7 @@ function StatusCell({ status }: { status: 'installed' | 'missing' | 'unmanaged' 
 // ---- local SIDs -------------------------------------------------------------------------------------------
 
 function LocalSidsPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undefined }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('srv6');
   const fmt = useFormatters();
   const perms = usePermissions();
@@ -225,7 +226,11 @@ function LocalSidsPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | unde
             const iface = r.config?.interface ?? r.state?.interface ?? null;
             const nh = r.config?.nextHop ?? r.state?.nextHop ?? null;
             const lookup = r.config?.lookupVrf ?? r.state?.lookupVrf ?? null;
-            const target = [iface, nh ? `via ${nh}` : null, lookup ? `→ ${lookup}` : null]
+            const target = [
+              iface ? interfaceLabel(iface) : iface,
+              nh ? `via ${nh}` : null,
+              lookup ? `→ ${lookup}` : null,
+            ]
               .filter((x) => x !== null)
               .join(' ');
             const psp = r.config?.psp ?? r.state?.psp ?? false;
@@ -783,6 +788,7 @@ export function SidListEditor({
 // ---- steering -------------------------------------------------------------------------------------------
 
 function SteeringPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undefined }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('srv6');
   const perms = usePermissions();
   const patch = usePatchSrv6();
@@ -839,9 +845,11 @@ function SteeringPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undef
             const s = r.state;
             const what = c
               ? c.type === 'l2'
-                ? c.interface
+                ? interfaceLabel(c.interface)
                 : c.prefix
-              : (s?.interface ?? s?.prefix ?? '');
+              : s?.interface
+                ? interfaceLabel(s.interface)
+                : (s?.prefix ?? '');
             const vrf = c ? (c.type === 'l3' ? c.vrf : null) : (s?.vrf ?? null);
             const traffic = s?.trafficType ?? trafficOf(c);
             return (

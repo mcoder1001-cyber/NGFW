@@ -31,7 +31,8 @@ export function MulticastPage() {
   const groups = useMulticastGroups();
   const mroutes = useMroutes();
   const pim = usePimNeighbors();
-  const agentError = groups.data?.agentError ?? mroutes.data?.agentError ?? pim.data?.agentError ?? null;
+  const agentError =
+    groups.data?.agentError ?? mroutes.data?.agentError ?? pim.data?.agentError ?? null;
 
   return (
     <Box>
@@ -43,7 +44,10 @@ export function MulticastPage() {
 
       <Stack direction="row" sx={{ mb: 1 }}>
         <Box sx={{ flex: 1 }} />
-        <Button startIcon={<RefreshIcon />} onClick={() => void qc.invalidateQueries({ queryKey: multicastKeys.all })}>
+        <Button
+          startIcon={<RefreshIcon />}
+          onClick={() => void qc.invalidateQueries({ queryKey: multicastKeys.all })}
+        >
           {t('refresh')}
         </Button>
       </Stack>
@@ -134,7 +138,9 @@ export function MulticastPage() {
                   <TableRow key={`${n.interface}-${n.address}-${i}`}>
                     <TableCell dir="ltr">{interfaceLabel(n.interface)}</TableCell>
                     <TableCell dir="ltr">{n.address}</TableCell>
-                    <TableCell dir="ltr" sx={{ textAlign: 'end' }}>{n.uptimeSec}</TableCell>
+                    <TableCell dir="ltr" sx={{ textAlign: 'end' }}>
+                      {n.uptimeSec}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

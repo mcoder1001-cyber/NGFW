@@ -1,4 +1,10 @@
-import { SchemaField, type JsonSchema, type WidgetComponent, type WidgetProps } from '@ngfw/ui-kit/schema-form';
+import { useInterfaceLabel } from '@ngfw/ui-kit';
+import {
+  SchemaField,
+  type JsonSchema,
+  type WidgetComponent,
+  type WidgetProps,
+} from '@ngfw/ui-kit/schema-form';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { entriesOf, pickerKinds, summary, type ObjectKind, type ObjectsConfig } from './model';
@@ -18,14 +24,20 @@ import { useCandidateObjects } from './queries';
  * the picker loads the candidate's objects itself (TanStack Query, key `['config', 'candidate', 'objects']`).
  */
 export const ObjectPicker: WidgetComponent = (props: WidgetProps) => {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('object-model');
   const objects = useCandidateObjects();
   const kinds = pickerKinds(props.hints, props.propPath);
   const { schema, hints } = useMemo(
-    () => (kinds.length > 0 ? pickerSchema(props, kinds, objects.data, (k, o) => t(k, o ?? {})) : plainSchema(props)),
-    [props, kinds, objects.data, t],
+    () =>
+      kinds.length > 0
+        ? pickerSchema(props, kinds, objects.data, (k, o) => t(k, o ?? {}), interfaceLabel)
+        : plainSchema(props),
+    [props, kinds, objects.data, t, interfaceLabel],
   );
-  const parentName = props.name.includes('.') ? props.name.slice(0, props.name.lastIndexOf('.')) : props.name;
+  const parentName = props.name.includes('.')
+    ? props.name.slice(0, props.name.lastIndexOf('.'))
+    : props.name;
   return (
     <SchemaField
       schema={{ ...schema, 'x-ngfw-ui': hints }}
@@ -50,7 +62,10 @@ export const objectModelWidgets: Readonly<Record<string, WidgetComponent>> = {
 type Translate = (key: string, opts?: Record<string, unknown>) => string;
 
 /** The field as the form would render it without the widget (no enum, no picker). */
-export function plainSchema(props: Pick<WidgetProps, 'schema' | 'hints'>): { schema: JsonSchema; hints: Record<string, unknown> } {
+export function plainSchema(props: Pick<WidgetProps, 'schema' | 'hints'>): {
+  schema: JsonSchema;
+  hints: Record<string, unknown>;
+} {
   const rest: Record<string, unknown> = { ...props.hints };
   delete rest.dependsOn;
   delete rest.widget;
@@ -64,6 +79,7 @@ export function pickerSchema(
   kinds: readonly ObjectKind[],
   objects: Partial<ObjectsConfig> | undefined,
   t: Translate,
+  label: (name: string) => string = (name) => name,
 ): { schema: JsonSchema; hints: Record<string, unknown> } {
   const choices: string[] = [];
   const labels: Record<string, string> = {};
@@ -71,9 +87,13 @@ export function pickerSchema(
     for (const [name, entry] of entriesOf(objects, kind)) {
       if (labels[name] !== undefined) continue;
       choices.push(name);
-      const detail = summary(kind, entry);
+      const detail = summary(kind, entry, label);
       // Unicode isolates keep names and addresses in their own direction inside an RTL label (2001:db8::10, #1e88e5)
-      labels[name] = t('picker.option', { name: `\u2068${name}\u2069`, kind: t(`kindOne.${kind}`), detail: `\u2066${detail || '—'}\u2069` });
+      labels[name] = t('picker.option', {
+        name: `\u2068${name}\u2069`,
+        kind: t(`kindOne.${kind}`),
+        detail: `\u2066${detail || '—'}\u2069`,
+      });
     }
   }
   // dependsOn was applied by SchemaForm around this widget already; the widget swap must not recurse into itself
@@ -81,9 +101,18 @@ export function pickerSchema(
   delete rest.dependsOn;
   delete rest.widget;
   const isArray = props.schema.type === 'array';
-  const hints = { ...rest, widget: isArray ? 'multiselect' : 'select', enumLabels: labels, objectKinds: [...kinds] };
+  const hints = {
+    ...rest,
+    widget: isArray ? 'multiselect' : 'select',
+    enumLabels: labels,
+    objectKinds: [...kinds],
+  };
   const schema: JsonSchema = isArray
-    ? { ...props.schema, items: { ...(props.schema.items ?? {}), enum: choices }, uniqueItems: true }
+    ? {
+        ...props.schema,
+        items: { ...(props.schema.items ?? {}), enum: choices },
+        uniqueItems: true,
+      }
     : { ...props.schema, enum: choices };
   return { schema, hints };
 }

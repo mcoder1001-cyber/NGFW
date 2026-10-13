@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -18,7 +19,15 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { problemFor } from '../../interfaces/InterfaceDrawer';
-import { LISP_POINTER, SECTIONS, sectionPatch, sectionSchema, sectionValue, statusRows, type SectionId } from './model';
+import {
+  LISP_POINTER,
+  SECTIONS,
+  sectionPatch,
+  sectionSchema,
+  sectionValue,
+  statusRows,
+  type SectionId,
+} from './model';
 import { useCandidateLisp, useLispState, usePatchTunnels } from './queries';
 
 /**
@@ -27,6 +36,7 @@ import { useCandidateLisp, useLispState, usePatchTunnels } from './queries';
  * with their live status from `GET /api/v1/state/lisp`. Changes go to the candidate; commit from the pending bar.
  */
 export function LispTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('lisp');
   const [section, setSection] = useState<SectionId>('locators');
   const perms = usePermissions();
@@ -35,14 +45,28 @@ export function LispTab() {
   const patch = usePatchTunnels();
   const schema = useMemo(() => sectionSchema(section), [section]);
   const value = useMemo(() => sectionValue(section, candidate.data), [section, candidate.data]);
-  const rows = useMemo(() => statusRows(section, candidate.data, state.data ?? null), [section, candidate.data, state.data]);
+  const rows = useMemo(
+    () => statusRows(section, candidate.data, state.data ?? null, interfaceLabel),
+    [section, candidate.data, state.data, interfaceLabel],
+  );
 
   return (
     <Stack gap={2}>
       <Alert severity="info">{t('advanced')}</Alert>
-      <Tabs value={section} onChange={(_, v: SectionId) => setSection(v)} aria-label={t('sections')} variant="scrollable">
+      <Tabs
+        value={section}
+        onChange={(_, v: SectionId) => setSection(v)}
+        aria-label={t('sections')}
+        variant="scrollable"
+      >
         {SECTIONS.map((s) => (
-          <Tab key={s.id} value={s.id} label={t(`section.${s.id}`)} id={`lisp-tab-${s.id}`} aria-controls={`lisp-panel-${s.id}`} />
+          <Tab
+            key={s.id}
+            value={s.id}
+            label={t(`section.${s.id}`)}
+            id={`lisp-tab-${s.id}`}
+            aria-controls={`lisp-panel-${s.id}`}
+          />
         ))}
       </Tabs>
       <Box role="tabpanel" id={`lisp-panel-${section}`} aria-labelledby={`lisp-tab-${section}`}>
@@ -92,7 +116,11 @@ export function LispTab() {
             submitLabel={t('save')}
             resetLabel={t('reset')}
             problem={problemFor(patch.error, LISP_POINTER)}
-            onSubmit={(v) => patch.mutateAsync(sectionPatch(section, v as Record<string, unknown>)).then(() => undefined)}
+            onSubmit={(v) =>
+              patch
+                .mutateAsync(sectionPatch(section, v as Record<string, unknown>))
+                .then(() => undefined)
+            }
           />
         )}
       </Box>

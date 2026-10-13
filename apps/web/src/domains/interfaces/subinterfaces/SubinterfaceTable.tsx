@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { adminStatus, linkStatus, type InterfaceItem, type SubinterfaceConfig } from '../model';
 import { formatTagStack, liveTagStack, sameTagStack, tagStack } from './tagStack';
+import { interfaceDisplayNames } from '../display-names';
 
 export interface SubinterfaceTableProps {
   /** Logical name of the parent interface (rows are `<parent>.<id>`). */
@@ -58,6 +59,7 @@ export function SubinterfaceTable({
   onRemove,
 }: SubinterfaceTableProps) {
   const { t } = useTranslation(['vlan-qinq', 'interfaces']);
+  const displayNames = interfaceDisplayNames(items ?? []);
   const protoTitle = (stack: ReturnType<typeof tagStack>) =>
     t('encapTitle', { stack: stack.map((tag) => t(`proto.${tag.proto}`)).join(' · ') });
   return (
@@ -73,7 +75,7 @@ export function SubinterfaceTable({
       {error !== null && error !== undefined && <ProblemAlert error={error} sx={{ mb: 1 }} />}
       {/* seven columns in the 640 px drawer: tight cells, and a horizontal scroll rather than clipping */}
       <Box sx={{ overflowX: 'auto' }}>
-        <Table size="small" aria-label={t('tableLabel', { parent })} sx={CELLS}>
+        <Table size="small" aria-label={t('tableLabel', { parent: displayNames.get(parent) ?? parent })} sx={CELLS}>
           <TableHead>
             <TableRow>
               <TableCell>{t('col.name')}</TableCell>
@@ -108,7 +110,7 @@ export function SubinterfaceTable({
                   onClick={() => !readOnly && onEdit(id, sub)}
                 >
                   <TableCell dir="ltr" sx={{ textAlign: 'start', whiteSpace: 'nowrap' }}>
-                    {name}
+                    {`${displayNames.get(parent) ?? parent}.${id}`}
                   </TableCell>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>
                     <Box component="span" dir="ltr" title={protoTitle(configured)} sx={MONO}>

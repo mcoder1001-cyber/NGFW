@@ -50,6 +50,16 @@ The screen is fully available in Persian (right-to-left); the drawer opens from 
 
 ## Interface names
 
+The interface table, detail drawer, VLAN table and dashboard traffic chart display physical ports as
+`Ethernet1-1G`, `Ethernet2-1G`, `Ethernet3-10G`, etc. Ports with a physical marker are numbered by ascending PCI
+address; unmarked live DPDK ports follow, ordered by VPP name. Sorting or filtering the table does not change the
+mapping. The suffix is the reported link speed (`2.5G` and `100M` are also supported); unavailable or zero speed
+appears as `Unknown`. It can change when the negotiated speed changes. A VLAN inherits its parent's label, for
+example `Ethernet3-10G.100`. Virtual interfaces retain their logical names.
+
+These are display aliases. The original logical name is available in the table tooltip and under the drawer title;
+configuration paths, REST requests, CLI commands and other configuration reference fields use that logical name.
+
 | name | what the agent does |
 |---|---|
 | `host-<netdev>` | creates an af_packet interface on the Linux netdev `<netdev>` (lab/test path; `host-w1l0` on `w1l0`). Only a **veth** is accepted: naming an existing netdev of any other kind (the management NIC `ens192`, a bridge, …) fails validation (400 validation problem) at `/interfaces/host-<netdev>` (rule `interfaces.af-packet-veth`), and the agent checks again right before it creates the interface |

@@ -73,7 +73,7 @@ export function pageOf(rows: Row[], req: ServerPageRequest): { rows: Row[]; tota
   const q = req.quickFilter.map((x) => x.toLowerCase());
   if (q.length > 0)
     list = list.filter((r) =>
-      q.every((x) => `${r.name} ${r.type} ${r.addresses} ${r.vrf}`.toLowerCase().includes(x)),
+      q.every((x) => `${r.name} ${r.item.name} ${r.type} ${r.addresses} ${r.vrf}`.toLowerCase().includes(x)),
     );
   for (const f of req.filter) {
     const needle = String(f.value ?? '').toLowerCase();
@@ -128,13 +128,13 @@ export function InterfacesPage() {
         const next = data.observationErrors ?? [];
         return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
       });
-      return pageOf(data.items.map(toRow), req);
+      return pageOf(interfaceRows(data.items), req);
     },
     [qc],
   );
 
   const rateOf = useCallback(
-    (r: Row): Rate | undefined => rates.get(r.item.state?.vppName ?? r.name),
+    (r: Row): Rate | undefined => rates.get(r.item.state?.vppName ?? r.item.name),
     [rates],
   );
 
@@ -149,6 +149,7 @@ export function InterfacesPage() {
           <Stack direction="row" gap={0.5} alignItems="center" sx={{ blockSize: '100%' }}>
             <Box
               component="span"
+              title={p.row.item.name}
               dir="ltr"
               sx={{
                 fontFamily: (th) => th.ngfw.monoFontFamily,

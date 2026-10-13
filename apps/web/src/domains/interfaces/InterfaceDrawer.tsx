@@ -245,7 +245,7 @@ function DrawerBody({
           dir="ltr"
           sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, flex: 1, textAlign: 'start' }}
         >
-          {name}
+          {displayName}
         </Typography>
         {live && (
           <StatusChip
@@ -336,7 +336,7 @@ function DrawerBody({
           </Table>
         </>
       ) : isSub ? (
-        <Alert severity="info">{t('drawer.subHint', { parent: parentName })}</Alert>
+        <Alert severity="info">{t('drawer.subHint', { parent: displayNames.get(parentName) ?? parentName })}</Alert>
       ) : (
         <>
           <Typography component="h4" variant="subtitle1" gutterBottom>
@@ -492,8 +492,8 @@ function DrawerBody({
       <Dialog open={subDialog !== null} onClose={() => setSubDialog(null)} fullWidth maxWidth="sm">
         <DialogTitle>
           {subDialog?.value
-            ? t('sub.editTitle', { name: `${name}.${subDialog.id}` })
-            : t('sub.addTitle', { name })}
+            ? t('sub.editTitle', { name: `${displayName}.${subDialog.id}` })
+            : t('sub.addTitle', { name: displayName })}
         </DialogTitle>
         <DialogContent>
           {subDialog && (

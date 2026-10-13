@@ -17,4 +17,4 @@
 - Deriving from canonical data on render updates labels when inventory arrives later without refreshing the bond-state walk. Search still projects the latest label map when the filter query runs.
 - Regression: canonical `ens192` displays `Ethernet1` while a separate canonical `Ethernet1` displays `Ethernet2`. Both initially available inventory and late inventory pass, and each performs exactly one bond-state request.
 - Actual targeted test result: `BondsPage.test.tsx --testNamePattern='colliding logical name'`: 2 passed / 8 skipped, 15.20s.
-- Targeted ESLint passed. Web typecheck running at correction checkpoint; root complete gate still required.
+- Targeted ESLint and web typecheck passed. Correction commit `9594bd48b`; root complete gate still required.

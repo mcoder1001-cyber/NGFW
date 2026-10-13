@@ -14,9 +14,12 @@ Independent read-only review approved the follow-up. ESLint, shell syntax,
 `tools/ci.sh check --base origin/main`, API/web build and Debian package fixture
 tests passed. The first quick run found one old physical-port test expecting
 `ens161`; expectation-only correction `735835adb` is committed and published.
-The final quick run has passed 662 web tests, 783 API tests, agent/CLI lint,
-race tests/builds and all unit-mode topology modules. The final VPP deployment
-script harness is still running; do not describe the overall gate as passed yet.
+The final quick run passed 662 web tests, 783 API tests, agent/CLI lint,
+race tests/builds, all unit-mode topology modules and the VPP deployment-script
+harness (all four shards passed). It exited 0 with `CI GATE PASSED`, wall time
+19m50s. Full logs: `/root/ngfw-wt/logs/ci/NGFW-20261013-121346-70774`.
+The gate started at test checkpoint `735835adb`; subsequent changes only record
+deployment evidence and do not change compiled files or test assertions.
 
 Both hosts are reachable by SSH. Host 211 is a fresh Ubuntu 26.04.1 installation;
 its changed SSH host key was explicitly confirmed by the user. Its root partition
@@ -54,5 +57,6 @@ Both package transfers passed SHA256 verification and `dpkg --audit` is empty.
 Packages/backups/check logs are retained in `/root/ngfw-deploy` on each host;
 local build and gate logs are in this worktree's `.scratch/deploy`.
 
-Next: wait for final deployment-script CI harness, record its actual result,
-commit/publish the completion receipt and report the two HTTPS URLs to the user.
+Completed: packages installed and verified on both hosts, original code/test
+checkpoints published, complete quick gate passed, and completion receipt committed
+and published. Web URLs: `https://172.30.110.211/`, `https://172.30.126.37/`.

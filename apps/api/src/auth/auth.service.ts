@@ -1388,13 +1388,35 @@ export class AuthService {
    * a failed login (`registerFailure`).
    */
   /** Step-up for staging an atomic setup password; the commit engine performs the credential promotion. */
-  async checkSetupPassword(user: Principal, current: string, secure: boolean): Promise<void> {
+  async checkSetupPassword(user: Principal, current: string, secure: boolean): Promise<boolean> {
     if (!secure) throw tlsRequired();
     if (user.via !== 'jwt') throw problems.forbidden('setup requires an interactive login');
     if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.NGFW_PASSWORD_RATE_PER_MIN) {
       throw problems.tooMany('too many password checks');
     }
     await this.checkCurrent(user, current);
+    return this.isBootstrapAdmin(user);
+  }
+
+  /** Only the initial local administrator may be adopted into setup's configuration. */
+  async isBootstrapAdmin(user: Principal): Promise<boolean> {
+    if (user.via !== 'jwt' || user.role !== 'admin') return false;
+    const [account] = await this.db
+      .select({
+        username: appUser.username,
+        source: appUser.source,
+        role: appUser.role,
+        disabled: appUser.disabled,
+      })
+      .from(appUser)
+      .where(eq(appUser.id, user.id));
+    // D-048: the initial local administrator exists before management.users is configured.
+    return (
+      account?.username === user.username &&
+      account.source === 'bootstrap' &&
+      account.role === 'admin' &&
+      account.disabled === false
+    );
   }
 
   private async checkCurrent(user: Principal, current: string): Promise<number> {

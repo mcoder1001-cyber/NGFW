@@ -1,4 +1,3 @@
-import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { useInterfaceLabel, useInterfaceName } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';

@@ -26,6 +26,13 @@ function lookup(labels: ReadonlyMap<string, string>, name: string): string {
   return name;
 }
 
+/** Resolve aliases only within a caller's interface namespace, including candidate VLAN suffixes. */
+export function interfaceNameFromOptions(value: string, options: readonly string[], label: (name: string) => string): string {
+  const names = new Map<string, string>();
+  for (const name of options) if (!names.has(label(name))) names.set(label(name), name);
+  return lookup(names, value);
+}
+
 /** Known interface label, with identity fallback for unrelated strings. */
 export function useInterfaceLabel(): (name: string) => string {
   const labels = useContext(InterfaceLabelsContext);

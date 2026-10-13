@@ -73,6 +73,17 @@ describe('interface aliases in schema forms', () => {
     fireEvent.submit(input.closest('form')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledExactlyOnceWith(['ens192']));
   });
+  it.each([false, true])('resolves new host VLAN aliases inside the host namespace (chips=%s)', async (chips) => {
+    const onSubmit = vi.fn();
+    const item: JsonSchema = { ...interfaceSchema, 'x-ngfw-ui': { widget: 'host-interface-picker' } };
+    const schema: JsonSchema = chips ? { type: 'array', title: 'Port', items: item, 'x-ngfw-ui': { widget: 'chips' } } : item;
+    renderWithProviders(<InterfaceLabelsProvider labels={labels} hostInterfaces={['ens192']}><SchemaForm schema={schema} value={chips ? [] : ''} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
+    const input = screen.getByRole('combobox', { name: 'Port' });
+    fireEvent.change(input, { target: { value: 'Ethernet1.100' } });
+    fireEvent.blur(input);
+    fireEvent.submit(input.closest('form')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledExactlyOnceWith(chips ? ['ens192.100'] : 'ens192.100'));
+  });
   it('labels and selects interface chips without putting labels in payloads', async () => {
     const value = ['wan'];
     const onSubmit = renderForm({ type: 'array', title: 'Ports', items: interfaceSchema, 'x-ngfw-ui': { widget: 'chips' } }, value);

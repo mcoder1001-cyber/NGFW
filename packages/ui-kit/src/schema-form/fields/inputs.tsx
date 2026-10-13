@@ -18,7 +18,7 @@ import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useId, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useHostInterfaces, useInterfaceName, useInterfaceLabel } from '../../interface-labels.js';
+import { interfaceNameFromOptions, useHostInterfaces, useInterfaceName, useInterfaceLabel } from '../../interface-labels.js';
 import { UI_KIT_NS } from '../../i18n/index.js';
 import { IDENTIFIER_WIDGETS, isLtrString, typeOf } from '../schema-utils.js';
 import type { JsonSchema, UiHints } from '../types.js';
@@ -185,8 +185,8 @@ function InterfacePickerInput(props: PrimitiveInputProps) {
   const options = props.options?.length ? props.options : (props.widget === 'host-interface-picker' ? hostInterfaces : []);
   const resolveValue = (value: string, selected: boolean) => {
     if (selected && options.includes(value)) return value;
-    const option = options.find((name) => interfaceLabel(name) === value);
-    if (option !== undefined) return option;
+    const option = interfaceNameFromOptions(value, options, interfaceLabel);
+    if (option !== value) return option;
     if (props.widget === 'host-interface-picker') {
       return typeof props.value === 'string' && interfaceLabel(props.value) === value ? props.value : value;
     }
@@ -425,7 +425,8 @@ export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefi
   const options = props.options?.length ? props.options : (hostInterfaceItems ? hostInterfaces : []);
   const resolveValue = (value: string, selected: boolean) => {
     if (selected && options.includes(value)) return value;
-    return options.find((option) => interfaceLabel(option) === value) ?? (hostInterfaceItems ? value : interfaceName(value));
+    const option = interfaceNameFromOptions(value, options, interfaceLabel);
+    return option !== value ? option : (hostInterfaceItems ? value : interfaceName(value));
   };
   const theme = useTheme();
   const items = Array.isArray(value) ? value.map(String) : [];

@@ -1,4 +1,4 @@
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useHostInterfaces, useInterfaceLabel } from '@ngfw/ui-kit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,6 +18,10 @@ function PortReference() {
   return <span data-testid="port">{label('uplink')}</span>;
 }
 
+function HostReference() {
+  return <span data-testid="host-ports">{useHostInterfaces().join(',')}</span>;
+}
+
 afterEach(() => {
   auth.status = 'anonymous';
   fetchInventory.mockReset();
@@ -27,12 +31,20 @@ describe('application interface labels', () => {
   it('loads names only after authentication and clears visible labels on sign-out', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     fetchInventory.mockResolvedValue({
-      items: [{ name: 'uplink', kind: 'interface', physical: { pci: '0000:01:00.0' } }],
+      items: [
+        {
+          name: 'uplink',
+          kind: 'interface',
+          physical: { pci: '0000:01:00.0' },
+          hostInventory: { netdev: 'ens192' },
+        },
+      ],
     });
     const view = () => (
       <QueryClientProvider client={queryClient}>
         <InterfaceDisplayNamesProvider>
           <PortReference />
+          <HostReference />
         </InterfaceDisplayNamesProvider>
       </QueryClientProvider>
     );
@@ -42,10 +54,12 @@ describe('application interface labels', () => {
     auth.status = 'authenticated';
     mounted.rerender(view());
     await waitFor(() => expect(screen.getByTestId('port')).toHaveTextContent('Ethernet1'));
+    expect(screen.getByTestId('host-ports')).toHaveTextContent('ens192');
     expect(fetchInventory).toHaveBeenCalledTimes(1);
     auth.status = 'anonymous';
     mounted.rerender(view());
     expect(screen.getByTestId('port')).toHaveTextContent('uplink');
+    expect(screen.getByTestId('host-ports')).toBeEmptyDOMElement();
     mounted.unmount();
     queryClient.clear();
   });

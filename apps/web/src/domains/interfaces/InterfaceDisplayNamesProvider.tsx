@@ -19,5 +19,18 @@ export function InterfaceDisplayNamesProvider({ children }: { children: ReactNod
     () => interfaceDisplayNames(authenticated ? (inventory.data?.items ?? []) : []),
     [authenticated, inventory.data],
   );
-  return <InterfaceLabelsProvider labels={labels}>{children}</InterfaceLabelsProvider>;
+  const hostInterfaces = useMemo(
+    () =>
+      authenticated
+        ? (inventory.data?.items ?? []).flatMap((item) =>
+            item.hostInventory?.netdev ? [item.hostInventory.netdev] : [],
+          )
+        : [],
+    [authenticated, inventory.data],
+  );
+  return (
+    <InterfaceLabelsProvider labels={labels} hostInterfaces={hostInterfaces}>
+      {children}
+    </InterfaceLabelsProvider>
+  );
 }

@@ -102,6 +102,7 @@ describe('setup wizard', () => {
       );
       expect(fake.calls.find((r) => r.path === '/api/v1/config/setup/stage')!.body).toMatchObject({
         input: {
+          wan: 'wan0',
           wanMode: mode,
           ...(mode === 'pppoe'
             ? { wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' } }
@@ -163,8 +164,8 @@ describe('setup wizard', () => {
       within(list)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['liveLan', 'liveWan']);
-    fireEvent.click(within(list).getByRole('option', { name: 'liveWan' }));
+    ).toEqual(['Ethernet2', 'Ethernet3']);
+    fireEvent.click(within(list).getByRole('option', { name: 'Ethernet3' }));
     next();
     await screen.findByText(/Setup updates the selected WAN/);
     expect(screen.queryByRole('combobox', { name: 'LAN interface' })).not.toBeInTheDocument();
@@ -172,6 +173,12 @@ describe('setup wizard', () => {
     expect(
       fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
     ).toBe(false);
+    fake.on('POST /api/v1/config/setup/preview', { body: { changes: [] } });
+    next();
+    await screen.findByRole('button', { name: 'Apply with 120-second confirmation' });
+    expect(fake.calls.find((r) => r.path === '/api/v1/config/setup/preview')!.body).toMatchObject({
+      input: { wan: 'liveWan' },
+    });
   });
   it('refuses an empty password before advancing', async () => {
     const fake = installFakeApi();

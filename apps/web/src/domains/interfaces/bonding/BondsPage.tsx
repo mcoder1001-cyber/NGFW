@@ -151,7 +151,7 @@ export function BondsPage() {
           if (!s) {
             return (
               <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12 }}>
-                {p.row.members.split(' ').map(interfaceLabel).join(' ')}
+                {toBondRow(p.row.item, interfaceLabel).members}
               </Box>
             );
           }

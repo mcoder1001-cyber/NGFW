@@ -10,3 +10,11 @@
 - Recovery: original app-parent worktree disappeared externally; edits recovered from command history into locked `/root/ngfw-wt` worktree.
 - Independent review: APPROVE root mapper/provider and shared context at `56e26040e` only (not own consumer implementation). Verified hardware classification, speed-independent labels, canonical identity priority over secondary aliases, VLAN derivation, auth gating and logout label clearing. Potential inverse-label ambiguity was independently identified and confirmed already fixed in root `51cc02818`. Local mapping/provider tests: 8 passing. Remaining: manager independent review of own consumers and complete mandatory quick CI.
 - Next command: manager integrates consumer follow-up `dd5ab8b37` and continues mandatory quick CI. Redundant diagnostic re-run was stopped after successful complete subtree result; no product acceptance remains in this worker scope.
+
+## Independent-review correction: non-idempotent alias collision
+
+- `BondsPage` fallback now derives member text once from canonical `row.item` using `toBondRow`; it no longer formats `row.members`, which is already presentation text.
+- Deriving from canonical data on render updates labels when inventory arrives later without refreshing the bond-state walk. Search still projects the latest label map when the filter query runs.
+- Regression: canonical `ens192` displays `Ethernet1` while a separate canonical `Ethernet1` displays `Ethernet2`. Both initially available inventory and late inventory pass, and each performs exactly one bond-state request.
+- Actual targeted test result: `BondsPage.test.tsx --testNamePattern='colliding logical name'`: 2 passed / 8 skipped, 15.20s.
+- Targeted ESLint passed. Web typecheck running at correction checkpoint; root complete gate still required.

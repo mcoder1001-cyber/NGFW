@@ -193,12 +193,20 @@ func showInterfaces(ctx context.Context, a *App, args []cpath.Token) error {
 	if err != nil {
 		return err
 	}
+	labels := newInterfaceLabels(raw)
 	if len(args) == 1 {
 		name := args[0].Text
+		if !a.jsonOut {
+			var unambiguous bool
+			name, unambiguous = labels.resolve(name)
+			if !unambiguous {
+				return usagef("ambiguous interface display name %q; use --json with the logical name", args[0].Text)
+			}
+		}
 		for _, it := range st.Items {
 			if it.Name == name && it.Config != nil {
 				return a.emit(it, func(w io.Writer) {
-					fmt.Fprintf(w, "Interface %s (retrieved %s)\n", it.Name, st.RetrievedAt)
+					fmt.Fprintf(w, "Interface %s (retrieved %s)\n", labels.label(it.Name), st.RetrievedAt)
 					_, _ = fmt.Fprint(w, indentText(render.Text(it.Config), "  "))
 					if it.Counters != nil {
 						fmt.Fprintf(w, "Counters (%s)\n", st.CountersAt)
@@ -207,7 +215,7 @@ func showInterfaces(ctx context.Context, a *App, args []cpath.Token) error {
 				})
 			}
 		}
-		return &ExitErr{Code: ExitNotFound, Err: fmt.Errorf("interface %q is not in the data plane", name)}
+		return &ExitErr{Code: ExitNotFound, Err: fmt.Errorf("interface %q is not in the data plane", args[0].Text)}
 	}
 	return a.emit(raw, func(w io.Writer) {
 		rows := make([][]string, 0, len(st.Items))
@@ -217,7 +225,7 @@ func showInterfaces(ctx context.Context, a *App, args []cpath.Token) error {
 				continue // not retrieved from the data plane (see ifaceState)
 			}
 			addrs := append(strList(c["ipv4"]), strList(c["ipv6"])...)
-			rows = append(rows, []string{it.Name, onOff(c["enabled"]), scalarOr(c["mtu"], "-"), scalarOr(c["vrf"], "default"), strings.Join(addrs, ","), counter(it.Counters, "rx", "packets"), counter(it.Counters, "tx", "packets")})
+			rows = append(rows, []string{labels.label(it.Name), onOff(c["enabled"]), scalarOr(c["mtu"], "-"), scalarOr(c["vrf"], "default"), strings.Join(addrs, ","), counter(it.Counters, "rx", "packets"), counter(it.Counters, "tx", "packets")})
 		}
 		table(w, []string{"NAME", "ADMIN", "MTU", "VRF", "ADDRESSES", "RX-PKTS", "TX-PKTS"}, rows)
 		if len(rows) == 0 {
@@ -284,13 +292,15 @@ func completeInterfaceNames(ctx context.Context, a *App, args []string, _ string
 		return nil
 	}
 	var st ifaceState
-	if _, err := a.call(ctx, api.Call{Op: "State_interfaces"}, &st); err != nil {
+	raw, err := a.call(ctx, api.Call{Op: "State_interfaces"}, &st)
+	if err != nil {
 		return nil
 	}
+	labels := newInterfaceLabels(raw)
 	out := make([]lineedit.Candidate, 0, len(st.Items))
 	for _, it := range st.Items {
 		if it.Config != nil {
-			out = append(out, lineedit.Candidate{Text: cpath.Quote(it.Name)})
+			out = append(out, lineedit.Candidate{Text: cpath.Quote(labels.label(it.Name))})
 		}
 	}
 	return out
@@ -334,6 +344,14 @@ func showRoutes(ctx context.Context, a *App, args []cpath.Token) error {
 			break
 		}
 	}
+	var labels interfaceLabels
+	if !a.jsonOut {
+		// Display enrichment is optional: a failed interface observation must not
+		// hide an otherwise successful route table. Machine output needs no lookup.
+		if raw, err := a.call(ctx, api.Call{Op: "State_interfaces"}, nil); err == nil {
+			labels = newInterfaceLabels(raw)
+		}
+	}
 	return a.emit(all, func(w io.Writer) {
 		rows := make([][]string, 0, len(all.Items))
 		for _, r := range all.Items {
@@ -344,7 +362,7 @@ func showRoutes(ctx context.Context, a *App, args []cpath.Token) error {
 					if s != "" {
 						s += " via "
 					}
-					s += h.Interface
+					s += labels.label(h.Interface)
 				}
 				hops = append(hops, s)
 			}

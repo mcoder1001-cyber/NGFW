@@ -273,7 +273,6 @@ function Body({
               <>
                 {sourceSelect(t('interfaces.storeSource'), f.storeSource, on.storeSource, {
                   none: false,
-                  interfaceName: true,
                   error: err.storeSource,
                   helper: t('interfaces.storeHelp'),
                 })}
@@ -312,14 +311,12 @@ function Body({
                 on.output,
                 {
                   none: false,
-                  interfaceName: true,
                   error: err.output,
                 },
               )}
             {f.egress === 'shaper' &&
               select(t('interfaces.shaper'), f.shaper, withCurrent(shapers, f.shaper), on.shaper, {
                 none: false,
-                interfaceName: true,
                 error: err.shaper,
               })}
           </Stack>
@@ -339,13 +336,11 @@ function Body({
                   on.markMap,
                   {
                     none: false,
-                    interfaceName: true,
                     error: err.markMap,
                   },
                 )}
                 {sourceSelect(t('interfaces.markOutput'), f.markOutput, on.markOutput, {
                   none: false,
-                  interfaceName: true,
                   error: err.markOutput,
                 })}
               </>

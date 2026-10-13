@@ -10,7 +10,7 @@ const labels = new Map([['wan', 'Ethernet1'], ['GigabitEthernet0/8/0', 'Ethernet
 const interfaceSchema: JsonSchema = { type: 'string', title: 'Port', 'x-ngfw-ui': { widget: 'interface-picker' } };
 function renderForm(schema: JsonSchema, value: unknown, options = ['wan', 'lan']) {
   const onSubmit = vi.fn();
-  renderWithProviders(<InterfaceLabelsProvider labels={labels}><SchemaForm schema={schema} value={value} interfaceOptions={options} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
+  renderWithProviders(<InterfaceLabelsProvider labels={labels}><SchemaForm schema={schema} value={value} interfaceOptions={options} hostInterfaceOptions={schema['x-ngfw-ui']?.widget === 'host-interface-picker' ? options : undefined} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
   return onSubmit;
 }
 describe('interface aliases in schema forms', () => {
@@ -56,7 +56,7 @@ describe('interface aliases in schema forms', () => {
   });
   it('uses host inventory choices for a new host ACL field without per-form options', async () => {
     const onSubmit = vi.fn();
-    renderWithProviders(<InterfaceLabelsProvider labels={labels} hostInterfaces={['ens192']}><SchemaForm schema={{ ...interfaceSchema, 'x-ngfw-ui': { widget: 'host-interface-picker' } }} value="" onSubmit={onSubmit} /></InterfaceLabelsProvider>);
+    renderWithProviders(<InterfaceLabelsProvider labels={labels} hostInterfaces={['ens192']}><SchemaForm schema={{ ...interfaceSchema, 'x-ngfw-ui': { widget: 'host-interface-picker' } }} value="" interfaceOptions={['wan']} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
     const input = screen.getByRole('combobox', { name: 'Port' });
     fireEvent.change(input, { target: { value: 'Ethernet1' } });
     fireEvent.blur(input);
@@ -66,7 +66,7 @@ describe('interface aliases in schema forms', () => {
   it('uses Linux inventory for host-interface chips, preserving ACL payload identities', async () => {
     const onSubmit = vi.fn();
     const schema: JsonSchema = { type: 'array', title: 'Host ports', items: { ...interfaceSchema, 'x-ngfw-ui': { widget: 'host-interface-picker' } }, 'x-ngfw-ui': { widget: 'chips' } };
-    renderWithProviders(<InterfaceLabelsProvider labels={labels} hostInterfaces={['ens192']}><SchemaForm schema={schema} value={[]} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
+    renderWithProviders(<InterfaceLabelsProvider labels={labels} hostInterfaces={['ens192']}><SchemaForm schema={schema} value={[]} interfaceOptions={['wan']} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
     const input = screen.getByRole('combobox', { name: 'Host ports' });
     await userEvent.type(input, 'Ethernet1');
     await userEvent.click(await screen.findByRole('option', { name: 'Ethernet1' }));
@@ -77,7 +77,7 @@ describe('interface aliases in schema forms', () => {
     const onSubmit = vi.fn();
     const item: JsonSchema = { ...interfaceSchema, 'x-ngfw-ui': { widget: 'host-interface-picker' } };
     const schema: JsonSchema = chips ? { type: 'array', title: 'Port', items: item, 'x-ngfw-ui': { widget: 'chips' } } : item;
-    renderWithProviders(<InterfaceLabelsProvider labels={labels} hostInterfaces={['ens192']}><SchemaForm schema={schema} value={chips ? [] : ''} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
+    renderWithProviders(<InterfaceLabelsProvider labels={labels} hostInterfaces={['ens192']}><SchemaForm schema={schema} value={chips ? [] : ''} interfaceOptions={['wan']} onSubmit={onSubmit} /></InterfaceLabelsProvider>);
     const input = screen.getByRole('combobox', { name: 'Port' });
     fireEvent.change(input, { target: { value: 'Ethernet1.100' } });
     fireEvent.blur(input);

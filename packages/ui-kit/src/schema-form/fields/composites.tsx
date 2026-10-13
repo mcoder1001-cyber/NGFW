@@ -198,7 +198,7 @@ function RecordKeyField({
       schema={s}
       hints={hints}
       widget={hints.widget}
-      options={['interface-picker', 'host-interface-picker'].includes(hints.widget ?? '') ? ctx.interfaceOptions : undefined}
+      options={hints.widget === 'host-interface-picker' ? ctx.hostInterfaceOptions : hints.widget === 'interface-picker' ? ctx.interfaceOptions : undefined}
       value={field.value}
       onChange={(v) => field.onChange(v ?? '')}
       onBlur={field.onBlur}
@@ -275,7 +275,7 @@ function ChipsField({ schema, name, propPath, label, required, hints, readOnly, 
       helperText={help}
       interfaceItems={interfaceItems}
       hostInterfaceItems={hostInterfaceItems}
-      options={interfaceItems ? ctx.interfaceOptions : undefined}
+      options={hostInterfaceItems ? ctx.hostInterfaceOptions : interfaceItems ? ctx.interfaceOptions : undefined}
       ltr={hints.widget === 'tag-picker' || isLtrString(items, hintsOf(items).widget)}
     />
   );
@@ -375,7 +375,7 @@ function PrimitiveListField({ schema, name, propPath, label, hints, readOnly, it
               required
               readOnly={readOnly}
               error={itemErrorOf(fieldState.error, i)}
-              options={['interface-picker', 'host-interface-picker'].includes(itemHints.widget ?? '') ? ctx.interfaceOptions : undefined}
+              options={itemHints.widget === 'host-interface-picker' ? ctx.hostInterfaceOptions : itemHints.widget === 'interface-picker' ? ctx.interfaceOptions : undefined}
             />
           </Box>
           <ListControls index={i} count={arr.length} readOnly={readOnly} onMove={move} onRemove={(idx) => set(arr.filter((_x, j) => j !== idx))} />

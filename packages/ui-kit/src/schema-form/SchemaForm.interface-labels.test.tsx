@@ -46,6 +46,14 @@ describe('interface aliases in schema forms', () => {
     fireEvent.submit(input.closest('form')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledExactlyOnceWith('ens192'));
   });
+  it('preserves a host identity when retyping its alias without a host options list', async () => {
+    const onSubmit = renderForm({ ...interfaceSchema, 'x-ngfw-ui': { widget: 'host-interface-picker' } }, 'ens192', []);
+    const input = screen.getByRole('combobox', { name: 'Port' });
+    fireEvent.change(input, { target: { value: 'Ethernet1' } });
+    fireEvent.blur(input);
+    fireEvent.submit(input.closest('form')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledExactlyOnceWith('ens192'));
+  });
   it('labels and selects interface chips without putting labels in payloads', async () => {
     const value = ['wan'];
     const onSubmit = renderForm({ type: 'array', title: 'Ports', items: interfaceSchema, 'x-ngfw-ui': { widget: 'chips' } }, value);
@@ -59,8 +67,8 @@ describe('interface aliases in schema forms', () => {
   });
   it('does not relabel unrelated record keys or descriptions that equal an interface name', async () => {
     const onSubmit = renderForm({ type: 'object', additionalProperties: { type: 'string' } }, { wan: 'lan' });
-    expect(screen.getByRole('textbox', { name: /Key/ })).toHaveValue('wan');
-    const value = screen.getByRole('textbox', { name: /Value/ });
+    expect(screen.getByDisplayValue('wan')).toHaveValue('wan');
+    const value = screen.getByDisplayValue('lan');
     expect(value).toHaveValue('lan');
     fireEvent.submit(value.closest('form')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledExactlyOnceWith({ wan: 'lan' }));

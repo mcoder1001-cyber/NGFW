@@ -181,7 +181,15 @@ function InterfacePickerInput(props: PrimitiveInputProps) {
   const { t } = useTranslation(UI_KIT_NS);
   const interfaceLabel = useInterfaceLabel();
   const interfaceName = useInterfaceName();
-  const resolveValue = (value: string, selected: boolean) => selected && props.options?.includes(value) ? value : (props.options?.find((option) => interfaceLabel(option) === value) ?? interfaceName(value));
+  const resolveValue = (value: string, selected: boolean) => {
+    if (selected && props.options?.includes(value)) return value;
+    const option = props.options?.find((name) => interfaceLabel(name) === value);
+    if (option !== undefined) return option;
+    if (props.widget === 'host-interface-picker') {
+      return typeof props.value === 'string' && interfaceLabel(props.value) === value ? props.value : value;
+    }
+    return interfaceName(value);
+  };
   return <SuggestInput {...props} suggestions={props.options ?? []} optionLabel={interfaceLabel} resolveValue={resolveValue} defaultHelp={t('form.interfacePickerHelp')} />;
 }
 

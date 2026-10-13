@@ -66,6 +66,40 @@ describe('setup staging and security', () => {
     );
   });
   const body = () => ({ input, baseRevision: 1, completedAt: new Date().toISOString() });
+  it('previews and stages without WAN or an available agent while preserving network configuration', async () => {
+    const stored = await ds.getRunning();
+    const running = RootConfig.parse(stored.doc);
+    running.interfaces = {};
+    vi.spyOn(ds, 'getRunning').mockResolvedValue({ ...stored, doc: running });
+    interfaceState.mockRejectedValue(new Error('agent unavailable'));
+    const settings = { ...input };
+    delete settings.wan;
+    delete settings.wanMode;
+    delete settings.lan;
+    delete settings.lanAddress;
+    delete settings.dhcp;
+    const skipped = { ...body(), input: SetupInputSchema.parse(settings) };
+    const preview = await c.preview(skipped, request());
+    expect(
+      preview.changes.some((change) =>
+        ['/interfaces', '/routing', '/nat', '/acl', '/services/dhcp'].some((prefix) =>
+          change.pointer.startsWith(prefix),
+        ),
+      ),
+    ).toBe(false);
+    expect((await repo.candidate()).payload).toBeNull();
+    await c.stage({ ...skipped, current, password }, request());
+    const candidate = RootConfig.parse((await repo.candidate()).payload);
+    expect(candidate.interfaces).toEqual(running.interfaces);
+    expect(candidate.routing).toEqual(running.routing);
+    expect(candidate.nat).toEqual(running.nat);
+    expect(candidate.acl).toEqual(running.acl);
+    expect(candidate.services.dhcp).toEqual(running.services.dhcp);
+    expect(candidate.system.setup.completed).toBe(true);
+    expect(await verifyPassword(candidate.management.users[0]!.passwordHash, password)).toBe(true);
+    expect(interfaceState).not.toHaveBeenCalled();
+    expect(running.system.setup.completed).toBe(false);
+  });
   it('previews and stages WAN-only live inventory while preserving existing LAN policy', async () => {
     interfaceState.mockResolvedValue({
       interfaces: [

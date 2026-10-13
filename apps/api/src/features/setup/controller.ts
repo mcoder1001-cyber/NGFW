@@ -49,7 +49,9 @@ export class SetupController {
       throw problems.badRequest('setup summary expired; preview again');
     try {
       const base = RootConfig.parse(running.doc);
-      const selected = body.input.lan ? [body.input.wan, body.input.lan] : [body.input.wan];
+      const selected = [body.input.wan, body.input.lan].filter(
+        (name): name is string => name !== undefined,
+      );
       if (
         selected.some(
           (name) => name === 'local0' || base.interfaces[name]?.physical?.owner === 'host',
@@ -61,7 +63,9 @@ export class SetupController {
       const observed = [
         ...new Set([
           ...missing,
-          ...(body.input.wanMode === 'pppoe' ? [body.input.wan, 'setup-pppoe'] : []),
+          ...(body.input.wanMode === 'pppoe' && body.input.wan
+            ? [body.input.wan, 'setup-pppoe']
+            : []),
         ]),
       ];
       if (observed.length > 0) {

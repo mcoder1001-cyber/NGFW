@@ -249,7 +249,7 @@ export function PrimitiveField({
       readOnly={readOnly}
       error={typeof err === 'string' ? wording(err) : undefined}
       helperText={help}
-      options={hints.widget === 'interface-picker' ? ctx.interfaceOptions : undefined}
+      options={['interface-picker', 'host-interface-picker'].includes(hints.widget ?? '') ? ctx.interfaceOptions : undefined}
     />
   );
 }

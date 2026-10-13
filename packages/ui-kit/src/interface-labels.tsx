@@ -31,6 +31,6 @@ export function useInterfaceName(): (label: string) => string {
   return useMemo(() => {
     const names = new Map<string, string>();
     for (const [name, label] of labels) if (!names.has(label)) names.set(label, name);
-    return (label: string) => labels.has(label) ? label : lookup(names, label);
+    return (label: string) => lookup(names, label);
   }, [labels]);
 }

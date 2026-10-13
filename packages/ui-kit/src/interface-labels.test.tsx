@@ -11,6 +11,10 @@ describe('interface display context', () => {
     render(<Probe name="loop0" />);
     expect(screen.getByRole('status')).toHaveTextContent('loop0|loop0');
   });
+  it('resolves display aliases before conflicting raw names', () => {
+    render(<InterfaceLabelsProvider labels={new Map([['wan', 'Ethernet1'], ['Ethernet1', 'Ethernet2']])}><Probe name="Ethernet1" /></InterfaceLabelsProvider>);
+    expect(screen.getByRole('status')).toHaveTextContent('Ethernet2|wan');
+  });
   it('keeps canonical identity, resolves candidate VLANs, and follows new labels', () => {
     const labels = new Map([['wan', 'Ethernet1'], ['GigabitEthernet0/8/0', 'Ethernet1'], ['wan.100', 'Ethernet1.100']]);
     const { rerender } = render(<InterfaceLabelsProvider labels={labels}><Probe name="Ethernet1.100.200" /></InterfaceLabelsProvider>);

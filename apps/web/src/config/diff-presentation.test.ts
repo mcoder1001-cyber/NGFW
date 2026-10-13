@@ -85,3 +85,13 @@ describe('configuration diff presentation', () => {
     );
   });
 });
+
+it('labels interface pointers and reference values without changing unrelated names or source data', () => {
+  const label = (name: string) => name === 'wan' ? 'Ethernet1' : name;
+  expect(diffPointerLabel('/interfaces/wan/mtu', label)).toBe('/interfaces/Ethernet1/mtu');
+  expect(diffPointerLabel('/objects/zones/wan', label)).toBe('/objects/zones/wan');
+  const value = { interfaces: { wan: { description: 'wan', unnumbered: 'wan' } }, objects: { zones: { wan: { interfaces: ['wan'] } } } };
+  const before = structuredClone(value);
+  expect(JSON.parse(diffValueText(value, '', 'en', label)!)).toEqual({ interfaces: { Ethernet1: { description: 'wan', unnumbered: 'Ethernet1' } }, objects: { zones: { wan: { interfaces: ['Ethernet1'] } } } });
+  expect(value).toEqual(before);
+});

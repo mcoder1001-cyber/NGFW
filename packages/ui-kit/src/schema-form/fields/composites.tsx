@@ -23,6 +23,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useInterfaceLabel } from '../../interface-labels.js';
 import { UI_KIT_NS } from '../../i18n/index.js';
 import { useSchemaFormContext } from '../context.js';
 import { compile, fromFormValue, matchVariantForm, toFormValue } from '../form-value.js';
@@ -66,7 +67,8 @@ const STICKY_END = { position: 'sticky', insetInlineEnd: 0, zIndex: 1, bgcolor: 
 function useSummaryText(): SummaryText {
   const text = useSchemaText();
   const { t } = useTranslation(UI_KIT_NS);
-  return useMemo(() => ({ title: text.title, enumLabels: text.enumLabels, variant: text.variant, yes: t('form.yes'), no: t('form.no') }), [text, t]);
+  const interfaceLabel = useInterfaceLabel();
+  return useMemo(() => ({ title: text.title, enumLabels: text.enumLabels, variant: text.variant, yes: t('form.yes'), no: t('form.no'), interfaceLabel }), [text, t, interfaceLabel]);
 }
 
 // ─── object ────────────────────────────────────────────────────────────────
@@ -188,6 +190,7 @@ function RecordKeyField({
   readOnly: boolean;
 }) {
   const { field, fieldState } = useController({ name });
+  const ctx = useSchemaFormContext();
   const s: JsonSchema = { type: 'string', ...(schema ?? {}) };
   const hints = { ...hintsOf(s), widget: hintsOf(s).widget ?? 'mono' };
   return (
@@ -195,6 +198,7 @@ function RecordKeyField({
       schema={s}
       hints={hints}
       widget={hints.widget}
+      options={hints.widget === 'interface-picker' ? ctx.interfaceOptions : undefined}
       value={field.value}
       onChange={(v) => field.onChange(v ?? '')}
       onBlur={field.onBlur}
@@ -250,6 +254,8 @@ function MultiSelectField({ schema, name, propPath, label, required, hints, read
 }
 
 function ChipsField({ schema, name, propPath, label, required, hints, readOnly, items }: BoundFieldProps & { items: JsonSchema }) {
+  const ctx = useSchemaFormContext();
+  const interfaceItems = ['interface-picker', 'host-interface-picker'].includes(hintsOf(items).widget ?? '');
   const { field, fieldState } = useController({ name });
   const help = useHelpText(schema, hints, propPath);
   const err = fieldState.error?.message;
@@ -266,6 +272,8 @@ function ChipsField({ schema, name, propPath, label, required, hints, readOnly, 
       readOnly={readOnly}
       error={typeof err === 'string' ? err : undefined}
       helperText={help}
+      interfaceItems={interfaceItems}
+      options={interfaceItems ? ctx.interfaceOptions : undefined}
       ltr={hints.widget === 'tag-picker' || isLtrString(items, hintsOf(items).widget)}
     />
   );
@@ -365,7 +373,7 @@ function PrimitiveListField({ schema, name, propPath, label, hints, readOnly, it
               required
               readOnly={readOnly}
               error={itemErrorOf(fieldState.error, i)}
-              options={itemHints.widget === 'interface-picker' ? ctx.interfaceOptions : undefined}
+              options={['interface-picker', 'host-interface-picker'].includes(itemHints.widget ?? '') ? ctx.interfaceOptions : undefined}
             />
           </Box>
           <ListControls index={i} count={arr.length} readOnly={readOnly} onMove={move} onRemove={(idx) => set(arr.filter((_x, j) => j !== idx))} />

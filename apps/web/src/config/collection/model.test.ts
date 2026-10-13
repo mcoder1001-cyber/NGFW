@@ -217,3 +217,10 @@ describe('localizeSchema', () => {
     expect(s.properties?.['username']?.['x-ngfw-ui']?.help).toBeUndefined();
   });
 });
+
+ it('labels only interface collection keys, preserving unrelated VRF and object names', () => {
+  const label = (name: string) => name === 'wan' ? 'Ethernet1' : name;
+  expect(keyLabel(IFACES, 'wan', label)).toBe('Ethernet1');
+  expect(keyLabel(collectionModel({ domain: 'vrfs', ns: 'vrfs' }), 'wan', label)).toBe('wan');
+  expect(keyLabel(collectionModel({ domain: 'objects', path: ['zones'], ns: 'objects' }), 'wan', label)).toBe('wan');
+ });

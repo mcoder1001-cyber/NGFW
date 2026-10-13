@@ -1,6 +1,6 @@
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import Autocomplete from '@mui/material/Autocomplete';
+import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
@@ -18,6 +18,7 @@ import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useId, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useInterfaceName, useInterfaceLabel } from '../../interface-labels.js';
 import { UI_KIT_NS } from '../../i18n/index.js';
 import { IDENTIFIER_WIDGETS, isLtrString, typeOf } from '../schema-utils.js';
 import type { JsonSchema, UiHints } from '../types.js';
@@ -96,6 +97,7 @@ export function PrimitiveInput(props: PrimitiveInputProps) {
   if (t === 'string') {
     const w = widget ?? inferStringWidget(schema);
     switch (w) {
+      case 'host-interface-picker':
       case 'interface-picker':
         return <InterfacePickerInput {...props} />;
       case 'port-range':
@@ -177,7 +179,10 @@ function TextInput(props: PrimitiveInputProps) {
 
 function InterfacePickerInput(props: PrimitiveInputProps) {
   const { t } = useTranslation(UI_KIT_NS);
-  return <SuggestInput {...props} suggestions={props.options ?? []} defaultHelp={t('form.interfacePickerHelp')} />;
+  const interfaceLabel = useInterfaceLabel();
+  const interfaceName = useInterfaceName();
+  const resolveValue = (value: string, selected: boolean) => selected && props.options?.includes(value) ? value : (props.options?.find((option) => interfaceLabel(option) === value) ?? interfaceName(value));
+  return <SuggestInput {...props} suggestions={props.options ?? []} optionLabel={interfaceLabel} resolveValue={resolveValue} defaultHelp={t('form.interfacePickerHelp')} />;
 }
 
 function toNumberValue(raw: string): unknown {
@@ -402,8 +407,11 @@ function JsonInput(props: PrimitiveInputProps) {
 }
 
 /** Array of strings as chips (`widget: 'chips'`). */
-export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefined }) {
-  const { value, onChange, onBlur, label, required, readOnly, error, helperText, ltr = false } = props;
+export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefined; interfaceItems?: boolean | undefined }) {
+  const { value, onChange, onBlur, label, required, readOnly, error, helperText, ltr = false, interfaceItems = false } = props;
+  const interfaceLabel = useInterfaceLabel();
+  const interfaceName = useInterfaceName();
+  const resolveValue = (value: string, selected: boolean) => selected && props.options?.includes(value) ? value : (props.options?.find((option) => interfaceLabel(option) === value) ?? interfaceName(value));
   const theme = useTheme();
   const items = Array.isArray(value) ? value.map(String) : [];
   return (
@@ -411,10 +419,12 @@ export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefi
       multiple
       freeSolo
       autoSelect
-      options={[]}
+      options={interfaceItems ? [...(props.options ?? [])] : []}
+      getOptionLabel={interfaceItems ? interfaceLabel : undefined}
+      filterOptions={createFilterOptions({ stringify: (option: string) => `${option} ${interfaceItems ? interfaceLabel(option) : ''}` })}
       value={items}
       readOnly={readOnly}
-      onChange={(_e, v) => onChange(v.map(String))}
+      onChange={(_e, v, reason) => onChange(v.map((item) => interfaceItems && !items.includes(String(item)) ? resolveValue(String(item), reason === 'selectOption') : String(item)))}
       onBlur={onBlur}
       // Identifier chips (prefixes, names) are isolated LTR so `2001:db8::/64` never reorders in an RTL page (RTL-1).
       {...(ltr
@@ -422,7 +432,7 @@ export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefi
             renderValue: (vals: readonly string[], getItemProps: (a: { index: number }) => Record<string, unknown> & { key: number }) =>
               vals.map((v, index) => {
                 const { key, ...itemProps } = getItemProps({ index });
-                return <Chip key={key} {...itemProps} label={<bdi dir="ltr">{v}</bdi>} />;
+                return <Chip key={key} {...itemProps} label={<bdi dir="ltr">{interfaceItems ? interfaceLabel(v) : v}</bdi>} />;
               }),
           }
         : {})}

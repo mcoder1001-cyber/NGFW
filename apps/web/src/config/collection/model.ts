@@ -106,12 +106,21 @@ export function listKeyOf(item: unknown, itemKey: readonly string[]): string {
   return values.length === 1 ? String(values[0] ?? '') : JSON.stringify(values.map((v) => v ?? null));
 }
 
+export function interfaceSchema(schema: JsonSchema | undefined): boolean {
+  const widget = schema?.['x-ngfw-ui']?.widget;
+  return widget === 'interface-picker' || widget === 'host-interface-picker';
+}
+
 /** Human label of a key id (compound keys are shown as their members separated by spaces). */
-export function keyLabel(model: CollectionModel, id: string): string {
-  if (model.shape.kind === 'map' || model.shape.itemKey.length === 1) return id;
+export function keyLabel(model: CollectionModel, id: string, interfaceLabel: (name: string) => string = (name) => name): string {
+  if (model.shape.kind === 'map') return interfaceSchema(model.shape.keySchema) ? interfaceLabel(id) : id;
+  if (model.shape.itemKey.length === 1) return interfaceSchema(model.itemSchema.properties?.[model.shape.itemKey[0]!]) ? interfaceLabel(id) : id;
   try {
     const v = JSON.parse(id) as unknown;
-    return Array.isArray(v) ? v.map((x) => String(x ?? '')).join(' ') : id;
+    return Array.isArray(v) ? v.map((x, index) => {
+      const value = String(x ?? '');
+      return model.shape.kind === 'list' && interfaceSchema(model.itemSchema.properties?.[model.shape.itemKey[index]!]) ? interfaceLabel(value) : value;
+    }).join(' ') : id;
   } catch {
     return id;
   }

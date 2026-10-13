@@ -680,8 +680,8 @@ describe('interfaces screen', () => {
       expect(await within(grid).findByText('built-in')).toBeInTheDocument();
       expect(within(grid).getByText('awaiting engine')).toBeInTheDocument();
 
-      fireEvent.click(within(grid).getByText('ens161'));
-      const drawer = await screen.findByRole('region', { name: 'Interface ens161' });
+      fireEvent.click(within(grid).getByText('Ethernet1-Unknown'));
+      const drawer = await screen.findByRole('region', { name: 'Interface Ethernet1-Unknown' });
       expect(
         await within(drawer).findByRole('button', { name: 'Release to host' }),
       ).toBeInTheDocument();

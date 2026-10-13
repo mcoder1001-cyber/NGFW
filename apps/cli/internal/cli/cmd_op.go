@@ -29,7 +29,7 @@ func init() {
 	register(&Command{
 		Words: []string{"show", "ip", "route"}, Args: "[<vrf>]", Where: inOp,
 		Summary: "Routes retrieved from the data plane (connected + static), optionally of one VRF",
-		Ops:     []string{"State_routes"}, Run: showRoutes,
+		Ops:     []string{"State_routes", "State_interfaces"}, Run: showRoutes, // interface inventory is optional, for human labels
 	})
 	register(&Command{
 		Words: []string{"show", "bgp", "summary"}, Where: inOp,

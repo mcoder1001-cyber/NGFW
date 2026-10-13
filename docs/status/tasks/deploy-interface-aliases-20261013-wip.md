@@ -10,9 +10,13 @@ install the latest integrated product on `root@172.30.110.211` and `root@172.30.
 Owned files: interface display-name helper/tests, interface page/drawer/tests,
 dashboard and VLAN display consumers, interface documentation, Debian CLI staging/install.
 
-Independent read-only review approved the follow-up. ESLint, shell syntax and
-`tools/ci.sh check --base origin/main` passed. Latest-main API/web build is running.
-Full quick gate and package verification remain pending.
+Independent read-only review approved the follow-up. ESLint, shell syntax,
+`tools/ci.sh check --base origin/main`, API/web build and Debian package fixture
+tests passed. The first quick run found one old physical-port test expecting
+`ens161`; expectation-only correction `735835adb` is committed and published.
+The final quick run has passed 662 web tests, 783 API tests, agent/CLI lint,
+race tests/builds and all unit-mode topology modules. The final VPP deployment
+script harness is still running; do not describe the overall gate as passed yet.
 
 Both hosts are reachable by SSH. Host 211 is a fresh Ubuntu 26.04.1 installation;
 its changed SSH host key was explicitly confirmed by the user. Its root partition
@@ -22,9 +26,33 @@ API, agent, nginx and VPP active. Preserve its database, secrets, management net
 and VPP startup configuration during upgrade.
 
 Verified VPP runtime artifacts are `26.06-release+ngfw3`; install-gate verification
-passed. Transfer to host 211 is running. No product package has yet been installed.
+passed. Both hosts now have `ngfw-agent`, `ngfw-api`, `ngfw-web` and `ngfw-meta`
+`0.1.0~dev+48ad9f3e9990`. Compiled product files are unchanged by the subsequent
+expectation-only test commit. Both development branches were published to GitHub;
+remote product checkpoint is `48ad9f3e9990`, remote test checkpoint is `735835adb`.
 
-Next: finish API/web build, run quick gate, commit/publish this checkpoint,
-prepare Debian packages with `deploy/debian/ngfw/prepare.sh`, validate package contents,
-install runtime dependencies and firstboot on 211, upgrade packages on 37, and
-verify installed version, CLI, HTTP and service health on both hosts.
+Host 211 required normalizing its existing relative Asia/Tehran localtime link
+to the same absolute zone path for the strict identity provisioner. Its management
+interface `enp4s0` was set explicitly for firewall bootstrap. Firstboot completed
+and deleted bootstrap credentials. HTTPS `/` returns 200, public API health is ok,
+authenticated agent health is reachable, VPP-connected and not degraded;
+18 interfaces are observed with host inventory/data plane available and no
+observation errors. No failed units remain.
+
+Host 37 upgrade preserved its database, secrets and management configuration;
+the VPP startup configuration matches its preupgrade checksum. Package/systemd
+upgrade restarted the services, including VPP; subsequent reconcile succeeded.
+HTTPS `/` returns 200, API health is ok, direct agent health reports VPP connected
+with no degraded flag, and `/usr/bin/ngfw --version` reports `48ad9f3e9990`.
+The unrelated network wait-online failure predates this deployment (2026-10-10).
+
+On both hosts the installed CLI matches the packaged CLI bytes, SHA256
+`e28ea92f5304669707ccfb5af38f49f5c6f6a3c0701193ae676bfaa4d621077c`.
+The served interface display-name JS matches the new production build, SHA256
+`73c8b8d01dee6c6b324b27bb0e5c440bb5a0a763e42b9c88a00f3aeee1944538`.
+Both package transfers passed SHA256 verification and `dpkg --audit` is empty.
+Packages/backups/check logs are retained in `/root/ngfw-deploy` on each host;
+local build and gate logs are in this worktree's `.scratch/deploy`.
+
+Next: wait for final deployment-script CI harness, record its actual result,
+commit/publish the completion receipt and report the two HTTPS URLs to the user.

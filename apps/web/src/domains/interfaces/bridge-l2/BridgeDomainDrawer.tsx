@@ -17,7 +17,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { StatusChip } from '@ngfw/ui-kit';
+import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -82,6 +82,7 @@ export function BridgeDomainDrawer({
 
 function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => void }) {
   const { t } = useTranslation('bridge-l2');
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const readOnly = !perms.editConfig;
   const l2 = useCandidateL2();
@@ -166,7 +167,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
         minWidth: 160,
         flex: 1,
         sortable: false,
-        renderCell: (p) => <span dir="ltr">{p.row.interface}</span>,
+        renderCell: (p) => <span dir="ltr">{interfaceLabel(p.row.interface)}</span>,
       },
       {
         field: 'type',
@@ -176,7 +177,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
         valueGetter: (_v, r) => t(`type.${macKind(r)}`),
       },
     ],
-    [t],
+    [t, interfaceLabel],
   );
 
   const pointerOfMember = (portName: string) => {
@@ -283,7 +284,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
               return (
                 <TableRow key={m.name}>
                   <TableCell dir="ltr" sx={MONO}>
-                    {m.name}
+                    {interfaceLabel(m.name)}
                   </TableCell>
                   <TableCell>{t(`role.${role}`)}</TableCell>
                   <TableCell>{m.l2?.shg ?? 0}</TableCell>
@@ -298,7 +299,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
                   <TableCell sx={END_CELL}>
                     <IconButton
                       size="small"
-                      aria-label={`${t('edit')} ${m.name}`}
+                      aria-label={`${t('edit')} ${interfaceLabel(m.name)}`}
                       disabled={readOnly}
                       onClick={() => setMemberEdit({ port: m })}
                     >
@@ -306,7 +307,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
                     </IconButton>
                     <IconButton
                       size="small"
-                      aria-label={`${t('remove')} ${m.name}`}
+                      aria-label={`${t('remove')} ${interfaceLabel(m.name)}`}
                       disabled={readOnly || patchPorts.isPending}
                       onClick={() => void removeMember(m)}
                     >
@@ -352,7 +353,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
           open
           title={
             memberEdit.port
-              ? t('domain.memberTitle', { name: memberEdit.port.name })
+              ? t('domain.memberTitle', { name: interfaceLabel(memberEdit.port.name) })
               : t('domain.addMember')
           }
           keyLabel={t('domain.interfacePick')}

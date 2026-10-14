@@ -205,7 +205,7 @@ describe('route guard', () => {
     const paths = ok.json().paths;
     for (const p of ['/api/v1/auth/password', '/api/v1/users/{name}/password']) {
       const body = paths[p].post.requestBody.content['application/json'].schema;
-      expect(body.properties.password, p).toMatchObject({ minLength: 12, maxLength: 1024 });
+      expect(body.properties.password, p).toMatchObject({ minLength: 1, maxLength: 1024 });
     }
   });
 

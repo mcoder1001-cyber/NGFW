@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -40,6 +41,7 @@ const KEY_FIELD = 'name';
  * logical name, so label routes can send packets into it.
  */
 export function TunnelsTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const { routing, mpls, update, write } = useMpls();
   const live = useMplsTunnels();
@@ -67,11 +69,11 @@ export function TunnelsTab() {
       return {
         id: name,
         name,
-        paths: tn.paths.map((p) => pathText(p, tr)).join(' · '),
-        pathList: tn.paths.map((p) => pathParts(p, tr)),
+        paths: tn.paths.map((p) => pathText(p, tr, interfaceLabel)).join(' · '),
+        pathList: tn.paths.map((p) => pathParts(p, tr, interfaceLabel)),
         l2Only: tn.l2Only ? t('yes') : t('no'),
         status: live.data === undefined ? 'degraded' : l ? 'up' : 'down',
-        vpp: l ? `${l.interface} (#${l.swIfIndex})` : '',
+        vpp: l ? `${interfaceLabel(l.interface)} (#${l.swIfIndex})` : '',
       };
     });
   const cols = useMemo<GridColDef<TunnelRow>[]>(

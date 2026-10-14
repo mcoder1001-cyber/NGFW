@@ -7,11 +7,12 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
+import { useInterfaceLabel, useInterfaceName } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../ProblemAlert';
-import { mapKeyIssue, type CollectionModel } from './model';
+import { interfaceSchema, keyLabel as collectionKeyLabel, mapKeyIssue, type CollectionModel } from './model';
 import type { ItemEditorState } from './useCollection';
 
 const KEY_INPUT = { dir: 'ltr', spellCheck: false, autoComplete: 'off' } as const;
@@ -38,10 +39,13 @@ export interface ItemEditorProps {
  */
 export function ItemEditor({ model, editor, schema, readOnly, keyLabel, onCreated, onRemoved, children }: ItemEditorProps) {
   const { t } = useTranslation('config');
+  const interfaceLabel = useInterfaceLabel();
+  const interfaceName = useInterfaceName();
   const [newKey, setNewKey] = useState('');
   const [confirming, setConfirming] = useState(false);
   const isNew = editor.id === null;
   const askKey = isNew && model.shape.kind === 'map';
+  const interfaceKey = model.shape.kind === 'map' && interfaceSchema(model.shape.keySchema);
   const typedIssue = newKey === '' ? undefined : mapKeyIssue(model, newKey);
   const keyIssue = editor.keyError ?? typedIssue ?? null;
 
@@ -71,9 +75,9 @@ export function ItemEditor({ model, editor, schema, readOnly, keyLabel, onCreate
           fullWidth
           required
           label={keyLabel}
-          value={newKey}
+          value={interfaceKey ? interfaceLabel(newKey) : newKey}
           disabled={readOnly}
-          onChange={(e) => setNewKey(e.target.value.trim())}
+          onChange={(e) => setNewKey(interfaceKey ? interfaceName(e.target.value.trim()) : e.target.value.trim())}
           error={keyIssue !== null}
           helperText={keyIssue ? t(`kit.key.${keyIssue}`, { key: newKey }) : t('kit.key.help')}
           slotProps={{ htmlInput: KEY_INPUT }}
@@ -105,7 +109,7 @@ export function ItemEditor({ model, editor, schema, readOnly, keyLabel, onCreate
         </SchemaForm>
       )}
       <Dialog open={confirming} onClose={() => setConfirming(false)} aria-labelledby="kit-remove-title">
-        <DialogTitle id="kit-remove-title">{t('kit.removeTitle', { key: editor.row?.label ?? '' })}</DialogTitle>
+        <DialogTitle id="kit-remove-title">{t('kit.removeTitle', { key: collectionKeyLabel(model, editor.id ?? '', interfaceLabel) })}</DialogTitle>
         <DialogContent>
           <DialogContentText>{t('kit.removeBody')}</DialogContentText>
         </DialogContent>

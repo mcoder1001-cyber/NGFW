@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -44,6 +45,7 @@ export function redistributionMatrix(r: RoutingIgp): Record<Target, string[] | n
 }
 
 function Sessions() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const cand = useCandidateRouting();
   const sessions = cand.data?.bfd?.sessions ?? [];
@@ -72,7 +74,7 @@ function Sessions() {
                   key={`${s.interface}|${s.peerAddress}`}
                   data-testid={`bfd-${s.peerAddress}`}
                 >
-                  <TableCell dir="ltr">{s.interface}</TableCell>
+                  <TableCell dir="ltr">{interfaceLabel(s.interface)}</TableCell>
                   <TableCell dir="ltr">{s.localAddress}</TableCell>
                   <TableCell dir="ltr">{s.peerAddress}</TableCell>
                   <TableCell dir="ltr">

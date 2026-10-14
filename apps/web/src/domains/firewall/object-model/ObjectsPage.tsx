@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
@@ -50,7 +51,13 @@ import {
 } from './model';
 import { objectModelWidgets } from './ObjectPicker';
 import { FqdnCell, TagChips, UsageDrawer } from './parts';
-import { useCandidateObjects, useFqdnState, useFreshCandidateObjects, usePatchObjects, useRunningObjects } from './queries';
+import {
+  useCandidateObjects,
+  useFqdnState,
+  useFreshCandidateObjects,
+  usePatchObjects,
+  useRunningObjects,
+} from './queries';
 
 const LTR = { dir: 'ltr' } as const;
 const TAB_PARAM = 'tab';
@@ -62,7 +69,10 @@ export function problemFor(error: unknown, prefix: string): ProblemDetails | nul
   const p = error.toFormProblem();
   return {
     ...p,
-    errors: (p.errors ?? []).map((e) => ({ ...e, pointer: e.pointer.startsWith(prefix) ? e.pointer.slice(prefix.length) : e.pointer })),
+    errors: (p.errors ?? []).map((e) => ({
+      ...e,
+      pointer: e.pointer.startsWith(prefix) ? e.pointer.slice(prefix.length) : e.pointer,
+    })),
   };
 }
 
@@ -84,14 +94,28 @@ export function ObjectsPage() {
       </Typography>
       <Tabs
         value={tab}
-        onChange={(_e, v: ObjectKind) => setParams((p) => { p.set(TAB_PARAM, v); return p; }, { replace: true })}
+        onChange={(_e, v: ObjectKind) =>
+          setParams(
+            (p) => {
+              p.set(TAB_PARAM, v);
+              return p;
+            },
+            { replace: true },
+          )
+        }
         variant="scrollable"
         allowScrollButtonsMobile
         aria-label={t('tabsLabel')}
         sx={{ mb: 2, borderBlockEnd: 1, borderColor: 'divider' }}
       >
         {OBJECT_KINDS.map((k) => (
-          <Tab key={k} value={k} label={t(`tabs.${k}`)} id={`objects-tab-${k}`} aria-controls={`objects-panel-${k}`} />
+          <Tab
+            key={k}
+            value={k}
+            label={t(`tabs.${k}`)}
+            id={`objects-tab-${k}`}
+            aria-controls={`objects-panel-${k}`}
+          />
         ))}
       </Tabs>
       <Box role="tabpanel" id={`objects-panel-${tab}`} aria-labelledby={`objects-tab-${tab}`}>
@@ -103,6 +127,7 @@ export function ObjectsPage() {
 }
 
 function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string) => void }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('object-model');
   const perms = usePermissions();
   const candidate = useCandidateObjects();
@@ -110,16 +135,28 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
   const fqdn = useFqdnState();
   const patch = usePatchObjects();
   const [filter, setFilter] = useState('');
-  const [editing, setEditing] = useState<{ name: string; value: AnyEntry | undefined } | null>(null);
+  const [editing, setEditing] = useState<{ name: string; value: AnyEntry | undefined } | null>(
+    null,
+  );
   const [lastError, setLastError] = useState<unknown>(null);
   const readOnly = !perms.editConfig;
 
-  const fqdnBy = useMemo(() => new Map<string, FqdnItem>((fqdn.data?.items ?? []).map((i) => [i.name, i])), [fqdn.data]);
+  const fqdnBy = useMemo(
+    () => new Map<string, FqdnItem>((fqdn.data?.items ?? []).map((i) => [i.name, i])),
+    [fqdn.data],
+  );
   const rows = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    return entriesOf(candidate.data, kind).filter(([name, e]) => !q || `${name} ${summary(kind, e)} ${tagsOf(e).join(' ')} ${'description' in e ? (e.description ?? '') : ''}`.toLowerCase().includes(q));
-  }, [candidate.data, kind, filter]);
-  const runningOf = (name: string) => ((running.data?.[kind] ?? {}) as Record<string, AnyEntry>)[name];
+    return entriesOf(candidate.data, kind).filter(
+      ([name, e]) =>
+        !q ||
+        `${name} ${summary(kind, e, interfaceLabel)} ${tagsOf(e).join(' ')} ${'description' in e ? (e.description ?? '') : ''}`
+          .toLowerCase()
+          .includes(q),
+    );
+  }, [candidate.data, kind, filter, interfaceLabel]);
+  const runningOf = (name: string) =>
+    ((running.data?.[kind] ?? {}) as Record<string, AnyEntry>)[name];
 
   const remove = async (name: string) => {
     setLastError(null);
@@ -136,13 +173,23 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
       <Stack direction="row" gap={1} sx={{ mb: 1 }} alignItems="center" flexWrap="wrap">
         <Tooltip title={readOnly ? t('readonly') : ''}>
           <span>
-            <Button variant="contained" startIcon={<AddIcon />} disabled={readOnly} onClick={() => setEditing({ name: '', value: undefined })}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled={readOnly}
+              onClick={() => setEditing({ name: '', value: undefined })}
+            >
               {t('add', { kind: t(`kindOne.${kind}`) })}
             </Button>
           </span>
         </Tooltip>
         <Box sx={{ flex: 1 }} />
-        <TextField size="small" label={t('filter')} value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <TextField
+          size="small"
+          label={t('filter')}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
       </Stack>
       {lastError !== null && <ProblemAlert error={lastError} sx={{ mb: 1 }} />}
       {candidate.isPending && <LinearProgress aria-label={t('loading')} />}
@@ -152,7 +199,9 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
           <TableHead>
             <TableRow>
               <TableCell>{t('col.name')}</TableCell>
-              {(kind === 'addresses' || kind === 'services' || kind === 'schedules') && <TableCell>{t('col.type')}</TableCell>}
+              {(kind === 'addresses' || kind === 'services' || kind === 'schedules') && (
+                <TableCell>{t('col.type')}</TableCell>
+              )}
               <TableCell>{t(`col.value.${kind}`)}</TableCell>
               {showFqdn && <TableCell>{t('col.resolved')}</TableCell>}
               {kind !== 'tags' && <TableCell>{t('col.tags')}</TableCell>}
@@ -164,7 +213,9 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
             {candidate.isSuccess && rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8}>
-                  <Typography color="text.secondary">{filter ? t('noMatch') : t('empty', { kind: t(`tabs.${kind}`) })}</Typography>
+                  <Typography color="text.secondary">
+                    {filter ? t('noMatch') : t('empty', { kind: t(`tabs.${kind}`) })}
+                  </Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -173,28 +224,60 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
               const variant = variantOf(kind, e);
               const isFqdn = kind === 'addresses' && variant === 'fqdn';
               return (
-                <TableRow key={name} hover sx={{ cursor: 'pointer' }} onClick={() => setEditing({ name, value: e })}>
+                <TableRow
+                  key={name}
+                  hover
+                  sx={{ cursor: 'pointer' }}
+                  onClick={() => setEditing({ name, value: e })}
+                >
                   <TableCell>
                     <Stack direction="row" gap={0.5} alignItems="center">
-                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
+                      <Box
+                        component="span"
+                        dir="ltr"
+                        sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}
+                      >
                         {name}
                       </Box>
-                      {pending && <Chip size="small" color="warning" variant="outlined" label={t('pending')} />}
+                      {pending && (
+                        <Chip
+                          size="small"
+                          color="warning"
+                          variant="outlined"
+                          label={t('pending')}
+                        />
+                      )}
                     </Stack>
                   </TableCell>
-                  {(kind === 'addresses' || kind === 'services' || kind === 'schedules') && <TableCell>{t(`variant.${variant}`, { defaultValue: variant })}</TableCell>}
+                  {(kind === 'addresses' || kind === 'services' || kind === 'schedules') && (
+                    <TableCell>{t(`variant.${variant}`, { defaultValue: variant })}</TableCell>
+                  )}
                   <TableCell>
                     {kind === 'tags' ? (
                       <TagChips tags={[name]} objects={candidate.data} />
                     ) : (
-                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12, textAlign: 'start' }}>
-                        {summary(kind, e) || '—'}
+                      <Box
+                        component="span"
+                        dir="ltr"
+                        sx={{
+                          fontFamily: (th) => th.ngfw.monoFontFamily,
+                          fontSize: 12,
+                          textAlign: 'start',
+                        }}
+                      >
+                        {summary(kind, e, interfaceLabel) || '—'}
                       </Box>
                     )}
                   </TableCell>
                   {showFqdn && (
                     <TableCell>
-                      {isFqdn ? <FqdnCell item={fqdnBy.get(name)} applied={runningOf(name) !== undefined} unavailable={fqdn.isError} /> : null}
+                      {isFqdn ? (
+                        <FqdnCell
+                          item={fqdnBy.get(name)}
+                          applied={runningOf(name) !== undefined}
+                          unavailable={fqdn.isError}
+                        />
+                      ) : null}
                     </TableCell>
                   )}
                   {kind !== 'tags' && (
@@ -203,13 +286,25 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
                     </TableCell>
                   )}
                   <TableCell>{'description' in e ? e.description : null}</TableCell>
-                  <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }} onClick={(ev) => ev.stopPropagation()}>
+                  <TableCell
+                    sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}
+                    onClick={(ev) => ev.stopPropagation()}
+                  >
                     <Tooltip title={t('whereUsed')}>
-                      <IconButton size="small" aria-label={t('whereUsedOf', { name })} onClick={() => onUsage(name)}>
+                      <IconButton
+                        size="small"
+                        aria-label={t('whereUsedOf', { name })}
+                        onClick={() => onUsage(name)}
+                      >
                         <TravelExploreIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <IconButton size="small" aria-label={t('deleteNamed', { name })} disabled={readOnly || patch.isPending} onClick={() => void remove(name)}>
+                    <IconButton
+                      size="small"
+                      aria-label={t('deleteNamed', { name })}
+                      disabled={readOnly || patch.isPending}
+                      onClick={() => void remove(name)}
+                    >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -221,7 +316,9 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
       </TableContainer>
       <Dialog open={editing !== null} onClose={() => setEditing(null)} fullWidth maxWidth="sm">
         <DialogTitle>
-          {editing?.value ? t('dialog.editTitle', { kind: t(`kindOne.${kind}`), name: editing.name }) : t('dialog.addTitle', { kind: t(`kindOne.${kind}`) })}
+          {editing?.value
+            ? t('dialog.editTitle', { kind: t(`kindOne.${kind}`), name: editing.name })
+            : t('dialog.addTitle', { kind: t(`kindOne.${kind}`) })}
         </DialogTitle>
         <DialogContent>
           {editing && (
@@ -262,7 +359,10 @@ function ObjectForm({
   const editing = value !== undefined;
   const [name, setName] = useState(initialName);
   const [error, setError] = useState<unknown>(null);
-  const schema = useMemo(() => localizeSchema(itemSchema(kind), (k, o) => t(k, o ?? {}), kind), [kind, t]);
+  const schema = useMemo(
+    () => localizeSchema(itemSchema(kind), (k, o) => t(k, o ?? {}), kind),
+    [kind, t],
+  );
   const taken = !editing && name !== '' && Object.hasOwn((objects?.[kind] ?? {}) as object, name);
   const nameOk = OBJECT_NAME_RE.test(name) && !taken;
 
@@ -300,7 +400,9 @@ function ObjectForm({
         helperText={taken ? t('dialog.exists') : t('dialog.nameHelp')}
         slotProps={{ htmlInput: LTR }}
       />
-      {kind === 'addressGroups' || kind === 'serviceGroups' ? <Alert severity="info">{t('dialog.groupHint')}</Alert> : null}
+      {kind === 'addressGroups' || kind === 'serviceGroups' ? (
+        <Alert severity="info">{t('dialog.groupHint')}</Alert>
+      ) : null}
       {error !== null && problem === null && <ProblemAlert error={error} />}
       <SchemaForm
         schema={schema}
@@ -313,7 +415,13 @@ function ObjectForm({
         onSubmit={save}
       >
         {editing && (
-          <Button color="error" variant="outlined" startIcon={<DeleteIcon />} disabled={readOnly || patch.isPending} onClick={() => void remove()}>
+          <Button
+            color="error"
+            variant="outlined"
+            startIcon={<DeleteIcon />}
+            disabled={readOnly || patch.isPending}
+            onClick={() => void remove()}
+          >
             {t('dialog.remove')}
           </Button>
         )}

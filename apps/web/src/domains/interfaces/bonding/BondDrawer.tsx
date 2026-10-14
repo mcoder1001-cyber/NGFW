@@ -21,7 +21,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { StatusChip } from '@ngfw/ui-kit';
+import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -60,6 +60,7 @@ function lacpText(m: LiveMember, t: (k: string, o?: Record<string, unknown>) => 
 
 function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
   const { t } = useTranslation(['bonding', 'interfaces']);
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const bonds = useBondsCache(); // the grid's data: no second timer, no fetch on open (D-132)
   const refresh = useRefreshBonds();
@@ -161,7 +162,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
           <TableBody>
             {(
               [
-                [t('live.vppName'), live.vppName],
+                [t('live.vppName'), interfaceLabel(live.vppName)],
                 [t('live.swIfIndex'), String(live.swIfIndex)],
                 [t('col.mode'), `${t(`mode.${live.mode}`, { defaultValue: live.mode })} · ${live.loadBalance}`],
                 [t('col.active'), t('live.activeOf', { active: live.activeMemberCount, total: live.memberCount })],
@@ -247,7 +248,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
             return (
               <TableRow key={m} hover sx={{ cursor: readOnly ? 'default' : 'pointer' }} onClick={() => !readOnly && setMemberDialog({ name: m, value: mc })}>
                 <TableCell dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
-                  {m}
+                  {interfaceLabel(m)}
                 </TableCell>
                 <TableCell>{lm ? <StatusChip size="small" status={memberStatus(lm)} label={t(`memberStatus.${memberStatus(lm)}`)} /> : t('notInVpp')}</TableCell>
                 <TableCell>{opts || '—'}</TableCell>
@@ -266,7 +267,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
                 <TableCell sx={{ textAlign: 'end' }}>
                   <IconButton
                     size="small"
-                    aria-label={t('members.remove', { name: m })}
+                    aria-label={t('members.remove', { name: interfaceLabel(m) })}
                     disabled={readOnly || patch.isPending}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -283,7 +284,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
       </Table>
 
       <Dialog open={memberDialog !== null} onClose={() => setMemberDialog(null)} fullWidth maxWidth="sm">
-        <DialogTitle>{memberDialog ? t(memberDialog.value ? 'members.editTitle' : 'members.addTitle', { name: memberDialog.name, bond: name }) : ''}</DialogTitle>
+        <DialogTitle>{memberDialog ? t(memberDialog.value ? 'members.editTitle' : 'members.addTitle', { name: interfaceLabel(memberDialog.name), bond: name }) : ''}</DialogTitle>
         <DialogContent>
           {memberError !== null && <ProblemAlert error={memberError} sx={{ mb: 1 }} />}
           {memberDialog && (
@@ -306,6 +307,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
 /** Member picker: only the NICs that may join this bond (eligibleMembers). */
 function AddMember({ options, disabled, onPick }: { options: string[]; disabled: boolean; onPick: (name: string) => void }) {
   const { t } = useTranslation('bonding');
+  const interfaceLabel = useInterfaceLabel();
   const [value, setValue] = useState('');
   return (
     <Stack direction="row" gap={1} alignItems="center">
@@ -321,7 +323,7 @@ function AddMember({ options, disabled, onPick }: { options: string[]; disabled:
       >
         {options.map((o) => (
           <MenuItem key={o} value={o} dir="ltr">
-            {o}
+            {interfaceLabel(o)}
           </MenuItem>
         ))}
       </TextField>

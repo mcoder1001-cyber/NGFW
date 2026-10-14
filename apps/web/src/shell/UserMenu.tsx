@@ -24,8 +24,8 @@ import { ProblemAlert } from '../config/ProblemAlert';
 /** F-aaa-login: the page with the user's own second factor. */
 const AAA_PATH = '/system/aaa';
 
-/** P06 requires ≥ 12 characters for a new password (PasswordBody). */
-const MIN_PASSWORD = 12;
+/** P06 requires non-empty passwords for a new password (PasswordBody). */
+const MIN_PASSWORD = 1;
 
 function ChangePasswordDialog({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged: () => void }) {
   const { t } = useTranslation('auth');

@@ -14,7 +14,7 @@ const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const base = process.env.NGFW_E2E_BASE;
 const wan = process.env.NGFW_E2E_SETUP_WAN;
 const passwordFile = process.env.NGFW_E2E_ADMIN_PASSWORD_FILE;
-if (!base || !wan || !passwordFile) throw new Error('Set NGFW_E2E_BASE, NGFW_E2E_SETUP_WAN and NGFW_E2E_ADMIN_PASSWORD_FILE');
+if (!base || !passwordFile) throw new Error('Set NGFW_E2E_BASE and NGFW_E2E_ADMIN_PASSWORD_FILE; optionally set NGFW_E2E_SETUP_WAN to configure WAN');
 const current = readFileSync(passwordFile, 'utf8').trim();
 const langs = ['en', 'fa']; const tr = createTranslator(webRoot, langs);
 const out = resolve(process.env.NGFW_E2E_SHOTS ?? '/tmp/ngfw-setup-shots'); mkdirSync(out, { recursive: true });
@@ -40,7 +40,11 @@ try {
       await capture('2-password'); await next();
       await page.getByLabel(t('hostname'), { exact: true }).fill(process.env.NGFW_E2E_SETUP_HOSTNAME ?? 'ngfw');
       await capture('3-hostname'); await next();
-      await select('wan', wan); await capture('4-wan'); await next();
+      if (wan) {
+        await page.getByRole('checkbox', { name: t('configureWan'), exact: true }).check();
+        await select('wan', wan);
+      }
+      await capture('4-wan'); await next();
       await capture('5-review'); await next();
       await page.getByRole('button', { name: t('commit'), exact: true }).waitFor(); await capture('6-summary');
       assertNoPageErrors(); console.log(`PASS setup ${lang}: six real-API preview steps; no configuration applied`);

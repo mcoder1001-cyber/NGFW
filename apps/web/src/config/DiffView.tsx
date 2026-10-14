@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { parsePointer } from '@ngfw/schema';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -62,7 +63,8 @@ function Value({
   label: string;
   language: string;
 }) {
-  const text = diffValueText(value, pointer, language);
+  const interfaceLabel = useInterfaceLabel();
+  const text = diffValueText(value, pointer, language, interfaceLabel);
   const multiline = text !== undefined && text.includes('\n');
   return (
     <Box
@@ -100,6 +102,7 @@ export function DiffView({
   dense?: boolean;
 }) {
   const { t, i18n } = useTranslation(['config', 'nav']);
+  const interfaceLabel = useInterfaceLabel();
   const changes = useMemo(() => refineChanges(raw), [raw]);
   const groups = useMemo(() => {
     const m = new Map<string, DiffChange[]>();
@@ -152,7 +155,7 @@ export function DiffView({
                           wordBreak: 'break-all',
                         }}
                       >
-                        {diffPointerLabel(c.pointer)}
+                        {diffPointerLabel(c.pointer, interfaceLabel)}
                       </Box>
                     )}
                   </Stack>

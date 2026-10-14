@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -55,6 +56,7 @@ const DOT = ' · ';
  * No timer here: the live table refreshes on demand.
  */
 export function AttachmentsTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('acl');
   const tr = useAclT();
   const fmt = useFormatters();
@@ -167,9 +169,9 @@ export function AttachmentsTab() {
                   </TableCell>
                   <TableCell>
                     {a.target.kind === 'zone' ? (
-                      <bdi>{targetText(a.target, tr)}</bdi>
+                      <bdi>{targetText(a.target, tr, interfaceLabel)}</bdi>
                     ) : (
-                      <Mono>{a.target.interface}</Mono>
+                      <Mono>{interfaceLabel(a.target.interface)}</Mono>
                     )}
                   </TableCell>
                   <TableCell>{t(`enum.direction.${a.direction ?? 'in'}`)}</TableCell>
@@ -188,7 +190,7 @@ export function AttachmentsTab() {
                       size="small"
                       aria-label={t('attachments.editNamed', {
                         list: a.list,
-                        target: targetText(a.target, tr),
+                        target: targetText(a.target, tr, interfaceLabel),
                       })}
                       disabled={readOnly}
                       onClick={() => setEditing({ index: i, value: a, key: Date.now() })}
@@ -199,7 +201,7 @@ export function AttachmentsTab() {
                       size="small"
                       aria-label={t('attachments.deleteNamed', {
                         list: a.list,
-                        target: targetText(a.target, tr),
+                        target: targetText(a.target, tr, interfaceLabel),
                       })}
                       disabled={readOnly}
                       onClick={() => {
@@ -257,7 +259,7 @@ export function AttachmentsTab() {
               {live.data?.interfaces.map((b) => (
                 <TableRow key={b.interface}>
                   <TableCell>
-                    <Mono>{b.interface}</Mono>
+                    <Mono>{interfaceLabel(b.interface)}</Mono>
                   </TableCell>
                   <TableCell>
                     <Chain acls={b.input} />
@@ -300,7 +302,7 @@ export function AttachmentsTab() {
           deleting
             ? t('attachments.deleteText', {
                 list: deleting.value.list,
-                target: targetText(deleting.value.target, tr),
+                target: targetText(deleting.value.target, tr, interfaceLabel),
               })
             : ''
         }

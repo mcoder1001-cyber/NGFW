@@ -44,7 +44,17 @@ func TestTargetsOpenFileReadbackProtectsOwnedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := t.TempDir()
+	// Every ancestor must be protected; the default temporary directory is
+	// commonly under world-writable /tmp, even when its own mode is 0700.
+	root, err := os.MkdirTemp("/root", "ngfw-ra-target-config-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(root); err != nil {
+			t.Error(err)
+		}
+	})
 	// #nosec G302 -- private directory needs owner traversal; no group/other access.
 	if err := os.Chmod(root, 0700); err != nil {
 		t.Fatal(err)
@@ -54,6 +64,17 @@ func TestTargetsOpenFileReadbackProtectsOwnedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := readTargetsOpenFileAt(path, identity); err != nil {
+		t.Fatal(err)
+	}
+	// #nosec G302 -- deliberate group-writable parent; production rejects it.
+	if err := os.Chmod(root, 0770); err != nil {
+		t.Fatal(err)
+	}
+	if readTargetsOpenFileAt(path, identity) == nil {
+		t.Fatal("configuration under a group-writable parent accepted")
+	}
+	// #nosec G302 -- restore private directory traversal after the writable-parent negative fixture.
+	if err := os.Chmod(root, 0700); err != nil {
 		t.Fatal(err)
 	}
 	other := identity

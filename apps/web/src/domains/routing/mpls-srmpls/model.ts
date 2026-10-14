@@ -120,7 +120,11 @@ export interface PathPart {
 }
 
 /** A configured path as parts: `10.5.1.2 via loop5001 push [50017 50018] ×2`, or `pop, look up in VRF red`. */
-export function pathParts(p: MplsPathConfig, t: Translate): PathPart[] {
+export function pathParts(
+  p: MplsPathConfig,
+  t: Translate,
+  label: (name: string) => string = (name) => name,
+): PathPart[] {
   const out: PathPart[] = [];
   const word = (text: string) => out.push({ text, mono: false });
   const token = (text: string) => out.push({ text, mono: true });
@@ -131,7 +135,7 @@ export function pathParts(p: MplsPathConfig, t: Translate): PathPart[] {
   if (p.nextHop !== undefined) token(p.nextHop);
   if (p.interface !== undefined) {
     word(t('path.via'));
-    token(p.interface);
+    token(label(p.interface));
   }
   if (p.outLabels.length > 0) {
     word(t('path.push'));
@@ -152,12 +156,13 @@ export function fibPathParts(
     weight: number;
   },
   t: Translate,
+  label: (name: string) => string = (name) => name,
 ): PathPart[] {
   const out: PathPart[] = [];
   if (p.type !== 'normal') out.push({ text: p.type, mono: true });
   if (p.nextHop) out.push({ text: p.nextHop, mono: true });
   if (p.interface)
-    out.push({ text: t('path.via'), mono: false }, { text: p.interface, mono: true });
+    out.push({ text: t('path.via'), mono: false }, { text: label(p.interface), mono: true });
   if (p.tableId && !p.nextHop && !p.interface)
     out.push({ text: t('path.table'), mono: false }, { text: String(p.tableId), mono: true });
   if (p.outLabels.length > 0)
@@ -174,8 +179,12 @@ export function fibPathParts(
 export const partsText = (parts: PathPart[]) => parts.map((x) => x.text).join(' ');
 
 /** A configured path as one line (grid search text). */
-export function pathText(p: MplsPathConfig, t: Translate): string {
-  return partsText(pathParts(p, t));
+export function pathText(
+  p: MplsPathConfig,
+  t: Translate,
+  label: (name: string) => string = (name) => name,
+): string {
+  return partsText(pathParts(p, t, label));
 }
 
 export interface LabelRouteRow {
@@ -196,7 +205,11 @@ export function effectivePayload(r: MplsLabelRouteConfig): string {
   return r.paths.some((p) => p.nextHop?.includes(':')) ? 'ip6' : 'ip4';
 }
 
-export function labelRouteRows(m: MplsConfig | undefined, t: Translate): LabelRouteRow[] {
+export function labelRouteRows(
+  m: MplsConfig | undefined,
+  t: Translate,
+  label: (name: string) => string = (name) => name,
+): LabelRouteRow[] {
   return (m?.labelRoutes ?? []).map((r, index) => ({
     id: `${r.table}/${r.label}/${r.eos ? 'eos' : 'neos'}/${index}`,
     index,
@@ -204,8 +217,8 @@ export function labelRouteRows(m: MplsConfig | undefined, t: Translate): LabelRo
     label: r.label,
     eos: r.eos ? t('eos.yes') : t('eos.no'),
     payload: effectivePayload(r),
-    paths: r.paths.map((p) => pathText(p, t)).join(' · '),
-    pathList: r.paths.map((p) => pathParts(p, t)),
+    paths: r.paths.map((p) => pathText(p, t, label)).join(' · '),
+    pathList: r.paths.map((p) => pathParts(p, t, label)),
   }));
 }
 

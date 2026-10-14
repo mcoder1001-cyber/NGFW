@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -31,6 +32,7 @@ const blank: SflowConfig = {
 
 /** sFlow sampling (VPP plugin): the sampling itself; export to collectors is hsflowd's (banner above). */
 export function SflowPanel({ cfg, state, interfaces, readOnly, pending, save }: PanelProps) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const [sf, setSf] = useState<SflowConfig>(cfg.sflow ?? blank);
   const [collectors, setCollectors] = useState(() =>
@@ -129,6 +131,7 @@ export function SflowPanel({ cfg, state, interfaces, readOnly, pending, save }: 
       <Autocomplete
         multiple
         options={interfaces}
+        getOptionLabel={interfaceLabel}
         value={sf.interfaces ?? []}
         onChange={(_, v) => setSf({ ...sf, interfaces: v })}
         disabled={readOnly}
@@ -163,7 +166,7 @@ export function SflowPanel({ cfg, state, interfaces, readOnly, pending, save }: 
         <TableBody>
           {(state?.sflow.interfaces ?? []).map((i) => (
             <TableRow key={i.interface}>
-              <TableCell>{i.interface}</TableCell>
+              <TableCell>{interfaceLabel(i.interface)}</TableCell>
               <TableCell>{i.hwIfIndex}</TableCell>
             </TableRow>
           ))}

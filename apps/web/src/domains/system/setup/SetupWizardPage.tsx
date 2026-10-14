@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import {
   Alert,
   Button,
@@ -52,6 +53,7 @@ const EN = 'en';
 const FA = 'fa';
 
 export function SetupWizardPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('setup');
   const { session } = useAuth();
   const permissions = usePermissions();
@@ -77,16 +79,20 @@ export function SetupWizardPage() {
     rerun: false,
   });
   const [step, setStep] = useState(0);
+  const [configureWan, setConfigureWan] = useState(false);
+  const inputValues = configureWan
+    ? values
+    : Object.fromEntries(Object.entries(values).filter(([key]) => !key.startsWith('wan')));
   const interfaces = useQuery({
     queryKey: ifaceKeys.state,
     queryFn: ({ signal }) => fetchInterfacesState(signal),
-    enabled: step === 3,
+    enabled: step === 3 && configureWan,
   });
   const routes = useQuery({
     queryKey: ['state', 'setup-wan-routes'],
     queryFn: ({ signal }) =>
       fetchRoutes({ vrf: 'default', family: 'ipv4', pageSize: 1000 }, signal),
-    enabled: step === 3,
+    enabled: step === 3 && configureWan,
   });
   const wanEdited = useRef(false);
   const wanLoading = interfaces.isPending || routes.isPending;
@@ -126,6 +132,7 @@ export function SetupWizardPage() {
     if (
       !running.data ||
       step !== 3 ||
+      !configureWan ||
       interfaces.isPending ||
       routes.isPending ||
       wanEdited.current
@@ -138,7 +145,15 @@ export function SetupWizardPage() {
       routes.data?.items,
     );
     if (defaults.wan) setValues((v) => ({ ...v, ...defaults }));
-  }, [running.data, step, interfaces.isPending, interfaces.data, routes.isPending, routes.data]);
+  }, [
+    running.data,
+    step,
+    configureWan,
+    interfaces.isPending,
+    interfaces.data,
+    routes.isPending,
+    routes.data,
+  ]);
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -180,21 +195,22 @@ export function SetupWizardPage() {
         ['language', 'timezone', 'ntp'],
         [],
         ['hostname'],
-        ['wan', 'wanMode'],
+        configureWan ? ['wan', 'wanMode'] : [],
         [],
       ];
-      if (step === 3 && !values.wan) throw new Error(t('selectInterface'));
+      if (step === 3 && configureWan && !values.wan) throw new Error(t('selectInterface'));
       for (const key of fields[step] ?? []) SetupInputSchema.shape[key].parse(values[key]);
       if (
         step === 3 &&
+        configureWan &&
         values.wanMode === 'pppoe' &&
         (!values.wanPppoe || !SetupInputSchema.shape.wanPppoe.safeParse(values.wanPppoe).success)
       )
         throw new Error(t('pppoeRequired'));
-      if (step === 1 && (password.length < 12 || current === '' || current === password))
+      if (step === 1 && (password.length < 1 || current === '' || current === password))
         throw new Error(t('passwordPolicy'));
       if (step === 4) {
-        const input = SetupInputSchema.parse(values);
+        const input = SetupInputSchema.parse(inputValues);
         const completedAt = new Date().toISOString();
         const r = await request('preview', {
           input,
@@ -210,7 +226,7 @@ export function SetupWizardPage() {
   async function commit() {
     await run(async () => {
       await request('stage', {
-        input: SetupInputSchema.parse(values),
+        input: SetupInputSchema.parse(inputValues),
         completedAt: at,
         baseRevision: running.data!.revision,
         current,
@@ -237,7 +253,7 @@ export function SetupWizardPage() {
       label={t(label)}
       value={String(values[key] ?? '')}
       onChange={(e) => set(key, e.target.value as never)}
-      disabled={step === 3 && wanLoading}
+      disabled={step === 3 && configureWan && wanLoading}
       fullWidth
     />
   );
@@ -318,6 +334,24 @@ export function SetupWizardPage() {
       )}
       {step === 2 && field(KEY.hostname)}
       {step === 3 && (
+        <>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={configureWan}
+                onChange={(e) => {
+                  setConfigureWan(e.target.checked);
+                  setPreview(undefined);
+                  setError('');
+                }}
+              />
+            }
+            label={t('configureWan')}
+          />
+          {!configureWan && <Alert severity="info">{t('keepWanHelp')}</Alert>}
+        </>
+      )}
+      {step === 3 && configureWan && (
         <TextField
           select
           disabled={wanLoading}
@@ -343,24 +377,24 @@ export function SetupWizardPage() {
         >
           {interfaceNames.map((name) => (
             <MenuItem key={name} value={name}>
-              {name}
+              {interfaceLabel(name)}
             </MenuItem>
           ))}
         </TextField>
       )}
-      {step === 3 && (interfaces.isFetching || routes.isFetching) && (
+      {step === 3 && configureWan && (interfaces.isFetching || routes.isFetching) && (
         <Typography>{t('loadingInterfaces')}</Typography>
       )}
-      {step === 3 && interfacesUnavailable && (
+      {step === 3 && configureWan && interfacesUnavailable && (
         <Alert severity="warning">
           {t('interfacesFailed')}
           <Button onClick={() => void interfaces.refetch()}>{t('retryInterfaces')}</Button>
         </Alert>
       )}
-      {step === 3 && !interfaces.isFetching && interfaceNames.length === 0 && (
+      {step === 3 && configureWan && !interfaces.isFetching && interfaceNames.length === 0 && (
         <Alert severity="warning">{t('noInterfaces')}</Alert>
       )}
-      {step === 3 && (
+      {step === 3 && configureWan && (
         <>
           <Alert severity="info">{t(values.wan ? 'wanDetected' : 'wanManual')}</Alert>
           {routes.isError && <Alert severity="warning">{t('routesFailed')}</Alert>}
@@ -421,7 +455,9 @@ export function SetupWizardPage() {
           )}
         </>
       )}
-      {step === 4 && <Alert severity="warning">{t('defaultsHelp')}</Alert>}
+      {step === 4 && (
+        <Alert severity="warning">{t(configureWan ? 'defaultsHelp' : 'defaultsKeepWanHelp')}</Alert>
+      )}
       {step === 5 && (
         <>
           <Typography>{t('summaryHelp')}</Typography>
@@ -458,7 +494,10 @@ export function SetupWizardPage() {
             {t('back')}
           </Button>
           {step < 5 ? (
-            <Button disabled={busy || (step === 3 && wanLoading)} onClick={() => void next()}>
+            <Button
+              disabled={busy || (step === 3 && configureWan && wanLoading)}
+              onClick={() => void next()}
+            >
               {t('next')}
             </Button>
           ) : (

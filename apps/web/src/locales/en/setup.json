@@ -15,7 +15,7 @@
   "hostname": "Hostname",
   "current": "Current password",
   "newPassword": "New administrator password",
-  "passwordPolicy": "Enter the current password and a different new password of at least 12 characters.",
+  "passwordPolicy": "Enter the current password and a different, non-empty new password.",
   "wanMode": "WAN mode",
   "dhcp": "DHCP",
   "static": "Static",
@@ -44,5 +44,8 @@
   "pppoeRequired": "Enter the ISP username and a valid password/<name> secret reference.",
   "wanDetected": "WAN settings are loaded from the current system when available. You can edit them before continuing.",
   "wanManual": "No unique WAN could be detected. Select an interface and review its connection settings.",
-  "routesFailed": "Live routes could not be loaded. Review the gateway using the configured settings."
+  "routesFailed": "Live routes could not be loaded. Review the gateway using the configured settings.",
+  "configureWan": "Configure or change WAN",
+  "keepWanHelp": "Continue without changing WAN. Existing interfaces, routes, DHCP, NAT and firewall settings will be preserved.",
+  "defaultsKeepWanHelp": "Setup updates hostname, time and administrator password. Existing WAN and all network settings are preserved."
 }

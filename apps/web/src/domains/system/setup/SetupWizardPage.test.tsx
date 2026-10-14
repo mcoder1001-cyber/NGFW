@@ -36,6 +36,102 @@ async function select(label: string, name: string) {
 }
 
 describe('setup wizard', () => {
+  it.each(['en', 'fa'])(
+    'finishes without WAN changes despite failed interface discovery in %s',
+    async (lang) => {
+      const fake = installFakeApi();
+      await signIn();
+      fake.on('GET /api/v1/config', () => ({
+        body: RootConfig.parse({}),
+        headers: { 'x-ngfw-revision': '1' },
+      }));
+      fake.on('GET /api/v1/state/interfaces', {
+        status: 503,
+        body: { status: 503, title: 'Unavailable', detail: 'inventory unavailable' },
+      });
+      fake.on('POST /api/v1/config/setup/preview', { body: { changes: [] } });
+      fake.on('POST /api/v1/config/setup/stage', { body: { staged: true } });
+      fake.on('POST /api/v1/config/validate', {
+        body: { ok: true, warnings: [], plan: [], notApplied: [] },
+      });
+      fake.on('POST /api/v1/config/commit', {
+        body: {
+          status: 'pending',
+          confirmDeadline: new Date(Date.now() + 120000).toISOString(),
+          results: [],
+          warnings: [],
+          notApplied: [],
+        },
+      });
+      render(app());
+      await screen.findByRole('heading', { name: 'Setup wizard' });
+      if (lang === 'fa') await select('Language', 'Persian');
+      const advance = () =>
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('setup:next') }));
+      advance();
+      await screen.findByLabelText(i18n.t('setup:current'));
+      fireEvent.change(screen.getByLabelText(i18n.t('setup:current')), {
+        target: { value: 'NGFW_TEST_PSK_setup_old' },
+      });
+      fireEvent.change(screen.getByLabelText(i18n.t('setup:newPassword')), {
+        target: { value: 'NGFW_TEST_PSK_setup_new' },
+      });
+      advance();
+      await screen.findByLabelText(i18n.t('setup:hostname'));
+      advance();
+      expect(
+        await screen.findByRole('checkbox', { name: i18n.t('setup:configureWan') }),
+      ).not.toBeChecked();
+      expect(screen.queryByRole('combobox', { name: i18n.t('setup:wan') })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: i18n.t('setup:next') })).toBeEnabled();
+      advance();
+      await screen.findByText(i18n.t('setup:defaultsKeepWanHelp'));
+      advance();
+      fireEvent.click(await screen.findByRole('button', { name: i18n.t('setup:commit') }));
+      await screen.findByRole('button', { name: i18n.t('setup:confirm') });
+      for (const path of ['/api/v1/config/setup/preview', '/api/v1/config/setup/stage']) {
+        const body = fake.calls.find((r) => r.path === path)!.body as {
+          input: Record<string, unknown>;
+        };
+        expect(Object.keys(body.input).some((key) => key.startsWith('wan'))).toBe(false);
+      }
+      expect(fake.calls.some((r) => r.path === '/api/v1/state/interfaces')).toBe(true);
+      expect(fake.calls.some((r) => r.path === '/api/v1/state/routes')).toBe(false);
+    },
+  );
+  it('omits unfinished WAN edits after switching back to keeping the existing WAN', async () => {
+    const fake = installFakeApi();
+    await signIn();
+    fake.on('GET /api/v1/config', { body: doc });
+    fake.on('POST /api/v1/config/setup/preview', { body: { changes: [] } });
+    render(app());
+    await screen.findByRole('heading', { name: 'Setup wizard' });
+    next();
+    await screen.findByLabelText('Current password');
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'NGFW_TEST_PSK_setup_old' },
+    });
+    fireEvent.change(screen.getByLabelText('New administrator password'), {
+      target: { value: 'NGFW_TEST_PSK_setup_new' },
+    });
+    next();
+    await screen.findByLabelText('Hostname');
+    next();
+    const checkbox = await screen.findByRole('checkbox', { name: 'Configure or change WAN' });
+    fireEvent.click(checkbox);
+    await select('WAN interface', 'wan0');
+    await select('WAN mode', 'PPPoE');
+    fireEvent.change(screen.getByLabelText('PPPoE username'), { target: { value: 'unfinished' } });
+    fireEvent.click(checkbox);
+    next();
+    await screen.findByText(i18n.t('setup:defaultsKeepWanHelp'));
+    next();
+    await screen.findByRole('button', { name: 'Apply with 120-second confirmation' });
+    const body = fake.calls.find((r) => r.path === '/api/v1/config/setup/preview')!.body as {
+      input: Record<string, unknown>;
+    };
+    expect(Object.keys(body.input).some((key) => key.startsWith('wan'))).toBe(false);
+  });
   it.each(['dhcp', 'pppoe'])(
     'keeps all six steps local until reviewed %s commit and uses confirmation',
     async (mode) => {
@@ -74,6 +170,7 @@ describe('setup wizard', () => {
       await screen.findByLabelText('Hostname');
       fireEvent.change(screen.getByLabelText('Hostname'), { target: { value: 'router' } });
       next();
+      fireEvent.click(await screen.findByRole('checkbox', { name: 'Configure or change WAN' }));
       await select('WAN interface', 'wan0');
       if (mode === 'pppoe') {
         await select('WAN mode', 'PPPoE');
@@ -102,6 +199,7 @@ describe('setup wizard', () => {
       );
       expect(fake.calls.find((r) => r.path === '/api/v1/config/setup/stage')!.body).toMatchObject({
         input: {
+          wan: 'wan0',
           wanMode: mode,
           ...(mode === 'pppoe'
             ? { wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' } }
@@ -151,6 +249,7 @@ describe('setup wizard', () => {
     next();
     await screen.findByLabelText('Hostname');
     next();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Configure or change WAN' }));
     await screen.findByRole('combobox', { name: 'WAN interface' });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
     next();
@@ -163,8 +262,8 @@ describe('setup wizard', () => {
       within(list)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['liveLan', 'liveWan']);
-    fireEvent.click(within(list).getByRole('option', { name: 'liveWan' }));
+    ).toEqual(['Ethernet2', 'Ethernet3']);
+    fireEvent.click(within(list).getByRole('option', { name: 'Ethernet3' }));
     next();
     await screen.findByText(/Setup updates the selected WAN/);
     expect(screen.queryByRole('combobox', { name: 'LAN interface' })).not.toBeInTheDocument();
@@ -172,8 +271,14 @@ describe('setup wizard', () => {
     expect(
       fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
     ).toBe(false);
+    fake.on('POST /api/v1/config/setup/preview', { body: { changes: [] } });
+    next();
+    await screen.findByRole('button', { name: 'Apply with 120-second confirmation' });
+    expect(fake.calls.find((r) => r.path === '/api/v1/config/setup/preview')!.body).toMatchObject({
+      input: { wan: 'liveWan' },
+    });
   });
-  it('refuses a weak password before advancing', async () => {
+  it('refuses an empty password before advancing', async () => {
     const fake = installFakeApi();
     await signIn();
     fake.on('GET /api/v1/config', { body: doc });
@@ -182,9 +287,7 @@ describe('setup wizard', () => {
     next();
     await screen.findByLabelText('Current password');
     next();
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent('at least 12 characters'),
-    );
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('non-empty'));
     expect(fake.calls.some((r) => r.path.includes('/setup/stage'))).toBe(false);
   });
   it('factory login redirects dashboard to setup', async () => {

@@ -55,7 +55,7 @@ read_credentials() {
   ADMIN_USER='' ADMIN_PW=''
   [[ -f $PWFILE ]] || return 1
   { IFS= read -r ADMIN_USER || true; IFS= read -r ADMIN_PW || true; } < "$PWFILE"
-  if [[ ! $ADMIN_USER =~ ^[a-z][a-z0-9_-]{0,31}$ || ! $ADMIN_PW =~ ^[A-Za-z0-9]{12,64}$ ]]; then
+  if [[ ! $ADMIN_USER =~ ^[a-z][a-z0-9_-]{0,31}$ || ! $ADMIN_PW =~ ^[A-Za-z0-9]{1,64}$ ]]; then
     log "WARNING: $PWFILE is malformed: the password is not shown"
     ADMIN_USER='' ADMIN_PW=''
     return 1

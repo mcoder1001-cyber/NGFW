@@ -6,7 +6,7 @@ import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { StatusChip } from '@ngfw/ui-kit';
+import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,6 +46,7 @@ const NS = 'loopback-bvi-gso-lldp-span';
  */
 export function LldpPage() {
   const { t } = useTranslation(NS);
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const services = useCandidateServices();
   const ifs = useCandidateInterfaces();
@@ -80,7 +81,7 @@ export function LldpPage() {
         renderCell: (p) => (
           <Stack direction="row" gap={0.5} alignItems="center" sx={{ blockSize: '100%' }}>
             <Box component="span" dir="ltr" sx={MONO}>
-              {p.row.interface}
+              {interfaceLabel(p.row.interface)}
             </Box>
             {!p.row.configured && (
               <Chip
@@ -147,7 +148,7 @@ export function LldpPage() {
         renderCell: (p) => <span dir="auto">{p.row.portDescription ?? ''}</span>,
       },
     ],
-    [t],
+    [t, interfaceLabel],
   );
 
   const save = async (v: unknown) => {

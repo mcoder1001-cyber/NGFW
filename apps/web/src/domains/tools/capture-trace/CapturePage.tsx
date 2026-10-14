@@ -1,3 +1,4 @@
+import { useInterfaceLabel, useInterfaceName } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -24,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { useInterfacesState } from '../../interfaces/queries';
 import {
   downloadCapture,
   useCaptures,
@@ -55,6 +57,7 @@ function pointerErrors(err: unknown): Record<string, string> {
 }
 
 function Running({ c }: { c: CaptureFile }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const elapsed = c.startedAt
     ? Math.max(0, Math.round((Date.now() - Date.parse(c.startedAt)) / 1000))
@@ -62,13 +65,16 @@ function Running({ c }: { c: CaptureFile }) {
   const pct = Math.min(100, (elapsed / Math.max(1, c.seconds)) * 100);
   return (
     <Alert severity="info" sx={{ mb: 2 }} data-testid="capture-running">
-      {t('running', { id: c.id, iface: c.interface, elapsed, seconds: c.seconds })}
+      {t('running', { id: c.id, iface: interfaceLabel(c.interface), elapsed, seconds: c.seconds })}
       <LinearProgress variant="determinate" value={pct} sx={{ mt: 1 }} aria-label={t('progress')} />
     </Alert>
   );
 }
 
 function CaptureForm({ disabled }: { disabled: boolean }) {
+  const interfaceLabel = useInterfaceLabel();
+  const interfaceName = useInterfaceName();
+  const interfaces = useInterfacesState();
   const { t } = useTranslation(NS);
   const start = useStartCapture();
   const [f, setF] = useState<CaptureRequest>({
@@ -80,6 +86,11 @@ function CaptureForm({ disabled }: { disabled: boolean }) {
     seconds: 30,
     snaplen: 9000,
   });
+  const captureInterface = (input: string) => {
+    const name = interfaceName(input);
+    const item = interfaces.data?.items?.find((i) => i.name === name || i.state?.vppName === name);
+    return item?.state?.vppName ?? name;
+  };
   const local = BPF_RE.test(f.bpf) ? '' : t('bpfInvalid');
   const server = pointerErrors(start.error);
   const set = (p: Partial<CaptureRequest>) => setF((o) => ({ ...o, ...p }));
@@ -112,8 +123,8 @@ function CaptureForm({ disabled }: { disabled: boolean }) {
         <TextField
           label={t('interface')}
           size="small"
-          value={f.interface}
-          onChange={(e) => set({ interface: e.target.value })}
+          value={interfaceLabel(f.interface)}
+          onChange={(e) => set({ interface: captureInterface(e.target.value) })}
           error={Boolean(server['interface'])}
           helperText={server['interface'] ?? t('interfaceHelp')}
         />
@@ -165,6 +176,7 @@ function CaptureForm({ disabled }: { disabled: boolean }) {
 
 /** Tools › Packet capture (F-capture-trace, WBS D8.2): start a pcap capture, watch it, download / delete the files. */
 export function CapturePage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const admin = perms.manageUsers;
@@ -245,7 +257,7 @@ export function CapturePage() {
                 <TableRow key={c.id}>
                   <TableCell dir="ltr">{c.id}</TableCell>
                   <TableCell>{t(`state.${c.state}`, { defaultValue: c.state })}</TableCell>
-                  <TableCell dir="ltr">{c.interface}</TableCell>
+                  <TableCell dir="ltr">{interfaceLabel(c.interface)}</TableCell>
                   <TableCell>{c.packets}</TableCell>
                   <TableCell>{c.size}</TableCell>
                   <TableCell>

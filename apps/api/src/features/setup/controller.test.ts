@@ -33,12 +33,15 @@ describe('setup staging and security', () => {
   let ds: DatastoreService;
   let c: SetupController;
   const checked = vi.fn();
+  const bootstrapAdmin = vi.fn();
   const interfaceState = vi.fn();
   beforeEach(async () => {
     interfaceState.mockReset();
     interfaceState.mockResolvedValue({ interfaces: [] });
     checked.mockReset();
     checked.mockResolvedValue(undefined);
+    bootstrapAdmin.mockReset();
+    bootstrapAdmin.mockResolvedValue(false);
     repo = new MemoryConfigRepo();
     repo.addUser('admin', 'admin', TEST_HASH);
     ds = new DatastoreService(repo, testEnv());
@@ -58,11 +61,45 @@ describe('setup staging and security', () => {
     );
     c = new SetupController(
       ds,
-      { checkSetupPassword: checked } as unknown as AuthService,
+      { checkSetupPassword: checked, isBootstrapAdmin: bootstrapAdmin } as unknown as AuthService,
       { interfaceState } as unknown as AgentClient,
     );
   });
   const body = () => ({ input, baseRevision: 1, completedAt: new Date().toISOString() });
+  it('previews and stages without WAN or an available agent while preserving network configuration', async () => {
+    const stored = await ds.getRunning();
+    const running = RootConfig.parse(stored.doc);
+    running.interfaces = {};
+    vi.spyOn(ds, 'getRunning').mockResolvedValue({ ...stored, doc: running });
+    interfaceState.mockRejectedValue(new Error('agent unavailable'));
+    const settings = { ...input };
+    delete settings.wan;
+    delete settings.wanMode;
+    delete settings.lan;
+    delete settings.lanAddress;
+    delete settings.dhcp;
+    const skipped = { ...body(), input: SetupInputSchema.parse(settings) };
+    const preview = await c.preview(skipped, request());
+    expect(
+      preview.changes.some((change) =>
+        ['/interfaces', '/routing', '/nat', '/acl', '/services/dhcp'].some((prefix) =>
+          change.pointer.startsWith(prefix),
+        ),
+      ),
+    ).toBe(false);
+    expect((await repo.candidate()).payload).toBeNull();
+    await c.stage({ ...skipped, current, password }, request());
+    const candidate = RootConfig.parse((await repo.candidate()).payload);
+    expect(candidate.interfaces).toEqual(running.interfaces);
+    expect(candidate.routing).toEqual(running.routing);
+    expect(candidate.nat).toEqual(running.nat);
+    expect(candidate.acl).toEqual(running.acl);
+    expect(candidate.services.dhcp).toEqual(running.services.dhcp);
+    expect(candidate.system.setup.completed).toBe(true);
+    expect(await verifyPassword(candidate.management.users[0]!.passwordHash, password)).toBe(true);
+    expect(interfaceState).not.toHaveBeenCalled();
+    expect(running.system.setup.completed).toBe(false);
+  });
   it('previews and stages WAN-only live inventory while preserving existing LAN policy', async () => {
     interfaceState.mockResolvedValue({
       interfaces: [
@@ -264,6 +301,58 @@ describe('setup staging and security', () => {
     expect((await repo.userHashes()).get('admin')).toBe(TEST_HASH);
     expect(JSON.stringify(req.audit)).not.toContain(password);
     expect(JSON.stringify(await ds.getCandidate())).not.toContain('$argon2id$');
+  });
+  it('stages the verified bootstrap administrator with setup when absent from configuration', async () => {
+    const stored = await ds.getRunning();
+    const running = RootConfig.parse(stored.doc);
+    running.management.users = [];
+    vi.spyOn(ds, 'getRunning').mockResolvedValue({ ...stored, doc: running });
+    checked.mockResolvedValue(true);
+    bootstrapAdmin.mockResolvedValue(true);
+    const preview = await c.preview(body(), request());
+    expect(preview.changes.some((change) => change.pointer.startsWith('/management/users'))).toBe(
+      true,
+    );
+    expect((await repo.candidate()).payload).toBeNull();
+    await c.stage({ ...body(), current, password }, request());
+    const candidate = RootConfig.parse((await repo.candidate()).payload);
+    expect(candidate.management.users).toHaveLength(1);
+    expect(candidate.management.users[0]).toMatchObject({
+      username: 'admin',
+      role: 'admin',
+      disabled: false,
+    });
+    expect(await verifyPassword(candidate.management.users[0]!.passwordHash, password)).toBe(true);
+    expect(running.management.users).toEqual([]);
+    expect((await repo.userHashes()).get('admin')).toBe(TEST_HASH);
+  });
+  it('refuses an unconfigured account without verified bootstrap status', async () => {
+    const stored = await ds.getRunning();
+    const running = RootConfig.parse(stored.doc);
+    running.management.users = [];
+    vi.spyOn(ds, 'getRunning').mockResolvedValue({ ...stored, doc: running });
+    checked.mockResolvedValue(false);
+    await expect(c.stage({ ...body(), current, password }, request())).rejects.toThrow(
+      'configured local administrator',
+    );
+    expect((await repo.candidate()).payload).toBeNull();
+  });
+  it('does not override a disabled configured administrator even for a bootstrap account', async () => {
+    const stored = await ds.getRunning();
+    const running = RootConfig.parse(stored.doc);
+    running.management.users[0]!.disabled = true;
+    repo.addUser('other-admin', 'admin', TEST_HASH);
+    running.management.users.push({
+      ...running.management.users[0]!,
+      username: 'other-admin',
+      disabled: false,
+    });
+    vi.spyOn(ds, 'getRunning').mockResolvedValue({ ...stored, doc: running });
+    checked.mockResolvedValue(true);
+    await expect(c.stage({ ...body(), current, password }, request())).rejects.toThrow(
+      'configured local administrator',
+    );
+    expect((await repo.candidate()).payload).toBeNull();
   });
   it('incomplete PPPoE cannot stage or mark setup complete', async () => {
     await expect(

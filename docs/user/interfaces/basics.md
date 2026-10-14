@@ -17,7 +17,7 @@ Status chips use the semantic status colours: **Up** (green), **Down** (red; adm
 
 ## Automatic host discovery
 
-Physical NICs appear automatically; no **Add interface** action is needed just to see them. Host interfaces not configured or present in the engine show a **host interface** label and a read-only drawer with Linux name, PCI address, driver, MAC and observed link state. A **management** label identifies NICs used for host management traffic. Listing or opening these rows never stages configuration, claims a NIC, or changes management connectivity.
+Physical NICs appear automatically; no **Add interface** action is needed just to see them. Host interfaces not configured or present in the engine show a **host interface** label and a read-only drawer with its Ethernet label, PCI address, driver, MAC and observed link state. A **management** label identifies NICs used for host management traffic. Listing or opening these rows never stages configuration, claims a NIC, or changes management connectivity.
 
 NICs already configured by physical PCI address are correlated with their existing logical rows rather than added twice. Unique MAC matches also correlate DPDK and native vmxnet3 interfaces. Other engine device types with ambiguous hardware identity (such as virtio, also used by virtual TAP devices) remain separate unless their configured PCI or exact name identifies the NIC. Existing live engine interfaces remain editable. If the host inventory or engine observation is unavailable, the page explicitly warns that the list may be incomplete and keeps the available rows. A confirmed kernel carrier shows **up**; false or unavailable carrier shows **down or unknown**, including userspace-bound NICs without a Linux netdev. Host discovery uses the current agent's physical PCI NIC inventory (one entry per PCI function, including virtio-pci child netdevs); Linux-only virtual interfaces without PCI devices are not included unless exposed by the engine.
 
@@ -49,6 +49,23 @@ The screen is fully available in Persian (right-to-left); the drawer opens from 
 ![Interface drawer, Persian](img/interfaces-drawer-fa-rtl.png)
 
 ## Interface names
+
+Physical ports display as `Ethernet1`, `Ethernet2`, `Ethernet3`, etc. throughout the web
+interface, including routing, firewall, service and setup forms, and in human CLI interface
+and route views. Ports with a physical marker or
+host inventory are numbered by ascending PCI address; unmarked native hardware ports follow,
+ordered by VPP name. Sorting, filtering and changes in negotiated speed do not change a port's
+label. A missing or zero link speed never adds an `Unknown` suffix. Link speed remains a separate
+live property where the engine reports it. A VLAN inherits its parent's label, for example
+`Ethernet3.100`. Virtual interfaces retain their logical names.
+
+Reference pickers display the same labels and accept searches by either label or original name.
+Selections, configuration paths, REST requests and CLI configuration commands continue to use
+the original logical identity. Host-service fields retain their Linux interface identities.
+`ngfw show interfaces Ethernet3` accepts the displayed port label; an ambiguous label is rejected.
+Operational completion uses the same labels. CLI `--json` output, configuration text and
+configuration commands preserve the original identities for scripts and round trips. If interface
+inventory cannot be retrieved while showing routes, the CLI retains the available raw route names.
 
 | name | what the agent does |
 |---|---|

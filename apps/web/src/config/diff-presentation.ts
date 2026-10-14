@@ -21,19 +21,31 @@ function memberLabel(path: readonly string[]): string {
   return name;
 }
 
+function displayMember(path: readonly string[], interfaceLabel: (name: string) => string): string {
+  const parent = schemaAt(rootSchema, jsonPointer(...path.slice(0, -1)));
+  const keySchema = parent?.['propertyNames'] as Record<string, unknown> | undefined;
+  const widget = (keySchema?.['x-ngfw-ui'] as { widget?: string } | undefined)?.widget;
+  const name = memberLabel(path);
+  return widget === 'interface-picker' || widget === 'host-interface-picker' ? interfaceLabel(name) : name;
+}
+
 /** A presentation path only; API pointers and change identities remain untouched. */
-export function diffPointerLabel(pointer: string): string {
+export function diffPointerLabel(pointer: string, interfaceLabel: (name: string) => string = (name) => name): string {
   try {
     const path = parsePointer(pointer);
-    return jsonPointer(...path.map((_part, i) => memberLabel(path.slice(0, i + 1))));
+    return jsonPointer(...path.map((_part, i) => displayMember(path.slice(0, i + 1), interfaceLabel)));
   } catch {
     return pointer;
   }
 }
 
 /** Only actual engine enums may receive implementation-independent value labels. */
-function scalarLabel(value: unknown, path: readonly string[], language: string): unknown {
-  if (typeof value !== 'string' || path.at(-1) !== 'engine') return value;
+function scalarLabel(value: unknown, path: readonly string[], language: string, interfaceLabel: (name: string) => string): unknown {
+  if (typeof value !== 'string') return value;
+  const fieldSchema = schemaAt(rootSchema, jsonPointer(...path));
+  const widget = (fieldSchema?.['x-ngfw-ui'] as { widget?: string } | undefined)?.widget;
+  if (widget === 'interface-picker' || widget === 'host-interface-picker') return interfaceLabel(value);
+  if (path.at(-1) !== 'engine') return value;
   // A historical revision may contain the retired engine. Label it for display
   // without accepting it in current configuration or changing arbitrary strings.
   if (value === 'strongswan' && path.length === 5 && path[0] === 'vpn' &&
@@ -48,14 +60,14 @@ function scalarLabel(value: unknown, path: readonly string[], language: string):
 
 /**
  * JSON-shaped display text, not a configuration document. Walk the original schema path so labels only replace
- * known metadata and enum choices, including inside whole-domain changes. Record keys, descriptions, interface
- * names and unknown values retain their exact spelling. Serializing entries directly also avoids losing a value
+ * known metadata and enum choices, including inside whole-domain changes. Known interface references receive display aliases; descriptions and unknown values retain their exact spelling. Serializing entries directly also avoids losing a value
  * if a future/unknown member happens to have the same spelling as a display label.
  */
 export function diffValueText(
   value: unknown,
   pointer: string,
   language = 'en',
+  interfaceLabel: (name: string) => string = (name) => name,
 ): string | undefined {
   let path: string[];
   try {
@@ -78,11 +90,11 @@ export function diffValueText(
         const text = render(item, childPath, depth + 1);
         return text === undefined
           ? []
-          : [`${childIndent}${JSON.stringify(memberLabel(childPath))}: ${text}`];
+          : [`${childIndent}${JSON.stringify(displayMember(childPath, interfaceLabel))}: ${text}`];
       });
       return members.length ? `{\n${members.join(',\n')}\n${indent}}` : '{}';
     }
-    return JSON.stringify(scalarLabel(current, at, language));
+    return JSON.stringify(scalarLabel(current, at, language, interfaceLabel));
   }
   return render(value, path, 0);
 }

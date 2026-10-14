@@ -2,7 +2,39 @@
 
 Owner authorization, 2026-10-02: remove Telegram; merge reviewed code without waiting for laboratory access; collect deferred tests here and continue development. This supersedes historical lab-only BLOCK verdicts. Real code defects and the complete hosted quick CI remain merge blockers. NOT RUN never means PASS. Existing security, secret-channel, shared-host and privilege handover decisions remain applicable.
 
-## Current dual-host acceptance checkpoint — 2026-10-11
+## Reconciled checkpoint — 2026-10-14
+
+Repository audit at `4f70b3315b9641738f9d193bbad6fb271c9a3d3f`: the board
+contains 212 merged source tasks, with no other task states. GitHub has no open
+PRs or issues at the start of this audit. Main's [mandatory quick gate](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38590496159)
+and [packaging fixture gate](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38590496148)
+both completed successfully. These facts do not certify a release appliance.
+
+The latest [PPPoE/RA closeout](tasks/pppoe-ra-completion-20261011-wip.md)
+and [machine-readable receipts](tasks/pppoe-ra-completion-20261011-evidence.json)
+supersede the earlier OPEN entries below for their explicitly tested scope:
+
+| Campaign | Recorded final result | Boundary |
+|---|---|---|
+| PPPoE, PR228 | Both-host IPv4/IPv6, NAT/MSS, reconnect, withdrawal, bad-password refusal, restart and cleanup PASS; restart 10.275 s / 10.346 s against the unchanged 11 s bound | Earlier failed runs remain historical evidence; not a full fresh-install or reboot proof |
+| RA VPN, PR232 | Native EAP/VIP/DNS/selectors, ACL/ESP, invalid/revoked credentials, disconnect, restart and cleanup PASS; restart 26.040 s / 25.821 s against 30 s | Independent native PID1/network namespace guests; no full installed-appliance or live RADIUS claim |
+| RA API/browser | Real 900-second holds on both hosts; admin/readonly, EN/FA, light/dark coverage, permissions and public secret-absence checks PASS | Initial failed browser subsets are retained; fresh-login completions are distinguished in the receipts |
+
+PR232 is merged as `bf6a049180c96e7d61c98f898dfd3963a2e25251`. This reconciliation
+adds no new laboratory execution. The earlier two-open-row and seven-parked-row
+snapshots are historical, not the current board. Do not infer acceptance for
+unlisted cases from these successful campaigns.
+
+Still outstanding: current-source offline artifact build/install/boot evidence;
+full appliance reboot, upgrade/recovery and the remaining feature-specific native
+campaigns below; the isolated TD2 rerun after the recorded 60-second setup timeout
+and 14 skipped tests in [default-admin status](tasks/default-admin-20261012-wip.md);
+and [authoritative product license metadata](../decisions/PENDING-P10-product-license.md).
+The owner's recorded initial-login/password-policy decision is preserved; this
+audit does not introduce a new password policy. No PostgreSQL, Valkey, VPP or agent
+runtime is available in this audit workspace for those integration tests.
+
+## Earlier dual-host acceptance checkpoint — 2026-10-11
 
 The four board rows `P12-fib-proof`, `F-ospf-host`, `F-nat46-host` and
 `F-global-blocking-host` passed their actual acceptance on172.30.126.195 and
@@ -16,16 +48,19 @@ Fresh source-paired MultiWAN acceptance passed on both hosts:1000 weighted/nativ
 NAT/PBR flows, preservation across agent restart, dead-WAN-only session removal,
 rollback and cleanup. PR221 is merged as76362bdc79dceb9538400e63dcbb4b0c0f9a9e75;
 its exact-head quick38060576901 passed. [Post-merge quick38119082146](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38119082146) PASS;
-MultiWAN is complete. The reconciled board has210 merged and two open acceptance rows.
+MultiWAN is complete within that recorded campaign. At that earlier checkpoint
+the board had 210 merged and two open acceptance rows; the final checkpoint above
+supersedes that count.
 
-Full PPPoE acceptance remains OPEN. The final source run selects the carrier
+At that earlier checkpoint, full PPPoE acceptance was OPEN. That source run selected the carrier
 transit address for interface-based native NAT, and .195 fails the original
 11-second peer-restart criterion. The successful .250 extended run explicitly
-excluded NAT. Full canonical RA VPN appliance readiness/acceptance also remains
-OPEN. The bounded signal transport fix in PR224 does not close RA acceptance.
+excluded NAT. Canonical RA VPN acceptance was also OPEN then. The bounded signal
+transport fix in PR224 alone did not close RA acceptance; the later PR232 receipts
+above close the explicitly tested native/API/browser scope.
 No failure, excluded case or private supplier fixture is relabeled PASS.
 
-## Current completion campaign — 2026-10-09
+## Earlier completion campaign — 2026-10-09
 
 Accepted source is integrated through [PR214](https://github.com/mcoder1001-cyber/NGFW/pull/214), main `d58db1a673d716ebcf595a9e49847a54991c58da`,
 with complete quick and fixture gates PASS on candidate `30de26ee6a5697a3713fe4375399b86c5588a472`. See

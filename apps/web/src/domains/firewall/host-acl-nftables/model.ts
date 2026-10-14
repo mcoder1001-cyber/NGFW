@@ -278,12 +278,13 @@ export function banners(
   settings: HostAclSettings,
   state: HostAclState | undefined,
   running: HostAclConfig | undefined,
+  label: (name: string) => string = (name) => name,
 ): Banner[] {
   const lock = settings.antiLockout;
   const params = {
     ports: lock.ports.join(', '),
     sources: lock.sources.join(', '),
-    interfaces: lock.interfaces.join(', '),
+    interfaces: lock.interfaces.map(label).join(', '),
   };
   const out: Banner[] = [];
   if (lock.enabled) {

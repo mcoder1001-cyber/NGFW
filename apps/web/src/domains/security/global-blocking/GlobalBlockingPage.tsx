@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
@@ -228,6 +229,7 @@ function ListRow({
   onExport: () => void;
   onDelete: () => void;
 }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const fmt = useFormatters();
   const n = (v: number) => fmt.integer(v);
@@ -275,7 +277,11 @@ function ListRow({
       </TableCell>
       <TableCell>
         <Typography variant="body2">
-          {l.allInterfaces ? t('allInterfaces') : <bdi>{l.interfaces.join(', ')}</bdi>}
+          {l.allInterfaces ? (
+            t('allInterfaces')
+          ) : (
+            <bdi>{l.interfaces.map(interfaceLabel).join(', ')}</bdi>
+          )}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           {t(`direction.${l.direction}`)}

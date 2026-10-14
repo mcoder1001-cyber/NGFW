@@ -1,0 +1,20 @@
+# Ethernet display consumers — verification checkpoint
+
+- Branch: `codex/ethernet-display-pages`; worktree: `/root/ngfw-wt/ethernet-display-pages-20261013` (locked).
+- Consumer implementation commit: `a350260ed`; published by manager as equivalent `590d9e5a0` in remote `codex/ethernet-display-local-history` at `6590d786e`.
+- Local validation dependencies: ui-kit context `48ec2c13a`, root mapping `2fa43df68`, authenticated provider `3a0fec03f` (cherry-picks only; root already owns originals).
+- Owned files: interface drawer/table, bonding drawer/table, bridge drawers/table/record picker, LLDP and mirroring pages, consumer regression tests; excludes mapping infrastructure.
+- Completed: shared labels in consumer tables, menus, accessible actions and confirmation dialogs; raw drawer caption/tooltip removed; API identifiers retained. Follow-up adds direct picker/subinterface and integrated mirroring payload regressions and preserves cross-connect React keys.
+- Actual checks: `tools/ci.sh check --base 74dc791cd` passed; interfaces ESLint passed. All new tests passed in running interface subtree (2 direct consumer tests plus physical mirroring alias/action test); bonding 8, bridging 6, subinterface 4, LLDP/mirroring/nsim 8, drawer L2 1, provider 2, display-name 6, model 7, tag-stack 6 passed so far.
+- Final validation: interfaces subtree PASSED, 12 files / 68 tests, 266.57s; all 16 InterfacesPage tests passed. Web typecheck PASSED after fixing required `dot1ad` in new fixture. New regression tests passed; interfaces ESLint passed. Logs: `/tmp/ethernet-pages-tests.log`, `/tmp/ethernet-pages-types.log`, `/tmp/ethernet-pages-lint.log`.
+- Recovery: original app-parent worktree disappeared externally; edits recovered from command history into locked `/root/ngfw-wt` worktree.
+- Independent review: APPROVE root mapper/provider and shared context at `56e26040e` only (not own consumer implementation). Verified hardware classification, speed-independent labels, canonical identity priority over secondary aliases, VLAN derivation, auth gating and logout label clearing. Potential inverse-label ambiguity was independently identified and confirmed already fixed in root `51cc02818`. Local mapping/provider tests: 8 passing. Remaining: manager independent review of own consumers and complete mandatory quick CI.
+- Next command: manager integrates consumer follow-up `dd5ab8b37` and continues mandatory quick CI. Redundant diagnostic re-run was stopped after successful complete subtree result; no product acceptance remains in this worker scope.
+
+## Independent-review correction: non-idempotent alias collision
+
+- `BondsPage` fallback now derives member text once from canonical `row.item` using `toBondRow`; it no longer formats `row.members`, which is already presentation text.
+- Deriving from canonical data on render updates labels when inventory arrives later without refreshing the bond-state walk. Search still projects the latest label map when the filter query runs.
+- Regression: canonical `ens192` displays `Ethernet1` while a separate canonical `Ethernet1` displays `Ethernet2`. Both initially available inventory and late inventory pass, and each performs exactly one bond-state request.
+- Actual targeted test result: `BondsPage.test.tsx --testNamePattern='colliding logical name'`: 2 passed / 8 skipped, 15.20s.
+- Targeted ESLint and web typecheck passed. Correction commit `9594bd48b`; root complete gate still required.

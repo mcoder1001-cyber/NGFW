@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import {
   Alert,
   Button,
@@ -52,6 +53,7 @@ const EN = 'en';
 const FA = 'fa';
 
 export function SetupWizardPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('setup');
   const { session } = useAuth();
   const permissions = usePermissions();
@@ -375,7 +377,7 @@ export function SetupWizardPage() {
         >
           {interfaceNames.map((name) => (
             <MenuItem key={name} value={name}>
-              {name}
+              {interfaceLabel(name)}
             </MenuItem>
           ))}
         </TextField>

@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Alert from '@mui/material/Alert';
@@ -19,7 +20,14 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { fetchRoutes, FIB_ON_DEMAND, FIB_STATUS_POLL_MS, routeKeys, useCandidate, usePatchConfig } from './api';
+import {
+  fetchRoutes,
+  FIB_ON_DEMAND,
+  FIB_STATUS_POLL_MS,
+  routeKeys,
+  useCandidate,
+  usePatchConfig,
+} from './api';
 import { Mono, pageOf, problemFor } from './common';
 import {
   localizeSchema,
@@ -47,20 +55,28 @@ const STATUS_CHIP: Record<RouteStatus, 'up' | 'down' | 'adminDown' | 'degraded'>
  * with its weight). The whole list is written back with one PUT of `routing/static` (the generic pointer route).
  */
 export function StaticRoutesTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const routing = useCandidate<{ static?: StaticRouteConfig[] }>('routing');
   const routes = { ...routing, data: routing.data?.static };
   const vrfs = useCandidate<VrfsConfig>('vrfs');
-  const ifs = useCandidate<Record<string, { subinterfaces?: Record<string, unknown> }>>('interfaces');
+  const ifs =
+    useCandidate<Record<string, { subinterfaces?: Record<string, unknown> }>>('interfaces');
   const put = usePatchConfig();
-  const [edit, setEdit] = useState<{ index: number; value: StaticRouteConfig | undefined } | null>(null);
+  const [edit, setEdit] = useState<{ index: number; value: StaticRouteConfig | undefined } | null>(
+    null,
+  );
   // index of the edited route in the list as sent (the list is written in canonical order, so pointers follow it)
   const [sentIndex, setSentIndex] = useState<number | null>(null);
   const schema = useMemo(() => localizeSchema(staticRouteSchema(), (k, o) => t(k, o ?? {})), [t]);
-  const rows = useMemo(() => routeRows(routes.data), [routes.data]);
+  const rows = useMemo(() => routeRows(routes.data, interfaceLabel), [routes.data, interfaceLabel]);
   const ifNames = useMemo(
-    () => Object.entries(ifs.data ?? {}).flatMap(([n, i]) => [n, ...Object.keys(i.subinterfaces ?? {}).map((s) => `${n}.${s}`)]),
+    () =>
+      Object.entries(ifs.data ?? {}).flatMap(([n, i]) => [
+        n,
+        ...Object.keys(i.subinterfaces ?? {}).map((s) => `${n}.${s}`),
+      ]),
     [ifs.data],
   );
 
@@ -70,7 +86,8 @@ export function StaticRoutesTab() {
   const live = useQueries({
     queries: vrfNames.map((vrf) => ({
       queryKey: [...routeKeys.all, { vrf, source: 'API', page: 1, pageSize: 1000 }],
-      queryFn: ({ signal }: { signal: AbortSignal }) => fetchRoutes({ vrf, source: 'API', page: 1, pageSize: 1000 }, signal),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        fetchRoutes({ vrf, source: 'API', page: 1, pageSize: 1000 }, signal),
       ...FIB_ON_DEMAND,
       refetchInterval: FIB_STATUS_POLL_MS,
     })),
@@ -88,14 +105,21 @@ export function StaticRoutesTab() {
   }, [vrfNames, live]);
 
   const fetchPage = useCallback(
-    async (req: ServerPageRequest) => pageOf(rows, req, (r) => `${r.vrf} ${r.prefix} ${r.paths} ${r.description}`),
+    async (req: ServerPageRequest) =>
+      pageOf(rows, req, (r) => `${r.vrf} ${r.prefix} ${r.paths} ${r.description}`),
     [rows],
   );
 
   const columns = useMemo<GridColDef<RouteRow>[]>(
     () => [
       { field: 'vrf', headerName: t('routes.col.vrf'), width: 110 },
-      { field: 'prefix', headerName: t('routes.col.prefix'), minWidth: 170, flex: 1, renderCell: (p) => <Mono>{p.row.prefix}</Mono> },
+      {
+        field: 'prefix',
+        headerName: t('routes.col.prefix'),
+        minWidth: 170,
+        flex: 1,
+        renderCell: (p) => <Mono>{p.row.prefix}</Mono>,
+      },
       {
         field: 'paths',
         headerName: t('routes.col.paths'),
@@ -106,7 +130,9 @@ export function StaticRoutesTab() {
             <Chip size="small" label={t('routes.blackhole')} />
           ) : (
             <Stack direction="row" gap={0.5} alignItems="center" sx={{ blockSize: '100%' }}>
-              {p.row.ecmp && <Chip size="small" color="info" variant="outlined" label={t('routes.ecmp')} />}
+              {p.row.ecmp && (
+                <Chip size="small" color="info" variant="outlined" label={t('routes.ecmp')} />
+              )}
               <Mono>{p.row.paths}</Mono>
             </Stack>
           ),
@@ -121,7 +147,9 @@ export function StaticRoutesTab() {
         width: 150,
         renderCell: (p) => {
           const st = routeStatus(p.row, installed, partial);
-          return <StatusChip size="small" status={STATUS_CHIP[st]} label={t(`routes.status.${st}`)} />;
+          return (
+            <StatusChip size="small" status={STATUS_CHIP[st]} label={t(`routes.status.${st}`)} />
+          );
         },
       },
       { field: 'description', headerName: t('routes.col.description'), minWidth: 140, flex: 1 },
@@ -131,7 +159,10 @@ export function StaticRoutesTab() {
 
   /** Writes the whole list in the agent's canonical order (VRF, then prefix) so Retrieve == running (no drift). */
   const writeAll = async (list: StaticRouteConfig[], edited?: StaticRouteConfig) => {
-    const sorted = [...list].sort((a, b) => a.vrf.localeCompare(b.vrf) || a.prefix.toLowerCase().localeCompare(b.prefix.toLowerCase()));
+    const sorted = [...list].sort(
+      (a, b) =>
+        a.vrf.localeCompare(b.vrf) || a.prefix.toLowerCase().localeCompare(b.prefix.toLowerCase()),
+    );
     setSentIndex(edited ? sorted.indexOf(edited) : null);
     await put.mutateAsync({ key: 'routing', patch: { static: sorted } });
   };
@@ -169,7 +200,12 @@ export function StaticRoutesTab() {
       <Stack direction="row" gap={1} sx={{ mb: 1 }}>
         <Tooltip title={perms.editConfig ? '' : t('readonly')}>
           <span>
-            <Button variant="contained" startIcon={<AddIcon />} disabled={!perms.editConfig} onClick={() => setEdit({ index: -1, value: undefined })}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled={!perms.editConfig}
+              onClick={() => setEdit({ index: -1, value: undefined })}
+            >
               {t('routes.add')}
             </Button>
           </span>
@@ -188,12 +224,21 @@ export function StaticRoutesTab() {
         />
       </Paper>
       <Dialog open={edit !== null} onClose={() => setEdit(null)} fullWidth maxWidth="md">
-        <DialogTitle>{edit?.value ? t('routes.editTitle', { prefix: edit.value.prefix, vrf: edit.value.vrf }) : t('routes.addTitle')}</DialogTitle>
+        <DialogTitle>
+          {edit?.value
+            ? t('routes.editTitle', { prefix: edit.value.prefix, vrf: edit.value.vrf })
+            : t('routes.addTitle')}
+        </DialogTitle>
         <DialogContent>
           {edit && (
             <Box sx={{ pt: 1 }}>
               <Alert severity="info" sx={{ mb: 2 }}>
-                {t('routes.editorHelp', { vrfs: ['default', ...Object.keys(vrfs.data ?? {}).filter((v) => v !== 'default')].join(', ') })}
+                {t('routes.editorHelp', {
+                  vrfs: [
+                    'default',
+                    ...Object.keys(vrfs.data ?? {}).filter((v) => v !== 'default'),
+                  ].join(', '),
+                })}
               </Alert>
               {put.isError && <ProblemAlert error={put.error} sx={{ mb: 1 }} />}
               <SchemaForm
@@ -208,7 +253,13 @@ export function StaticRoutesTab() {
                 onSubmit={save}
               >
                 {edit.index >= 0 && (
-                  <Button color="error" variant="outlined" startIcon={<DeleteIcon />} disabled={!perms.editConfig || put.isPending} onClick={() => void remove(edit.index)}>
+                  <Button
+                    color="error"
+                    variant="outlined"
+                    startIcon={<DeleteIcon />}
+                    disabled={!perms.editConfig || put.isPending}
+                    onClick={() => void remove(edit.index)}
+                  >
                     {t('remove')}
                   </Button>
                 )}

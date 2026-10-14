@@ -21,6 +21,7 @@ import { Link as RouterLink } from 'react-router';
 import { api } from '../../../api';
 import { call } from '../../../api-problem';
 import { linkStatus } from '../../interfaces/model';
+import { interfaceDisplayNames } from '../../interfaces/display-names';
 import { useIfaceRates } from '../../interfaces/rates';
 import { Donut, Legend, RingGauge, Sparkline, TimeChart, type Series } from './charts';
 import { dashboardCards } from './cards';
@@ -206,7 +207,10 @@ export function DashboardOverview() {
   const items = ifaces.data?.items ?? [];
   const links = summarizeInterfaces(items);
   const logicalName = useMemo(
-    () => new Map(items.map((i) => [i.state?.vppName ?? i.name, i.name])),
+    () => {
+      const names = interfaceDisplayNames(items);
+      return new Map(items.map((i) => [i.state?.vppName ?? i.name, names.get(i.name) ?? i.name]));
+    },
     [items],
   );
   const top = topInterfaces(rates, 5);

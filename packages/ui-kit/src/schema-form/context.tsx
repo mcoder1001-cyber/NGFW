@@ -22,6 +22,8 @@ export interface SchemaFormContextValue {
   widgets: Readonly<Record<string, WidgetComponent>>;
   /** Choices offered by the `interface-picker` widget (free text is always allowed). */
   interfaceOptions: readonly string[];
+  /** Linux netdev choices are distinct from data-plane logical interface names. */
+  hostInterfaceOptions: readonly string[];
   /** Translate a field label; receives the property path and the schema's own title as fallback. */
   translateLabel: (propPath: string, fallback: string) => string;
   /**

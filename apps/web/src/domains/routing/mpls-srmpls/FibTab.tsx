@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -33,6 +34,7 @@ interface FibRow {
  * and never polls.
  */
 export function FibTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const { mpls } = useMpls();
   const qc = useQueryClient();
@@ -62,11 +64,11 @@ export function FibTab() {
         label: e.label,
         eos: e.eos ? t('eos.yes') : t('eos.no'),
         payload: e.payload ?? '',
-        paths: e.paths.map((x) => fibPathParts(x, tr)),
+        paths: e.paths.map((x) => fibPathParts(x, tr, interfaceLabel)),
       }));
       return { rows, total: r.total };
     },
-    [table, labelNum, tr, t],
+    [table, labelNum, tr, t, interfaceLabel],
   );
 
   const columns = useMemo<GridColDef<FibRow>[]>(

@@ -136,7 +136,7 @@ describe('setup wizard independent network-picker regression', () => {
       expect(screen.getByLabelText('WAN address/prefix')).toHaveValue('192.0.2.2/24'),
     );
     expect(screen.getByLabelText('WAN gateway')).toHaveValue('192.0.2.1');
-    expect(screen.getByRole('combobox', { name: 'WAN interface' })).toHaveTextContent('uplink');
+    expect(screen.getByRole('combobox', { name: 'WAN interface' })).toHaveTextContent('Ethernet2');
   });
 
   it('prefills static WAN and retains administrator edits after returning to the step', async () => {
@@ -205,8 +205,8 @@ describe('setup wizard independent network-picker regression', () => {
       within(list)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['configuredLan', 'configuredWan', 'discoveredLan']);
-    fireEvent.click(within(list).getByRole('option', { name: 'discoveredLan' }));
+    ).toEqual(['configuredLan', 'configuredWan', 'Ethernet1']);
+    fireEvent.click(within(list).getByRole('option', { name: 'Ethernet1' }));
     expect(
       fake.calls.filter((r) => r.path === '/api/v1/state/interfaces').length,
     ).toBeGreaterThanOrEqual(2);
@@ -301,7 +301,7 @@ describe('setup wizard independent network-picker regression', () => {
     );
     next();
     expect(await screen.findByText('پیش از ادامه یک واسط شبکه انتخاب کنید.')).toBeInTheDocument();
-    await select('رابط WAN', 'wanNic');
+    await select('رابط WAN', 'Ethernet2');
     next();
     await screen.findByText(i18n.t('setup:defaultsHelp'));
     expect(screen.queryByRole('combobox', { name: 'رابط LAN' })).not.toBeInTheDocument();

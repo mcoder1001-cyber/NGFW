@@ -17,7 +17,7 @@ import type { SchemaText } from './text.js';
 import type { JsonSchema, UiHints } from './types.js';
 
 /** What a summary needs from the per-path texts plus the yes/no words of the UI language. */
-export type SummaryText = Pick<SchemaText, 'title' | 'enumLabels' | 'variant'> & { yes: string; no: string };
+export type SummaryText = Pick<SchemaText, 'title' | 'enumLabels' | 'variant'> & { yes: string; no: string; interfaceLabel?: (name: string) => string };
 
 /** Arrays and records show this many entries, then `+N`. */
 const MAX_LISTED = 3;
@@ -62,13 +62,18 @@ function summarize(raw: JsonSchema, value: unknown, root: JsonSchema, propPath: 
     if (!member) return value ? text.yes : text.no;
     return value ? text.title(propPath, titleOf(schema, propPath.split('.').pop())) : '';
   }
+  if (typeof value === 'string' && ['interface-picker', 'host-interface-picker'].includes(hintsOf(schema).widget ?? '')) return text.interfaceLabel?.(value) ?? value;
   if (typeof value === 'number' || typeof value === 'string') return String(value);
   if (Array.isArray(value)) {
     const items = schema.items ?? {};
     return listed(value.map((v) => summarize(items, v, root, propPath, text, false)));
   }
   if (typeof value === 'object') {
-    if (isRecordSchema(schema)) return listed(Object.keys(value));
+    if (isRecordSchema(schema)) {
+      const keyWidget = hintsOf(resolveRef(schema.propertyNames ?? {}, root)).widget;
+      const interfaceKeys = keyWidget === 'interface-picker' || keyWidget === 'host-interface-picker';
+      return listed(Object.keys(value).map((key) => interfaceKeys ? (text.interfaceLabel?.(key) ?? key) : key));
+    }
     return objectParts(schema, value as Record<string, unknown>, root, propPath, text, undefined).join(' ');
   }
   return '';

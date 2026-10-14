@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import { clusterPanels } from './clusterPanels';
@@ -65,6 +66,7 @@ export function problemUnder(error: unknown, base: string): ProblemDetails | nul
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 function VrrpTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation([NS, 'config']);
   const perms = usePermissions();
   const cand = useCandidateHa();
@@ -121,7 +123,7 @@ function VrrpTab() {
                 {entries.map(([name, r]) => (
                   <TableRow key={name} data-testid={`vrrp-${name}`}>
                     <TableCell dir="ltr">{name}</TableCell>
-                    <TableCell dir="ltr">{r.interface}</TableCell>
+                    <TableCell dir="ltr">{interfaceLabel(r.interface)}</TableCell>
                     <TableCell dir="ltr">{r.vrId}</TableCell>
                     <TableCell dir="ltr">{r.addressFamily ?? DEFAULT_FAMILY}</TableCell>
                     <TableCell dir="ltr">{r.priority ?? 100}</TableCell>

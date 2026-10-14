@@ -12,7 +12,9 @@ import type {
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { domainSchemas } from '../../../schema/registry';
 
-type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } } ? T : never;
+type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } }
+  ? T
+  : never;
 
 /** `GET /api/v1/state/objects/fqdn` and `…/usage` as generated from the OpenAPI document (never hand-written). */
 export type FqdnState = Ok<NonNullable<paths['/api/v1/state/objects/fqdn']['get']>>;
@@ -23,7 +25,15 @@ export type UsageRef = Usage['usedBy'][number];
 export type { ObjectsConfig };
 
 /** The seven records of `objects`, in tab order. */
-export const OBJECT_KINDS = ['addresses', 'addressGroups', 'services', 'serviceGroups', 'schedules', 'zones', 'tags'] as const;
+export const OBJECT_KINDS = [
+  'addresses',
+  'addressGroups',
+  'services',
+  'serviceGroups',
+  'schedules',
+  'zones',
+  'tags',
+] as const;
 export type ObjectKind = (typeof OBJECT_KINDS)[number];
 
 export interface EntryOf {
@@ -46,13 +56,18 @@ export function isObjectKind(v: string | null | undefined): v is ObjectKind {
 
 /** `objects.<kind>.<name>` item schema — the one schema (00-CONTEXT rule 5), from the generated domain JSON Schema. */
 export function itemSchema(kind: ObjectKind): JsonSchema {
-  const rec = (domainSchemas.objects.properties ?? {})[kind] as { additionalProperties?: JsonSchema } | undefined;
-  if (!rec?.additionalProperties || typeof rec.additionalProperties !== 'object') throw new Error(`objects.${kind} item schema not found`);
+  const rec = (domainSchemas.objects.properties ?? {})[kind] as
+    { additionalProperties?: JsonSchema } | undefined;
+  if (!rec?.additionalProperties || typeof rec.additionalProperties !== 'object')
+    throw new Error(`objects.${kind} item schema not found`);
   return rec.additionalProperties;
 }
 
 /** Entries of one kind, sorted by name. */
-export function entriesOf<K extends ObjectKind>(objects: Partial<ObjectsConfig> | undefined, kind: K): [string, EntryOf[K]][] {
+export function entriesOf<K extends ObjectKind>(
+  objects: Partial<ObjectsConfig> | undefined,
+  kind: K,
+): [string, EntryOf[K]][] {
   const rec = (objects?.[kind] ?? {}) as Record<string, EntryOf[K]>;
   return Object.entries(rec).sort(([a], [b]) => a.localeCompare(b));
 }
@@ -66,7 +81,8 @@ export const PICKER_KINDS = {
   tag: ['tags'],
 } as const satisfies Record<string, readonly ObjectKind[]>;
 
-const KIND_IN_TEXT = /objects\.(addresses|addressGroups|services|serviceGroups|schedules|zones|tags)\b/g;
+const KIND_IN_TEXT =
+  /objects\.(addresses|addressGroups|services|serviceGroups|schedules|zones|tags)\b/g;
 
 /**
  * The kinds an `object-picker` field offers: an explicit `x-ngfw-ui.objectKinds` hint, else the kinds its help text names
@@ -74,9 +90,14 @@ const KIND_IN_TEXT = /objects\.(addresses|addressGroups|services|serviceGroups|s
  * (`zone`, `schedule`, `tags`). A field none of these classify gets **no** kinds (review F4: `acl.attachments[].list`
  * names an ACL list, not an object) and the picker renders the plain field instead of guessing.
  */
-export function pickerKinds(hints: { objectKinds?: unknown; help?: unknown; [hint: string]: unknown }, propPath: string): readonly ObjectKind[] {
+export function pickerKinds(
+  hints: { objectKinds?: unknown; help?: unknown; [hint: string]: unknown },
+  propPath: string,
+): readonly ObjectKind[] {
   if (Array.isArray(hints.objectKinds)) {
-    const ks = hints.objectKinds.filter((k): k is ObjectKind => typeof k === 'string' && isObjectKind(k));
+    const ks = hints.objectKinds.filter(
+      (k): k is ObjectKind => typeof k === 'string' && isObjectKind(k),
+    );
     if (ks.length > 0) return ks;
   }
   if (typeof hints.help === 'string') {
@@ -91,7 +112,11 @@ export function pickerKinds(hints: { objectKinds?: unknown; help?: unknown; [hin
 }
 
 /** A one-line summary of an entry for tables and picker labels (language-neutral: addresses, ports, days). */
-export function summary(kind: ObjectKind, e: AnyEntry): string {
+export function summary(
+  kind: ObjectKind,
+  e: AnyEntry,
+  label: (name: string) => string = (name) => name,
+): string {
   switch (kind) {
     case 'addresses': {
       const a = e as AddressObject;
@@ -111,16 +136,24 @@ export function summary(kind: ObjectKind, e: AnyEntry): string {
         return `${s.protocol}/${dst}${src}`;
       }
       if (s.protocol === 'icmp' || s.protocol === 'icmp6') {
-        return [s.protocol, s.type !== undefined ? `type ${s.type}` : '', s.code !== undefined ? `code ${s.code}` : ''].filter(Boolean).join(' ');
+        return [
+          s.protocol,
+          s.type !== undefined ? `type ${s.type}` : '',
+          s.code !== undefined ? `code ${s.code}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
       }
       return s.protocol === 'other' ? `ip proto ${s.number}` : 'any';
     }
     case 'schedules': {
       const s = e as Schedule;
-      return s.type === 'recurring' ? `${s.days.join(',')} ${s.start}–${s.end}` : `${s.start} → ${s.end}`;
+      return s.type === 'recurring'
+        ? `${s.days.join(',')} ${s.start}–${s.end}`
+        : `${s.start} → ${s.end}`;
     }
     case 'zones':
-      return (e as Zone).interfaces.join(', ');
+      return (e as Zone).interfaces.map(label).join(', ');
     case 'tags':
       return (e as Tag).color ?? '';
   }
@@ -154,7 +187,9 @@ export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): Js
       const ph = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
       // `field.<scope>.<prop>` (e.g. field.addresses.start = "First address") before the shared `field.<prop>`
       const text = (what: 'title' | 'help', fallback: string) =>
-        t(`field.${scope}.${name}.${what}`, { defaultValue: t(`field.${name}.${what}`, { defaultValue: fallback }) });
+        t(`field.${scope}.${name}.${what}`, {
+          defaultValue: t(`field.${name}.${what}`, { defaultValue: fallback }),
+        });
       const help = text('help', '');
       const extra: Record<string, unknown> = {};
       if (ph.widget === 'object-picker' || ph.widget === 'tag-picker') {
@@ -179,10 +214,13 @@ export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): Js
     out[key] = vs.map((v) => {
       const lv = localizeSchema(v, t, scope);
       const disc = variantValues(v);
-      return disc ? { ...lv, title: t(`variant.${disc.join('|')}`, { defaultValue: disc.join(' / ') }) } : lv;
+      return disc
+        ? { ...lv, title: t(`variant.${disc.join('|')}`, { defaultValue: disc.join(' / ') }) }
+        : lv;
     });
   }
-  if (schema.items && typeof schema.items === 'object') out.items = localizeSchema(schema.items, t, scope);
+  if (schema.items && typeof schema.items === 'object')
+    out.items = localizeSchema(schema.items, t, scope);
   if (Object.keys(hints).length > 0) out['x-ngfw-ui'] = hints;
   return out;
 }
@@ -191,7 +229,8 @@ export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): Js
 function variantValues(v: JsonSchema): string[] | undefined {
   for (const [name, p] of Object.entries(v.properties ?? {})) {
     if (p.const !== undefined) return [String(p.const)];
-    if ((name === 'protocol' || name === 'type' || name === 'kind') && Array.isArray(p.enum)) return p.enum.map(String);
+    if ((name === 'protocol' || name === 'type' || name === 'kind') && Array.isArray(p.enum))
+      return p.enum.map(String);
   }
   return undefined;
 }

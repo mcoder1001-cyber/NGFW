@@ -33,7 +33,9 @@ done
 mkdir -p -- "$OUTPUT"
 cp -a -- "$ROOT/deploy/debian/ngfw/debian" "$ROOT/deploy/debian/ngfw/tests" "$ROOT/deploy/debian/ngfw/assets" "$OUTPUT/"
 STAGE=$OUTPUT/stage
-mkdir -p "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$STAGE/usr/lib/systemd/system"
+mkdir -p "$STAGE/usr/bin" "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$STAGE/usr/lib/systemd/system"
+COMMIT=$(git -C "$ROOT" rev-parse --short=12 HEAD)
+(cd "$ROOT/apps/cli" && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X ngfw/cli/internal/cli.Version=$COMMIT" -o "$STAGE/usr/bin/ngfw" ./cmd/ngfw)
 for binary in ngfw-agent ngfw-startupgen ngfw-vppcheck; do
   (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/sbin/$binary" "./cmd/$binary")
 done

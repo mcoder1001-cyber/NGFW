@@ -20,7 +20,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { StatusChip } from '@ngfw/ui-kit';
+import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -60,6 +60,7 @@ type Editing = { source: string | null; index: number } | null;
  */
 export function MirroringPage() {
   const { t } = useTranslation(NS);
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const ifs = useCandidateInterfaces();
   const state = useInterfacesStateSlow();
@@ -114,10 +115,10 @@ export function MirroringPage() {
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell dir="ltr" sx={MONO}>
-                    {r.source}
+                    {interfaceLabel(r.source)}
                   </TableCell>
                   <TableCell dir="ltr" sx={MONO}>
-                    {r.destination}
+                    {interfaceLabel(r.destination)}
                   </TableCell>
                   <TableCell>{t(`direction.${r.direction}`)}</TableCell>
                   <TableCell>{t(`level.${r.level}`)}</TableCell>
@@ -141,7 +142,7 @@ export function MirroringPage() {
                   <TableCell sx={END_CELL}>
                     <IconButton
                       size="small"
-                      aria-label={`${t('edit')} ${r.source} → ${r.destination}`}
+                      aria-label={`${t('edit')} ${interfaceLabel(r.source)} → ${interfaceLabel(r.destination)}`}
                       disabled={!perms.editConfig}
                       onClick={() => setEditing({ source: r.source, index: r.index })}
                     >
@@ -149,7 +150,7 @@ export function MirroringPage() {
                     </IconButton>
                     <IconButton
                       size="small"
-                      aria-label={`${t('remove')} ${r.source} → ${r.destination}`}
+                      aria-label={`${t('remove')} ${interfaceLabel(r.source)} → ${interfaceLabel(r.destination)}`}
                       disabled={!perms.editConfig || patch.isPending}
                       onClick={() => remove(r)}
                     >
@@ -190,6 +191,7 @@ function SessionDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation(NS);
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const patch = usePatchInterfaces();
   const [source, setSource] = useState(editing.source ?? '');
@@ -216,7 +218,7 @@ function SessionDialog({
           >
             {sources.map((o) => (
               <MenuItem key={o} value={o} dir="ltr">
-                {o}
+                {interfaceLabel(o)}
               </MenuItem>
             ))}
           </TextField>

@@ -18,7 +18,7 @@ import TableRow from '@mui/material/TableRow';
 import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { StatusChip } from '@ngfw/ui-kit';
+import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
@@ -137,6 +137,7 @@ export function BridgingPage() {
 
 function DomainsTab() {
   const { t } = useTranslation('bridge-l2');
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const qc = useQueryClient();
   const state = useBridgeDomains();
@@ -193,7 +194,7 @@ function DomainsTab() {
         field: 'bvi',
         headerName: t('col.bvi'),
         width: 130,
-        renderCell: (p) => <span dir="ltr">{p.row.bvi}</span>,
+        renderCell: (p) => <span dir="ltr">{interfaceLabel(p.row.bvi)}</span>,
       },
       { field: 'learned', headerName: t('col.learned'), type: 'number', width: 130 },
       {
@@ -204,7 +205,7 @@ function DomainsTab() {
           v === null ? '' : v === 0 ? t('macAgeOff') : t('macAgeValue', { min: v }),
       },
     ],
-    [t],
+    [t, interfaceLabel],
   );
   const selectedItem = state.data?.items.find((i) => i.name === selected) ?? null;
   const unavailable = state.error instanceof ApiError && state.error.status === 501;
@@ -285,6 +286,7 @@ type Editing = { table: Table; key: string | null } | null;
 /** The L2 / L3 cross-connect list (routing.l2.xconnects / l3xc) with schema-driven add / edit. */
 function XconnectsTab() {
   const { t } = useTranslation('bridge-l2');
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const l2 = useCandidateL2();
   const ifs = useCandidatePorts();
@@ -311,13 +313,13 @@ function XconnectsTab() {
     ...Object.entries(cfg.xconnects ?? {}).map(([rx, x]) => ({
       table: L2_TABLES.xconnects,
       rx,
-      text: x.tx,
+      text: interfaceLabel(x.tx),
     })),
     ...Object.entries(cfg.l3xc ?? {}).map(([rx, x]) => ({
       table: L2_TABLES.l3xc,
       rx,
       text: [...x.ipv4Paths, ...x.ipv6Paths]
-        .map((p) => [p.nextHop, p.interface].filter(Boolean).join(' via ') || `vrf ${p.vrf}`)
+        .map((p) => [p.nextHop, p.interface ? interfaceLabel(p.interface) : undefined].filter(Boolean).join(' via ') || `vrf ${p.vrf}`)
         .join(', '),
     })),
   ].sort((a, b) => a.rx.localeCompare(b.rx, undefined, { numeric: true }));
@@ -360,7 +362,7 @@ function XconnectsTab() {
                 <TableRow key={`${r.table}:${r.rx}`}>
                   <TableCell>{r.table === 'xconnects' ? t('xc.l2') : t('xc.l3')}</TableCell>
                   <TableCell dir="ltr" sx={MONO}>
-                    {r.rx}
+                    {interfaceLabel(r.rx)}
                   </TableCell>
                   <TableCell dir="ltr" sx={MONO}>
                     {r.text}
@@ -368,7 +370,7 @@ function XconnectsTab() {
                   <TableCell sx={END_CELL}>
                     <IconButton
                       size="small"
-                      aria-label={`${t('edit')} ${r.rx}`}
+                      aria-label={`${t('edit')} ${interfaceLabel(r.rx)}`}
                       disabled={!perms.editConfig}
                       onClick={() => setEditing({ table: r.table, key: r.rx })}
                     >
@@ -376,7 +378,7 @@ function XconnectsTab() {
                     </IconButton>
                     <IconButton
                       size="small"
-                      aria-label={`${t('remove')} ${r.rx}`}
+                      aria-label={`${t('remove')} ${interfaceLabel(r.rx)}`}
                       disabled={!perms.editConfig || patch.isPending}
                       onClick={() => void removeCrossConnect(r.table, r.rx)}
                     >
@@ -404,6 +406,7 @@ function XconnectsTab() {
 /** The time-range MAC filter devices (routing.l2.macFilters) and where the filter runs. */
 function MacFilterTab() {
   const { t } = useTranslation('bridge-l2');
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const l2 = useCandidateL2();
   const ifs = useCandidatePorts();
@@ -420,7 +423,7 @@ function MacFilterTab() {
         {t('mf.intro')}
       </Typography>
       <Typography variant="body2" sx={{ mb: 1 }} dir="auto">
-        {on.length ? t('mf.enabledOn', { list: on.join(', ') }) : t('mf.enabledNone')}
+        {on.length ? t('mf.enabledOn', { list: on.map(interfaceLabel).join(', ') }) : t('mf.enabledNone')}
       </Typography>
       <Button
         variant="contained"
@@ -506,6 +509,7 @@ function EditRecord({
   const perms = usePermissions();
   const patch = usePatchRouting();
   const table = editing.table;
+  const interfaceLabel = useInterfaceLabel();
   const schema = useMemo(
     () =>
       table === 'xconnects'
@@ -522,7 +526,7 @@ function EditRecord({
   return (
     <RecordDialog
       open
-      title={editing.key !== null ? `${title}: ${editing.key}` : title}
+      title={editing.key !== null ? `${title}: ${table === 'macFilters' ? editing.key : interfaceLabel(editing.key)}` : title}
       {...(table !== 'macFilters' ? { help: t('xc.rxHelp') } : {})}
       keyLabel={table === 'macFilters' ? t('col.device') : t('col.rx')}
       {...(table === 'macFilters'

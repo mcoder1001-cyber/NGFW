@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
@@ -32,6 +33,7 @@ const NEIGHBOR_COLUMNS = ['vrf', 'routerId', 'interface', 'state'] as const;
  * F-ospf adds the route/nav entry and live neighbours / LSDB (no state endpoint yet).
  */
 export function OspfPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation([NS, 'config']);
   const cand = useCandidateRouting();
   const running = useRunningRouting();
@@ -87,7 +89,7 @@ export function OspfPage() {
                   <TableRow key={`${n.vrf}-${n.routerId}-${n.interface}-${i}`}>
                     <TableCell>{n.vrf}</TableCell>
                     <TableCell dir="ltr">{n.routerId}</TableCell>
-                    <TableCell dir="ltr">{n.interface ?? '—'}</TableCell>
+                    <TableCell dir="ltr">{interfaceLabel(n.interface ?? '—')}</TableCell>
                     <TableCell>
                       <Chip
                         size="small"
@@ -150,7 +152,7 @@ export function OspfPage() {
                 <TableBody>
                   {ifaces.map(([name, i]) => (
                     <TableRow key={name} data-testid={`ospf-if-${name}`}>
-                      <TableCell dir="ltr">{name}</TableCell>
+                      <TableCell dir="ltr">{interfaceLabel(name)}</TableCell>
                       <TableCell dir="ltr">{i.area}</TableCell>
                       <TableCell dir="ltr">{i.cost ?? t('none')}</TableCell>
                       <TableCell>{yn(i.passive)}</TableCell>

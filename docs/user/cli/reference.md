@@ -96,7 +96,7 @@ Output formats of configuration: `text` (default: a stable brace hierarchy, keys
 | `show configuration diff` | Uncommitted changes: candidate vs running, as - / + set lines | `GET /api/v1/config/diff` · *operational* |
 | `show drift` | Running configuration vs what the agent retrieves from the data plane | `GET /api/v1/state/drift` · *operational* |
 | `show interfaces [<name>]` | Interfaces as retrieved from VPP by the agent, with counters | `GET /api/v1/state/interfaces` · *operational* |
-| `show ip route [<vrf>]` | Routes retrieved from the data plane (connected + static), optionally of one VRF | `GET /api/v1/state/routes` · *operational* |
+| `show ip route [<vrf>]` | Routes retrieved from the data plane (connected + static), optionally of one VRF | `GET /api/v1/state/routes`<br>`GET /api/v1/state/interfaces` · *operational* |
 | `show ipsec sa [<tunnel>] [limit <1..1000>] [offset <0..1000000>]` | Native route-based IPsec SAs: SPIs, transforms and counters (no keys) | `GET /api/v1/state/ipsec/sas` · *operational* |
 | `show ipsec tunnels [<tunnel>]` | Native route-based IPsec tunnel state | `GET /api/v1/state/ipsec/tunnels` · *operational* |
 | `show lock` | Who holds the candidate (single writer) | `GET /api/v1/config/lock` · *operational* |

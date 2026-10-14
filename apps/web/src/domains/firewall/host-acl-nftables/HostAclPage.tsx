@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import { ExpiryChip } from '../ExpiryChip'; // F-rule-expiry
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -206,10 +207,11 @@ function Banners({
   state: HostAclState | undefined;
   running: HostAclConfig | undefined;
 }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   return (
     <Stack gap={1} sx={{ mb: 2 }}>
-      {banners(settings, state, running).map((b) => (
+      {banners(settings, state, running, interfaceLabel).map((b) => (
         <Alert key={b.key} severity={b.severity} role={b.severity === 'error' ? 'alert' : 'status'}>
           {t(b.key, b.params)}
         </Alert>
@@ -425,6 +427,7 @@ function RuleRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const fmt = useFormatters();
   return (
@@ -448,7 +451,7 @@ function RuleRow({
       <TableCell>
         <Code>{serviceText(rule.service)}</Code>
       </TableCell>
-      <TableCell>{rule.interface ? <Code>{rule.interface}</Code> : '*'}</TableCell>
+      <TableCell>{rule.interface ? <Code>{interfaceLabel(rule.interface)}</Code> : '*'}</TableCell>
       <TableCell>{rule.log ? t('yes') : t('no')}</TableCell>
       <TableCell>{rule.enabled ? t('yes') : t('no')}</TableCell>
       <TableCell>{rule.description}</TableCell>

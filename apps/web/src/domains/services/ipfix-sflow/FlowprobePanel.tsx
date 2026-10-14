@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -48,6 +49,7 @@ const withVariant = (f: FlowprobeInterfaceConfig, v: Variant): FlowprobeInterfac
 
 /** flowprobe: global timers/record flags and the monitored interfaces (one variant each). */
 export function FlowprobePanel({ cfg, state, interfaces, readOnly, pending, save }: PanelProps) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const [fp, setFp] = useState<FlowprobeConfig>(cfg.flowprobe ?? {});
   const [pick, setPick] = useState<string | null>(null);
@@ -126,7 +128,7 @@ export function FlowprobePanel({ cfg, state, interfaces, readOnly, pending, save
         <TableBody>
           {list.map((f, i) => (
             <TableRow key={f.interface}>
-              <TableCell>{f.interface}</TableCell>
+              <TableCell>{interfaceLabel(f.interface)}</TableCell>
               <TableCell>
                 <TextField
                   select
@@ -178,7 +180,7 @@ export function FlowprobePanel({ cfg, state, interfaces, readOnly, pending, save
               </TableCell>
               <TableCell>
                 <IconButton
-                  aria-label={t('remove', { name: f.interface })}
+                  aria-label={t('remove', { name: interfaceLabel(f.interface) })}
                   disabled={readOnly}
                   onClick={() => setList(list.filter((_, k) => k !== i))}
                 >
@@ -192,6 +194,7 @@ export function FlowprobePanel({ cfg, state, interfaces, readOnly, pending, save
       <Stack direction="row" spacing={2}>
         <Autocomplete
           options={interfaces.filter((n) => !list.some((f) => f.interface === n))}
+          getOptionLabel={interfaceLabel}
           value={pick}
           onChange={(_, v) => setPick(v)}
           sx={{ minWidth: 260 }}

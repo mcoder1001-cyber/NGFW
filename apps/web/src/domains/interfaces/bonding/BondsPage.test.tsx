@@ -13,8 +13,7 @@ import { BONDS_POLL_MS } from './queries';
 /** F-bonding screen in jsdom against a scripted stand-in of the API (unit level; the real stack runs in test/topology/bonding). */
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 
-function app(path: string) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
+function app(path: string, queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } })) {
   return <App router={createTestRouter([path], { devRoutes: false })} streamUrl={STREAM} queryClient={queryClient} />;
 }
 
@@ -66,8 +65,8 @@ describe('bond model', () => {
     expect(toBondRow(B0)).toMatchObject({ name: 'BondEthernet6000', mode: 'lacp', loadBalance: 'l34', members: 'tap6000 tap6001', active: '0/2', status: 'degraded' });
     expect(toBondRow(B1)).toMatchObject({ mode: 'active-backup', members: '', active: '', status: '' });
     const req = { page: 0, pageSize: 25, sort: [{ field: 'name', dir: 'desc' as const }], filter: [], filterLogic: 'and' as const, quickFilter: [] };
-    expect(pageOfBonds([B0, B1].map(toBondRow), req).rows.map((r) => r.name)).toEqual(['BondEthernet6001', 'BondEthernet6000']);
-    expect(pageOfBonds([B0, B1].map(toBondRow), { ...req, quickFilter: ['tap6001'] }).total).toBe(1);
+    expect(pageOfBonds([B0, B1].map((item) => toBondRow(item)), req).rows.map((r) => r.name)).toEqual(['BondEthernet6001', 'BondEthernet6000']);
+    expect(pageOfBonds([B0, B1].map((item) => toBondRow(item)), { ...req, quickFilter: ['tap6001'] }).total).toBe(1);
   });
 
   it('eligible members: NICs without L3, not bonds, loopbacks or members of another bond; own members stay', () => {
@@ -94,6 +93,37 @@ describe('bond model', () => {
 });
 
 describe('bonds screen', () => {
+
+  it.each([false, true])('formats configured members once with a colliding logical name (late inventory: %s)', async (lateInventory) => {
+    const api = installFakeApi();
+    withBonds(api);
+    const inventory = {
+      items: ['ens192', 'Ethernet1'].map((name, index) => ({
+        ...liveIf(name),
+        state: null,
+        physical: { pci: `0000:0${index + 1}:00.0`, owner: 'dataplane', builtIn: true },
+      })),
+    };
+    api.on('GET /api/v1/state/interfaces/bonds', {
+      body: { live: true, items: [{ ...B1, candidate: { mode: 'active-backup', members: { ens192: {} } } }] },
+    });
+    api.on('GET /api/v1/state/interfaces', { body: lateInventory ? { items: [] } : inventory });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    queryClient.setQueryData(['state', 'interfaces'], lateInventory ? { items: [] } : inventory);
+    await signIn();
+    render(app('/interfaces/bonds', queryClient));
+    const grid = await screen.findByRole('grid');
+    const row = (await within(grid).findByText('BondEthernet6001')).closest('[role="row"]') as HTMLElement;
+    if (lateInventory) {
+      expect(within(row).getByText('ens192')).toBeInTheDocument();
+      act(() => { queryClient.setQueryData(['state', 'interfaces'], inventory); });
+    }
+    expect(await within(row).findByText('Ethernet1')).toBeInTheDocument();
+    expect(within(row).queryByText('Ethernet2')).not.toBeInTheDocument();
+    expect(within(row).queryByText('ens192')).not.toBeInTheDocument();
+    expect(api.calls.filter((call) => call.path === '/api/v1/state/interfaces/bonds')).toHaveLength(1);
+  });
+
   it('lists bonds with live member/LACP state; the drawer adds an eligible member through a merge patch', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
     withBonds(api);

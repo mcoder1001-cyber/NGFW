@@ -101,7 +101,8 @@ tar czf "$BACKUP/preupgrade-config.tar.gz" --ignore-failed-read \
   /etc/ngfw /etc/vpp/startup.conf /var/lib/ngfw 2>/dev/null || true
 if [[ -r /etc/ngfw/api.env ]]; then
   db=$(sed -n 's/^NGFW_DATABASE_URL=//p' /etc/ngfw/api.env | tr -d "\"'")
-  [[ -z $db ]] || pg_dump -Fc -f "$BACKUP/preupgrade-ngfw.dump" "$db"
+  # The database uses peer authentication, so dump as the ngfw service user.
+  [[ -z $db ]] || runuser -u ngfw -- pg_dump -Fc "$db" > "$BACKUP/preupgrade-ngfw.dump"
 fi
 dpkg-query -W -f='${Package} ${Version}\n' 'ngfw-*' > "$BACKUP/previous-versions.txt" 2>/dev/null || true
 echo 'installing packages'

@@ -20,6 +20,11 @@ print(version)
 PY
 )
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'refusing dirty source checkout' >&2; exit 1; }
+# Full-history reachable commit counts strictly increase for descendant commits.
+# The git prefix sorts above legacy hash-only development versions (hex digits).
+[[ $(git -C "$ROOT" rev-parse --is-shallow-repository) == false ]] || { echo 'complete Git history required for package version ordering' >&2; exit 1; }
+SOURCE_COUNT=$(git -C "$ROOT" rev-list --count HEAD)
+[[ $SOURCE_COUNT =~ ^[1-9][0-9]*$ ]] || { echo 'invalid source history count' >&2; exit 1; }
 command -v go >/dev/null
 command -v pnpm >/dev/null
 # Build from this checkout before staging: existing ignored dist files can belong
@@ -83,7 +88,7 @@ find "$STAGE/usr/lib/ngfw/hardening" -type d -name __pycache__ -exec rm -r -- {}
 printf '%s\n' "$VPP_VERSION" > "$STAGE/VPP_VERSION"
 COMMIT=$(git -C "$ROOT" rev-parse --short=12 HEAD)
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'refusing dirty source checkout' >&2; exit 1; }
-VERSION=0.1.0~dev+$COMMIT
+VERSION=0.1.0~dev+git$SOURCE_COUNT.$COMMIT
 sed -i "1s/(.*)/($VERSION)/" "$OUTPUT/debian/changelog"
 echo "Prepared source package: $OUTPUT"
 echo 'Release gates remain: licensing, dynamic punt admission, privilege compatibility and appliance acceptance; this checkpoint is not a release.'

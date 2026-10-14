@@ -15,7 +15,7 @@ WORK=
 PKG_DIR=
 BUILD_ONLY=0
 SSH_USER=root
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o StrictHostKeyChecking=yes)
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o StrictHostKeyChecking=yes -o ControlMaster=no -o ControlPath=none)
 SNAPSHOT=
 log() { printf '[%(%H:%M:%S)T] %s\n' -1 "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
@@ -47,7 +47,7 @@ done
 # Shared local/remote validation: no symlinks, extra archives, mixed versions,
 # arbitrary checksum paths, unlisted bytes or package identity by filename alone.
 verify_packages() {
-  python3 - "$1" "${2:-}" "${3:-}" <<'PY'
+  python3 - "$1" "${2:-}" "${3:-}" "${4:-}" <<'PY'
 import hashlib, json, os, pathlib, re, stat, subprocess, sys
 root = pathlib.Path(sys.argv[1])
 expected = {'ngfw-agent': 'amd64', 'ngfw-api': 'amd64', 'ngfw-web': 'all', 'ngfw-meta': 'all'}
@@ -95,13 +95,15 @@ try:
         if (root / 'build-info.json').stat().st_size > 4096:
             raise ValueError('oversized build provenance')
         info = json.loads((root / 'build-info.json').read_text())
-        if set(info) != {'source_commit', 'vpp_manifest_sha256'} or not re.fullmatch(r'[a-f0-9]{40}', info['source_commit']) or not re.fullmatch(r'[a-f0-9]{64}', info['vpp_manifest_sha256']):
+        if set(info) != {'source_commit', 'source_count', 'vpp_manifest_sha256'} or not re.fullmatch(r'[a-f0-9]{40}', info['source_commit']) or not re.fullmatch(r'[a-f0-9]{64}', info['vpp_manifest_sha256']):
             raise ValueError('invalid build provenance')
-        if versions != {'0.1.0~dev+' + info['source_commit'][:12]}:
+        if type(info['source_count']) is not int or info['source_count'] < 1:
+            raise ValueError('invalid source history count')
+        if versions != {f"0.1.0~dev+git{info['source_count']}.{info['source_commit'][:12]}"}:
             raise ValueError('package version does not match build provenance')
     else:
         info = {}
-    if sys.argv[2] and (info.get('source_commit') != sys.argv[2] or info.get('vpp_manifest_sha256') != sys.argv[3]):
+    if sys.argv[2] and (info.get('source_commit') != sys.argv[2] or info.get('vpp_manifest_sha256') != sys.argv[3] or str(info.get('source_count')) != sys.argv[4]):
         raise ValueError('cache does not match requested source/VPP input')
     print(next(iter(versions)))
 except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
@@ -110,14 +112,17 @@ PY
 }
 
 build_packages() {
-  local sha vpp_digest src p
+  local sha source_count vpp_digest src p
   [[ -n $VPP_OUTPUT ]] || die 'build requires -v VERIFIED_VPP_DIR or NGFW_VPP_OUTPUT'
   VPP_OUTPUT=$(realpath -e -- "$VPP_OUTPUT")
   "$REPO/deploy/vpp/verify.sh" --require-files "$VPP_OUTPUT" --install-gate >&2
   vpp_digest=$(sha256sum "$VPP_OUTPUT/manifest.json"); vpp_digest=${vpp_digest%% *}
   git -C "$REPO" fetch --quiet origin "$REF" || die "cannot fetch origin $REF"
+  [[ $(git -C "$REPO" rev-parse --is-shallow-repository) == false ]] || die 'build requires complete Git history for version ordering'
   sha=$(git -C "$REPO" rev-parse --verify 'FETCH_HEAD^{commit}')
   [[ $sha =~ ^[a-f0-9]{40}$ ]] || die 'invalid source commit'
+  source_count=$(git -C "$REPO" rev-list --count "$sha")
+  [[ $source_count =~ ^[1-9][0-9]*$ ]] || die 'invalid source history count'
   if [[ -z $WORK ]]; then
     WORK=$(mktemp -d /var/tmp/ngfw-build.XXXXXXXX)
   else
@@ -126,7 +131,7 @@ build_packages() {
     [[ ! -L $WORK ]] || die 'work directory cannot be a symlink'
     if [[ -e $WORK ]]; then
       [[ -d $WORK/packages ]] || die 'existing work directory has no reusable package cache; use a new -w directory'
-      verify_packages "$WORK/packages" "$sha" "$vpp_digest" >/dev/null || die 'cache mismatch; use a new -w directory'
+      verify_packages "$WORK/packages" "$sha" "$vpp_digest" "$source_count" >/dev/null || die 'cache mismatch; use a new -w directory'
       PKG_DIR=$WORK/packages
       return
     fi
@@ -145,9 +150,9 @@ build_packages() {
     [[ ${#matches[@]} == 1 && -f ${matches[0]} ]] || die "missing or duplicate built package $p"
     cp -- "${matches[0]}" "$PKG_DIR/"
   done
-  printf '{"source_commit":"%s","vpp_manifest_sha256":"%s"}\n' "$sha" "$vpp_digest" > "$PKG_DIR/build-info.json"
+  printf '{"source_commit":"%s","source_count":%s,"vpp_manifest_sha256":"%s"}\n' "$sha" "$source_count" "$vpp_digest" > "$PKG_DIR/build-info.json"
   (cd "$PKG_DIR" && sha256sum -- *.deb build-info.json > SHA256SUMS)
-  verify_packages "$PKG_DIR" "$sha" "$vpp_digest" >/dev/null
+  verify_packages "$PKG_DIR" "$sha" "$vpp_digest" "$source_count" >/dev/null
   git -C "$REPO" worktree remove "$src" >&2
   log "packages ready in $PKG_DIR"
 }
@@ -165,8 +170,15 @@ done
 for package in ngfw-agent ngfw-api ngfw-meta ngfw-web; do
   [[ $(dpkg-query -W -f='${Status}' "$package") == 'install ok installed' ]]
 done
+for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
+  systemctl is-active --quiet "$service"
+done
 [[ ! -L /root/ngfw-deploy ]]
-install -d -m 700 /root/ngfw-deploy
+if [[ -e /root/ngfw-deploy ]]; then
+  [[ $(stat -c '%u:%a' /root/ngfw-deploy) == 0:700 ]] || { echo 'untrusted deployment directory' >&2; exit 1; }
+else
+  install -d -m 700 /root/ngfw-deploy
+fi
 mktemp -d /root/ngfw-deploy/run.XXXXXXXX
 REMOTE
 read -r -d '' REMOTE_INSTALL <<'REMOTE' || true
@@ -175,8 +187,15 @@ umask 077
 DIR=$1 EXPECTED_SUMS=$2 VERSION=$3
 BACKUP=${DIR%/packages}
 [[ $(id -u) == 0 && -d $DIR && ! -L $DIR && ! -L $BACKUP ]]
-exec 9>/run/lock/ngfw-deploy.lock
+[[ ! -L /root/ngfw-deploy/upgrade.lock ]]
+if [[ -e /root/ngfw-deploy/upgrade.lock ]]; then
+  [[ -f /root/ngfw-deploy/upgrade.lock && $(stat -c '%u:%a' /root/ngfw-deploy/upgrade.lock) == 0:600 ]]
+fi
+exec 9>>/root/ngfw-deploy/upgrade.lock
 flock -n 9 || { echo 'another NGFW deployment is in progress' >&2; exit 1; }
+for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
+  systemctl is-active --quiet "$service"
+done
 trap 'rc=$?; if (( rc )); then echo "upgrade failed; preserve $BACKUP for manual recovery; no automatic rollback attempted" >&2; fi' EXIT
 cd "$DIR"
 actual=$(sha256sum SHA256SUMS); [[ ${actual%% *} == "$EXPECTED_SUMS" ]]
@@ -194,7 +213,9 @@ printf '%s\n' "$route6_before" > "$BACKUP/default-route-v6.txt"
 # Match the canonical firstboot peer-authenticated database; never source api.env.
 [[ $(grep -Ec '^[[:space:]]*NGFW_DATABASE_URL[[:space:]]*=' /etc/ngfw/api.env) == 1 ]]
 grep -Fxq 'NGFW_DATABASE_URL=postgresql:///ngfw?host=/var/run/postgresql&user=ngfw' /etc/ngfw/api.env || { echo 'database configuration requires manual backup review' >&2; exit 1; }
-[[ -f /var/lib/ngfw/secret.key && -f /etc/vpp/startup.conf ]]
+[[ $(grep -Ec '^[[:space:]]*NGFW_SECRET_KEY_FILE[[:space:]]*=' /etc/ngfw/api.env) == 1 ]]
+grep -Fxq 'NGFW_SECRET_KEY_FILE=/var/lib/ngfw/secret.key' /etc/ngfw/api.env || { echo 'secret key configuration requires manual backup review' >&2; exit 1; }
+[[ -f /var/lib/ngfw/secret.key && ! -L /var/lib/ngfw/secret.key && -f /etc/vpp/startup.conf ]]
 dpkg-query -W -f='${Package} ${Version}\n' ngfw-agent ngfw-api ngfw-meta ngfw-web vpp > "$BACKUP/previous-versions.txt"
 # Simulation must leave VPP and every dependency untouched. No removals/downloads.
 apt_args=(--no-download --no-remove --assume-yes -o APT::Install-Recommends=false -o Dpkg::Options::=--force-confold)
@@ -226,7 +247,9 @@ for ((attempt=0; attempt<30; attempt++)); do
   sleep 2
 done
 [[ $healthy == 1 ]] || { echo 'API health failed' >&2; exit 1; }
-systemctl is-active ngfw-agent.service ngfw-api.service nginx.service vpp.service
+for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
+  systemctl is-active --quiet "$service"
+done
 [[ $(ip -4 route show default) == "$route_before" && $(ip -6 route show default) == "$route6_before" ]] || { echo 'management default route changed' >&2; exit 1; }
 for package in ngfw-agent ngfw-api ngfw-meta ngfw-web; do
   [[ $(dpkg-query -W -f='${Version}' "$package") == "$VERSION" ]]

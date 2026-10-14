@@ -17,7 +17,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = ROOT / 'deploy/deploy-hosts.sh'
-VERSION = '0.1.0~dev+' + 'a' * 12
+VERSION = '0.1.0~dev+git42.' + 'a' * 12
 SOURCE = 'a' * 40
 PACKAGES = {'ngfw-agent': 'amd64', 'ngfw-api': 'amd64', 'ngfw-meta': 'all', 'ngfw-web': 'all'}
 
@@ -67,7 +67,8 @@ class DeployHosts(unittest.TestCase):
         for relative in ('etc/ngfw', 'etc/vpp', 'var/lib/ngfw', 'run/lock', 'root'):
             (self.host / relative).mkdir(parents=True)
         (self.host / 'etc/ngfw/api.env').write_text(
-            'NGFW_DATABASE_URL=postgresql:///ngfw?host=/var/run/postgresql&user=ngfw\n')
+            'NGFW_DATABASE_URL=postgresql:///ngfw?host=/var/run/postgresql&user=ngfw\n'
+            f'NGFW_SECRET_KEY_FILE={self.host}/var/lib/ngfw/secret.key\n')
         (self.host / 'etc/vpp/startup.conf').write_text('fixture startup\n')
         (self.host / 'var/lib/ngfw/secret.key').write_text('fixture-only-key\n')
         (self.host / 'var/lib/ngfw/firstboot-complete').write_text('complete\n')
@@ -141,11 +142,23 @@ elif name == 'tar':
     if '-C' in args: args[args.index('-C') + 1] = str(root / 'host')
     sys.exit(subprocess.run(['/usr/bin/tar'] + args).returncode)
 elif name == 'curl': sys.exit(1 if failure == 'health' else 0)
-elif name == 'systemctl': sys.exit(1 if failure == 'service' else 0)
+elif name == 'systemctl':
+    # Match systemctl's ANY-active multi-unit exit semantics to catch regressions.
+    if args[0] == 'is-active' and failure.startswith(('inactive-', 'preinactive-')):
+        unit = failure.split('-', 1)[1] + '.service'
+        if (root / 'installed').exists() or failure.startswith('preinactive-'):
+            sys.exit(1 if args[-1:] == [unit] and len([a for a in args[1:] if not a.startswith('-')]) == 1 else 0)
+    sys.exit(1 if failure == 'service' and (root / 'installed').exists() else 0)
+elif name == 'stat':
+    result = subprocess.run(['/usr/bin/stat'] + args, capture_output=True, text=True)
+    # Model UID 0 only for this disposable host (works for non-root CI builders).
+    output = result.stdout
+    if args[:2] == ['-c', '%u:%a']: output = '0:' + output.split(':', 1)[1]
+    print(output, end=''); sys.exit(result.returncode)
 elif name in ('sleep', 'pg_dump'): pass
 else: raise AssertionError(name)
 '''
-        for name in ('id', 'dpkg-query', 'ip', 'apt-get', 'runuser', 'pg_restore', 'tar', 'curl', 'systemctl', 'sleep', 'pg_dump'):
+        for name in ('id', 'dpkg-query', 'ip', 'apt-get', 'runuser', 'pg_restore', 'tar', 'curl', 'systemctl', 'sleep', 'pg_dump', 'stat'):
             command(self.bin, name, recorder)
 
     def run_script(self, *args, failure='', script=SCRIPT):
@@ -253,7 +266,7 @@ else: raise AssertionError(name)
                     self.assertIn('pg_restore ', self.log())
 
     def test_install_and_postinstall_failures_are_reported_and_stop_fleet(self):
-        for failure in ('apt', 'health', 'service', 'route', 'ssh'):
+        for failure in ('apt', 'health', 'service', 'route', 'ssh', 'inactive-ngfw-agent', 'inactive-nginx', 'inactive-vpp'):
             with self.subTest(failure=failure):
                 self.events.unlink(missing_ok=True)
                 (self.root / 'installed').unlink(missing_ok=True)
@@ -262,8 +275,37 @@ else: raise AssertionError(name)
                 self.assertNotIn('second.example', self.log())
                 self.assertIn('inspect /root/ngfw-deploy/run.', result.stderr)
 
+    def test_inactive_preflight_service_prevents_install(self):
+        for unit in ('ngfw-agent', 'nginx', 'vpp'):
+            with self.subTest(unit=unit):
+                result = self.deploy(failure='preinactive-' + unit)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('apt-get ', self.log())
+
+    def test_old_shared_lock_symlink_cannot_truncate_target(self):
+        target = self.root / 'keep'
+        target.write_text('must survive')
+        (self.host / 'run/lock/ngfw-deploy.lock').symlink_to(target)
+        result = self.deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(target.read_text(), 'must survive')
+
+    def test_remote_lock_symlink_is_refused_without_truncation(self):
+        directory = self.host / 'root/ngfw-deploy'
+        directory.mkdir(mode=0o700)
+        target = self.root / 'keep'
+        target.write_text('must survive')
+        (directory / 'upgrade.lock').symlink_to(target)
+        result = self.deploy()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(target.read_text(), 'must survive')
+        self.assertNotIn('apt-get ', self.log())
+
     def test_existing_deployment_lock_prevents_install(self):
-        with (self.host / 'run/lock/ngfw-deploy.lock').open('w') as lock:
+        directory = self.host / 'root/ngfw-deploy'
+        directory.mkdir(mode=0o700)
+        with (directory / 'upgrade.lock').open('w') as lock:
+            os.chmod(lock.name, 0o600)
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             result = self.deploy()
         self.assertNotEqual(result.returncode, 0)
@@ -272,6 +314,14 @@ else: raise AssertionError(name)
 
     def test_noncanonical_database_fails_before_backup_or_install(self):
         (self.host / 'etc/ngfw/api.env').write_text('NGFW_DATABASE_URL=unsupported-fixture-db\n')
+        result = self.deploy()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('runuser ', self.log())
+        self.assertFalse((self.root / 'installed').exists())
+
+    def test_external_secret_key_requires_manual_backup_review(self):
+        path = self.host / 'etc/ngfw/api.env'
+        path.write_text(path.read_text().replace('/var/lib/ngfw/secret.key', '/other/secret.key'))
         result = self.deploy()
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('runuser ', self.log())
@@ -288,7 +338,9 @@ import os, pathlib, shutil, sys
 root = pathlib.Path(os.environ['FIXTURE_ROOT'])
 args = sys.argv[1:]
 with (root / 'events').open('a') as log: log.write('git ' + repr(args) + '\n')
-if 'rev-parse' in args: print('a' * 40)
+if '--is-shallow-repository' in args: print('true' if os.environ.get('FAIL_STAGE') == 'shallow' else 'false')
+elif 'rev-parse' in args: print('a' * 40)
+elif 'rev-list' in args: print('42')
 elif 'worktree' in args and 'add' in args:
     source = pathlib.Path(args[-2]); (source / 'tools').mkdir(parents=True)
     shutil.copy2(root / 'heavy.sh', source / 'tools/heavy.sh')
@@ -323,6 +375,19 @@ if sys.argv[1] == 'dpkg-buildpackage':
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('cache mismatch', result.stderr)
         self.assertTrue((work / 'packages/build-info.json').exists())
+
+    def test_shallow_build_refuses_incomplete_version_history(self):
+        script, vpp = self.build_fixture()
+        result = self.run_script('-b', '-v', vpp, script=script, failure='shallow')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('complete Git history', result.stderr)
+        self.assertNotIn("'add'", self.log())
+
+    def test_development_versions_increase_for_descendants_and_preserve_release_guard(self):
+        for previous in ('0.1.0~dev+ffffffffffff', '0.1.0~dev+git41.ffffffffffff'):
+            subprocess.run(['dpkg', '--compare-versions', VERSION, 'gt', previous], check=True)
+        result = subprocess.run(['dpkg', '--compare-versions', VERSION, 'ge', '0.1.0'])
+        self.assertNotEqual(result.returncode, 0)
 
     def test_stale_source_cache_and_preexisting_work_are_not_reused_or_deleted(self):
         script, vpp = self.build_fixture()

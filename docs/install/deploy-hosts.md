@@ -2,7 +2,10 @@
 
 `deploy/deploy-hosts.sh` builds the four NGFW management packages from a chosen
 origin commit, or upgrades an explicitly named, already initialized appliance
-using a locally reviewed package directory. It is an operator maintenance tool,
+using a locally reviewed package directory. Target dedicated appliances only;
+never target the shared development/CI host while its VPP handover is pending.
+An initialized-package check is not authorization to modify a shared host.
+It is an operator maintenance tool,
 not a release certification or a fresh-machine installer. Dependencies and the
 pinned VPP runtime must already be installed. See [package upgrades](upgrade.md)
 for release and recovery prerequisites and [bare metal](bare-metal.md) for initial
@@ -17,9 +20,15 @@ deploy/deploy-hosts.sh -b -r main -v /path/to/verified-vpp -w /var/tmp/ngfw-buil
 The work directory must be new, or contain an intact cache from the exact fetched
 source commit and VPP manifest. The script runs the canonical VPP verification
 and Debian preparation/build steps. `prepare.sh` builds this checkout's API and
-web assets and emits `0.1.0~dev+<12-character-source-commit>` package versions.
+web assets and emits `0.1.0~dev+git<reachable-commit-count>.<12-character-source-commit>`
+package versions. Full Git history is required; shallow checkouts are refused.
+Within one source history, descendant commits have increasing counts, and the
+`git` prefix sorts above the previous hash-only development versions.
 The wrapper preserves the source SHA and VPP manifest digest in `build-info.json`.
-It never deletes an existing work directory to rebuild a mismatched cache; choose
+The count is also recorded in the build metadata and checked against package
+versions. Source refs predating this version format need their older reviewed
+build workflow; their hash-only package versions cannot satisfy the new build
+provenance contract. It never deletes an existing work directory to rebuild a mismatched cache; choose
 a new `-w` path. Without `-w` it creates a private directory under `/var/tmp`.
 A failed build retains its checkout and intermediates for diagnosis.
 
@@ -56,14 +65,16 @@ addresses or SSH configuration aliases. Use an alias for IPv6 and custom ports.
 The first failed host stops the fleet. `-b` never connects to the supplied hosts.
 
 Each host gets a distinct root-private recovery directory at
-`/root/ngfw-deploy/run.XXXXXXXX`. A lock serializes this tool's install phase.
+`/root/ngfw-deploy/run.XXXXXXXX`. A lock in that root-owned, mode-0700 parent directory serializes this tool's
+install phase; symbolic or incorrectly owned/mode lock files are refused.
 A private local snapshot is copied there, and its manifest digest, archive
 hashes, package metadata and installed package versions are rechecked remotely.
-The target must have a completed firstboot marker and all four packages installed.
-Downgrades are refused. Development versions based on commit hashes do not sort
-chronologically: a later source commit may therefore be refused as a downgrade.
-That needs a separately reviewed monotonically versioned build, not a forced
-package downgrade (which cannot undo database migrations).
+The target must have a completed firstboot marker, all four packages installed
+and agent/API/nginx/VPP services individually active. Stopped appliances are
+refused before installation. Downgrades, including stable-release to development
+build downgrades, are refused. New development builds use the source history
+count for ordering; unrelated source histories still need explicit review.
+A forced package downgrade cannot undo database migrations.
 
 Before installation the script records IPv4/IPv6 default routes and installed
 versions, then simulates APT. Any proposed dependency/VPP change or removal is
@@ -75,7 +86,8 @@ Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`
 and `/var/lib/ngfw`, and makes and inspects a PostgreSQL custom-format dump.
 Tar/read errors, failed or empty dumps, and unreadable dump archives stop before
 installation. The database must match the canonical firstboot peer-authenticated
-`ngfw` configuration; customized database settings require manual backup review.
+`ngfw` configuration and the master key must use its canonical non-symlink path;
+customized database or master-key settings require manual backup review.
 `api.env` is checked as data and never executed. Existing authentication and keys
 are preserved; no initial users or new credentials are created.
 
@@ -85,7 +97,7 @@ cross-store snapshot. Backup restore and database migration compatibility still
 require appliance acceptance; fixtures do not prove those properties.
 
 After APT, the script restarts agent/API, checks the local loopback HTTP health
-endpoint through the SSH session, checks agent/API/nginx/VPP service activity,
+endpoint through the SSH session, checks each agent/API/nginx/VPP service individually,
 checks installed versions and unchanged IPv4/IPv6 default routes, then opens a
 fresh SSH connection. Only that final connection writes `upgrade-complete`.
 This check does not certify externally served TLS, login, dataplane forwarding,
@@ -110,6 +122,7 @@ Fixtures create real minimal Debian archives and run the actual wrapper and remo
 shell through recording SSH/APT/service seams and redirected temporary host paths.
 They test success, repeated backup preservation, failed preflight/transfers/
 backups/install/health/SSH, downgrade/dependency rejection, invalid package sets,
-cache provenance and the deployment lock. They do not access a live host, a real
+cache provenance, development version ordering, shallow-history refusal, mixed
+service states, and the private deployment lock. They do not access a live host, a real
 database, VPP, credentials or the network. The unchanged strict hosted packaging
 fixture runner discovers this suite; the complete quick gate remains required.

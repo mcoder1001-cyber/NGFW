@@ -81,6 +81,9 @@ fi
                 (root / 'stub' / name).chmod(0o755)
             for args in [['init', '-q'], ['add', '.'], ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'reviewed source']]:
                 subprocess.run(['git', '-C', str(root), *args], check=True, capture_output=True)
+            if mode == 'shallow':
+                head = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True)
+                (root / '.git/shallow').write_text(head)
             env = {**os.environ, 'PATH': str(root / 'stub') + os.pathsep + os.environ['PATH'],
                    'FIXTURE_ROOT': str(root), 'FIXTURE_MODE': mode}
             result = subprocess.run(['bash', str(driver / 'prepare.sh'), str(root / 'artifacts'), str(root / 'output')],
@@ -130,6 +133,8 @@ fi
                 self.assertEqual(cli.stat().st_mode & 0o777, 0o755)
                 self.assertIn('stage/usr/bin/ngfw usr/bin/', (driver / 'debian/ngfw-api.install').read_text().splitlines())
                 commit = subprocess.check_output(['git', '-C', str(root), 'rev-parse', '--short=12', 'HEAD'], text=True).strip()
+                count = subprocess.check_output(['git', '-C', str(root), 'rev-list', '--count', 'HEAD'], text=True).strip()
+                self.assertIn(f'(0.1.0~dev+git{count}.{commit})', (root / 'output/debian/changelog').read_text().splitlines()[0])
                 cli_commands = [command for command in go_commands if command['args'][-1] == './cmd/ngfw']
                 self.assertEqual(len(cli_commands), 1)
                 self.assertEqual(cli_commands[0]['cwd'], str(root / 'apps/cli'))
@@ -184,9 +189,16 @@ fi
             else:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse((root / 'output').exists())
-                self.assertEqual(len((root / 'commands.log').read_text().splitlines()), 1)
+                if mode == 'shallow':
+                    self.assertFalse((root / 'commands.log').exists())
+                    self.assertIn('complete Git history', result.stderr)
+                else:
+                    self.assertEqual(len((root / 'commands.log').read_text().splitlines()), 1)
                 if mode == 'dirty':
                     self.assertIn('build changed tracked source', result.stderr)
+
+    def test_shallow_history_refused_before_build_and_staging(self):
+        self.run_prepare('shallow')
 
     def test_stale_dist_rebuilt_before_staging(self):
         self.run_prepare('success')

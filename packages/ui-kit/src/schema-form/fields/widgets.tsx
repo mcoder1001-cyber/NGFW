@@ -1,4 +1,4 @@
-import Autocomplete from '@mui/material/Autocomplete';
+import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import FormHelperText from '@mui/material/FormHelperText';
@@ -251,8 +251,8 @@ export function DateTimeInput(props: PrimitiveInputProps) {
 // ─── suggestions with free text (interface-picker, timezone-picker) ───────
 
 /** Free text with suggestions: the value is whatever is typed; `options` only help (the schema validates). */
-export function SuggestInput(props: PrimitiveInputProps & { suggestions: readonly string[]; defaultHelp?: string | undefined }) {
-  const { value, onChange, onBlur, label, required, readOnly, error, helperText, suggestions, defaultHelp } = props;
+export function SuggestInput(props: PrimitiveInputProps & { suggestions: readonly string[]; defaultHelp?: string | undefined; optionLabel?: ((value: string) => string) | undefined; resolveValue?: ((value: string, selected: boolean) => string) | undefined }) {
+  const { value, onChange, onBlur, label, required, readOnly, error, helperText, suggestions, defaultHelp, optionLabel, resolveValue } = props;
   const theme = useTheme();
   const current = typeof value === 'string' ? value : '';
   return (
@@ -261,10 +261,13 @@ export function SuggestInput(props: PrimitiveInputProps & { suggestions: readonl
       autoSelect
       options={[...suggestions]}
       value={current}
+      getOptionLabel={optionLabel}
+      getOptionKey={(option) => option}
+      filterOptions={createFilterOptions({ stringify: (option: string) => `${option} ${optionLabel?.(option) ?? ''}` })}
       readOnly={readOnly}
-      onChange={(_e, v) => onChange(typeof v === 'string' && v !== '' ? v : undefined)}
+      onChange={(_e, v, reason) => onChange(typeof v === 'string' && v !== '' ? (resolveValue?.(v, reason === 'selectOption') ?? v) : undefined)}
       onInputChange={(_e, text, reason) => {
-        if (reason === 'input' || reason === 'clear') onChange(text === '' ? undefined : text);
+        if (reason === 'input' || reason === 'clear') onChange(text === '' ? undefined : (resolveValue?.(text, false) ?? text));
       }}
       onBlur={onBlur}
       renderInput={(params) => (

@@ -16,7 +16,7 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { BondMode, bondIdOf } from '@ngfw/schema';
-import { StatusChip } from '@ngfw/ui-kit';
+import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
@@ -43,7 +43,7 @@ export interface BondRow {
 
 type BondCfg = { mode?: string; loadBalance?: string; members?: Record<string, unknown> };
 
-export function toBondRow(item: BondItem): BondRow {
+export function toBondRow(item: BondItem, interfaceLabel: (name: string) => string = (name) => name): BondRow {
   const s = item.state;
   // fallback when VPP has no such bond: the candidate (a new bond) or the running configuration
   const cfg = (item.candidate ?? item.running ?? {}) as BondCfg;
@@ -54,7 +54,7 @@ export function toBondRow(item: BondItem): BondRow {
     item,
     mode: s?.mode ?? cfg.mode ?? '',
     loadBalance: s?.loadBalance ?? cfg.loadBalance ?? '',
-    members: members.join(' '),
+    members: members.map(interfaceLabel).join(' '),
     active: s ? `${s.activeMemberCount}/${s.memberCount}` : '',
     status: bondStatus(s) ?? '',
   };
@@ -91,6 +91,7 @@ const DEFAULT_MODE: BondMode = 'lacp';
 
 export function BondsPage() {
   const { t } = useTranslation(['bonding', 'interfaces']);
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const qc = useQueryClient();
   const candidate = useCandidateInterfaces();
@@ -102,9 +103,9 @@ export function BondsPage() {
   const fetchPage = useCallback(
     async (req: ServerPageRequest, signal: AbortSignal) => {
       const data = await qc.fetchQuery({ queryKey: bondKeys.state, queryFn: () => fetchBondsState(signal), staleTime: 1000 });
-      return pageOfBonds(data.items.map(toBondRow), req);
+      return pageOfBonds(data.items.map((item) => toBondRow(item, interfaceLabel)), req);
     },
-    [qc],
+    [qc, interfaceLabel],
   );
 
   const columns = useMemo<GridColDef<BondRow>[]>(
@@ -150,7 +151,7 @@ export function BondsPage() {
           if (!s) {
             return (
               <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12 }}>
-                {p.row.members}
+                {toBondRow(p.row.item, interfaceLabel).members}
               </Box>
             );
           }
@@ -161,7 +162,7 @@ export function BondsPage() {
                   key={m.interface}
                   size="small"
                   status={memberStatus(m)}
-                  label={m.lacp ? t('memberLacp', { name: m.interface, state: t(`lacp.mux.${m.lacp.muxState}`, { defaultValue: m.lacp.muxState }) }) : m.interface}
+                  label={m.lacp ? t('memberLacp', { name: interfaceLabel(m.interface), state: t(`lacp.mux.${m.lacp.muxState}`, { defaultValue: m.lacp.muxState }) }) : interfaceLabel(m.interface)}
                 />
               ))}
             </Stack>
@@ -169,7 +170,7 @@ export function BondsPage() {
         },
       },
     ],
-    [t],
+    [t, interfaceLabel],
   );
 
   const refresh = useRefreshBonds();

@@ -4,6 +4,8 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
+import { useInterfaceLabel } from '@ngfw/ui-kit';
+import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +17,7 @@ import { LocalDataGrid } from '../widgets/LocalDataGrid';
 import type { CellValue } from '../widgets/paging';
 import { CollectionDrawer } from './CollectionDrawer';
 import { ItemEditor } from './ItemEditor';
-import { isObject, keyLabel, localizeSchema, type CollectionRow, type CollectionSpec, type Json } from './model';
+import { isObject, interfaceSchema, keyLabel, localizeSchema, type CollectionRow, type CollectionSpec, type Json } from './model';
 import { rowOf, useCollection, useItemEditor, type Collection, type CollectionOptions, type ItemEditorState } from './useCollection';
 
 export interface CollectionViewProps<T = Json> {
@@ -65,6 +67,12 @@ function memberOf(row: CollectionRow<unknown>, field: string): unknown {
   return isObject(item) ? item[field] : undefined;
 }
 
+function displayValue(value: unknown, schema: JsonSchema | undefined, interfaceLabel: (name: string) => string): unknown {
+  if (typeof value === 'string' && interfaceSchema(schema)) return interfaceLabel(value);
+  if (Array.isArray(value) && interfaceSchema(schema?.items)) return value.map((item) => typeof item === 'string' ? interfaceLabel(item) : item);
+  return value;
+}
+
 function defaultValueOf(row: CollectionRow<unknown>, field: string): unknown {
   if (field === 'id') return row.label;
   if (field === 'state') return row.state ?? '';
@@ -85,6 +93,7 @@ function defaultSearch(row: CollectionRow<unknown>): string {
 export function CollectionView<T = Json>(props: CollectionViewProps<T>) {
   const { spec, label, keyHeader, addLabel, columns = NO_COLUMNS, status, toolbarEnd, searchText, valueOf, options, readOnly: ro, height = 520 } = props;
   const { t } = useTranslation('config');
+  const interfaceLabel = useInterfaceLabel();
   const perms = usePermissions();
   const readOnly = ro ?? !perms.editConfig;
   const collection = useCollection<T>(spec, options ?? {});
@@ -104,15 +113,15 @@ export function CollectionView<T = Json>(props: CollectionViewProps<T>) {
       flex: 1,
       renderCell: (p) =>
         p.row.state === 'removed' ? (
-          <IdText>{p.row.label}</IdText>
+          <IdText>{keyLabel(collection.model, p.row.id, interfaceLabel)}</IdText>
         ) : (
-          <KeyButton tabIndex={p.tabIndex} hasFocus={p.hasFocus} aria-label={t('kit.open', { key: p.row.label })} onClick={() => openItem(p.row.id)}>
-            {p.row.label}
+          <KeyButton tabIndex={p.tabIndex} hasFocus={p.hasFocus} aria-label={t('kit.open', { key: keyLabel(collection.model, p.row.id, interfaceLabel) })} onClick={() => openItem(p.row.id)}>
+            {keyLabel(collection.model, p.row.id, interfaceLabel)}
           </KeyButton>
         ),
     };
     const extra = columns.map((c) =>
-      c.renderCell || c.valueGetter ? c : { ...c, valueGetter: (_v: unknown, row: CollectionRow<T>) => memberOf(row as CollectionRow<unknown>, c.field) as never },
+      c.renderCell || c.valueGetter ? c : { ...c, valueGetter: (_v: unknown, row: CollectionRow<T>) => displayValue(memberOf(row as CollectionRow<unknown>, c.field), collection.model.itemSchema.properties?.[c.field], interfaceLabel) as never },
     );
     const statusCol: GridColDef<CollectionRow<T>>[] = status
       ? [{ field: 'liveStatus', headerName: status.header, width: status.width ?? 130, sortable: false, filterable: false, renderCell: (p) => status.render(p.row) }]
@@ -124,11 +133,15 @@ export function CollectionView<T = Json>(props: CollectionViewProps<T>) {
       renderCell: (p) => <RowStateChip state={p.row.state} />,
     };
     return [keyCol, ...extra, ...statusCol, stateCol];
-  }, [keyHeader, columns, status, t, openItem]);
+  }, [keyHeader, columns, status, t, openItem, interfaceLabel, collection.model]);
 
   const gridKey = useMemo(() => ['kit', 'collection', spec.domain, ...(spec.path ?? [])], [spec.domain, spec.path]);
-  const vo = (valueOf ?? defaultValueOf) as CellValue<CollectionRow<T>>;
-  const search = (searchText ?? defaultSearch) as (row: CollectionRow<T>) => string;
+  const vo: CellValue<CollectionRow<T>> = (row, field) => field === 'id' ? keyLabel(collection.model, row.id, interfaceLabel) : displayValue((valueOf ?? defaultValueOf)(row, field), collection.model.itemSchema.properties?.[field], interfaceLabel);
+  const search = (row: CollectionRow<T>) => [
+    (searchText ?? defaultSearch)(row),
+    keyLabel(collection.model, row.id, interfaceLabel),
+    ...Object.entries(isObject(row.value ?? row.running) ? (row.value ?? row.running) as Record<string, unknown> : {}).map(([field, value]) => displayValue(value, collection.model.itemSchema.properties?.[field], interfaceLabel)),
+  ].join(' ');
 
   return (
     <>
@@ -160,9 +173,9 @@ export function CollectionView<T = Json>(props: CollectionViewProps<T>) {
       <CollectionDrawer
         open={open !== null}
         onClose={() => setOpen(null)}
-        title={open?.id != null ? (rowOf(collection, open.id)?.label ?? keyLabel(collection.model, open.id)) : t('kit.newTitle')}
+        title={open?.id != null ? keyLabel(collection.model, open.id, interfaceLabel) : t('kit.newTitle')}
         titleIsKey={open?.id !== null}
-        label={open?.id ? props.itemLabel(rowOf(collection, open.id)?.label ?? open.id) : t('kit.newTitle')}
+        label={open?.id ? props.itemLabel(keyLabel(collection.model, open.id, interfaceLabel)) : t('kit.newTitle')}
         status={open?.id ? props.drawerStatus?.(rowOf(collection, open.id), open.id) : null}
       >
         {open && (

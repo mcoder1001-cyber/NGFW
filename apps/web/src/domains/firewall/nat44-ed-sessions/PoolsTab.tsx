@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -49,6 +50,7 @@ export function PoolUsageCell({ name, usage }: { name: string; usage: PoolUsage 
 
 /** Address pools (range or interface address) with their live utilisation from the agent (NatSummary). */
 export function PoolsTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NAT_NS);
   const summary = useNatSummary();
   const usage = summary.data?.pools ?? [];
@@ -73,7 +75,7 @@ export function PoolsTab() {
           },
           {
             label: t('col.addresses'),
-            value: (p) => str(p['range']) || str(p['interface']),
+            value: (p) => str(p['range']) || interfaceLabel(str(p['interface'])),
             ltr: true,
           },
           {
@@ -102,7 +104,7 @@ export function PoolsTab() {
               size="small"
               color="warning"
               variant="outlined"
-              label={o.range ?? o.interface ?? ''}
+              label={o.range ?? interfaceLabel(o.interface ?? '')}
             />
           ))}
         </Stack>

@@ -11,7 +11,8 @@ export type { StaticRouteConfig, VrfConfig };
 /** `vrfs.<name>` item schema — the one schema (00-CONTEXT rule 5), from the generated domain JSON Schema. */
 export function vrfItemSchema(): JsonSchema {
   const s = domainSchemas.vrfs as { additionalProperties?: JsonSchema };
-  if (!s.additionalProperties || typeof s.additionalProperties !== 'object') throw new Error('vrfs item schema not found');
+  if (!s.additionalProperties || typeof s.additionalProperties !== 'object')
+    throw new Error('vrfs item schema not found');
   return s.additionalProperties;
 }
 
@@ -42,13 +43,20 @@ export function localizeSchema(schema: JsonSchema, t: Translate, prefix = ''): J
       next[name] = {
         ...loc,
         title: t(`field.${key}.title`, { defaultValue: prop.title ?? name }),
-        'x-ngfw-ui': { ...hints, ...(help ? { help } : {}), ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}) },
+        'x-ngfw-ui': {
+          ...hints,
+          ...(help ? { help } : {}),
+          ...(typeof hints.group === 'string'
+            ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) }
+            : {}),
+        },
       } as JsonSchema;
     }
     out['properties'] = next;
   }
   const items = schema.items as JsonSchema | undefined;
-  if (items && typeof items === 'object' && !Array.isArray(items)) out['items'] = localizeSchema(items, t, prefix);
+  if (items && typeof items === 'object' && !Array.isArray(items))
+    out['items'] = localizeSchema(items, t, prefix);
   return out as JsonSchema;
 }
 
@@ -69,7 +77,8 @@ export function vrfRows(vrfs: VrfsConfig | undefined): VrfRow[] {
     description: v.description ?? '',
     sourceSelect: v.sourceSelect?.length ?? 0,
   }));
-  if (!rows.some((r) => r.name === 'default')) rows.push({ id: 'default', name: 'default', tableId: 0, description: '', sourceSelect: 0 });
+  if (!rows.some((r) => r.name === 'default'))
+    rows.push({ id: 'default', name: 'default', tableId: 0, description: '', sourceSelect: 0 });
   return rows.sort((a, b) => a.tableId - b.tableId || a.name.localeCompare(b.name));
 }
 
@@ -87,23 +96,35 @@ export interface RouteRow {
 }
 
 /** "10.2.1.2 ×3 · 10.2.1.3 ×1", "via lan", "10.2.2.2 in default", or "" for a blackhole route. */
-export function pathsText(r: Pick<StaticRouteConfig, 'nextHops'>): string {
+export function pathsText(
+  r: Pick<StaticRouteConfig, 'nextHops'>,
+  label: (name: string) => string = (name) => name,
+): string {
   const ecmp = r.nextHops.length > 1;
   return r.nextHops
     .map((h) => {
-      const where = [h.address, h.interface ? `via ${h.interface}` : '', h.vrf ? `in ${h.vrf}` : ''].filter(Boolean).join(' ');
+      const where = [
+        h.address,
+        h.interface ? `via ${label(h.interface)}` : '',
+        h.vrf ? `in ${h.vrf}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
       return ecmp ? `${where} ×${h.weight}` : where;
     })
     .join(' · ');
 }
 
-export function routeRows(routes: readonly StaticRouteConfig[] | undefined): RouteRow[] {
+export function routeRows(
+  routes: readonly StaticRouteConfig[] | undefined,
+  label: (name: string) => string = (name) => name,
+): RouteRow[] {
   return (routes ?? []).map((r, index) => ({
     id: String(index),
     index,
     vrf: r.vrf,
     prefix: r.prefix,
-    paths: r.blackhole ? '' : pathsText(r),
+    paths: r.blackhole ? '' : pathsText(r, label),
     ecmp: r.nextHops.length > 1,
     distance: r.distance,
     viaFrr: r.viaFrr === true,

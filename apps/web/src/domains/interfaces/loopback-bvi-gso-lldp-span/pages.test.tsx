@@ -226,6 +226,44 @@ describe('LLDP, mirroring and nsim screens', () => {
     },
   );
 
+  it('mirroring uses Ethernet labels while deleting the original source configuration', async () => {
+    const api = installFakeApi('operator');
+    withFeature(api);
+    api.on('GET /api/v1/config/candidate/interfaces', {
+      body: {
+        ens192: { ...ifaceDefaults, mirror: [{ destination: 'ens224', direction: 'both', level: 'device' }] },
+        ens224: { ...ifaceDefaults },
+      },
+    });
+    api.on('GET /api/v1/state/interfaces', {
+      body: {
+        items: ['ens192', 'ens224'].map((name, index) => ({
+          name,
+          kind: 'interface',
+          parent: null,
+          physical: { pci: `0000:0${index + 1}:00.0`, owner: 'dataplane', builtIn: true },
+          state: null,
+          config: null,
+          running: null,
+          counters: null,
+          hasPendingChange: false,
+        })),
+      },
+    });
+    let patched: unknown;
+    api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
+      patched = body;
+      return { body: {} };
+    });
+    await signIn();
+    render(app('/interfaces/mirroring'));
+    const table = await screen.findByRole('table', { name: 'Port mirroring' });
+    fireEvent.click(await within(table).findByRole('button', { name: 'Remove Ethernet1 → Ethernet2' }));
+    await waitFor(() => expect(patched).toEqual({ ens192: { mirror: null } }));
+    expect(within(table).queryByText('ens192')).not.toBeInTheDocument();
+    expect(within(table).queryByText('ens224')).not.toBeInTheDocument();
+  });
+
   it(
     'nsim: under Tools, marked as a lab tool; renders in Persian',
     { timeout: 30_000 },

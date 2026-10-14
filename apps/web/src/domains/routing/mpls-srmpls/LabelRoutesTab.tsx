@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Box from '@mui/material/Box';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import { useCallback, useMemo } from 'react';
@@ -27,6 +28,7 @@ type Route = MplsConfig['labelRoutes'][number];
  * editor. Lists are written back whole, in the agent's canonical order (table, label, end of stack first).
  */
 export function LabelRoutesTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const { routing, mpls, update, write } = useMpls();
   const ifNames = useInterfaceNames();
@@ -34,7 +36,7 @@ export function LabelRoutesTab() {
   const tr = useCallback((k: string, o?: Record<string, unknown>) => t(k, o ?? {}), [t]);
   const routeSchema = useMemo(() => localizeSchema(itemSchema('labelRoutes'), tr), [tr]);
   const bindSchema = useMemo(() => localizeSchema(itemSchema('ipBindings'), tr, 'binding.'), [tr]);
-  const rows = useMemo(() => labelRouteRows(mpls, tr), [mpls, tr]);
+  const rows = useMemo(() => labelRouteRows(mpls, tr, interfaceLabel), [mpls, tr, interfaceLabel]);
   const bindRows: BindingRow[] = (mpls?.ipBindings ?? []).map((b, index) => ({
     id: `${index}`,
     index,

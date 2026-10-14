@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
@@ -24,6 +25,7 @@ const ISIS_COLUMNS = ['vrf', 'systemId', 'interface', 'level', 'state'] as const
 const RIP_COLUMNS = ['address', 'badPackets', 'badRoutes', 'distance', 'lastUpdate'] as const;
 /** Observed daemon state has a separate query and never populates candidate configuration. */
 export function LiveState({ proto }: { proto: TabKey }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const query = useQuery({
     queryKey: ['state', 'isis-rip', proto],
@@ -76,7 +78,9 @@ export function LiveState({ proto }: { proto: TabKey }) {
                 <TableRow key={`${String(row['systemId'] ?? row['address'])}-${i}`}>
                   {columns.map((c) => (
                     <TableCell key={c} dir="ltr">
-                      {String(row[c] ?? t('none'))}
+                      {c === 'interface'
+                        ? interfaceLabel(String(row[c] ?? t('none')))
+                        : String(row[c] ?? t('none'))}
                     </TableCell>
                   ))}
                 </TableRow>

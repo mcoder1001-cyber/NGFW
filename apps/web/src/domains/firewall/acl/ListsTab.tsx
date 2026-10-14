@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -231,6 +232,7 @@ function Count({ value }: { value: number }) {
 }
 
 function AttachmentChips({ item }: { item: AclListItem }) {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('acl');
   const tr = useAclT();
   if (item.attachments.length === 0) {
@@ -249,7 +251,7 @@ function AttachmentChips({ item }: { item: AclListItem }) {
           variant="outlined"
           color={a.enabled ? 'default' : 'warning'}
           label={t('lists.attachment', {
-            target: `⁨${targetText(a.target, tr)}⁩`,
+            target: `⁨${targetText(a.target, tr, interfaceLabel)}⁩`,
             direction: t(`enum.direction.${a.direction}`, { defaultValue: a.direction }),
           })}
           title={a.enabled ? undefined : t('lists.attachmentDisabled')}

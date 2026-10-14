@@ -1,3 +1,4 @@
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -64,6 +65,7 @@ const PENDING = 'pending' as const;
  * `acl.macipAttachments` — VPP holds one MACIP list per interface.
  */
 export function MacipTab() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation('acl');
   const tr = useAclT();
   const fmt = useFormatters();
@@ -126,7 +128,7 @@ export function MacipTab() {
   /** VPP holds one MACIP list per interface. */
   const onePerInterface = (index: number | null) => (v: MacipAttachment) =>
     rows.some((a, i) => i !== index && a.interface === v.interface)
-      ? t('macip.onePerInterface', { interface: v.interface })
+      ? t('macip.onePerInterface', { interface: interfaceLabel(v.interface) })
       : null;
 
   return (
@@ -200,7 +202,7 @@ export function MacipTab() {
                             key={i}
                             size="small"
                             variant="outlined"
-                            label={<bdi dir="ltr">{i}</bdi>}
+                            label={<bdi dir="ltr">{interfaceLabel(i)}</bdi>}
                           />
                         ))}
                       </Stack>
@@ -314,7 +316,7 @@ export function MacipTab() {
                     </Stack>
                   </TableCell>
                   <TableCell>
-                    <Mono>{a.interface}</Mono>
+                    <Mono>{interfaceLabel(a.interface)}</Mono>
                   </TableCell>
                   <TableCell>{a.vrf ? <Mono>{a.vrf}</Mono> : null}</TableCell>
                   <TableCell>
@@ -330,7 +332,7 @@ export function MacipTab() {
                       size="small"
                       aria-label={t('macip.editAttachment', {
                         list: a.list,
-                        interface: a.interface,
+                        interface: interfaceLabel(a.interface),
                       })}
                       disabled={readOnly}
                       onClick={() => setEditing({ index: i, value: a, key: Date.now() })}
@@ -341,7 +343,7 @@ export function MacipTab() {
                       size="small"
                       aria-label={t('macip.deleteAttachment', {
                         list: a.list,
-                        interface: a.interface,
+                        interface: interfaceLabel(a.interface),
                       })}
                       disabled={readOnly}
                       onClick={() => {
@@ -418,7 +420,7 @@ export function MacipTab() {
           deleting
             ? t('macip.deleteAttachmentText', {
                 list: deleting.value.list,
-                interface: deleting.value.interface,
+                interface: interfaceLabel(deleting.value.interface),
               })
             : ''
         }

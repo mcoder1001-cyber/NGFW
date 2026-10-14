@@ -6,6 +6,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +59,7 @@ export function RecordDialog({
   onSubmit: (key: string, value: unknown) => void;
 }) {
   const { t } = useTranslation('bridge-l2');
+  const interfaceLabel = useInterfaceLabel();
   const [key, setKey] = useState(fixedKey ?? '');
   const localized = localizeDeep(schema, (k, o) => t(k, o ?? {}), localizeSchema);
   const taken = fixedKey === undefined && takenKeys.includes(key);
@@ -82,7 +84,7 @@ export function RecordDialog({
             >
               {(fixedKey !== undefined ? [fixedKey] : keyOptions).map((o) => (
                 <MenuItem key={o} value={o} dir="ltr">
-                  {o}
+                  {interfaceLabel(o)}
                 </MenuItem>
               ))}
             </TextField>

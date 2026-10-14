@@ -43,7 +43,7 @@ class Preparation(unittest.TestCase):
             shutil.copyfile(SOURCE.parents[1] / 'systemd/ngfw-agent.service', root / 'deploy/systemd/ngfw-agent.service')
             for name in ['ngfw-ra@.service', 'ngfw-ra-openfile.service', 'ngfw-ra-openfile.socket', 'ngfw-ra-targets@.service', 'ngfw-ra-targets@.socket', 'ngfw-ra-observer@.service', 'ngfw-ra-observer@.socket', 'ngfw-ra-namespace-broker.socket', 'ngfw-ra-namespace-broker@.service']:
                 shutil.copyfile(SOURCE.parents[1] / 'systemd' / name, root / 'deploy/systemd' / name)
-            for directory in ['apps/agent', 'apps/api/dist', 'apps/api/migrations', 'apps/web/dist', 'artifacts', 'stub']:
+            for directory in ['apps/agent', 'apps/cli', 'apps/api/dist', 'apps/api/migrations', 'apps/web/dist', 'artifacts', 'stub']:
                 (root / directory).mkdir(parents=True, exist_ok=True)
             (root / 'apps/api/dist/main.js').write_text('stale API')
             (root / 'apps/web/dist/index.html').write_text('stale web')
@@ -53,7 +53,7 @@ class Preparation(unittest.TestCase):
             commands = {
                 'go': '''#!/bin/bash
 set -eu
-python3 -c 'import json, os, sys; open(os.environ["FIXTURE_ROOT"] + "/go-commands.jsonl", "a").write(json.dumps({"args": sys.argv[1:], "cgo": os.environ.get("CGO_ENABLED")}) + "\\n")' "$@"
+python3 -c 'import json, os, sys; open(os.environ["FIXTURE_ROOT"] + "/go-commands.jsonl", "a").write(json.dumps({"args": sys.argv[1:], "cgo": os.environ.get("CGO_ENABLED"), "cwd": os.getcwd()}) + "\\n")' "$@"
 while [[ "$1" != -o ]]; do shift; done
 printf binary > "$2"
 chmod 755 "$2"
@@ -124,12 +124,22 @@ fi
                     if line.strip() and not line.lstrip().startswith('#')
                 }
                 go_commands = [json.loads(line) for line in (root / 'go-commands.jsonl').read_text().splitlines()]
-                self.assertEqual(len(go_commands), 7)
+                self.assertEqual(len(go_commands), 8)
+                cli = root / 'output/stage/usr/bin/ngfw'
+                self.assertEqual(cli.read_bytes(), b'binary')
+                self.assertEqual(cli.stat().st_mode & 0o777, 0o755)
+                self.assertIn('stage/usr/bin/ngfw usr/bin/', (driver / 'debian/ngfw-api.install').read_text().splitlines())
+                commit = subprocess.check_output(['git', '-C', str(root), 'rev-parse', '--short=12', 'HEAD'], text=True).strip()
+                cli_commands = [command for command in go_commands if command['args'][-1] == './cmd/ngfw']
+                self.assertEqual(len(cli_commands), 1)
+                self.assertEqual(cli_commands[0]['cwd'], str(root / 'apps/cli'))
                 for command in go_commands:
                     args = command['args']
                     self.assertEqual(command['cgo'], '0')
                     self.assertEqual(args[:2], ['build', '-trimpath'])
-                    if args[-1] in ['./cmd/ngfw-ra-daemon', './cmd/ngfw-ra-namespace-broker', './cmd/ngfw-wan-probe']:
+                    if args[-1] == './cmd/ngfw':
+                        self.assertEqual(args[2:], [f'-ldflags=-s -w -X ngfw/cli/internal/cli.Version={commit}', '-o', str(cli), './cmd/ngfw'])
+                    elif args[-1] in ['./cmd/ngfw-ra-daemon', './cmd/ngfw-ra-namespace-broker', './cmd/ngfw-wan-probe']:
                         self.assertEqual(args[2:5], ['-ldflags=-s -w', '-o', str(root / 'output/stage/usr/lib/ngfw' / args[-1].split('/')[-1])])
                     else:
                         self.assertEqual(args[2], '-o')

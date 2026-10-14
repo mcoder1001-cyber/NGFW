@@ -39,6 +39,8 @@ export interface SchemaFormProps {
   widgets?: Readonly<Record<string, WidgetComponent>> | undefined;
   /** Choices for `interface-picker`. */
   interfaceOptions?: readonly string[] | undefined;
+  /** Linux netdev choices for host-interface-picker; defaults to the shared host inventory. */
+  hostInterfaceOptions?: readonly string[] | undefined;
   /** Label override hook (property path → label); receives the per-path translation or the schema title as fallback. */
   translateLabel?: ((propPath: string, fallback: string) => string) | undefined;
   /**
@@ -84,6 +86,7 @@ export function SchemaForm({
   id,
   widgets,
   interfaceOptions,
+  hostInterfaceOptions,
   translateLabel,
   i18nPrefix,
   mode = 'onBlur',
@@ -140,10 +143,11 @@ export function SchemaForm({
       readOnly,
       widgets: widgets ?? {},
       interfaceOptions: interfaceOptions ?? [],
+      hostInterfaceOptions: hostInterfaceOptions ?? [],
       translateLabel: translateLabel ?? ((_p, fallback) => fallback),
       i18nPrefix,
     }),
-    [schema, readOnly, widgets, interfaceOptions, translateLabel, i18nPrefix],
+    [schema, readOnly, widgets, interfaceOptions, hostInterfaceOptions, translateLabel, i18nPrefix],
   );
 
   const submit = handleSubmit(async (values) => {

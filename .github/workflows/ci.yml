@@ -62,6 +62,8 @@ jobs:
           chmod +x "$NGFW_CI_TOOLS_DIR/buf"
           GOBIN="$NGFW_CI_TOOLS_DIR" go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
           GOBIN="$NGFW_CI_TOOLS_DIR" go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+      - name: Check installed-host deployment script
+        run: shellcheck --external-sources deploy/deploy-hosts.sh
       - name: Run repository gate
         shell: bash
         env:

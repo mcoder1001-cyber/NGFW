@@ -226,3 +226,185 @@ $ git status --short | wc -l
 ```
 
 Verdict: **BLOCK** (0 BLOCKER, 2 MAJOR, 7 MINOR, 6 NIT). It becomes APPROVE WITH CHANGES once #1 (renumber to D-251) and #2 (merge order recorded and both orders covered in the report and WIP) are fixed in this branch and confirmed in a verify round.
+
+## Verify round (head `873f1d946`)
+
+Verified head `873f1d946` (product tree = `856bf743a`; gated head `0b57dc070`), base `99a774734`, PR #241. Reviewer: panel R7, verify round only. This was a read-only run. Temporary files went only to `scratchpad/review-R7-verify/`, and `git status --short` at the end is 0 lines.
+
+### Verdict: APPROVE WITH CHANGES. New findings: 0 BLOCKER, 1 MAJOR (N1), 3 MINOR (N2–N4), 3 NIT (N5–N7)
+
+Round-1 status: 12 fixed, 2 partially fixed (#1, #3), 1 not fixed (#7). All three leftovers are in the GitHub PR description and are folded into N1.
+
+**Merge condition:** N1, which means publishing the PR description and checking it. Checking it is mechanical: the manager can confirm it with the `gh` command given in N1. I do not need another R7 round for it; a third round would have to go to the arbiter. N2–N7 are optional.
+
+### Round-1 findings
+
+1. **MAJOR #1 (D-250 clash): partially fixed.**
+   - Fixed in the repo:
+     - `docs/decisions/LOG.md:287` is now D-251, with 8 pipes like header line 7. Its text now says "kept rows from the projection" (chosen after R1 #1 / R4 #1), and it explains the renumbering.
+     - The report (`:166`), the WIP and the envelope say D-251.
+     - The WIP's D112 squash message (`wip.md:13`) is "… (PR #241, D-251)" and notes the `8d34740d4` subject correction.
+     - Scan over all 17 `origin/*` refs: `origin/main` = D-249 (#240), #242 = D-250, this branch = D-251, #238 = D-252 (`009f9a423`). No clash.
+   - Not fixed: the PR description still says "Options considered (decision log D-250)". See N1.
+2. **MAJOR #2 (merge order / #238 follow-up): fixed.**
+   - The manager's order #240 → #242 → #241 → #238 is in the report (`:152`, `:162`) and the WIP (`:10`).
+   - It is independently recorded on the other branches:
+     - #242: `deploy-hosts-minors-20261017-wip.md:9`, its review file `:25`, and the PR #242 body ("per the manager's merge order #240 → #242 → #241").
+     - #238: `009f9a423` `boot-nic-registration-port-wip.md:14-17` ("Merge order: #240 → #242 → #241 → #238; … the R4 debt row is closed with a pointer to #241 …").
+   - So the #238 session has the assignment in its own recovery file, and the replacement texts are in this repo at report `:153-154`.
+   - Given that decision, I do not require the reverse order to be documented. If the order is ever changed, part (ii) of round 1 applies again.
+   - One residual mismatch between the two records is N4 (MINOR).
+3. **MINOR #3: partially fixed.** The row text with "#241" is in the report (`:153`). The live PR body still has "fixed by PR #@@N@@" (N1).
+4. **MINOR #4: fixed.** `wip.md:2` gives the published checkpoint `0b57dc070` with local = remote, the status commit on top, and PR #241. It also has both gate results (`:7-8`), the next command (`:14`) and "Current failure: none".
+5. **MINOR #5: fixed.**
+   - The red block (report `:19-80`) and the green block (`:87-89`) are byte-identical to `red.log` and `green.log`; only the `$ …` command line is added.
+   - Every pasted agent-gate line is verbatim in `agent-gate-2.log`, and the elision comment's counts are right (143 `ok`, 0 FAIL).
+   - The quick-gate summary (`:119-145`) is identical to `ci-quick-2.log:88-114`.
+   - Small unmarked elision: N6.
+6. **MINOR #6: fixed.** Both gate results are pasted in the report (`:94-146`), and "running" is gone.
+7. **MINOR #7: not fixed.** The live PR body still says "Gates (pasted outputs in `docs/status/tasks/agent-allifs-unbound-nics-wip.md`)" (N1). The report's review table (`:177`) nevertheless lists "#7 PR body" as handled.
+8. **MINOR #8: fixed.** A sentence was added at `docs/user/security/global-blocking.md:27`. Its "every interface the data plane has" is too broad: N3.
+9. **MINOR #9: fixed.**
+   - `DEFERRED-ACCEPTANCE.md` has a new section "All-interfaces block lists and auto-block with unbound and released NICs — 2026-10-17" with cases (a)–(e).
+   - Its format matches the neighbouring 2026-10-07 section: heading, paragraph, closing quick-gate sentence.
+   - Both paths it cites exist.
+   - The report names it (`:156`).
+10. **NIT #10: fixed.** The squash message no longer says "fail on main", and the PR-draft heading is "fail with the pre-fix line".
+11. **NIT #11: fixed.** `wip.md:13` notes that the cited row is on the #238 branch.
+12. **NIT #12: fixed.** ens192 is unbound and ens161 released in both `global_blocking_test.go:249-250,296-297` and `physical_nics_acl_test.go:28-32`.
+13. **NIT #13: fixed.** The envelope's owned list (`:6`) now includes LOG.md (D-251), the user-doc sentence, and the DEFERRED and tech-debt rows. All 19 changed files are inside it.
+14. **NIT #14: fixed.** `wip.md:6` has the full six-test pattern. Its "six tests fail" claim is wrong: N2.
+15. **NIT #15: fixed.**
+    - Report `:3` and envelope `:2` now use links pinned to `c2f898d2b`.
+    - `c2f898d2b` is an ancestor of #238's head `009f9a423`, so it stays reachable.
+    - At that commit, `tech-debt.md:230` is the "PR #238 review R4, MAJOR" row and the R4 review file exists.
+
+### New findings
+
+**N1. MAJOR: the PR #241 description was never updated. It contradicts the head, and the status report says it was fixed.**
+- **Where:** PR #241 body; report `:177` ("#7 PR body"); also the hand-off claims for #3 and #7.
+- **Evidence:** the live body (`gh pr view 241`, headRefOid `873f1d946`) is byte-identical to the developer's first draft `scratchpad/pr-body-1.md` (11:23). None of the later drafts (`pr-body-2..5.md`, the last at 12:03) reached GitHub.
+- **What the live body still says:**
+  - "decision log D-250". That number belongs to #242 on `main` once #242 merges: the exact ambiguity of round-1 #1.
+  - The rejected first design as the chosen one ("`desired.ACL` takes the Linux netdev lookup … (chosen …)").
+  - "Tests (fail on `main` …)" with three tests.
+  - The gate on `9a63c09ce`, "`tools/ci.sh quick` on the head: **running**", and the outputs "in … `-wip.md`".
+  - The panel "In progress" without R6.
+  - "fixed by PR #@@N@@", and "The user-doc exception paragraph can then be dropped". The report (`:152`) says the opposite: "replaced (not dropped)".
+- **Scenario:** the manager merges from the PR page and reads a design, decision number and gate state that are not the branch's. If GitHub squash is used, D-250 and the stale text can also reach `main`'s history.
+- **Fix:**
+  1. Publish the corrected description. `pr-body-5.md` in the scratchpad already matches the head. Use `gh pr edit 241 --repo mcoder1001-cyber/NGFW --body-file <file>`, or, if that errors, `gh api -X PATCH repos/mcoder1001-cyber/NGFW/pulls/241 -F body=@<file>`.
+  2. Check it: `gh pr view 241 --repo mcoder1001-cyber/NGFW --json body --jq '.body|[test("@@N@@"),test("unbound-nics-wip.md"),test("decision log D-250"),test("D-251")]'` must print `[false,false,false,true]`.
+  3. Record the actual result in the WIP. Until then, change report `:177` so it no longer says "#7 PR body" is handled.
+
+**N2. MINOR: the WIP says six tests fail on red, but the pasted red output shows five.**
+- **Where:** `docs/status/tasks/agent-allifs-unbound-nics-wip.md:6` ("red with the pre-fix line put back — the six tests fail").
+- **Evidence:** `red.log` and report `:19-80` have five `--- FAIL`. `TestProjectAutoBlockOverlayAddsNoNetdevLookups` passes in the red run. That is expected: it guards the lookup count, which the one-line revert does not change. Still, the claim does not match the evidence.
+- **Fix:** "five of the six fail; `…AddsNoNetdevLookups` guards the lookup count and passes either way". Add the same note under the red block in the report.
+
+**N3. MINOR [shared with R6]: the new user-doc sentence says *All interfaces* covers more than the code does.**
+- **Where:** `docs/user/security/global-blocking.md:27`: "*All interfaces* means every interface the data plane has …".
+- **What the code does:** the target set is `sortedKeys(kept)` (`apps/agent/internal/desired/global_blocking.go:117`), which is top-level `interfaces` rows only. VLAN sub-interfaces (`desired/interfaces.go:183`) are separate VPP interfaces and are never targeted. R2 MINOR-4, R4 O-2 and this PR's own row at `docs/tech-debt.md:228` say so. That row even offers "state the limitation in … `global-blocking.md`" as its fix.
+- **Scenario:** an operator relies on *All interfaces* or auto-block on a routed VLAN sub-interface, and listed sources are forwarded there.
+- **Fix:** "every top-level interface the data plane has (VLAN sub-interfaces are not covered yet)".
+
+**N4. MINOR: the two records of the #238 hand-over disagree about the user-doc paragraph.**
+- **Where:** report `:152-154` says the exception paragraph is "replaced (not dropped …)" with R4's text, the parenthetical goes, and case (e) is reworded. `009f9a423` `boot-nic-registration-port-wip.md:16-17` (#238's own recovery file) says "the user-doc exception removed" and does not mention case (e) or the parenthetical.
+- **Scenario:** the #238 session follows its own WIP and deletes the paragraph. `main` then loses the only user text saying that explicit references to an awaiting-engine or released NIC refuse commits. R2 MINOR-3 said "Do not simply delete the #238 paragraph".
+- **Fix:** this branch cannot edit #238's files. The developer posts one comment on PR #238 pointing to report `:152-154` (link pinned to the final SHA), or the manager relays it. Record which was done in the WIP.
+
+**N5. NIT: the envelope is stale.** `agent-allifs-unbound-nics-envelope.md:8` still says the #238 texts are updated "once this PR has a number (replacement text in the PR description)". Point it to the decided order and to the report's Out-of-scope texts.
+
+**N6. NIT: the agent-gate paste has an unmarked elision.** Report `:94` says "Pasted unedited; the `ok` lines … elided as marked", but the 166 `?  … [no test files]` lines and the final `make: Leaving directory …` line are also left out without a mark. Extend the comment at `:109`.
+
+**N7. NIT: the five new tech-debt rows have no heading.** `docs/tech-debt.md:226-230` follow the "## App lazy-route navigation test occurrence — 2026-10-07" section with no heading of their own, so they render as part of it. #238 appends at the same spot the same way. Also, `:226` cites "the PR #238 row …", which is not on `main` until #238 merges. Optionally add a heading such as "## Block lists and auto-block with unbound and released NICs (PR #241) — 2026-10-17", and add "(on PR #238's branch until it merges)".
+
+**Observation (not a finding).** `gh pr checks 241` reports no checks, and the PR is `CONFLICTING`: `main` moved to `3f099b530` (#240, which adds D-249 at the same `LOG.md` spot). The WIP's plan to rebase after #242 and re-run the hosted gate covers this. D-251 stays free.
+
+### Report claims checked against the logs
+
+- **Timeline from the reflog:** `0b57dc070` was committed at 11:52:50 and pushed at 11:52:52. The red run was at 11:53:14, the agent gate ran 11:54:27–11:56:32Z, and the quick gate started 11:57:04 (wall time 5m09s). `873f1d946` was committed at 12:03:06. So nothing was committed while the gates ran, as the report says.
+- **CI log directory** `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-115704-1958055`: `ci-quick-2.log:3` shows branch `@ 0b57dc070`. `09-agent.log` has 143 `ok`, 0 FAIL, and builds with `-X main.version=0b57dc070`.
+- **Gated tree vs head:** `git diff --stat 0b57dc070 873f1d946` shows two status files only, so the product tree at the head is the gated one.
+- **Cited failure lines:** `global_blocking_test.go:266`, `:303` and `physical_nics_acl_test.go:108`, `:165`, `:226` are the failing assertions shown in the red output.
+
+### Commands run (in `/root/NGFW/.claude/worktrees/funny-meninsky-c9ef19`, read-only)
+
+```
+$ git rev-parse HEAD
+873f1d946a0c8e65f08603db4891025560bcaa66
+$ for r in <17 origin refs>; do git show "$r:docs/decisions/LOG.md" | grep -o '| D-2[5-9][0-9] |'; done
+origin/archive/deploy-hosts-minors-20261017-stacked: | D-250 |
+origin/claude/agent-allifs-unbound-nics: | D-251 |
+origin/claude/boot-nic-registration-port: | D-252 |
+origin/fix/deploy-hosts-minors-20261017: | D-250 |
+(origin/main: D-249 only, from #240)
+$ awk 'NR==7||NR==287{n=gsub(/\|/,"|"); print NR": pipes="n}' docs/decisions/LOG.md
+7: pipes=8
+287: pipes=8
+$ git show 009f9a423 -- docs/status/tasks/boot-nic-registration-port-wip.md | grep 'Merge order'
++this branch; PR #240 keeps D-249, #242 D-250, #241 D-251). Merge order: #240 → #242 → #241 → #238; the R4 agent fix lands as
++PR #241 before this branch, so the R4 debt row is closed with a pointer to #241 and the user-doc exception removed once #241 is
+$ git show origin/fix/deploy-hosts-minors-20261017:docs/status/tasks/deploy-hosts-minors-20261017-wip.md | sed -n 9p
+Decision: D-250 … (PR #241 also added a D-250; the manager ruled on 2026-10-17 that the merge order is #240 → #242 → #241, so this branch keeps D-250 and PR #241 renumbers).
+$ git merge-base --is-ancestor c2f898d2b origin/claude/boot-nic-registration-port && echo ANCESTOR-OF-238-HEAD
+ANCESTOR-OF-238-HEAD
+
+# PR description vs drafts
+$ gh pr view 241 --repo mcoder1001-cyber/NGFW --json updatedAt,headRefOid,body --jq '.updatedAt,.headRefOid,(.body|test("@@N@@")),(.body|test("D-250")),(.body|test("D-251")),(.body|test("agent-allifs-unbound-nics-wip.md")),(.body|test("\\*\\*running\\*\\*"))'
+2026-10-17T12:09:43Z
+873f1d946a0c8e65f08603db4891025560bcaa66
+true
+true
+false
+true
+true
+$ python3 -I -c '<compare live body with scratchpad pr-body*.md>'
+pr-body.md False / pr-body-1.md True / pr-body-2.md False / pr-body-3.md False / pr-body-4.md False / pr-body-5.md False
+$ gh pr view 241 --json comments → (none);  gh pr checks 241 → no checks reported on the 'claude/agent-allifs-unbound-nics' branch
+$ gh pr view 241 --json mergeable → CONFLICTING;  gh pr view 238 → OPEN 009f9a423;  gh pr view 242 → OPEN 083a7ce87 MERGEABLE
+
+# Pastes vs logs (scratchpad, read-only)
+$ diff red.log <report :18-80>      → only "0a1 > $ env -u NGFW_INTEGRATION go test …" (the command line)
+$ diff green.log <report :86-89>    → only the command line
+$ grep -E '^--- (FAIL|PASS)' red.log | wc -l → 5 FAIL (…SkipsUnboundAndReleasedNICs, …NothingBound, …OverlaySkipsUnboundAndReleasedNICs, TestAutoBlockWith…OnFake, TestAllInterfacesBlockList…OnFake)
+$ <every pasted gate line> grep -qxF agent-gate-2.log → all present
+$ awk '<lines between go test -race and END>' agent-gate-2.log | awk '{print $1}' | sort | uniq -c
+    166 ?
+    143 ok
+$ grep -E 'NGFW_TIMING|AGENT_GATE_EXIT|issues' agent-gate-2.log → 11:54:27.898 … 11:56:32.851, "0 issues.", AGENT_GATE_EXIT=0
+$ diff <(sed -n '88,114p' ci-quick-2.log) <(sed -n '119,145p' report) && echo SUMMARY-IDENTICAL
+SUMMARY-IDENTICAL
+$ grep -c '^ok' 09-agent.log ; grep -c -E '^(FAIL|--- FAIL)' 09-agent.log ; tail -3 09-agent.log
+143 / 0 / go build … -X main.version=0b57dc070 …
+$ git reflog (HEAD, origin branch): 0b57dc070 commit 11:52:50, push 11:52:52; 873f1d946 commit 12:03:06, push 12:03:09
+$ git diff --stat 0b57dc070 873f1d946
+ docs/status/tasks/agent-allifs-unbound-nics-wip.md |  19 ++-
+ docs/status/tasks/agent-allifs-unbound-nics.md     | 179 +++++++++++++++------
+$ git diff --name-only 99a774734...873f1d946 | grep -v <owned paths> → (no output)
+
+# Code facts behind N3
+$ grep -n 'allIfs = sortedKeys(kept)' apps/agent/internal/desired/global_blocking.go
+117:			allIfs = sortedKeys(kept)
+$ grep -n 'GetSubinterfaces' apps/agent/internal/desired/interfaces.go | head -1
+183:		for _, id := range sortedKeys(itf.GetSubinterfaces()) {
+
+# Targeted tests (allowed), from apps/agent
+$ env -u NGFW_INTEGRATION go test -count=1 -run '<six new tests>|TestGlobalBlocking|TestProjectPhysicalNic' ./internal/desired/ ./internal/agent/
+ok  	ngfw/agent/internal/desired	5.231s
+ok  	ngfw/agent/internal/agent	0.379s
+exit=0
+$ (six new tests, -v)
+--- PASS: TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs (0.01s)
+--- PASS: TestGlobalBlockingAllInterfacesNothingBound (0.00s)
+ok  	ngfw/agent/internal/desired	0.185s
+--- PASS: TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs (0.01s)
+--- PASS: TestProjectAutoBlockOverlayAddsNoNetdevLookups (0.00s)
+--- PASS: TestAutoBlockWithUnboundAndReleasedNICsOnFake (0.08s)
+--- PASS: TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake (0.05s)
+ok  	ngfw/agent/internal/agent	0.311s
+$ git status --short | wc -l
+0
+```
+
+Verdict: **APPROVE WITH CHANGES** (new: 0 BLOCKER, 1 MAJOR, 3 MINOR, 3 NIT; round 1: 12 fixed, 2 partially fixed, 1 not fixed, with all three leftovers folded into N1). The merge condition is N1: the PR #241 description is published to match the head, and the `gh` check above prints `[false,false,false,true]`. The manager may confirm that directly. N2–N7 are optional.

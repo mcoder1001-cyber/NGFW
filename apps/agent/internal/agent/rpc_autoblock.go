@@ -121,16 +121,17 @@ func (s *Service) reconcileAutoBlockLocked(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-// logSkippedNICsLocked logs the acl.global-blocking warnings of a runtime reconcile — the physical NICs the
-// overlay's all-interfaces list skips because they are not bound to the data plane yet — once per change of their
-// text: the reconcile returns no report (AutoBlockSetResponse carries the entry count only) and the expiry ticker
-// repeats it, so without this line a binding dropped in an acl-only transaction would leave no trace until the next
-// commit (PR #241 reviews R1 V1, R2 #1, R4 N1).
+// logSkippedNICsLocked logs the acl.global-blocking warnings of a runtime reconcile — a list on all interfaces
+// (Auto-block's own, or a user's) that skips physical NICs not bound to the data plane yet, or that has no interface
+// the engine has — once per change of their text: the reconcile returns no report (AutoBlockSetResponse carries the
+// entry count only) and the expiry ticker repeats it, so without this line a binding dropped in an acl-only
+// transaction would leave no trace until the next commit. The all-clear line is true whether the NICs were bound or
+// the lists are gone (an empty snapshot removes Auto-block's list) — PR #241 reviews R1 V1/N1, R2 #1, R4 N1, R6.
 func (s *Service) logSkippedNICsLocked(resp *ngfwv1.ApplyResponse) {
 	var msgs []string
 	for _, is := range resp.GetValidation().GetErrors() {
 		if is.GetRule() == "acl.global-blocking" && is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
-			msgs = append(msgs, is.GetMessage())
+			msgs = append(msgs, is.GetPointer()+" — "+is.GetMessage())
 		}
 	}
 	text := strings.Join(msgs, "\n")
@@ -139,10 +140,10 @@ func (s *Service) logSkippedNICsLocked(resp *ngfwv1.ApplyResponse) {
 	}
 	s.autoBlock.skipped = text
 	for _, m := range msgs {
-		s.log.Warn("auto-block: " + m)
+		s.log.Warn("block lists: " + m)
 	}
 	if len(msgs) == 0 {
-		s.log.Info("auto-block: every physical NIC is bound to the data plane again; automatic blocking covers all interfaces")
+		s.log.Info("block lists: no list on all interfaces skips a physical NIC any more")
 	}
 }
 

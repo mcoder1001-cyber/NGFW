@@ -12,6 +12,10 @@ Losing the secret key makes existing encrypted secrets unreadable.
 Upgrade the matching-version `ngfw-meta` package and its management packages
 through APT. The meta dependency pins the exact verified product VPP version.
 Maintainer scripts preserve configuration/data and do not start/restart VPP.
+`ngfw-web` has no maintainer script: after upgrading it, test the configuration
+(`nginx -t`) and reload `nginx.service`, otherwise a changed site file
+(`/etc/ngfw/nginx.conf`) stays unapplied until the next restart;
+`deploy/deploy-hosts.sh` does this after APT.
 Firstboot completion remains durable; upgrades never reseed users or regenerate
 valid keys/certificates. A pending bootstrap cleanup may still run after interruption.
 

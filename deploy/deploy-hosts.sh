@@ -9,9 +9,9 @@
 # installs, on exactly one reviewed host, a development build whose source is
 # divergent from or unresolvable against the installed build's source; it never
 # permits a rollback within one history or a stable-release downgrade.
-# --allow-no-default-route upgrades a management-only appliance that has no
-# default route. Needs python3 >= 3.11 here and on the appliance.
-# See docs/install/deploy-hosts.md for details.
+# --allow-no-default-route upgrades, on exactly one declared host, a
+# management-only appliance that has no default route. Needs python3 >= 3.11
+# here and on the appliance. See docs/install/deploy-hosts.md for details.
 set -euo pipefail
 umask 077
 export LC_ALL=C
@@ -54,17 +54,19 @@ HOSTS=("$@")
 [[ $SSH_USER =~ ^[a-z_][a-z0-9_-]*$ ]] || die 'invalid SSH user'
 # DNS names never contain underscores; an SSH configuration alias may, and it
 # then has to map to a HostName. ssh -G prints the effective configuration
-# without connecting.
+# without connecting; without a matching Host block it echoes the name
+# lowercased, so compare case-insensitively, as ssh matches Host blocks.
 configured_alias() {
   local hostname
-  hostname=$(ssh -G "${SSH_OPTS[@]}" "$SSH_USER@$1" 2>/dev/null </dev/null | sed -n 's/^hostname //p') || return 1
-  [[ -n $hostname && $hostname != "$1" ]]
+  hostname=$(ssh -G "${SSH_OPTS[@]}" "$SSH_USER@$1" </dev/null | sed -n 's/^hostname //p') || return 1
+  [[ -n $hostname && ${hostname,,} != "${1,,}" ]]
 }
 for host in "${HOSTS[@]}"; do
   [[ $host =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $host != *..* ]] || die 'invalid host; use a DNS name, IPv4 address or SSH alias (options must precede hosts)'
   [[ $host != *_* ]] || configured_alias "$host" || die "invalid host $host: underscores are valid only in an SSH configuration alias whose Host block sets HostName"
 done
 (( ! ALLOW_DIVERGENT || ${#HOSTS[@]} == 1 )) || die '--allow-divergent applies to exactly one reviewed host per run'
+(( ! ALLOW_NO_DEFAULT_ROUTE || ${#HOSTS[@]} == 1 )) || die '--allow-no-default-route applies to exactly one declared host per run'
 [[ $REF =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && $REF != *..* && $REF != */ ]] || die 'invalid origin ref'
 [[ -z $PKG_DIR || -z $WORK ]] || die '-p and -w cannot be combined'
 # verify_packages uses hashlib.file_digest (Python 3.11). The appliance's
@@ -288,10 +290,12 @@ read -r -d '' REMOTE_PREPARE <<'REMOTE' || true
 set -euo pipefail
 umask 077
 exec 3<&-
+ALLOW_NO_DEFAULT_ROUTE=$1
+[[ $ALLOW_NO_DEFAULT_ROUTE == [01] ]]
 [[ $(id -u) == 0 ]] || { echo 'target SSH user must already be root' >&2; exit 1; }
 [[ $(dpkg --print-architecture) == amd64 ]]
 for tool in apt-get python3 dpkg-deb sha256sum tar runuser pg_dump pg_restore ip curl systemctl flock nginx; do
-  command -v "$tool" >/dev/null
+  command -v "$tool" >/dev/null || { echo "missing tool on target: $tool" >&2; exit 1; }
 done
 python3 -I -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "target python3 must be >= 3.11 (hashlib.file_digest); found: $(python3 --version 2>&1)" >&2; exit 1; }
 [[ -f /var/lib/ngfw/firstboot-complete && -f /etc/ngfw/api.env ]] || { echo 'target is not an initialized appliance' >&2; exit 1; }
@@ -305,6 +309,10 @@ done
 for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
   systemctl is-active --quiet "$service"
 done
+# Refuse a host without any default route before anything is transferred; the
+# install step rechecks the routes under its lock and records the acceptance.
+routes=$(ip -4 route show default; ip -6 route show default)
+[[ $ALLOW_NO_DEFAULT_ROUTE == 1 || -n $routes ]] || { echo 'no management default route (a management-only appliance on a directly connected network needs --allow-no-default-route); nothing was transferred' >&2; exit 1; }
 echo "$installed"
 [[ ! -L /root/ngfw-deploy ]]
 if [[ -e /root/ngfw-deploy ]]; then
@@ -420,12 +428,6 @@ echo 'installing packages'
 DEBIAN_FRONTEND=noninteractive apt-get "${apt_args[@]}" "${downgrade_args[@]}" install ./ngfw-*.deb
 systemctl daemon-reload
 systemctl restart ngfw-agent.service ngfw-api.service
-# ngfw-web ships the nginx site (/etc/ngfw/nginx.conf, linked from
-# sites-enabled by firstboot) and the static assets; a changed site applies only
-# on reload. Validate first: a broken configuration stops this run while the
-# running nginx keeps its previous configuration (a bare reload would hide it).
-nginx -t -q || { echo 'nginx configuration test failed after the upgrade; nginx keeps its previous configuration' >&2; exit 1; }
-systemctl reload nginx.service
 # Restart=always keeps a crash-looping daemon briefly active; count automatic
 # restarts from the manual restart onwards and recheck after a stability window.
 restart_counts() {
@@ -441,6 +443,18 @@ restart_counts() {
   done
 }
 restarts_before=$(restart_counts)
+# ngfw-web ships the nginx site (/etc/ngfw/nginx.conf, linked from
+# sites-enabled by firstboot) and the static assets; a changed site applies only
+# on reload. Test first, as firstboot does before enabling the site. On a
+# failure the running nginx still serves the previous configuration, but the
+# new site file is already on disk and the unit's start-time test would fail on
+# the next restart or reboot, so the message names the recovery.
+if ! nginx -t > "$BACKUP/nginx-test.txt" 2>&1; then
+  cat "$BACKUP/nginx-test.txt" >&2
+  printf 'nginx configuration test failed after the upgrade (output in %s/nginx-test.txt). The running nginx still serves the previous configuration, but the new site file is on disk and nginx will not start again until it is fixed; agent/API health was not checked. Restore or fix /etc/ngfw/nginx.conf (previous copy: member etc/ngfw/nginx.conf of %s/preupgrade-config.tar.gz), then run: nginx -t && systemctl reload nginx.service\n' "$BACKUP" "$BACKUP" >&2
+  exit 1
+fi
+systemctl reload nginx.service
 healthy=0
 for ((attempt=0; attempt<30; attempt++)); do
   if curl --noproxy '*' -fsS --connect-timeout 2 --max-time 3 http://127.0.0.1:3000/api/v1/health >/dev/null 2>&1; then healthy=1; break; fi
@@ -472,9 +486,10 @@ deploy_host() {
   local host=$1 target=$SSH_USER@$1 dir backup digest preflight installed
   OVERRIDE_USED=0
   log "[$host] preflight"
-  # REMOTE_SHELL is this script's fixed launcher; the preflight takes no arguments.
+  # Expand locally: REMOTE_SHELL is this script's fixed launcher and
+  # ALLOW_NO_DEFAULT_ROUTE its own 0/1 literal, the preflight's only argument.
   # shellcheck disable=SC2029
-  preflight=$(ssh "${SSH_OPTS[@]}" "$target" "$REMOTE_SHELL" <<<"$REMOTE_PREPARE") || die "$host: preflight failed"
+  preflight=$(ssh "${SSH_OPTS[@]}" "$target" "$REMOTE_SHELL $ALLOW_NO_DEFAULT_ROUTE" <<<"$REMOTE_PREPARE") || die "$host: preflight failed"
   [[ $(wc -l <<<"$preflight") == 2 ]] || die "$host: unexpected preflight output"
   installed=${preflight%%$'\n'*}
   backup=${preflight#*$'\n'}
@@ -524,5 +539,6 @@ cp -P -- "$PKG_DIR"/* "$SNAPSHOT/"
 copied_sums=$(sha256sum "$SNAPSHOT/SHA256SUMS"); [[ ${copied_sums%% *} == "$input_sums" ]] || die 'delivery changed during snapshot'
 [[ $(verify_packages "$SNAPSHOT") == "$VERSION" ]]
 (( ALLOW_DIVERGENT )) && log 'WARNING: --allow-divergent set; a divergent or unverifiable development lineage on this host may be installed'
+(( ALLOW_NO_DEFAULT_ROUTE )) && log 'WARNING: --allow-no-default-route set; this host is upgraded even without any default route'
 for h in "${HOSTS[@]}"; do deploy_host "$h"; done
 log "deployed to: ${HOSTS[*]}"

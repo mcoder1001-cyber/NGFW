@@ -29,6 +29,8 @@ INSTALLED_VERSIONS = {
     'legacy-ancestor': '0.1.0~dev+' + 'c' * 12,
     'unresolved': '0.1.0~dev+git40.' + 'd' * 12,
     'unresolved-new': '0.1.0~dev+git40.' + 'c' * 12,
+    'fetch-resolves': '0.1.0~dev+git39.' + 'd' * 12,
+    'broken-repo': '0.1.0~dev+git40.' + 'c' * 12,
     'rollback': '0.1.0~dev+git50.' + 'e' * 12,
     'race': '0.1.0~dev+git40.' + 'c' * 12,
     'unparsed-dev': '0.1.0~dev+git40.' + 'c' * 13,
@@ -206,25 +208,34 @@ import os, pathlib, shutil, sys
 root = pathlib.Path(os.environ['FIXTURE_ROOT'])
 args = sys.argv[1:]
 with (root / 'events').open('a') as log: log.write('git ' + repr(args) + '\n')
-a, b, c, e = 'a' * 40, 'b' * 40, 'c' * 40, 'e' * 40
+a, b, c, d, e = 'a' * 40, 'b' * 40, 'c' * 40, 'd' * 40, 'e' * 40
 ancestors = {a: {a, c}, b: {b, c}, c: {c}, e: {e, a, c}}
-if '--is-shallow-repository' in args: print('true' if os.environ.get('FAIL_STAGE') == 'shallow' else 'false')
+mode = os.environ.get('FAIL_STAGE', '')
+# d becomes known (as an ancestor of a) only after a fetch in the fetch-resolves mode.
+if mode == 'fetch-resolves' and (root / 'fetched').exists():
+    ancestors[d] = {d, c}; ancestors[a].add(d)
+if '--is-shallow-repository' in args: print('true' if mode == 'shallow' else 'false')
 elif '--is-inside-work-tree' in args: print('true')
+elif 'config' in args: sys.exit(1)
 elif 'rev-parse' in args:
     target = args[-1].removesuffix('^{commit}')
     if target == 'FETCH_HEAD': print(a)
     else:
-        if os.environ.get('FAIL_STAGE') == 'unresolved-new' and target.startswith('a'): sys.exit(1)
+        if mode == 'unresolved-new' and target.startswith('a'): sys.exit(1)
         found = [commit for commit in ancestors if commit.startswith(target)]
         if len(found) != 1: sys.exit(1)
         print(found[0])
 elif 'merge-base' in args:
+    if mode == 'broken-repo': sys.exit(128)
     if '--is-ancestor' in args: sys.exit(0 if args[-2] in ancestors[args[-1]] else 1)
     common = ancestors[args[-2]] & ancestors[args[-1]]
     if not common: sys.exit(1)
     print(max(common, key=lambda commit: len(ancestors[commit])))
 elif 'rev-list' in args: print('3\t2' if '--left-right' in args else '42')
-elif 'fetch' in args: assert args[-4:] == ['--no-tags', '--no-write-fetch-head', 'origin'] or args[-1] == 'main'
+elif 'fetch' in args:
+    assert args[-4:] == ['--quiet', '--no-tags', '--no-write-fetch-head', 'origin'] or args[-1] == 'main', args
+    assert os.environ.get('GIT_TERMINAL_PROMPT') == '0' and os.environ.get('GIT_SSH_COMMAND') == 'ssh -o BatchMode=yes'
+    (root / 'fetched').write_text('yes')
 elif 'worktree' in args and 'add' in args:
     source = pathlib.Path(args[-2]); (source / 'tools').mkdir(parents=True)
     shutil.copy2(root / 'heavy.sh', source / 'tools/heavy.sh')
@@ -244,7 +255,7 @@ else: raise AssertionError(args)
 
     def reset_host(self):
         self.events.unlink(missing_ok=True)
-        for marker in [self.root / 'installed', self.root / 'staged', *self.root.glob('shown-*')]:
+        for marker in [self.root / 'installed', self.root / 'staged', self.root / 'fetched', *self.root.glob('shown-*')]:
             marker.unlink(missing_ok=True)
         shutil.rmtree(self.host / 'root/ngfw-deploy', ignore_errors=True)
 
@@ -512,6 +523,21 @@ else: raise AssertionError(args)
                 self.assertIn('lineage unverifiable', result.stderr)
                 self.assertNotIn('--allow-downgrades', self.log())
                 self.assertIn('without --allow-downgrades', (self.runs()[0] / 'override.txt').read_text())
+        # A commit that the fetch brings in resolves and installs without any override.
+        self.reset_host()
+        result = self.deploy(failure='fetch-resolves')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('fetching origin branches', result.stderr)
+        self.assertIn('installed source dddddddddddd is an ancestor of aaaaaaaaaaaa', result.stderr)
+        self.assertEqual(self.log().count("'fetch'"), 1)
+        self.assertTrue((self.root / 'installed').exists())
+        # git failing to decide ancestry is refused, not read as divergence, even with the flag.
+        self.reset_host()
+        result = self.deploy(failure='broken-repo', flags=('--allow-divergent',))
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('could not decide the ancestry', result.stderr)
+        self.assertNotIn('scp', self.log())
+        self.assertEqual(self.runs(), [])
 
     def test_inactive_preflight_service_prevents_install(self):
         for unit in ('ngfw-agent', 'nginx', 'vpp'):

@@ -137,18 +137,27 @@ resolve_commit() {
   [[ $commit =~ ^[a-f0-9]{40}$ && $commit == "$1"* ]] && printf '%s\n' "$commit"
 }
 fetch_origin_once() {
-  local error
+  local error ssh_command
   (( FETCHED )) && return 0
   FETCHED=1
   log 'source commit not in local history; fetching origin branches (no tags, no prompts, 120 s limit)'
-  if ! error=$(GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND='ssh -o BatchMode=yes' timeout 120 git -C "$REPO" fetch --quiet --no-tags --no-write-fetch-head origin 2>&1); then
+  # Keep the operator's own SSH command when one is configured.
+  ssh_command=${GIT_SSH_COMMAND:-$(git -C "$REPO" config --get core.sshCommand 2>/dev/null || true)}
+  if ! error=$(GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${ssh_command:-ssh -o BatchMode=yes}" timeout 120 git -C "$REPO" fetch --quiet --no-tags --no-write-fetch-head origin 2>&1); then
     log "fetch from origin failed; using local history only: ${error##*$'\n'}"
   fi
+}
+# 0 ancestor, 1 not an ancestor, 2 git could not decide (caller refuses).
+is_ancestor() {
+  local rc=0
+  git -C "$REPO" merge-base --is-ancestor "$1" "$2" || rc=$?
+  (( rc <= 1 )) || return 2
+  return "$rc"
 }
 # Returns 0 to proceed and 1 after logging a refusal. Sets OVERRIDE_USED when
 # this host needed the operator's --allow-divergent.
 check_lineage() {
-  local host=$1 installed=$2 new_source installed_source new_commit installed_commit base counts
+  local host=$1 installed=$2 new_source installed_source new_commit installed_commit base counts rc
   new_source=$(source_of_version "$VERSION") || true
   installed_source=$(source_of_version "$installed") || true
   if [[ -z $new_source || -z $installed_source ]]; then
@@ -163,11 +172,11 @@ check_lineage() {
     return 0
   fi
   if [[ -f $SNAPSHOT/build-info.json ]]; then
-    new_source=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$SNAPSHOT/build-info.json")
-    [[ $new_source =~ ^[a-f0-9]{40}$ ]] || die 'invalid build provenance'
+    new_source=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$SNAPSHOT/build-info.json") || new_source=
+    [[ $new_source =~ ^[a-f0-9]{40}$ ]] || { log "[$host] ERROR: invalid build provenance"; return 1; }
   fi
-  [[ $(git -C "$REPO" rev-parse --is-inside-work-tree 2>/dev/null) == true ]] || die "lineage check needs this script inside a Git checkout of the source repository ($REPO)"
-  [[ $(git -C "$REPO" rev-parse --is-shallow-repository) == false ]] || die 'lineage check requires complete Git history; shallow checkouts are refused'
+  [[ $(git -C "$REPO" rev-parse --is-inside-work-tree 2>/dev/null) == true ]] || { log "[$host] ERROR: lineage check needs this script inside a Git checkout of the source repository ($REPO)"; return 1; }
+  [[ $(git -C "$REPO" rev-parse --is-shallow-repository 2>/dev/null) == false ]] || { log "[$host] ERROR: lineage check requires complete Git history; shallow checkouts are refused"; return 1; }
   installed_commit=$(resolve_commit "$installed_source") || installed_commit=
   new_commit=$(resolve_commit "$new_source") || new_commit=
   if [[ -z $installed_commit || -z $new_commit ]]; then
@@ -176,22 +185,26 @@ check_lineage() {
     new_commit=$(resolve_commit "$new_source") || new_commit=
   fi
   if [[ -z $installed_commit || -z $new_commit ]]; then
-    [[ -n $installed_commit ]] || log "[$host] installed source $installed_source is not in $REPO (deleted branch? git -C $REPO fetch origin pull/<N>/head)"
+    [[ -n $installed_commit ]] || log "[$host] installed source $installed_source is not in $REPO (deleted branch? git -C $REPO fetch origin pull/<N>/head:refs/remotes/origin/pr/<N>)"
     [[ -n $new_commit ]] || log "[$host] new source ${new_source:0:12} is not in $REPO; fetch the ref it was built from"
     (( ALLOW_DIVERGENT )) || { log "[$host] ERROR: source lineage unverifiable; refusing (fetch the missing commit, or --allow-divergent after review)"; return 1; }
     log "[$host] WARNING: source lineage unverifiable; --allow-divergent accepted by operator"
     OVERRIDE_USED=1
     return 0
   fi
-  if git -C "$REPO" merge-base --is-ancestor "$installed_commit" "$new_commit"; then
+  is_ancestor "$installed_commit" "$new_commit" && rc=0 || rc=$?
+  if (( rc == 0 )); then
     log "[$host] installed source ${installed_commit:0:12} is an ancestor of ${new_commit:0:12}"
     return 0
   fi
-  if git -C "$REPO" merge-base --is-ancestor "$new_commit" "$installed_commit"; then
+  (( rc == 1 )) || { log "[$host] ERROR: git could not decide the ancestry of ${installed_commit:0:12} and ${new_commit:0:12}; repair the repository"; return 1; }
+  is_ancestor "$new_commit" "$installed_commit" && rc=0 || rc=$?
+  if (( rc == 0 )); then
     log "[$host] ERROR: new source ${new_commit:0:12} is older than installed ${installed_commit:0:12} in the same history; rollbacks are refused because migrations cannot be undone"
     return 1
   fi
-  base=$(git -C "$REPO" merge-base "$installed_commit" "$new_commit" 2>/dev/null) || base='none-unrelated'
+  (( rc == 1 )) || { log "[$host] ERROR: git could not decide the ancestry of ${new_commit:0:12} and ${installed_commit:0:12}; repair the repository"; return 1; }
+  base=$(git -C "$REPO" merge-base "$installed_commit" "$new_commit" 2>/dev/null) || base=none
   counts=$(git -C "$REPO" rev-list --left-right --count "$installed_commit...$new_commit" 2>/dev/null) || counts=$'?\t?'
   log "[$host] divergent histories: installed ${installed_commit:0:12}, new ${new_commit:0:12}, merge-base ${base:0:12}, commits only in installed/new: ${counts//$'\t'//}"
   log "[$host] review: git -C $REPO log --oneline ${installed_commit:0:12}..${new_commit:0:12}; git -C $REPO diff --stat ${installed_commit:0:12} ${new_commit:0:12}"

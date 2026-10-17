@@ -98,8 +98,9 @@ transfers nothing and stops the fleet:
   `git diff --stat <installed> <new>`).
 - *unresolvable*: the installed or the new source commit is not in this
   repository, for example a deleted branch. Fetch it explicitly
-  (`git fetch origin pull/<N>/head` keeps a squash-merged branch reachable) and
-  rerun. A `~dev` version that carries no recognisable commit is treated the
+  (`git fetch origin pull/<N>/head:refs/remotes/origin/pr/<N>` keeps a
+  squash-merged branch reachable and referenced) and rerun. Git being unable
+  to decide the ancestry is refused as well, never read as divergence. A `~dev` version that carries no recognisable commit is treated the
   same way rather than falling back to count ordering.
 
 Under D-112 every task branch is squashed into one new commit before merge, so
@@ -147,8 +148,9 @@ window is reported with its before/after counters even if it is momentarily
 active again; a crash later than the window is outside this check, and nginx
 and VPP are only required to be active. On any failure the service status of
 agent/API is saved to `service-status.txt` in the recovery directory. A host
-left crash-looping fails the next preflight at its service check; repair the
-unit by hand before redeploying.
+left crash-looping may still pass the next preflight's single service check
+while the unit is momentarily active; repair the unit by hand before
+redeploying rather than relying on the tool to refuse it.
 
 Default routes are compared on routing intent only: for each default route the
 type, `via` gateway (also after `inet6`), `dev`, `metric`, `src` and grouped

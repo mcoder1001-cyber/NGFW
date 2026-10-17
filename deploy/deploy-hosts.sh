@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # Build reviewed NGFW packages, or upgrade explicitly named installed appliances.
 # Usage: deploy/deploy-hosts.sh [-r REF] [-v VERIFIED_VPP_DIR] [-w NEW_WORK_DIR]
-#        [-p PACKAGE_DIR] [-b] [-u SSH_USER] [--allow-divergent] [HOST ...]
+#        [-p PACKAGE_DIR] [-b] [-u SSH_USER] [--allow-divergent]
+#        [--allow-no-default-route] [HOST ...]
 # -b builds/verifies only. -p requires a complete SHA256SUMS; never creates one.
-# Hosts are DNS names or IPv4 addresses (SSH configuration aliases are supported);
-# options must precede hosts. --allow-divergent installs, on exactly one reviewed
-# host, a development build whose source is divergent from or unresolvable against
-# the installed build's source. It never permits a rollback within one history or
-# a stable-release downgrade. See docs/install/deploy-hosts.md for details.
+# Hosts are DNS names, IPv4 addresses or SSH configuration aliases; an alias with
+# underscores must set HostName. Options must precede hosts. --allow-divergent
+# installs, on exactly one reviewed host, a development build whose source is
+# divergent from or unresolvable against the installed build's source; it never
+# permits a rollback within one history or a stable-release downgrade.
+# --allow-no-default-route upgrades a management-only appliance that has no
+# default route. Needs python3 >= 3.11 here and on the appliance.
+# See docs/install/deploy-hosts.md for details.
 set -euo pipefail
 umask 077
 export LC_ALL=C
@@ -18,12 +22,13 @@ WORK=
 PKG_DIR=
 BUILD_ONLY=0
 ALLOW_DIVERGENT=0
+ALLOW_NO_DEFAULT_ROUTE=0
 SSH_USER=root
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o StrictHostKeyChecking=yes -o ControlMaster=no -o ControlPath=none)
 SNAPSHOT=
 log() { printf '[%(%H:%M:%S)T] %s\n' -1 "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
-usage() { sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; }
 cleanup() { if [[ -n $SNAPSHOT ]]; then rm -rf -- "$SNAPSHOT"; fi; }
 trap cleanup EXIT
 while getopts ':r:v:w:p:bu:h-:' opt; do
@@ -37,6 +42,7 @@ while getopts ':r:v:w:p:bu:h-:' opt; do
     h) usage; exit 0 ;;
     -) case $OPTARG in
          allow-divergent) ALLOW_DIVERGENT=1 ;;
+         allow-no-default-route) ALLOW_NO_DEFAULT_ROUTE=1 ;;
          *) log "unknown option --$OPTARG"; usage >&2; exit 2 ;;
        esac ;;
     *) usage >&2; exit 2 ;;
@@ -46,12 +52,25 @@ shift $((OPTIND - 1))
 HOSTS=("$@")
 (( BUILD_ONLY || ${#HOSTS[@]} )) || die 'no hosts given (use -b to only build)'
 [[ $SSH_USER =~ ^[a-z_][a-z0-9_-]*$ ]] || die 'invalid SSH user'
+# DNS names never contain underscores; an SSH configuration alias may, and it
+# then has to map to a HostName. ssh -G prints the effective configuration
+# without connecting.
+configured_alias() {
+  local hostname
+  hostname=$(ssh -G "${SSH_OPTS[@]}" "$SSH_USER@$1" 2>/dev/null </dev/null | sed -n 's/^hostname //p') || return 1
+  [[ -n $hostname && $hostname != "$1" ]]
+}
 for host in "${HOSTS[@]}"; do
-  [[ $host =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ && $host != *..* ]] || die 'invalid host; use a DNS name, IPv4 address or SSH alias (options must precede hosts)'
+  [[ $host =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $host != *..* ]] || die 'invalid host; use a DNS name, IPv4 address or SSH alias (options must precede hosts)'
+  [[ $host != *_* ]] || configured_alias "$host" || die "invalid host $host: underscores are valid only in an SSH configuration alias whose Host block sets HostName"
 done
 (( ! ALLOW_DIVERGENT || ${#HOSTS[@]} == 1 )) || die '--allow-divergent applies to exactly one reviewed host per run'
 [[ $REF =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && $REF != *..* && $REF != */ ]] || die 'invalid origin ref'
 [[ -z $PKG_DIR || -z $WORK ]] || die '-p and -w cannot be combined'
+# verify_packages uses hashlib.file_digest (Python 3.11). The appliance's
+# interpreter is checked the same way in the remote preflight.
+command -v python3 >/dev/null || die 'python3 >= 3.11 is required on this machine (hashlib.file_digest)'
+python_version=$(python3 -I -c 'import sys; print("%d.%d" % sys.version_info[:2]); sys.exit(sys.version_info < (3, 11))') || die "python3 >= 3.11 is required on this machine (hashlib.file_digest); found ${python_version:-unknown}"
 
 # Shared local/remote validation: no symlinks, extra archives, mixed versions,
 # arbitrary checksum paths, unlisted bytes or package identity by filename alone.
@@ -260,14 +279,21 @@ build_packages() {
 }
 
 # Fixed code over SSH stdin; command arguments are separately restricted below.
+# The launcher moves the script pipe to descriptor 3, gives the shell and every
+# remote child /dev/null as stdin, and lets bash read the script through its own
+# copy of the pipe (/dev/fd/3). A child that reads stdin therefore gets EOF and
+# can never consume the rest of the script. Positional arguments pass through.
+REMOTE_SHELL="env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -c 'exec 3<&0 </dev/null && exec bash /dev/fd/3 \"\$@\"' ngfw-deploy"
 read -r -d '' REMOTE_PREPARE <<'REMOTE' || true
 set -euo pipefail
 umask 077
+exec 3<&-
 [[ $(id -u) == 0 ]] || { echo 'target SSH user must already be root' >&2; exit 1; }
 [[ $(dpkg --print-architecture) == amd64 ]]
-for tool in apt-get python3 dpkg-deb sha256sum tar runuser pg_dump pg_restore ip curl systemctl flock; do
+for tool in apt-get python3 dpkg-deb sha256sum tar runuser pg_dump pg_restore ip curl systemctl flock nginx; do
   command -v "$tool" >/dev/null
 done
+python3 -I -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "target python3 must be >= 3.11 (hashlib.file_digest); found: $(python3 --version 2>&1)" >&2; exit 1; }
 [[ -f /var/lib/ngfw/firstboot-complete && -f /etc/ngfw/api.env ]] || { echo 'target is not an initialized appliance' >&2; exit 1; }
 installed=
 for package in ngfw-agent ngfw-api ngfw-meta ngfw-web; do
@@ -291,9 +317,10 @@ REMOTE
 read -r -d '' REMOTE_INSTALL <<'REMOTE' || true
 set -euo pipefail
 umask 077
-DIR=$1 EXPECTED_SUMS=$2 VERSION=$3 ALLOW_DIVERGENT=$4 EXPECTED_INSTALLED=$5
+exec 3<&-
+DIR=$1 EXPECTED_SUMS=$2 VERSION=$3 ALLOW_DIVERGENT=$4 EXPECTED_INSTALLED=$5 ALLOW_NO_DEFAULT_ROUTE=$6
 BACKUP=${DIR%/packages}
-[[ $(id -u) == 0 && -d $DIR && ! -L $DIR && ! -L $BACKUP && $ALLOW_DIVERGENT == [01] ]]
+[[ $(id -u) == 0 && -d $DIR && ! -L $DIR && ! -L $BACKUP && $ALLOW_DIVERGENT == [01] && $ALLOW_NO_DEFAULT_ROUTE == [01] ]]
 [[ ${#EXPECTED_INSTALLED} -le 128 && $EXPECTED_INSTALLED =~ ^[0-9][A-Za-z0-9.+:~-]*$ ]]
 [[ ! -L /root/ngfw-deploy/upgrade.lock ]]
 if [[ -e /root/ngfw-deploy/upgrade.lock ]]; then
@@ -352,7 +379,14 @@ stable_routes() {
 }
 route_before=$(stable_routes 4)
 route6_before=$(stable_routes 6)
-[[ -n $route_before || -n $route6_before ]] || { echo 'no management default route' >&2; exit 1; }
+# A management-only appliance on a directly connected network has no default
+# route; the operator declares that with --allow-no-default-route. The
+# before/after comparison below still applies to it.
+if [[ -z $route_before && -z $route6_before ]]; then
+  [[ $ALLOW_NO_DEFAULT_ROUTE == 1 ]] || { echo 'no management default route (a management-only appliance on a directly connected network needs --allow-no-default-route)' >&2; exit 1; }
+  printf 'no default route; --allow-no-default-route accepted by operator\n' > "$BACKUP/no-default-route.txt"
+  echo 'no default route; --allow-no-default-route accepted by operator' >&2
+fi
 ip -4 route show default > "$BACKUP/default-route-v4.txt"
 ip -6 route show default > "$BACKUP/default-route-v6.txt"
 # Match the canonical firstboot peer-authenticated database; never source api.env.
@@ -386,6 +420,12 @@ echo 'installing packages'
 DEBIAN_FRONTEND=noninteractive apt-get "${apt_args[@]}" "${downgrade_args[@]}" install ./ngfw-*.deb
 systemctl daemon-reload
 systemctl restart ngfw-agent.service ngfw-api.service
+# ngfw-web ships the nginx site (/etc/ngfw/nginx.conf, linked from
+# sites-enabled by firstboot) and the static assets; a changed site applies only
+# on reload. Validate first: a broken configuration stops this run while the
+# running nginx keeps its previous configuration (a bare reload would hide it).
+nginx -t -q || { echo 'nginx configuration test failed after the upgrade; nginx keeps its previous configuration' >&2; exit 1; }
+systemctl reload nginx.service
 # Restart=always keeps a crash-looping daemon briefly active; count automatic
 # restarts from the manual restart onwards and recheck after a stability window.
 restart_counts() {
@@ -432,7 +472,9 @@ deploy_host() {
   local host=$1 target=$SSH_USER@$1 dir backup digest preflight installed
   OVERRIDE_USED=0
   log "[$host] preflight"
-  preflight=$(ssh "${SSH_OPTS[@]}" "$target" 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -s' <<<"$REMOTE_PREPARE") || die "$host: preflight failed"
+  # REMOTE_SHELL is this script's fixed launcher; the preflight takes no arguments.
+  # shellcheck disable=SC2029
+  preflight=$(ssh "${SSH_OPTS[@]}" "$target" "$REMOTE_SHELL" <<<"$REMOTE_PREPARE") || die "$host: preflight failed"
   [[ $(wc -l <<<"$preflight") == 2 ]] || die "$host: unexpected preflight output"
   installed=${preflight%%$'\n'*}
   backup=${preflight#*$'\n'}
@@ -441,27 +483,28 @@ deploy_host() {
   if ! check_lineage "$host" "$installed"; then
     # Expand locally: backup matched the fixed prefix and eight alphanumerics above.
     # shellcheck disable=SC2029
-    ssh "${SSH_OPTS[@]}" "$target" "rmdir -- $backup" || log "[$host] empty staging directory $backup left on the host"
+    ssh "${SSH_OPTS[@]}" "$target" "rmdir -- $backup" </dev/null || log "[$host] empty staging directory $backup left on the host"
     die "$host: source lineage refused; nothing was transferred"
   fi
   dir=$backup/packages
   # Expand locally: dir is the strictly validated backup path plus /packages.
   # shellcheck disable=SC2029
-  ssh "${SSH_OPTS[@]}" "$target" "mkdir -m 700 -- $dir"
+  ssh "${SSH_OPTS[@]}" "$target" "mkdir -m 700 -- $dir" </dev/null
   digest=$(sha256sum "$SNAPSHOT/SHA256SUMS"); digest=${digest%% *}
   [[ $digest =~ ^[a-f0-9]{64}$ ]] || die "$host: invalid package manifest digest"
   log "[$host] copying packages ($VERSION)"
   scp -q "${SSH_OPTS[@]}" "$SNAPSHOT"/* "$target:$dir/"
   log "[$host] installing; recovery directory: $backup"
-  # Expand locally: dir is validated above, digest is hex, verify_packages
-  # restricts VERSION and the preflight check restricts installed to a digit
-  # followed by [A-Za-z0-9.+:~-] (no shell syntax, at most 128 characters), and
-  # OVERRIDE_USED is this script's own 0/1 literal.
+  # Expand locally: REMOTE_SHELL is this script's fixed launcher, dir is
+  # validated above, digest is hex, verify_packages restricts VERSION and the
+  # preflight check restricts installed to a digit followed by [A-Za-z0-9.+:~-]
+  # (no shell syntax, at most 128 characters), and OVERRIDE_USED and
+  # ALLOW_NO_DEFAULT_ROUTE are this script's own 0/1 literals.
   # shellcheck disable=SC2029
-  { declare -f verify_packages; printf '%s\n' "$REMOTE_INSTALL"; } | ssh "${SSH_OPTS[@]}" "$target" "env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -s -- $dir $digest $VERSION $OVERRIDE_USED $installed" || die "$host: install/health failed; inspect $backup on the host"
+  { declare -f verify_packages; printf '%s\n' "$REMOTE_INSTALL"; } | ssh "${SSH_OPTS[@]}" "$target" "$REMOTE_SHELL $dir $digest $VERSION $OVERRIDE_USED $installed $ALLOW_NO_DEFAULT_ROUTE" || die "$host: install/health failed; inspect $backup on the host"
   # Expand locally: backup matched the fixed prefix and eight alphanumerics above.
   # shellcheck disable=SC2029
-  ssh "${SSH_OPTS[@]}" "$target" "umask 077; printf 'complete\n' > $backup/upgrade-complete" || die "$host: SSH lost after upgrade; inspect $backup"
+  ssh "${SSH_OPTS[@]}" "$target" "umask 077; printf 'complete\n' > $backup/upgrade-complete" </dev/null || die "$host: SSH lost after upgrade; inspect $backup"
   log "[$host] OK"
 }
 

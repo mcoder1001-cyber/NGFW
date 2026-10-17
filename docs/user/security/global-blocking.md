@@ -24,7 +24,7 @@ The box normalises every entry, removes duplicates, and folds prefixes covered b
 |---|---|
 | Enabled | A disabled list stays in the configuration but is not enforced. |
 | Source | *Uploaded file*, or *Server URL* (`url`, `refreshSec`, `verifyTls`, `caRef`, `authRef`). |
-| All interfaces / Interfaces | Where the list is enforced. *All interfaces* also covers interfaces added later. Naming an interface that does not exist is refused at commit. |
+| All interfaces / Interfaces | Where the list is enforced. *All interfaces* means every interface the data plane has, including interfaces added later; a physical NIC still awaiting the engine is covered once it is bound, and a NIC released to the host is never covered by the list (its traffic to the appliance is covered by *Protect the box*). Automatic blocking targets the same set. Naming an interface that does not exist is refused at commit. |
 | Direction | `inbound` drops packets **arriving from** a listed address; `outbound` drops packets **leaving to** one; `both` (default) does both. |
 | Protect the box | Also drops traffic from listed addresses **to the appliance itself** (SSH, web UI, API, routing sessions…), on every host interface. |
 | Log | Drops to the box are logged (`ngfw:gb:<list>` in the kernel log); data-plane drops are counted, not logged. |

@@ -64,6 +64,8 @@ export class SeedService implements OnModuleDestroy {
   private lastOutcome: SeedOutcome | undefined;
   /** Outcome + reason of the previous non-final attempt: a repeat is logged at debug and not recorded again. */
   private lastKey: string | undefined;
+  /** Reason of the last recorded `system.seed-defaults-failed` event: a failure alternating with another outcome is not re-recorded. */
+  private lastFailure: string | undefined;
   /** Current backoff delay for the outcomes in BACKED_OFF (0 = none yet). */
   private backoffMs = 0;
   /** Delay before retrying a deferred / refused registration while the agent stays connected. */
@@ -122,9 +124,14 @@ export class SeedService implements OnModuleDestroy {
       this.lastOutcome = 'deferred';
       return 'deferred' as const;
     });
+    // an attempt that overlapped another one (agent READY callback or timer during an attempt) decides nothing
+    if (outcome === 'skipped') return;
     if (!BACKED_OFF.has(outcome)) this.backoffMs = 0;
-    if (RETRIED.has(outcome) && this.started && !this.done && !this.retryTimer) {
+    if (RETRIED.has(outcome) && this.started && !this.done) {
+      // the latest outcome decides the next delay: a deferral after a long backoff is retried in `retryMs`, not after
+      // the pending long timer
       const delay = BACKED_OFF.has(outcome) ? this.nextBackoff() : this.retryMs;
+      if (this.retryTimer) clearTimeout(this.retryTimer);
       this.retryTimer = setTimeout(() => {
         this.retryTimer = undefined;
         void this.attempt();
@@ -266,25 +273,31 @@ export class SeedService implements OnModuleDestroy {
     const final =
       problem !== undefined && problem.getStatus() < 500 && FINAL_PROBLEMS.has(problem.slug);
     const reason = reasonOnly((e as Error).message);
-    const pointers = problem?.errors?.map((issue) => issue.pointer) ?? [];
+    const issues = (problem?.errors ?? [])
+      .slice(0, 20)
+      .map((issue) => ({ pointer: issue.pointer, message: reasonOnly(issue.message) }));
+    const pointers = issues.map((issue) => issue.pointer);
     const retry = final ? 'not retried before the next API start' : 'will retry';
     if (final) {
       // final before the event is recorded: a failing event store must not turn a final problem into a retry loop
       this.done = true;
       this.stop();
     }
-    const first = this.retryLog(
+    this.retryLog(
       'failed',
       `default NIC registration commit failed (${retry}): ${reason}${pointers.length > 0 ? ` (${pointers.join(', ')})` : ''}`,
     );
-    if (first)
+    const key = `${reason}|${pointers.join(',')}`;
+    if (key !== this.lastFailure) {
+      this.lastFailure = key;
       await this.events.record(
         'warning',
         'system',
         'system.seed-defaults-failed',
         `default NIC registration failed (${retry}): ${reason}`,
-        { reason, pointers, final, ...(problem ? { type: problem.slug } : {}) },
+        { reason, pointers, issues, final, ...(problem ? { type: problem.slug } : {}) },
       );
+    }
     return 'failed';
   }
 }
@@ -295,9 +308,10 @@ export function reasonOnly(note: string): string {
 }
 
 /**
- * Logical name for a NIC already bound to a DPDK driver (no netdev): systemd's predictable form of its PCI address,
- * `enp<bus>s<slot>f<function>` (decimal; `en<domain>p…` outside domain 0). undefined when it would not be a valid
- * logical name (1–15 chars, D-069).
+ * A display name for a NIC already bound to a DPDK driver (no netdev), derived from its PCI address in systemd's
+ * `enp<bus>s<slot>f<function>` style (decimal; `en<domain>p…` outside domain 0) — not necessarily the name the kernel
+ * or VPP gave it, so it is used for inventory counts and reports only, never as a registered logical name (D-249).
+ * undefined when it would not be a valid logical name (1–15 chars, D-069).
  */
 export function pciIfName(pci: string): string | undefined {
   const m = /^([0-9a-f]{4}):([0-9a-f]{2}):([0-9a-f]{2})\.([0-7])$/i.exec(pci);
@@ -357,7 +371,13 @@ export type SkipReason =
   /** the host flags a NIC as management that the configuration hands to the engine (pciWhitelist/devices) */
   | 'management-engine-owned'
   /** `dataplane.managementPci` already holds the schema maximum of 4 addresses */
-  | 'management-limit';
+  | 'management-limit'
+  /** `dataplane.pciWhitelist` already holds the schema maximum of 64 addresses */
+  | 'whitelist-limit'
+  /** a NIC already bound to a user-space driver has no saved `dataplane.devices.<pci>.name`: VPP's name for it is unknown */
+  | 'bound-unnamed'
+  /** a kernel NIC whose saved `dataplane.devices.<pci>.name` differs from its kernel name: registered once it is bound */
+  | 'name-mismatch';
 
 export interface RegistrationPlan {
   /** The running document with the missing NICs registered, or null when nothing needs adding (→ no commit). */
@@ -376,10 +396,15 @@ export interface RegistrationPlan {
  * - a NIC is identified by its PCI address (case-insensitive): a PCI that already has a physical row is never added
  *   twice, even after binding removed or renamed its kernel netdev;
  * - management NICs — flagged by the host or saved in `dataplane.managementPci` — are never registered;
- * - an existing `dataplane.devices.<pci>.name` keeps that logical name (its tuning untouched); otherwise the kernel
- *   name (or the PCI-derived name, pciIfName) is used; an invalid or reserved name is skipped;
+ * - the agent tells an unbound NIC apart from a bound one by its kernel name (SplitUnboundPhysical), and VPP names a
+ *   bound NIC after `dataplane.devices.<pci>.name`: a kernel NIC is registered under its kernel name — when its saved
+ *   device name differs it is skipped (`name-mismatch`) until the start-up configuration binds it under that name —
+ *   and a bound NIC under its saved device name — without one it is skipped (`bound-unnamed`); an invalid or reserved
+ *   name is skipped;
  * - an existing row of that name is adopted (its settings kept, the `physical` marker added) unless it is already a
- *   physical NIC, a bond or a PPPoE client;
+ *   physical NIC, a bond or a PPPoE client, or the name is the saved device name / physical row of another PCI
+ *   (`dataplane.logical-name-unique` would reject the commit — the operator renames one of them);
+ * - at most 64 whitelisted addresses (schema maximum); a 65th data NIC is reported as `whitelist-limit`;
  * - other rows, the whitelist and released NICs (owner: host) are untouched; the discovered management PCI addresses
  *   are appended to `dataplane.managementPci` only when something was registered, never when the configuration hands
  *   that PCI to the engine (`dataplane.management-not-dpdk` would reject the commit — the operator must release the
@@ -411,6 +436,11 @@ export function planRegistration(doc: Doc, nics: HostNic[]): RegistrationPlan {
   );
   const deviceKeys = new Map(Object.keys(devices).map((pci) => [pci.toLowerCase(), pci]));
   const whitelist = new Set(pciWhitelist.map((pci) => pci.toLowerCase()));
+  // logical names already claimed by a PCI (saved device names and physical rows): a NIC never takes another PCI's name
+  const claimed = new Map<string, string>();
+  for (const [pci, device] of Object.entries(devices))
+    if (device.name !== undefined) claimed.set(device.name, pci.toLowerCase());
+  for (const [pci, name] of rows) claimed.set(name, pci);
   // A management NIC the configuration hands to the engine is a conflict the operator must resolve (release it):
   // reported whenever a plan is computed (the inventory has a data NIC), whether or not anything is registered, and
   // never written into managementPci.
@@ -421,12 +451,22 @@ export function planRegistration(doc: Doc, nics: HostNic[]): RegistrationPlan {
   for (const m of engineOwnedMgmt) {
     plan.skipped.push({ name: m.name || (rows.get(m.pci.toLowerCase()) ?? ''), pci: m.pci, reason: 'management-engine-owned' });
   }
-  for (const n of data) {
+  for (const n of nics) {
+    if (n.isManagement || !n.pci) continue;
     const pci = n.pci.toLowerCase();
     if (protectedPci.has(pci) || rows.has(pci)) continue;
     const deviceKey = deviceKeys.get(pci) ?? n.pci;
     const device = devices[deviceKey];
-    const name = device?.name ?? n.name;
+    const bound = n.boundToDpdk || !n.netdev;
+    if (bound && device?.name === undefined) {
+      plan.skipped.push({ name: pciIfName(n.pci) ?? '', pci: n.pci, reason: 'bound-unnamed' });
+      continue;
+    }
+    const name = device?.name ?? n.netdev ?? '';
+    if (!bound && device?.name !== undefined && device.name !== n.netdev) {
+      plan.skipped.push({ name, pci: n.pci, reason: 'name-mismatch' });
+      continue;
+    }
     if (!logicalIfName.safeParse(name).success) {
       plan.skipped.push({ name, pci: n.pci, reason: 'invalid-name' });
       continue;
@@ -436,9 +476,15 @@ export function planRegistration(doc: Doc, nics: HostNic[]): RegistrationPlan {
       continue;
     }
     const existing = interfaces[name];
-    // never attach a second NIC to a physical row, nor reinterpret a bond or a PPPoE client as a physical port
-    if (existing?.physical || existing?.bond || existing?.pppoe) {
+    // never attach a second NIC to a physical row, reinterpret a bond or a PPPoE client as a physical port, or take a
+    // logical name another PCI's saved device already holds
+    const owner = claimed.get(name);
+    if (existing?.physical || existing?.bond || existing?.pppoe || (owner !== undefined && owner !== pci)) {
       plan.skipped.push({ name, pci: n.pci, reason: 'name-in-use' });
+      continue;
+    }
+    if (!whitelist.has(pci) && pciWhitelist.length >= 64) {
+      plan.skipped.push({ name, pci: n.pci, reason: 'whitelist-limit' });
       continue;
     }
     devices[deviceKey] = { ...device, name };
@@ -446,6 +492,7 @@ export function planRegistration(doc: Doc, nics: HostNic[]): RegistrationPlan {
       pciWhitelist.push(n.pci);
       whitelist.add(pci);
     }
+    claimed.set(name, pci);
     interfaces[name] = {
       enabled: true,
       ...existing,

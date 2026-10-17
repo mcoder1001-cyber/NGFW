@@ -22,9 +22,12 @@ confirmation defer the system commit (the commit engine's `systemCommit` rule), 
 is never overwritten and an unchanged inventory creates no revision. A commit the validators reject is final for that
 boot and recorded once as the warning event `system.seed-defaults-failed` (with its pointers); other failures and an
 empty data inventory are retried with exponential backoff (1 min → 1 h). NICs that cannot be registered — a reserved
-or invalid name, a name already used by a bond, a PPPoE client or another physical row, a management NIC the
-configuration still hands to the engine, more than four management addresses — are reported in the audit event and as
-the warning event `system.seed-defaults-skipped`, never dropped silently. Ethernet display labels are numbered over
+or invalid name, a name already used by a bond, a PPPoE client, another physical row or another PCI's saved device
+name, a kernel NIC whose saved device name differs from its kernel name (registered once the start-up configuration
+binds it), a bound NIC without a saved device name, a management NIC the configuration still hands to the engine, more
+than four management addresses or 64 whitelisted ones — are reported in the audit event and as the warning event
+`system.seed-defaults-skipped`, never dropped silently; no row is ever registered under a name the engine does not have
+(review R4 #2). Ethernet display labels are numbered over
 the PCI-sorted hardware rows (configured physical rows and host-inventory rows); registration adds configuration rows
 for PCI addresses the inventory already lists, so the labels do not move.
 
@@ -39,21 +42,27 @@ on GitHub by SHA only (no branch or tag references it); archiving the dev-host l
 Behaviour the port changes for operators: a rollback to a revision from before a NIC was registered drops its row, and
 the next API start registers the NIC again as engine-owned — a release made after that revision is not restored (the
 built-in rows used to be invariant across every revision). HA pairs must have the same PCI layout: cluster sync copies
-`/interfaces` from the primary while `/dataplane` stays node-local, so a primary NIC the backup lacks makes the sync
-fail on the backup (`dataplane.owner-consistent`) and a backup with extra NICs re-registers them at every start and
-loses them at the next sync (tracked in `docs/tech-debt.md`).
+`/interfaces` from the primary while `/dataplane` stays node-local, so any engine-owned row of the primary whose PCI the
+backup does not whitelist makes the sync fail on the backup (`dataplane.owner-consistent`); rows are re-registered at
+every start and lost at the next sync only when the primary carries none (tracked in `docs/tech-debt.md`). Review R4
+also found a pre-existing agent defect this widens — block lists on *all interfaces* and automatic blocking still target
+unbound and released physical rows (`global_blocking.go` `allIfs`) — tracked in `docs/tech-debt.md` with a proposed
+separate agent fix; the user doc states the exception.
 
 Validation (2026-10-17, port branch `claude/boot-nic-registration-port`; exact commands and outputs, SHAs and the
 complete `tools/ci.sh quick` results are pasted in `docs/status/tasks/boot-nic-registration-port-wip.md`, the review
 reports in `boot-nic-registration-port-review-R*.md`): `pnpm turbo run lint typecheck test --filter=@ngfw/api` (ESLint,
 `tsc`, Vitest) and the complete `tools/ci.sh quick` gate passed on the first checkpoint `814532721`; the second
 iteration (review findings R2/R7/R8) is gated the same way before the PR leaves draft. Unit coverage:
-`seed.service.test.ts` (25 cases: registration over an existing revision without a repeat on restart, PCI matching
-after binding or a kernel rename, released/disabled rows and device tuning preserved, bond / PPPoE / second-row /
-reserved-name / invalid-name skips reported, management NIC that the configuration hands to the engine never written
-into `managementPci`, the four-address limit, saved management PCI protected, empty-inventory retry with backoff, a
-validator-rejected commit final for the boot with one failure event, a transient failure backed off and recorded once,
-shutdown during an inventory request) and `commit.service.test.ts` (26 cases, two of them driving the system commit
+`seed.service.test.ts` (33 cases: registration over an existing revision without a repeat on restart, PCI matching
+after binding or a kernel rename (upper-case rows included), released/disabled rows and device tuning preserved, bond /
+PPPoE / second-row / reserved-name / invalid-name skips reported, a logical name never taken from another PCI's saved
+device name whatever the PCI order, a kernel NIC under a differing saved name and a bound NIC without a saved name
+skipped, management NIC that the configuration hands to the engine never written into `managementPci`, the four-address
+and 64-address limits, saved management PCI protected, every planned document passing `validateConfig`, empty-inventory
+backoff that grows and resets, a validator-rejected commit final for the API start with one failure event, 409/503
+problems and transient errors retried with backoff and recorded once, a failure alternating with an unreachable
+inventory recorded once with no peer address in the log, shutdown during an inventory request) and `commit.service.test.ts` (26 cases, two of them driving the system commit
 through real gRPC against the fake agent: registration after an operator commit and after a release; deferral while a
 candidate has edits and while a commit awaits confirmation, then registration after the confirm);
 `deploy/debian/ngfw/tests/test_packaging.py` (17 cases) checks that the appliance unit and its hardening drop-in leave

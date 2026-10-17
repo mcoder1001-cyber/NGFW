@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { HostNic } from '@ngfw/proto';
-import type { DataplaneConfig, InterfaceConfig } from '@ngfw/schema';
+import { validateConfig, type DataplaneConfig, type InterfaceConfig } from '@ngfw/schema';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadEnv } from '../../config.js';
 import { emptyDocument } from '../../datastore/documents.js';
 import type { Doc } from '../../datastore/repo.js';
+import { Logger } from '@nestjs/common';
 import { ProblemError } from '../../common/problem.js';
 import {
   isReservedIfName,
@@ -147,7 +148,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
     touched.system.hostname = 'edge1';
     const next = seedDocument(touched, NGFW_A)!;
     expect(next['system']).toEqual(touched.system);
-    expect(Object.keys(next['interfaces'] as object)).toHaveLength(7);
+    expect(Object.keys(next['interfaces'] as object)).toHaveLength(6); // the bound, unnamed NIC is skipped
     expect(touched['interfaces']).toEqual({}); // pure: the input is not mutated
     expect(
       seedDocument(
@@ -172,14 +173,15 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(systemCommit).toHaveBeenCalledTimes(1);
     expect(running.revision).toBe(5);
     expect(running.doc['system']).toEqual(doc['system']);
-    expect(Object.keys(running.doc['interfaces'] as object)).toHaveLength(7);
+    expect(Object.keys(running.doc['interfaces'] as object)).toHaveLength(6);
     expect(record).toHaveBeenCalledWith(
       'info',
       'system',
       'system.seed-defaults',
-      'registered 7 missing dataplane NIC(s) from the host inventory',
+      'registered 6 missing dataplane NIC(s) from the host inventory',
       expect.objectContaining({
         dataplane: expect.arrayContaining([{ name: 'ens161', pci: '0000:04:00.0' }]),
+        skipped: [{ name: 'enp29s0f0', pci: '0000:1d:00.0', reason: 'bound-unnamed' }],
       }),
     );
     // the next boot (a fresh service instance on the same database) finds nothing to add: no revision 6
@@ -187,7 +189,15 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(await fresh.svc.seedIfNeeded()).toBe('exists');
     expect(fresh.systemCommit).toHaveBeenCalledTimes(1);
     expect(running.revision).toBe(5);
-    expect(fresh.record).not.toHaveBeenCalled();
+    // the bound NIC without a saved name stays unregistered and is reported again at every start
+    expect(fresh.record).toHaveBeenCalledTimes(1);
+    expect(fresh.record).toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-skipped',
+      expect.stringContaining('enp29s0f0 (0000:1d:00.0): bound-unnamed'),
+      { skipped: [{ name: 'enp29s0f0', pci: '0000:1d:00.0', reason: 'bound-unnamed' }] },
+    );
   });
 
   it('adds a newly discovered NIC while preserving released and disabled physical NICs and device tuning', () => {
@@ -208,7 +218,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
       dp.devices['0000:0c:00.0'],
     );
     expect((next['dataplane'] as typeof dp).pciWhitelist).not.toContain('0000:04:00.0');
-    expect(Object.keys(next['interfaces'] as object)).toHaveLength(7);
+    expect(Object.keys(next['interfaces'] as object)).toHaveLength(6);
     expect((next['interfaces'] as Record<string, InterfaceConfig>)['ens224']).toEqual({
       enabled: true,
       physical: { pci: '0000:13:00.0', owner: 'dataplane', builtIn: true },
@@ -223,9 +233,18 @@ describe('SeedService (F-default-vpp-nics)', () => {
     const dp = doc['dataplane'] as { pciWhitelist: string[]; devices: Record<string, unknown> };
     dp.pciWhitelist = ['0000:0C:00.0'];
     dp.devices['0000:0C:00.0'] = { name: 'wan', rxQueues: 4 };
-    const next = seedDocument(doc, [
+    // while the NIC is still the kernel's ens193, a row named wan would be applied as a VPP interface that does not
+    // exist yet (the agent tells unbound NICs by their kernel name): wait for the start-up configuration to bind it
+    const kernel = planRegistration(doc, [
       nic('ens192', '0000:0b:00.0', true),
       nic('ens193', '0000:0c:00.0', false),
+    ]);
+    expect(kernel.next).toBeNull();
+    expect(kernel.skipped).toEqual([{ name: 'wan', pci: '0000:0c:00.0', reason: 'name-mismatch' }]);
+    // bound by DPDK under its saved name: adopted with every setting kept
+    const next = seedDocument(doc, [
+      nic('ens192', '0000:0b:00.0', true),
+      { ...nic('', '0000:0c:00.0', false), driver: 'vfio-pci', boundToDpdk: true },
     ])!;
     expect(next['interfaces']).toEqual({
       wan: {
@@ -262,7 +281,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(plan.added).toEqual([]);
     expect(plan.skipped).toEqual([
       { name: 'ens224', pci: '0000:13:00.0', reason: 'name-in-use' },
-      { name: 'ens193', pci: '0000:14:00.0', reason: 'name-in-use' },
+      { name: 'ens193', pci: '0000:14:00.0', reason: 'name-mismatch' }, // saved name ≠ kernel name ens225
       { name: 'loop7', pci: '0000:1b:00.0', reason: 'reserved-name' },
       { name: 'Bad-Name', pci: '0000:1c:00.0', reason: 'invalid-name' },
     ]);
@@ -328,6 +347,17 @@ describe('SeedService (F-default-vpp-nics)', () => {
     ]);
   });
 
+  it('never registers a bound NIC without a saved device name (VPP\'s name for it is unknown)', () => {
+    const plan = planRegistration(emptyDocument(), [
+      nic('ens192', '0000:0b:00.0', true),
+      { ...nic('', '0000:1d:00.0', false), driver: 'vfio-pci', boundToDpdk: true },
+      nic('ens161', '0000:04:00.0', false),
+    ]);
+    expect(plan.added).toEqual([{ name: 'ens161', pci: '0000:04:00.0' }]);
+    expect(plan.skipped).toEqual([{ name: 'enp29s0f0', pci: '0000:1d:00.0', reason: 'bound-unnamed' }]);
+    expect((plan.next!['dataplane'] as DataplaneConfig).pciWhitelist).toEqual(['0000:04:00.0']);
+  });
+
   it('matches existing NICs by PCI after binding removes or renames the kernel netdev', () => {
     const doc = seedDocument(emptyDocument(), NGFW_A)!;
     const bound = NGFW_A.map((n) =>
@@ -360,7 +390,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
     );
     expect(await svc.seedIfNeeded()).toBe('seeded');
     expect((running.doc['interfaces'] as Record<string, unknown>)['ens192']).toBeUndefined();
-    expect(Object.keys(running.doc['interfaces'] as object)).toHaveLength(7);
+    expect(Object.keys(running.doc['interfaces'] as object)).toHaveLength(6);
     expect(record).not.toHaveBeenCalledWith(
       'warning',
       'system',
@@ -368,6 +398,83 @@ describe('SeedService (F-default-vpp-nics)', () => {
       expect.any(String),
       expect.anything(),
     );
+  });
+
+  it('never takes a logical name another PCI already holds as its saved device name, whatever the PCI order', () => {
+    // an operator pre-named 0000:14:00.0 "ens193" (no row yet); the host's 0000:0c:00.0 carries the kernel name ens193
+    const doc = structuredClone(emptyDocument());
+    const dp = doc['dataplane'] as DataplaneConfig;
+    dp.pciWhitelist = ['0000:14:00.0'];
+    dp.devices['0000:14:00.0'] = { name: 'ens193' };
+    const inventory = [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens193', '0000:0c:00.0', false), // sorts first (HostNics sorts by PCI)
+      nic('ens224', '0000:13:00.0', false),
+      nic('ens225', '0000:14:00.0', false),
+    ];
+    const plan = planRegistration(doc, inventory);
+    expect(validateConfig(plan.next).ok).toBe(true);
+    expect(plan.added).toEqual([{ name: 'ens224', pci: '0000:13:00.0' }]);
+    expect(plan.skipped).toEqual([
+      { name: 'ens193', pci: '0000:0c:00.0', reason: 'name-in-use' }, // the kernel name belongs to 0000:14:00.0
+      { name: 'ens193', pci: '0000:14:00.0', reason: 'name-mismatch' }, // registered as ens193 once bound
+    ]);
+    // once 0000:14:00.0 is bound under its saved name, a row of that name without a marker is adopted for it
+    (doc['interfaces'] as Record<string, unknown>)['ens193'] = { enabled: false, mtu: 1400 };
+    inventory[3] = { ...nic('', '0000:14:00.0', false), driver: 'vfio-pci', boundToDpdk: true };
+    const adopted = planRegistration(doc, inventory);
+    expect(validateConfig(adopted.next).ok).toBe(true);
+    expect((adopted.next!['interfaces'] as Record<string, InterfaceConfig>)['ens193']).toEqual({
+      enabled: false,
+      mtu: 1400,
+      physical: { pci: '0000:14:00.0', owner: 'dataplane', builtIn: true },
+    });
+    expect(adopted.skipped).toEqual([{ name: 'ens193', pci: '0000:0c:00.0', reason: 'name-in-use' }]);
+  });
+
+  it('every planned document passes the schema and semantic validators', () => {
+    const cases: [Doc, HostNic[]][] = [
+      [emptyDocument(), NGFW_A],
+      [seedDocument(emptyDocument(), NGFW_A.slice(0, 3))!, NGFW_A],
+      [
+        seedDocument(emptyDocument(), [nic('ens192', '0000:0b:00.0', true), nic('ens161', '0000:04:00.0', false)])!,
+        [nic('ens192', '0000:0b:00.0', true), nic('ens161', '0000:04:00.0', true), nic('ens193', '0000:0c:00.0', false)],
+      ],
+    ];
+    for (const [doc, nics] of cases) {
+      const plan = planRegistration(doc, nics);
+      expect(plan.next).not.toBeNull();
+      expect(validateConfig(plan.next), JSON.stringify(plan.skipped)).toMatchObject({ ok: true });
+    }
+  });
+
+  it('never exceeds the 64 whitelisted addresses the schema allows; a PPPoE client is never adopted; rows match by PCI case-insensitively', () => {
+    const doc = structuredClone(emptyDocument());
+    const dp = doc['dataplane'] as DataplaneConfig;
+    const many: HostNic[] = [nic('ens192', '0000:0b:00.0', true)];
+    for (let i = 0; i < 64; i++) {
+      const pci = `0000:${(0x10 + i).toString(16).padStart(2, '0')}:00.0`;
+      dp.pciWhitelist.push(pci);
+      dp.devices[pci] = { name: `d${i}` };
+      (doc['interfaces'] as Record<string, unknown>)[`d${i}`] = {
+        enabled: true,
+        physical: { pci: pci.toUpperCase(), owner: 'dataplane', builtIn: true },
+      };
+      many.push(nic(`d${i}`, pci, false));
+    }
+    // the 64 registered rows carry upper-case PCI addresses: still matched, nothing added twice
+    expect(planRegistration(doc, many).next).toBeNull();
+    (doc['interfaces'] as Record<string, unknown>)['ens161'] = { enabled: true, pppoe: { parent: 'd0' } };
+    const plan = planRegistration(doc, [
+      ...many,
+      nic('ens161', '0000:04:00.0', false),
+      nic('ens193', '0000:0c:00.0', false),
+    ]);
+    expect(plan.next).toBeNull();
+    expect(plan.skipped).toEqual([
+      { name: 'ens161', pci: '0000:04:00.0', reason: 'name-in-use' },
+      { name: 'ens193', pci: '0000:0c:00.0', reason: 'whitelist-limit' },
+    ]);
   });
 
   it('reports skipped NICs in the audit event, and as a warning event when nothing could be registered', async () => {
@@ -434,6 +541,12 @@ describe('SeedService (F-default-vpp-nics)', () => {
       {
         reason: 'tier-2 validation failed',
         pointers: ['/dataplane/managementPci/1'],
+        issues: [
+          {
+            pointer: '/dataplane/managementPci/1',
+            message: 'management NIC must never be a DPDK device',
+          },
+        ],
         final: true,
         type: 'validation',
       },
@@ -450,6 +563,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
     systemCommit.mockRejectedValue(new Error('database unavailable'));
     svc.retryMs = 20;
     svc.maxRetryMs = 80;
+    onTestFinished(() => svc.stop());
     svc.start();
     await vi.waitFor(() => expect(systemCommit.mock.calls.length).toBeGreaterThanOrEqual(4), {
       timeout: 3000,
@@ -461,10 +575,9 @@ describe('SeedService (F-default-vpp-nics)', () => {
       'system',
       'system.seed-defaults-failed',
       'default NIC registration failed (will retry): database unavailable',
-      { reason: 'database unavailable', pointers: [], final: false },
+      { reason: 'database unavailable', pointers: [], issues: [], final: false },
     );
     expect(svc['done']).toBe(false);
-    svc.stop();
   });
 
   it('an agent refusal (4xx that a later attempt may pass) is not final: retried with backoff, recorded once', async () => {
@@ -482,7 +595,13 @@ describe('SeedService (F-default-vpp-nics)', () => {
       'system',
       'system.seed-defaults-failed',
       'default NIC registration failed (will retry): the agent holds a pending transaction',
-      { reason: 'the agent holds a pending transaction', pointers: [], final: false, type: 'agent-precondition' },
+      {
+        reason: 'the agent holds a pending transaction',
+        pointers: [],
+        issues: [],
+        final: false,
+        type: 'agent-precondition',
+      },
     );
   });
 
@@ -500,42 +619,112 @@ describe('SeedService (F-default-vpp-nics)', () => {
       return { nics, managementNotes: [], owner: 'w1' };
     });
     svc.retryMs = 60_000;
+    onTestFinished(() => svc.stop());
     svc.start();
     await vi.waitFor(() => expect(svc['retryTimer']).toBeDefined());
     expect(systemCommit).not.toHaveBeenCalled();
     up = true;
     ready();
     await vi.waitFor(() => expect(systemCommit).toHaveBeenCalledTimes(1));
-    svc.stop();
   });
 
   it('lifecycle: a deferred seed is retried by a bounded timer while the agent stays connected (review R1R3 #4)', async () => {
     const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
-    const { svc, systemCommit } = service(nics);
-    systemCommit
-      .mockResolvedValueOnce({
-        status: 'deferred',
-        reason: 'a commit is waiting for confirmation',
-      } as never)
-      .mockResolvedValueOnce({ status: 'applied' } as never);
+    const { svc, systemCommit, record } = service(nics);
+    systemCommit.mockImplementationOnce(async () => ({
+      status: 'deferred',
+      reason: 'a commit is waiting for confirmation',
+    }));
     svc.retryMs = 20;
+    onTestFinished(() => svc.stop());
     svc.start();
     await vi.waitFor(() => expect(systemCommit).toHaveBeenCalledTimes(2), { timeout: 2000 });
     expect(await svc.seedIfNeeded()).toBe('skipped'); // done: no third attempt
     expect(systemCommit).toHaveBeenCalledTimes(2);
-    svc.stop();
+    expect(record).toHaveBeenCalledWith(
+      'info',
+      'system',
+      'system.seed-defaults',
+      'registered 1 missing dataplane NIC(s) from the host inventory',
+      expect.objectContaining({ dataplane: [{ name: 'ens161', pci: '0000:04:00.0' }] }),
+    );
+  });
+
+  it('backs off an empty inventory, resets the backoff after another outcome, and lets the latest outcome set the delay', async () => {
+    const nics = [nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit } = service(nics);
+    svc.retryMs = 20;
+    svc.maxRetryMs = 5000;
+    onTestFinished(() => svc.stop());
+    svc.start();
+    // no-nics backs off: 20 → 40 → 80 → 160 … (the pending timer now waits at least 160 ms)
+    await vi.waitFor(() => expect(svc['backoffMs']).toBeGreaterThanOrEqual(160), { timeout: 3000 });
+    // the operator is editing when the NIC appears: that attempt is deferred — the backoff is reset and the next
+    // attempt follows in retryMs, not after the long backoff timer
+    const calls: number[] = [];
+    systemCommit.mockImplementationOnce(async () => {
+      calls.push(Date.now());
+      return { status: 'deferred', reason: 'the candidate has uncommitted changes' };
+    });
+    nics.push(nic('ens161', '0000:04:00.0', false));
+    await vi.waitFor(() => expect(svc['done']).toBe(true), { timeout: 5000 });
+    expect(systemCommit).toHaveBeenCalledTimes(2);
+    expect(svc['backoffMs']).toBe(0);
+    const [deferredAt, appliedAt] = [calls[0]!, Date.now()];
+    expect(appliedAt - deferredAt).toBeLessThan(150); // retryMs-class delay, not the ≥ 160 ms backoff
+  });
+
+  it('a 5xx problem from the commit path is transient: retried, not final', async () => {
+    const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit, record } = service(nics);
+    systemCommit.mockRejectedValueOnce(
+      new ProblemError(503, 'agent-unavailable', 'Service unavailable', 'agent not connected'),
+    );
+    expect(await svc.seedIfNeeded()).toBe('failed');
+    expect(svc['done']).toBe(false);
+    expect(record).toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-failed',
+      'default NIC registration failed (will retry): agent not connected',
+      expect.objectContaining({ final: false, type: 'agent-unavailable', issues: [] }),
+    );
+    expect(await svc.seedIfNeeded()).toBe('seeded');
+  });
+
+  it('a failure alternating with an unreachable inventory is recorded once; the log never carries a peer address', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
+    let reachable = false;
+    const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit, record } = service(nics, true, async () => {
+      if (!reachable) throw new Error('unresolved br0 (control connection from 172.30.1.9): no PCI device');
+      return { nics, managementNotes: [], owner: 'w1' };
+    });
+    systemCommit.mockRejectedValue(new Error('database unavailable'));
+    expect(await svc.seedIfNeeded()).toBe('unreachable');
+    reachable = true;
+    expect(await svc.seedIfNeeded()).toBe('failed');
+    reachable = false;
+    expect(await svc.seedIfNeeded()).toBe('unreachable');
+    reachable = true;
+    expect(await svc.seedIfNeeded()).toBe('failed');
+    expect(record).toHaveBeenCalledTimes(1);
+    const logged = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logged).toContain('control connection');
+    expect(logged).not.toContain('172.30.1.9');
   });
 
   it('retries an initially empty data inventory while the agent stays connected', async () => {
     const nics = [nic('ens192', '0000:0b:00.0', true)];
     const { svc, systemCommit } = service(nics);
     svc.retryMs = 20;
+    onTestFinished(() => svc.stop());
     svc.start();
     await vi.waitFor(() => expect(svc['retryTimer']).toBeDefined());
     expect(systemCommit).not.toHaveBeenCalled();
     nics.push(nic('ens161', '0000:04:00.0', false));
     await vi.waitFor(() => expect(systemCommit).toHaveBeenCalledTimes(1), { timeout: 2000 });
-    svc.stop();
   });
 
   it('does not recreate a retry timer when the application shuts down during an inventory request', async () => {

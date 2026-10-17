@@ -19,9 +19,13 @@ appended to the lists below and the other settings stay as they are) with:
 
 - `dataplane.managementPci` — the PCI address of the management NIC(s);
 - `dataplane.pciWhitelist` — every non-management NIC's PCI address (the NICs the engine takes over);
-- `dataplane.devices.<pci>.name` — the logical interface name: the NIC's kernel name (`ens161`), or, for a NIC that is
-  already bound to a user-space driver and has no kernel name, the predictable name of its PCI address
-  (`0000:1d:00.0` → `enp29s0f0`);
+- `dataplane.devices.<pci>.name` — the logical interface name: the NIC's kernel name (`ens161`). A NIC that is
+  already bound to a user-space driver (no kernel name) is registered under its saved `dataplane.devices.<pci>.name`,
+  the name the engine gave it; without one it is skipped (`bound-unnamed`, below) — name the device and apply the
+  start-up configuration first. A kernel NIC whose saved device name differs from its kernel name is skipped
+  (`name-mismatch`) until the start-up configuration binds it under that name: the engine tells an unbound NIC apart
+  from a bound one by its kernel name, so a row under another name would be applied as an interface the engine does
+  not have yet;
 - `interfaces.<name>` — one entry per non-management NIC, `enabled: true`, with a `physical` marker
   `{ pci, owner: "dataplane", builtIn: true }`.
 
@@ -60,9 +64,12 @@ and does so again at every API start until the cause is resolved. System events 
 |---|---|---|
 | `invalid-name` | the kernel name (or the saved `dataplane.devices.<pci>.name`) is not a valid logical name (1–15 characters `a-z0-9_-`, starting with a letter) | give the NIC a logical name: `set dataplane devices <pci> name <name>`, commit, restart the management API |
 | `reserved-name` | the name is one the engine creates itself (`local0`, `loopN`, `tapN`, `bondN`, `pppoeN`, …) | same: give the NIC another logical name |
-| `name-in-use` | an interface of that name already is a bond, a PPPoE client or another physical NIC | rename the conflicting row, or give the NIC another logical name |
+| `name-in-use` | an interface of that name already is a bond, a PPPoE client or another physical NIC, or another NIC's saved device name (`dataplane.devices.<pci>.name`) is that name | rename the conflicting row or device, or give the NIC another logical name |
 | `management-engine-owned` | the host now reaches the box through a NIC the configuration hands to the engine | **Release to host**: the engine then does not take it over at the next start-up configuration apply, and a later registration saves it in `dataplane.managementPci` |
 | `management-limit` | `dataplane.managementPci` already holds four addresses (the maximum) | remove a stale management address |
+| `whitelist-limit` | `dataplane.pciWhitelist` already holds 64 addresses (the maximum) | release NICs the engine does not need |
+| `bound-unnamed` | the NIC is bound to a user-space driver but `dataplane.devices.<pci>` has no `name` | `set dataplane devices <pci> name <name>`, commit, apply the start-up configuration, restart the management API |
+| `name-mismatch` | the saved `dataplane.devices.<pci>.name` differs from the NIC's kernel name | nothing, if the next start-up configuration apply binds the NIC under the saved name (registered then); otherwise rename the device to the kernel name |
 
 If the registration commit fails, the warning event `system.seed-defaults-failed` is recorded once per distinct reason;
 its message says whether it is retried. A rejection by the validators or a missing licence (`data.final: true`) is not
@@ -85,7 +92,10 @@ seed the host's real NICs.
 The management interface is the NIC the appliance is reached through: the NIC that carries the default route, the NIC
 an SSH session arrives on, or a NIC named explicitly (`NGFW_MGMT_IF` / `NGFW_MGMT_PCI` for the agent, `--mgmt-if` /
 `--mgmt-pci` for the start-up generator). Handing it to the engine would cut off management access, so it is always
-excluded (`dataplane.managementPci`) and stays a normal host interface.
+excluded (`dataplane.managementPci`) and stays a normal host interface. Registration appends the management NICs it
+sees to `dataplane.managementPci` and never removes an address; the start-up configuration preview and apply require
+that list to equal the host's current management NICs, so remove a stale address (an earlier management NIC) before
+applying. A registered NIC the engine already owns under that name is `enabled: true` and comes up on the next commit.
 
 **If no management NIC can be identified** (no default route and no SSH session yet — for example the first boot
 before DHCP has answered) the appliance does **not** register anything: it records the warning event
@@ -112,7 +122,9 @@ A registered NIC is only really taken over once the engine's start-up configurat
 settings and the engine restarts (a first-boot / maintenance step; registration itself binds nothing). Until then the
 NIC is still a host interface: the
 Interfaces screen shows the row as **awaiting engine**, and the agent reports a warning (`agent.nic-not-bound`), not an
-error — the commit succeeds and nothing is taken over early.
+error — the commit succeeds and nothing is taken over early. Exception (known defect, tracked in `docs/tech-debt.md`):
+a block list attached to *all interfaces* or an active automatic block entry still targets unbound and released rows,
+so with such a list or entry the commit is refused until the NICs are bound or the list is narrowed.
 
 ## Releasing a NIC to the host, and reclaiming it
 
@@ -137,9 +149,9 @@ NIC was registered drops its row, and the next API start registers the NIC again
 released to the host, release it again.
 
 **HA pairs** (configuration sync) must have the same NIC layout (PCI addresses): the sync copies the interfaces from
-the primary while the data-plane device lists stay per node. A primary NIC the backup does not have makes the sync
-fail on the backup (`dataplane.owner-consistent`: an engine-owned row missing from the backup's whitelist); a backup
-with extra NICs registers them at every API start and loses them at the next sync.
+the primary while the data-plane device lists stay per node. Any engine-owned row of the primary whose PCI address
+the backup does not whitelist makes the sync fail on the backup (`dataplane.owner-consistent`) — a different address
+for the same port included; rows are lost and re-registered at every start only when the primary carries none.
 
 ## Restoring a backup, replacement hardware, removed NICs
 
@@ -156,7 +168,8 @@ edit:
   lists, and carry over only the other settings (addresses, VRFs, descriptions …).
 - **A NIC that was physically removed** keeps its built-in row — it cannot be deleted. Release it to the host
   (`physical.owner = host`): a released row is never configured on the data plane, so the missing NIC does not make
-  commits fail. The row stays in the configuration as a record of the NIC.
+  commits fail (except through an all-interfaces block list or automatic blocking, see *Awaiting engine*). The row
+  stays in the configuration as a record of the NIC.
 
 ## CLI equivalent
 

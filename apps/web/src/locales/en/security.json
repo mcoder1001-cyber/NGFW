@@ -1,0 +1,75 @@
+{
+  "title": "Security",
+  "tabs": "Security sections",
+  "loading": "Loading…",
+  "tab": {
+    "policy": "Auto-block policy",
+    "blocked": "Blocked sources"
+  },
+  "policy": {
+    "intro": "Brute-force and port-scan detection for the box's own logins and ports. The thresholds, block times, allow-list and cap below are part of the configuration: save them to the candidate, then commit. The sources blocked right now are on the Blocked sources tab.",
+    "readOnly": "Your role cannot change the configuration.",
+    "loading": "Loading the auto-block policy",
+    "save": "Save to candidate",
+    "reset": "Reset",
+    "saved": "Saved to the candidate. Commit to apply it."
+  },
+  "field": {
+    "autoBlock": {
+      "enabled": {
+        "title": "Enabled",
+        "help": "Master switch; when off no source is auto-blocked."
+      },
+      "rules": {
+        "title": "Detectors",
+        "help": "One rule per source; a source with no rule is not watched.",
+        "itemTitle": "Detector rule",
+        "source": {
+          "title": "Detector",
+          "help": "Web login (web/API sign-in), SSH, VPN auth (IKE/EAP) or port scan (probes to the box).",
+          "enum": {
+            "webLogin": "Web login",
+            "ssh": "SSH",
+            "vpnAuth": "VPN auth",
+            "portScan": "Port scan"
+          }
+        },
+        "enabled": {
+          "title": "Enabled"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "help": "Failures (port scan: distinct ports) from one source within the window before it is blocked."
+        },
+        "windowSec": {
+          "title": "Window (seconds)",
+          "help": "The sliding window the threshold is counted over."
+        },
+        "blockSec": {
+          "title": "Block (seconds)",
+          "help": "How long a first offence is blocked."
+        },
+        "escalate": {
+          "title": "Escalate on repeat",
+          "help": "Double the block time on each repeat offence, up to the maximum block."
+        },
+        "maxBlockSec": {
+          "title": "Maximum block (seconds)",
+          "help": "The escalation cap; a single block never lasts longer than this."
+        }
+      },
+      "allowlist": {
+        "title": "Allow list",
+        "help": "Addresses and networks that are never blocked: your management networks and your own address. Loopback is always allowed.",
+        "itemTitle": "Allowed source"
+      },
+      "maxEntries": {
+        "title": "Maximum blocked entries",
+        "help": "Cap on the live auto-block set; the soonest-to-expire entry is dropped when it is reached."
+      },
+      "description": {
+        "title": "Description"
+      }
+    }
+  }
+}

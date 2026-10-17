@@ -24,7 +24,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { PageHeader } from '../../../shell/PageHeader';
 import {
   autoBlockKeys,
   useAutoBlock,
@@ -43,7 +42,11 @@ const REASON_COLOR: Record<string, 'default' | 'warning' | 'error' | 'info'> = {
   manual: 'info',
 };
 
-/** F-bruteforce-block: `/firewall/auto-block` — the live set of temporarily blocked source IPs. */
+/**
+ * F-bruteforce-block: the live set of temporarily blocked source IPs — the Blocked sources tab of the Security page
+ * (`/firewall/security?tab=blocked`; the old `/firewall/auto-block` address redirects there, F-security-page). The
+ * page's own heading is the tab, so this renders no title of its own.
+ */
 export function AutoBlockPage() {
   const { t } = useTranslation('auto-block');
   const fmt = useFormatters();
@@ -55,11 +58,9 @@ export function AutoBlockPage() {
 
   return (
     <Box>
-      <PageHeader title={t('title')}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxInlineSize: 900 }}>
-          {t('intro')}
-        </Typography>
-      </PageHeader>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxInlineSize: 900 }}>
+        {t('intro')}
+      </Typography>
 
       <Stack direction="row" gap={1} sx={{ mb: 1 }}>
         <Box sx={{ flex: 1 }} />

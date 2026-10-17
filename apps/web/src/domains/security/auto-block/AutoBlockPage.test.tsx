@@ -39,6 +39,7 @@ afterEach(async () => {
   await i18n.changeLanguage('en');
 });
 
+/** F-security-page: `/firewall/auto-block` redirects to the Blocked sources tab of the Security page; the screen itself is unchanged. */
 describe('auto-block page', () => {
   it('lists blocked sources and unblocks one', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
@@ -53,8 +54,9 @@ describe('auto-block page', () => {
     await signIn();
     render(app('/firewall/auto-block'));
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Auto-block' }, { timeout: 15_000 }),
+      await screen.findByRole('heading', { level: 2, name: 'Security' }, { timeout: 15_000 }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Blocked sources' })).toHaveAttribute('aria-selected', 'true');
     const table = await screen.findByRole('table', { name: 'Auto-block' });
     expect(within(table).getByText('203.0.113.7/32')).toBeInTheDocument();
     expect(within(table).getByText('Web login')).toBeInTheDocument();

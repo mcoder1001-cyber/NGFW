@@ -63,7 +63,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'adl',
       'host-acl', // F-host-acl-nftables (firewall group, after adl)
       'global-blocking', // F-global-blocking (firewall group, after host-acl)
-      'auto-block', // F-bruteforce-block (firewall group, after global-blocking)
+      'auto-block', // F-bruteforce-block (firewall group, after global-blocking); F-security-page: a tab link of 'security'
+      'security', // F-security-page (firewall group, schema domain after acl)
       // wave-A: P12
       // wave-A: F-nat44-ed-sessions
       // wave-A: F-object-model
@@ -184,5 +185,9 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     expect(currentNavPath(nav, '/firewall/acl', '?tab=rules&list=web-in')).toBe(
       '/firewall/policies',
     );
+    // F-security-page: the Auto-block entry is the Blocked sources tab of the Security page
+    expect(currentNavPath(nav, '/firewall/security', '?tab=blocked')).toBe('/firewall/security?tab=blocked');
+    expect(currentNavPath(nav, '/firewall/security', '?tab=policy')).toBe('/firewall/security');
+    expect(currentNavPath(nav, '/firewall/security')).toBe('/firewall/security');
   });
 });

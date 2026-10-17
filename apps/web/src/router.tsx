@@ -125,8 +125,10 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'firewall/host-acl', lazy: async () => ({ Component: (await import('./domains/firewall/host-acl-nftables/HostAclPage')).HostAclPage }) },
         // F-global-blocking (unanchored)
         { path: 'firewall/global-blocking', lazy: async () => ({ Component: (await import('./domains/security/global-blocking/GlobalBlockingPage')).GlobalBlockingPage }) },
-        // F-bruteforce-block (unanchored)
-        { path: 'firewall/auto-block', lazy: async () => ({ Component: (await import('./domains/security/auto-block/AutoBlockPage')).AutoBlockPage }) },
+        // F-bruteforce-block (unanchored); F-security-page: the blocked set lives in the Security page's Blocked sources tab, the old address redirects there
+        { path: 'firewall/auto-block', element: <Navigate to={`${domainPath('security')}?tab=blocked`} replace /> },
+        // F-security-page (unanchored)
+        { path: domainPath('security').slice(1), lazy: async () => ({ Component: (await import('./domains/security/SecurityPage')).SecurityPage }) },
         // wave-BC: F-dashboard-prom-alarms
         { path: 'system/alarms', lazy: async () => ({ Component: (await import('./domains/dashboard/dashboard-prom-alarms/AlarmsPage')).AlarmsPage }) },
         // F-multiwan (unanchored)

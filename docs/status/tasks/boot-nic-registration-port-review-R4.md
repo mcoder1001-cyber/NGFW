@@ -97,3 +97,76 @@ observed scratchpad/ci-quick-2.log: @ db5042e38 … CI GATE PASSED exit=0 (itera
 - #4: the DEFERRED-ACCEPTANCE row carries the data-plane evidence (a)–(g). #5: debt row. #6: sentence added (admin-up). #7: wording
   corrected in the user doc, the PENDING doc and the debt row. #8: docstring and doc bullet corrected. [other: R8] no-management
   keeps the documented one-minute retry (operator action pending; one DB read + one read-only HostNics call per minute).
+
+---
+
+## Verify round (head `9574d997a`, fix commits `5fa3c01e4`, `9574d997a`) — reviewer text, saved unedited by the developer
+
+Reviewed by R4 (Opus 5.5, read-only, no files modified). Base `origin/main` = `99a774734` (merge-base confirmed). The branch
+still touches nothing under `apps/agent`, `deploy/vpp`, `tools`, `test` or `.github`; no binding, no `startup.conf` write, no
+VPP call, no shell-out.
+
+1. **#1 MAJOR (pre-existing agent defect): partially fixed.** The debt row (`docs/tech-debt.md:230`) is specific enough — file:line,
+   trigger, effect, fix, projection test, owner manager, Due 2026-10-31; once the manager confirms it ("proposed" dropped) it counts
+   as accepted debt. Suggested addition: "and new automatic blocks are not enforced on any interface (`rpc_autoblock.go:111-114`
+   returns Unavailable)". The PENDING note (`:47-50`) is acceptable. The user-doc exception (`default-dataplane-nics.md:125-127`) is
+   still wrong in two ways: (a) "refused until the NICs are bound or the list is narrowed" does not work for released rows or for
+   auto-block (a released/removed NIC never binds; the auto-block list always targets all interfaces); (b) it leaves out the security
+   effect (new auto-block entries are not enforced, `service.go:1385-1389`, `rpc_autoblock.go:111-114`). Fix (doc only): "Exception
+   (known agent defect, tracked in `docs/tech-debt.md`): a block list attached to *all interfaces*, and automatic blocking whenever it
+   holds active entries, also target unbound and released rows. While such a list is enabled or such entries exist, every commit
+   touching interfaces or security — registration included — is refused, and new automatic blocks are not enforced on any interface.
+   Binding the NICs (start-up configuration apply) clears it for unbound rows; a released or removed NIC never binds, so select the
+   block list's interfaces explicitly instead of *all interfaces*; automatic blocking stays affected until the agent fix lands."
+2. **#2 MINOR: fixed in code; the rollback sentence only partially.** `seed.service.ts:460-469` skips `bound-unnamed` and
+   `name-mismatch`; checked against `desired/hostnics.go:30-33`: a kernel NIC registered under its kernel name → warning only; a
+   bound NIC under `devices.<pci>.name` = the generator's `dev <pci> { name … }` (`vppstartup/model.go:593`,
+   `templates/startup.conf.tmpl:93`) → the alias exists. Tests `:230`, `:350`, `:403`; golden without `enp29s0f0`. Residual, fails
+   closed: a bound NIC whose saved name has not yet reached the installed `startup.conf` (reboot between commit and start-up apply)
+   → alias not found → reverted → retried with backoff until the apply (roughly covered by the #2 debt row). Rollback sentence
+   (`:146-149`, `PENDING:42-43`): "registers the NIC again as engine-owned" holds only for a NIC still in the kernel; a NIC bound
+   since lost its `devices.<pci>.name` in the rollback and is skipped as `bound-unnamed` — say so and give the remedy.
+3. **#3 MINOR: fixed** (`default-dataplane-nics.md:95-98` matches `vppstartup/model.go:529-537`; DEFERRED case (c) present).
+4. **#4 MINOR: fixed** (`DEFERRED-ACCEPTANCE.md:81`, evidence (a)–(g); (e) correctly worded as the target state).
+5. **#5 MINOR: fixed as debt** (`tech-debt.md:232`; proposed owner/date acceptable for a MINOR).
+6. **#6 NIT: fixed** (`:98`); optional: the NIC comes up with the registration revision itself, not "on the next commit".
+7. **#7 NIT: fixed** (user doc `:151-154`, `PENDING:44-47`, HA debt row).
+8. **#8 NIT: fixed** (`pciIfName` docstring `:310-315`, doc bullet `:22-28`); leftover: the `dataNics` docstring `:329`.
+
+### New finding
+9. **NEW MINOR: a bound NIC can be registered (or an existing working row adopted) under a saved name that another host NIC still
+   holds as its kernel name; the agent then drops the row as "unbound".** `seed.service.ts:460-485`, test `:418-432` (its own second
+   half): `0000:14:00.0` bound under its saved name `ens193` while the kernel NIC `0000:0c:00.0` is still `ens193` → the plan adopts
+   the row for `14`; the agent's `lookup("ens193")` finds the unrelated kernel NIC (no rtnetlink kind) → treats the row as unbound,
+   drops it, reports `agent.nic-not-bound`; before registration the same row (no marker) was projected as an alias to VPP's `ens193`.
+   Effect: with nothing depending on the row the commit succeeds and the interface loses its projected settings at API start (fails
+   open); with dependants the plan fails and registration of every other NIC is retried with backoff (fails closed). Needs a name
+   collision (`net.ifnames=0` renumbering after binding, custom udev names, an operator naming a device after another NIC's kernel
+   name). Fix: in `planRegistration`, for a bound NIC skip `name-in-use` when any inventory NIC of another PCI (management included)
+   has `netdev === name`; change the test; add the collision case and non-PCI kernel netdevs (USB) to the #2 debt row.
+
+### Commands run
+```
+$ git diff --name-only origin/main...HEAD -- apps/agent deploy/vpp tools test .github → (empty)
+$ git merge-base origin/main HEAD → 99a774734e2cf455f71563ff0dba5afb58051685
+$ git diff db5042e38..HEAD -- 'apps/**' 'deploy/**' | grep '^+' | grep -nE 'child_process|execFile|spawn\(|vppctl|cli_inband|systemctl|startup\.conf|apply-startup|/sys/bus|writeFile|unlink|restart' → (no match)
+$ grep -rn "driver_override\|drivers_probe\|/unbind\|new_id" apps/api/src | grep -v '\.test\.' → (no match)
+$ pnpm --filter @ngfw/api exec vitest run src/features/default-vpp-nics → ✓ seed.service.test.ts (33 tests) · Tests 34 passed (34)
+$ tools/ci.sh check --base origin/main → check PASSED (0m10s)
+$ (apps/agent) env -u NGFW_INTEGRATION go test -count=1 -v -run PhysicalNic ./internal/agent/ → PASS ×6 (AwaitingDataplane, BoundProjectsNormally, NoLookupProjectsNormally, LcpTapIsNotUnbound, UnboundHasNoLcpPair, ReleasedToHost)
+$ grep -nE "PASSED|FAILED|^== " scratchpad/ci-quick-4.log | tail -1 → 45:== lint · typecheck · unit tests · build (turbo) ==  (still running; no result claimed)
+```
+
+### Verdict: BLOCK → APPROVE WITH CHANGES once (1) the manager accepts the #1 row `docs/tech-debt.md:230` (owner and date confirmed,
+"proposed" removed) and (2) the *Awaiting engine* exception is reworded as given under #1. #2 rollback sentence (MINOR), new #9
+(MINOR; one-line planner guard recommended in this branch) and NITs #6, #8 do not block.
+
+### Developer answers (iteration 5)
+- (2) done verbatim; (1) is the manager's decision — the row stays marked "proposed" until the manager confirms owner and date; the
+  PR body flags it as the open merge condition. The suggested addition to the row ("new automatic blocks are not enforced on any
+  interface") is included.
+- #2 rollback sentence: fixed in the user doc and the PENDING doc (bound-since NIC → `bound-unnamed`, remedy given).
+- #9: fixed — `planRegistration` also treats a name any inventory NIC of another PCI currently carries as its kernel name as
+  `name-in-use` (bound and kernel NICs alike); the test now expects the clash to register neither NIC and the adoption only once the
+  kernel NIC carries another name; the #2 debt row lists the collision and non-PCI kernel netdevs (USB).
+- #6: wording fixed ("comes up with the registration revision itself"). #8: `dataNics` docstring fixed.

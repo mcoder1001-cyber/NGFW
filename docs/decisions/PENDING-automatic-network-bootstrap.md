@@ -40,8 +40,9 @@ startup-configuration application or routing TAP activation; those boot operatio
 on GitHub by SHA only (no branch or tag references it); archiving the dev-host lineage is the owner's call.
 
 Behaviour the port changes for operators: a rollback to a revision from before a NIC was registered drops its row, and
-the next API start registers the NIC again as engine-owned — a release made after that revision is not restored (the
-built-in rows used to be invariant across every revision). HA pairs must have the same PCI layout: cluster sync copies
+the next API start registers the NIC again as engine-owned if it is still a kernel NIC — a release made after that
+revision is not restored (the built-in rows used to be invariant across every revision); a NIC bound since is skipped as
+`bound-unnamed` until its device name is set again. HA pairs must have the same PCI layout: cluster sync copies
 `/interfaces` from the primary while `/dataplane` stays node-local, so any engine-owned row of the primary whose PCI the
 backup does not whitelist makes the sync fail on the backup (`dataplane.owner-consistent`); rows are re-registered at
 every start and lost at the next sync only when the primary carries none (tracked in `docs/tech-debt.md`). Review R4

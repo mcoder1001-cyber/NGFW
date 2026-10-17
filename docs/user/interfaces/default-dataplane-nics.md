@@ -95,7 +95,8 @@ an SSH session arrives on, or a NIC named explicitly (`NGFW_MGMT_IF` / `NGFW_MGM
 excluded (`dataplane.managementPci`) and stays a normal host interface. Registration appends the management NICs it
 sees to `dataplane.managementPci` and never removes an address; the start-up configuration preview and apply require
 that list to equal the host's current management NICs, so remove a stale address (an earlier management NIC) before
-applying. A registered NIC the engine already owns under that name is `enabled: true` and comes up on the next commit.
+applying. A registered NIC the engine already owns under that name is `enabled: true` and comes up with the registration
+revision itself (the system commit is applied to the engine like any other).
 
 **If no management NIC can be identified** (no default route and no SSH session yet — for example the first boot
 before DHCP has answered) the appliance does **not** register anything: it records the warning event
@@ -122,9 +123,13 @@ A registered NIC is only really taken over once the engine's start-up configurat
 settings and the engine restarts (a first-boot / maintenance step; registration itself binds nothing). Until then the
 NIC is still a host interface: the
 Interfaces screen shows the row as **awaiting engine**, and the agent reports a warning (`agent.nic-not-bound`), not an
-error — the commit succeeds and nothing is taken over early. Exception (known defect, tracked in `docs/tech-debt.md`):
-a block list attached to *all interfaces* or an active automatic block entry still targets unbound and released rows,
-so with such a list or entry the commit is refused until the NICs are bound or the list is narrowed.
+error — the commit succeeds and nothing is taken over early. Exception (known agent defect, tracked in
+`docs/tech-debt.md`): a block list attached to *all interfaces*, and automatic blocking whenever it holds active entries,
+also target unbound and released rows. While such a list is enabled or such entries exist, every commit touching
+interfaces or security — registration included — is refused, and new automatic blocks are not enforced on any
+interface. Binding the NICs (start-up configuration apply) clears it for unbound rows; a released or removed NIC never
+binds, so select the block list's interfaces explicitly instead of *all interfaces*; automatic blocking stays affected
+until the agent fix lands.
 
 ## Releasing a NIC to the host, and reclaiming it
 
@@ -145,8 +150,10 @@ no netplan).
 
 A **rollback** restores an earlier revision as a whole; every revision since a NIC was registered carries its built-in
 row, so a rollback can change the owner or settings but never removes it. A rollback to a revision from **before** a
-NIC was registered drops its row, and the next API start registers the NIC again as engine-owned; if it had been
-released to the host, release it again.
+NIC was registered drops its row, and the next API start registers the NIC again as engine-owned if it is still a
+kernel NIC (if it had been released to the host, release it again). A NIC the engine has bound since is skipped as
+`bound-unnamed`, because the rollback also dropped its saved device name: set `dataplane.devices.<pci>.name` to its
+engine name again, commit, and restart the management API.
 
 **HA pairs** (configuration sync) must have the same NIC layout (PCI addresses): the sync copies the interfaces from
 the primary while the data-plane device lists stay per node. Any engine-owned row of the primary whose PCI address
@@ -168,8 +175,8 @@ edit:
   lists, and carry over only the other settings (addresses, VRFs, descriptions …).
 - **A NIC that was physically removed** keeps its built-in row — it cannot be deleted. Release it to the host
   (`physical.owner = host`): a released row is never configured on the data plane, so the missing NIC does not make
-  commits fail (except through an all-interfaces block list or automatic blocking, see *Awaiting engine*). The row
-  stays in the configuration as a record of the NIC.
+  commits fail (except through an all-interfaces block list or automatic blocking: see the exception under *Awaiting
+  engine* — select the list's interfaces explicitly). The row stays in the configuration as a record of the NIC.
 
 ## CLI equivalent
 

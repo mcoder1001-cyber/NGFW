@@ -419,9 +419,18 @@ describe('SeedService (F-default-vpp-nics)', () => {
       { name: 'ens193', pci: '0000:0c:00.0', reason: 'name-in-use' }, // the kernel name belongs to 0000:14:00.0
       { name: 'ens193', pci: '0000:14:00.0', reason: 'name-mismatch' }, // registered as ens193 once bound
     ]);
-    // once 0000:14:00.0 is bound under its saved name, a row of that name without a marker is adopted for it
+    // 0000:14:00.0 bound under its saved name while the kernel still calls 0000:0c:00.0 "ens193": the agent would take a
+    // row named ens193 for that kernel NIC and drop it as unbound — neither NIC is registered under the name
     (doc['interfaces'] as Record<string, unknown>)['ens193'] = { enabled: false, mtu: 1400 };
     inventory[3] = { ...nic('', '0000:14:00.0', false), driver: 'vfio-pci', boundToDpdk: true };
+    const clash = planRegistration(doc, inventory);
+    expect(clash.added).toEqual([{ name: 'ens224', pci: '0000:13:00.0' }]);
+    expect(clash.skipped).toEqual([
+      { name: 'ens193', pci: '0000:0c:00.0', reason: 'name-in-use' },
+      { name: 'ens193', pci: '0000:14:00.0', reason: 'name-in-use' },
+    ]);
+    // once the kernel NIC carries another name, the row without a marker is adopted for the bound NIC that owns the name
+    inventory[1] = nic('ens195', '0000:0c:00.0', false);
     const adopted = planRegistration(doc, inventory);
     expect(validateConfig(adopted.next).ok).toBe(true);
     expect((adopted.next!['interfaces'] as Record<string, InterfaceConfig>)['ens193']).toEqual({
@@ -429,7 +438,12 @@ describe('SeedService (F-default-vpp-nics)', () => {
       mtu: 1400,
       physical: { pci: '0000:14:00.0', owner: 'dataplane', builtIn: true },
     });
-    expect(adopted.skipped).toEqual([{ name: 'ens193', pci: '0000:0c:00.0', reason: 'name-in-use' }]);
+    expect(adopted.added).toEqual([
+      { name: 'ens195', pci: '0000:0c:00.0' },
+      { name: 'ens224', pci: '0000:13:00.0' },
+      { name: 'ens193', pci: '0000:14:00.0' },
+    ]);
+    expect(adopted.skipped).toEqual([]);
   });
 
   it('every planned document passes the schema and semantic validators', () => {

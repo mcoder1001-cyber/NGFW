@@ -4,8 +4,9 @@ Branch: `claude/boot-nic-registration-port`; base `origin/main` `99a774734e2cf45
 Remote: `origin/claude/boot-nic-registration-port`. Checkpoints: iteration 1 = `814532721a1e5728ff24f9419ca48e0332243c24`
 (quick gate PASSED locally and hosted, below); iteration 2 = `db5042e38803304c1f5ed6756dc3720fb4d53928` (review findings
 R2/R7/R8; quick gate PASSED locally, below; hosted run 39022880662); iteration 3 = `5fa3c01e4` (R7/R8 verify-round and R6
-findings; not gated separately — superseded within minutes by iteration 4); iteration 4 = the commit that carries this
-file (R1 and R4 findings; its SHA and gate result are recorded in the next checkpoint).
+findings; not gated separately — superseded within minutes by iteration 4); iteration 4 = `9574d997a` (R1 and R4
+findings; quick gate PASSED locally, below); iteration 5 = the commit that carries this file (R4 verify-round findings;
+its SHA and gate result are recorded in the next checkpoint).
 PR: https://github.com/mcoder1001-cyber/NGFW/pull/238 (draft until the final gate is green and the review rounds are combined).
 Owned files: see `boot-nic-registration-port-envelope.md`.
 
@@ -19,8 +20,10 @@ Owned files: see `boot-nic-registration-port-envelope.md`.
   `reservedStems`) and invalid names, never writes a management PCI the configuration hands to the engine into
   `managementPci` (reported as `management-engine-owned`) and never a fifth address (`management-limit`), never a 65th
   whitelisted address (`whitelist-limit`), never a logical name another PCI's saved device name or physical row holds
-  (`name-in-use`, R1 #1), never a kernel NIC under a saved device name that differs from its kernel name (`name-mismatch`,
-  R4 #2: the agent tells unbound NICs by their kernel name) and never a bound NIC without a saved device name
+  (`name-in-use`, R1 #1) nor a name any other host NIC currently carries as its kernel name (`name-in-use`, R4 verify #9:
+  the agent would take the row for that kernel NIC), never a kernel NIC under a saved device name that differs from its
+  kernel name (`name-mismatch`, R4 #2: the agent tells unbound NICs by their kernel name) and never a bound NIC without a
+  saved device name
   (`bound-unnamed`: VPP's name for it is unknown) — so the golden document no longer carries the `enp29s0f0` row. Saved
   `dataplane.managementPci` flags NICs as management before the no-management check. Skips are carried in the
   `system.seed-defaults` payload (with the NICs taken as management) or, when nothing could be registered, in the warning
@@ -144,7 +147,20 @@ $ pnpm --filter @ngfw/api typecheck / lint   → see the next checkpoint (run be
 $ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_packaging.py → 17 tests OK
 ```
 
-`tools/ci.sh quick` on iteration 4: run after this checkpoint's commit; result pasted in the next checkpoint.
+Iteration 4 (`9574d997a`) complete quick gate:
+
+```
+$ tools/ci.sh quick          (branch claude/boot-nic-registration-port @ 9574d997a)
+  lint · typecheck · unit tests · build (turbo), apps/agent, apps/cli, test/ Go modules, deploy/vpp harness — all passed
+CI GATE PASSED
+exit=0
+```
+(step durations in the log directory named in the gate output; hosted run on `9574d997a` recorded on the PR)
+
+Iteration 5 (this tree, before the gate): `pnpm --filter @ngfw/api exec vitest run src/features/default-vpp-nics
+src/commit/commit.service.test.ts` → `✓ seed.service.test.ts (33 tests)`, `✓ commit.service.test.ts (26 tests)`,
+`Tests 60 passed (60)`; `pnpm --filter @ngfw/api typecheck` and `lint` clean.
+`tools/ci.sh quick` on iteration 5: run after this checkpoint's commit; result pasted in the next checkpoint.
 
 ## Not run
 
@@ -166,7 +182,10 @@ MAJOR #2 4xx finality — both fixed in iteration 4 with tests; MINORs fixed), R
 defect — `allInterfaces` block lists / auto-block over unbound and released rows — widened by D-249: handled as a
 `docs/tech-debt.md` row with a proposed separate agent fix plus the corrected user-doc sentences, option (b) of the
 reviewer; MINOR #2 fixed in the planner (`name-mismatch`, `bound-unnamed`); #3–#8 documented) — reports and answers in
-`boot-nic-registration-port-review-R{1,4}.md`. Round 3: R1 and R4 verify rounds on iteration 4. Pre-existing, not touched here:
+`boot-nic-registration-port-review-R{1,4}.md`. Round 3 on `9574d997a`: R4 verify — BLOCK pending (1) the manager's
+acceptance of the agent-defect debt row (`docs/tech-debt.md`, owner + date; marked "proposed" until then) and (2) the
+reworded *Awaiting engine* exception (done in iteration 5); new MINOR #9 (bound NIC adopting another NIC's current kernel
+name) fixed in iteration 5 with the test. R1 verify: report and answers appended to `boot-nic-registration-port-review-R1.md`. Pre-existing, not touched here:
 `tools/docs/generate-reference.py --check` reports `docs/user/README.md` drift on `origin/main` (four pages missing).
 
 ## Remaining

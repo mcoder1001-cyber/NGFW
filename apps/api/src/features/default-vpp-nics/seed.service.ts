@@ -326,7 +326,10 @@ export function pciIfName(pci: string): string | undefined {
   return /^[a-z](?:[a-z0-9_-]{0,13}[a-z0-9])?$/.test(name) ? name : undefined;
 }
 
-/** The non-management NICs the seed hands to the data plane, each with its logical name (netdev, else from the PCI). */
+/**
+ * The non-management NICs with a PCI address, each with a name for counts and reports (the kernel name, else the PCI-derived
+ * display name). Registration itself names rows in planRegistration (kernel name or saved device name only).
+ */
 export function dataNics(nics: HostNic[]): { name: string; pci: string }[] {
   return nics.flatMap((n) => {
     if (n.isManagement || !n.pci) return [];
@@ -441,6 +444,10 @@ export function planRegistration(doc: Doc, nics: HostNic[]): RegistrationPlan {
   for (const [pci, device] of Object.entries(devices))
     if (device.name !== undefined) claimed.set(device.name, pci.toLowerCase());
   for (const [pci, name] of rows) claimed.set(name, pci);
+  // kernel names in use on the host right now (management NICs included): the agent takes a row of that name for the
+  // kernel NIC and drops it as unbound, so a bound NIC never registers under another NIC's current kernel name
+  const kernelNames = new Map<string, string>();
+  for (const n of nics) if (n.netdev && n.pci) kernelNames.set(n.netdev, n.pci.toLowerCase());
   // A management NIC the configuration hands to the engine is a conflict the operator must resolve (release it):
   // reported whenever a plan is computed (the inventory has a data NIC), whether or not anything is registered, and
   // never written into managementPci.
@@ -479,7 +486,14 @@ export function planRegistration(doc: Doc, nics: HostNic[]): RegistrationPlan {
     // never attach a second NIC to a physical row, reinterpret a bond or a PPPoE client as a physical port, or take a
     // logical name another PCI's saved device already holds
     const owner = claimed.get(name);
-    if (existing?.physical || existing?.bond || existing?.pppoe || (owner !== undefined && owner !== pci)) {
+    const kernelOwner = kernelNames.get(name);
+    if (
+      existing?.physical ||
+      existing?.bond ||
+      existing?.pppoe ||
+      (owner !== undefined && owner !== pci) ||
+      (kernelOwner !== undefined && kernelOwner !== pci)
+    ) {
       plan.skipped.push({ name, pci: n.pci, reason: 'name-in-use' });
       continue;
     }

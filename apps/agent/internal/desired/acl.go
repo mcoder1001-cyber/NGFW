@@ -88,10 +88,12 @@ func CurrentACLEnv() ACLEnv {
 	return *withACLDefaults(ACLEnv{})
 }
 
-// ACL emits the acl.* objects of ds.acl; in says which domains the transaction carries. netdev (nil: no check)
-// is the Linux netdev lookup of SplitUnboundPhysical: a block list that selects all interfaces targets only the
-// interface rows the projection keeps (desired/hostnics.go), never an unbound or released physical NIC.
-func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, netdev NetdevKind) {
+// ACL emits the acl.* objects of ds.acl; in says which domains the transaction carries. kept is the interface rows
+// the projection keeps (SplitUnboundPhysical, one split per projection): a block list that selects all interfaces
+// targets those rows only — not a physical NIC released to the host, nor one still bound to the kernel. nil: the
+// split without a netdev lookup, which keeps every engine-owned row (an unbound NIC cannot be recognised) and drops
+// the released rows.
+func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, kept map[string]*ngfwv1.Interface) {
 	env := CurrentACLEnv()
 	if env.GlobalsOwner {
 		s.Add(descacl.KeyStatsEnable, descacl.StatsEnable{Enabled: true}.Proto(), Ptr("acl"))
@@ -104,7 +106,7 @@ func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, netdev NetdevKind)
 		s.Warnf(Ptr("acl", "hostAttachments"), "agent.unsupported-field", "host ACL attachments are rendered by F-host-acl-nftables (nftables), not by this agent build")
 	}
 	x := &aclExpander{
-		env: env, s: s, netdev: netdev, objs: ds.GetObjects(), haveObjects: in["objects"],
+		env: env, s: s, kept: kept, objs: ds.GetObjects(), haveObjects: in["objects"],
 		addrs: map[string]addrSide{}, svcs: map[string][]objects.PortSpec{}, fqdn: map[string][]string{},
 	}
 	for _, name := range sortedKeys(cfg.GetLists()) {
@@ -119,7 +121,7 @@ func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, netdev NetdevKind)
 type aclExpander struct {
 	env         ACLEnv
 	s           Sink
-	netdev      NetdevKind // SplitUnboundPhysical's lookup: the all-interfaces target set of the block lists
+	kept        map[string]*ngfwv1.Interface // the interface rows the projection keeps (nil: SplitUnboundPhysical without a lookup)
 	objs        *ngfwv1.ObjectsConfig
 	haveObjects bool
 	addrs       map[string]addrSide

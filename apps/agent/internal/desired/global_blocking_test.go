@@ -252,9 +252,11 @@ func TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs(t *testing.T) {
 	kept, _, _ := SplitUnboundPhysical(ds.Interfaces, kernelNIC) // what the projection passes: one split per projection
 	s := newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true}, kept)
-	if len(s.issues) != 1 || !strings.HasPrefix(s.issues[0], "W /acl/globalBlocking/lists/all/interfaces acl.global-blocking ") ||
-		!strings.Contains(s.issues[0], "not bound to the data plane yet: ens192") || !strings.Contains(s.issues[0], "released to the host: ens161") {
-		t.Fatalf("want one warning naming the skipped NICs, got %v", s.issues)
+	// the NIC awaiting the engine is a warning at the field the operator set; the released NIC is a note (an info
+	// the minimal test sink does not record)
+	if len(s.issues) != 1 || !strings.HasPrefix(s.issues[0], "W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking ") ||
+		!strings.Contains(s.issues[0], "not bound to the data plane yet and are skipped: ens192") || strings.Contains(s.issues[0], "ens161") {
+		t.Fatalf("want one warning naming the unbound NIC, got %v", s.issues)
 	}
 	for _, ifn := range []string{"loop1", "loop2", "loop3", "lan"} {
 		b := binding(t, s, ifn)
@@ -270,11 +272,11 @@ func TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs(t *testing.T) {
 		t.Fatalf("ens192 (explicit list only): %+v", b)
 	}
 	// nil: the split without a netdev lookup — an unbound NIC cannot be recognised and is kept, as the interfaces
-	// projection keeps it; a released row is still dropped (and still named)
+	// projection keeps it; a released row is still dropped (a note, not a warning)
 	s = newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true}, nil)
-	if len(s.issues) != 1 || !strings.Contains(s.issues[0], "released to the host: ens161") || strings.Contains(s.issues[0], "not bound") {
-		t.Fatalf("want one warning naming the released NIC only, got %v", s.issues)
+	if len(s.issues) != 0 {
+		t.Fatalf("a released NIC alone is a note, not a warning: %v", s.issues)
 	}
 	if b := binding(t, s, "ens192"); strings.Join(b.Input, ",") != "_gb.all.i00,_gb.pick.i00,_gb.pass" {
 		t.Fatalf("ens192 without a lookup: %+v", b)
@@ -299,12 +301,40 @@ func TestGlobalBlockingAllInterfacesNothingBound(t *testing.T) {
 	kept, _, _ := SplitUnboundPhysical(ds.Interfaces, func(string) (string, bool, error) { return "", true, nil })
 	s := newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true}, kept)
-	if len(s.issues) != 2 || !strings.Contains(s.issues[0], "not bound to the data plane yet: ens192; released to the host: ens161") || !strings.Contains(s.issues[1], "selects no interface") {
-		t.Fatalf("want the skipped-NICs warning and the not-enforced warning, got %v", s.issues)
+	if len(s.issues) != 2 || !strings.Contains(s.issues[0], "not bound to the data plane yet and are skipped: ens192") || strings.Contains(s.issues[0], "ens161") || !strings.Contains(s.issues[1], "selects no interface") {
+		t.Fatalf("want the unbound-NIC warning and the not-enforced warning, got %v", s.issues)
 	}
 	for _, kv := range s.kvs {
 		if strings.HasPrefix(string(kv.Key), descacl.NameInterfaceBinding+"/") || strings.HasPrefix(string(kv.Key), string(descacl.KeyACL(GlobalBlockingPrefix))) {
 			t.Fatalf("nothing to bind, nothing to emit: %s", kv.Key)
 		}
+	}
+}
+
+// Review R1 V2: two lists on all interfaces in one projection (a user list plus the auto-block overlay, typically)
+// share one computation — each warns once, each skipped NIC is named once, and every kept row carries both.
+func TestGlobalBlockingTwoAllInterfacesLists(t *testing.T) {
+	withEnv(t, ACLEnv{Owner: "w3"})
+	a, b := gbList("inbound", nil, "203.0.113.9/32"), gbList("inbound", nil, "198.51.100.1/32")
+	a.AllInterfaces, b.AllInterfaces = proto.Bool(true), proto.Bool(true)
+	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{"a": a, "b": b})
+	ds.Interfaces["ens192"] = &ngfwv1.Interface{Enabled: proto.Bool(true), Physical: &ngfwv1.InterfacePhysical{Pci: proto.String("0000:0b:00.0"), Owner: proto.String("dataplane")}}
+	kept, _, _ := SplitUnboundPhysical(ds.Interfaces, func(name string) (string, bool, error) { return "", name == "ens192", nil })
+	s := newRecSink()
+	ACL(s, ds, map[string]bool{"acl": true}, kept)
+	want := []string{
+		`W /acl/globalBlocking/lists/a/allInterfaces acl.global-blocking block list "a" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192`,
+		`W /acl/globalBlocking/lists/b/allInterfaces acl.global-blocking block list "b" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192`,
+	}
+	if strings.Join(s.issues, "|") != strings.Join(want, "|") {
+		t.Fatalf("issues:\n%s\nwant\n%s", strings.Join(s.issues, "\n"), strings.Join(want, "\n"))
+	}
+	for _, ifn := range []string{"loop1", "loop2", "loop3"} {
+		if bd := binding(t, s, ifn); strings.Join(bd.Input, ",") != "_gb.a.i00,_gb.b.i00,_gb.pass" || len(bd.Output) != 0 {
+			t.Fatalf("%s: %+v", ifn, bd)
+		}
+	}
+	if _, ok := s.ptrs[descacl.KeyInterfaceBinding("ens192")]; ok {
+		t.Fatal("the unbound NIC is not bound")
 	}
 }

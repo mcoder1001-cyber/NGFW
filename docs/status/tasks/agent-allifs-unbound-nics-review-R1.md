@@ -321,3 +321,162 @@ Not run, as the brief required: `tools/ci.sh`, `make`, `pnpm`, `turbo` and whole
 - Round-1 #1–#5 are all fixed.
 - The developer may fix the new MINOR and NITs or answer won't-fix in one line each.
 - Merge still needs the conflict with main resolved and a green hosted Mandatory quick gate on the resulting head.
+
+## Verify round 2 (head `b74ad2b1b`)
+
+- **Reviewer:** panel R1, correctness and tests (Opus 5.5, read-only agent).
+- **Read-only:** no repository or worktree file was created, modified or deleted. No stash, checkout, worktree, apply, commit or push. `git status --porcelain` was empty before and after, and HEAD is `b74ad2b1b` throughout.
+- **Scratch files:** all under `<scratchpad>/review-R1-verify2/`: mutation copies, overlay JSONs, one scratch test and logs. Mutations used Go's `-overlay` flag (build-time substitution only), as in the last round.
+- **Scope:** the product delta is `1377ae788` (`git diff 856bf743a 1377ae788 -- apps`: `agent/rpc_autoblock.go`, `agent/physical_nics_acl_test.go`, `desired/global_blocking.go`, `desired/global_blocking_test.go`). `git diff --stat 1377ae788 b74ad2b1b -- apps packages tools deploy test` is empty: docs/status only.
+
+### Verdict: R1 APPROVE — 0 BLOCKER, 0 MAJOR, 1 MINOR (new N1), 2 NIT (new N2, N3). V1–V4 are all fixed. Everything left is optional.
+
+### Verify-round findings
+
+1. **V1 MINOR (no trace of skipped NICs in the auto-block runtime reconcile): FIXED.** New MINOR N1 and NIT N2 are below.
+   - **The warning reaches the reconcile.** On an APPLIED runtime apply, `fillResponse` sets `resp.Validation` only on `OutcomeFailed` (`service.go:1282-1284`). So `resp.Validation` is still nil at `service.go:563`, and `report(txnID, pj, nil)` copies every projection issue, warnings included. No other assignment exists (`grep 'resp.Validation\s*='` gives `:533,:565,:1283`). The runtime projection runs the unconditional split (`projection.go:242`), so `kept` is real.
+   - **Observed:** in the `-v` run, the line `WARN auto-block: automatic blocking selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192` follows `reconcile done mode=auto-block … status=APPLY_STATUS_APPLIED`.
+   - **The dedupe cannot hide a changed set.** It compares the exact joined text of the current warnings with the last logged text (`rpc_autoblock.go:136-140`). `report` sorts stably (severity, then pointer) and the messages come from sorted keys, so any change in the set or wording changes the text. Only an identical repeat is suppressed. `skipped` starts empty, so the first reconcile after a restart logs again. A failed reconcile returns before the call (`:115-117`) and leaves `skipped` alone.
+   - **Lock discipline holds.** `logSkippedNICsLocked` has one caller, `reconcileAutoBlockLocked` (`:118`). Both production callers hold `s.lock`: `AutoBlockSet` (`:68-70`) and the watcher (`:163-166`). `-race` is clean. The test reads `s.autoBlock.skipped` after `AutoBlockSet` returns, and `Service` starts no watcher (that belongs to `Agent`).
+   - **The call is pinned.** Mutation M3 (call removed) fails `TestAutoBlockWithUnboundAndReleasedNICsOnFake` at `physical_nics_acl_test.go:177`.
+   - **Asserting the state field is not enough on its own.** It pins the collected set and the call, but not the logging or the dedupe. M1 (the `s.log.Warn` loop removed) and M2 (the dedupe disabled) both leave all seven tests green. See N2.
+
+2. **V2 NIT (memo flag untested): FIXED.**
+   - `TestGlobalBlockingTwoAllInterfacesLists` (`global_blocking_test.go:314-340`) passes at head.
+   - Mutation D (`computed = true` → `_ = computed`, `global_blocking.go:130`) now fails it at `:330`: `block list "b" … skipped: ens192, ens192`. The other six tests stay green, so this test is the guard.
+
+3. **V3 NIT (severity and pointer of the overlay warning): FIXED.** Residual NIT N3 is below.
+   - Unbound NICs → `Warnf` at `lp+"/allInterfaces"`. Released NICs → `infof`, which `projected.Infof` records at `ISSUE_SEVERITY_INFO` (`projection.go:153-154`) and the minimal recSink drops (`cnat.go:43-47`).
+   - For `autoblock.ListName` the pointer is `/security/autoBlock` and the wording "automatic blocking" (`global_blocking.go:169-178`). `allInterfaces` is the real protojson name (`dataplane.pb.go:15766`, `json=allInterfaces`).
+   - `TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs` asserts exactly two `acl.global-blocking` issues at `/security/autoBlock`: WARNING (ens192), then INFO (ens161).
+   - **No import cycle, and the direction is acceptable.** `go list -deps ./internal/autoblock/` contains only `ngfw/agent/gen/ngfw/v1` among `ngfw/` packages; it is a leaf (stdlib plus protobuf). Its importers are `internal/agent` and `internal/desired`. `desired` already imports heavier internal packages (`actions/acl`, `descriptors/acl`, `vpp`). The only constraint this adds is that `autoblock` can never import `desired`, which matches its current design (it only clones protos).
+
+4. **V4 NIT (WIP red-run claim): FIXED.**
+   - Status file `:15` and WIP `:6` now say six of seven, and explain that `TestProjectAutoBlockOverlayAddsNoNetdevLookups` guards the lookup count and is red only against mutation A.
+   - I reproduced the red run with mutation C (`allIfs = sortedKeys(ds.GetInterfaces())`, `global_blocking.go:119`). Exactly six fail, at the same file:line as `red-2.log`: `global_blocking_test.go:268, :305, :338` and `physical_nics_acl_test.go:108, :169, :238`. `TestProjectAutoBlockOverlayAddsNoNetdevLookups` passes.
+   - `green-2.log` matches my green run.
+
+### New findings
+
+**N1 — MINOR: the "cleared" log line is false whenever the block set empties.**
+- **Where:** `apps/agent/internal/agent/rpc_autoblock.go:144-145`, together with `autoblock/runtime.go:111-113`.
+- **What happens:** with no active entries, `Overlay` adds no `auto-block` list. The overlay warning disappears, `text` becomes `""`, and the function logs `INFO auto-block: every physical NIC is bound to the data plane again; automatic blocking covers all interfaces`. Nothing was bound.
+- **Reproduced:** scratch test `TestReviewR1V2AutoBlockOnly`, added by overlay and never written to the worktree:
+  - an entry → WARN (ens192 skipped);
+  - the same snapshot, or two entries → nothing logged (dedupe works);
+  - an empty snapshot → the INFO line while `kernel["ens192"]` is still true;
+  - an entry again → WARN;
+  - entries expiring on the agent clock (the watcher's `reconcileAutoBlockLocked` path) → the INFO line again, ens192 still unbound.
+- **Effect:** on a box with an unbound data NIC, every time the block set empties the journal says the NIC is bound. That undoes the trace V1 was meant to leave, until the next entry arrives.
+- **A second, smaller inaccuracy:** the function collects every `acl.global-blocking` WARNING of the acl projection, not only the overlay's. That includes a user `allInterfaces` list's warning and any "selects no interface" warning. All are logged with an `auto-block:` prefix, and an unchanged user-list warning is logged again whenever the overlay warning appears or disappears (second scratch test, steps 1/4/5). The comment at `:124-128` says "the physical NICs the overlay's all-interfaces list skips".
+- **Fix:**
+  - Make the clearing line true in every case, e.g. "auto-block: no block list on all interfaces skips a physical NIC any more". Alternatively, log the "bound again" wording only when the overlay is active (`n > 0`) and stay quiet otherwise.
+  - Fix the comment, and log user-list warnings without the `auto-block:` prefix or with the pointer as an attribute. Keeping user-list warnings in the log is right: R2's name-clash drop also hits them in the same acl-only transaction.
+  - Add an empty-snapshot step to the test (see N2).
+
+**N2 — NIT: the fake test checks the bookkeeping field, not the log or the dedupe.**
+- **Where:** `apps/agent/internal/agent/physical_nics_acl_test.go:175-178, :211-214`.
+- **What it misses:** mutations M1 (no `Warn`) and M2 (no dedupe) survive. The clearing check at `:212` also cannot tell "cleared because bound" from "cleared because the overlay is gone" (N1).
+- **Fix:**
+  - Capture the logger in-package, as my scratch test does: `var buf bytes.Buffer; s.log = slog.New(slog.NewTextHandler(&buf, nil))`.
+  - Assert one WARN after the first `AutoBlockSet`, none after a repeat, and the correct text after an empty snapshot.
+
+**N3 — NIT: the overlay's "selects no interface" warning still names the reserved list.**
+- **Where:** `apps/agent/internal/desired/global_blocking.go:181`.
+- **What happens:** with live entries and every data NIC unbound, the same report carries one warning at `/security/autoBlock` ("automatic blocking …") and one at `/acl/globalBlocking/lists/auto-block/interfaces` (`block list "auto-block" selects no interface`). That pointer is a path the user's document may not contain. The runtime log prints it as `auto-block: block list "auto-block" …`.
+- **Fix:** hoist `what`/`at` above the `if l.GetAllInterfaces()` block and use them on `:181` too.
+
+### Notes outside R1 (not graded)
+
+- **[other: R7]** `docs/status/tasks/agent-allifs-unbound-nics-wip.md:2` contradicts itself. It says "product commits 9a63c09ce, 856bf743a, 1377ae788" and then "Product commits 9a63c09ce (fix) and 856bf743a (review changes); the rest docs/status", which omits `1377ae788`.
+- **[other: manager/R7] The PR still cannot merge.** `gh pr view 241` on `b74ad2b1b`: `mergeable: CONFLICTING`, `mergeStateStatus: DIRTY`, `statusCheckRollup: []`. The rebase onto main and the hosted gate are still owed, and the product verify must be repeated if the rebase touches `apps/agent`.
+- **The gate evidence matches the logs:**
+  - `agent-gate-3.log`: 143 `ok`, 0 FAIL, `0 issues.`, `AGENT_GATE_EXIT=0`, 12:26:12→12:28:24Z.
+  - `ci-quick-3.log`: header `@ 0e96796ae`, turbo 35/35, wall time 5m09s, `CI GATE PASSED`, `CI_QUICK_EXIT=0`.
+  - The CI directory `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-122852-2050388/09-agent.log` embeds `main.version=0e96796ae`, with 143 `ok` and 0 FAIL.
+  - `0e96796ae` was committed at 12:24:51Z, before both gates. `b74ad2b1b` was committed at 12:34:23Z, after the quick gate ended (about 12:34:01Z). Both gates ran on a fixed tree.
+
+### Commands run (worktree `/root/NGFW/.claude/worktrees/funny-meninsky-c9ef19`; Go from `apps/agent`; `D=<scratchpad>/review-R1-verify2`)
+
+```
+$ git rev-parse HEAD ; git status --porcelain
+b74ad2b1ba5cddd91f583278794d45dcbf2392e2
+(empty)
+$ git diff --stat 1377ae788 b74ad2b1b -- apps packages tools deploy test
+(empty)
+$ git diff 856bf743a 1377ae788 -- apps     → 4 files: physical_nics_acl_test.go +16-?, rpc_autoblock.go +28, global_blocking.go 28, global_blocking_test.go 46 (97+/21-)
+
+$ env -u NGFW_INTEGRATION go test -count=1 -v -run '<the seven tests>' ./internal/desired/ ./internal/agent/
+--- PASS: TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs (0.01s)
+--- PASS: TestGlobalBlockingAllInterfacesNothingBound (0.00s)
+--- PASS: TestGlobalBlockingTwoAllInterfacesLists (0.00s)
+ok  	ngfw/agent/internal/desired	0.162s
+--- PASS: TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs (0.01s)
+--- PASS: TestProjectAutoBlockOverlayAddsNoNetdevLookups (0.00s)
+  INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary=created:6
+  WARN auto-block: automatic blocking selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192
+  ... (nics-update APPLIED created:4 unchanged:8; resync created:2 unchanged:13; resync unchanged:15 reapplied=9)
+  INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary=unchanged:8 reapplied=3
+  INFO auto-block: every physical NIC is bound to the data plane again; automatic blocking covers all interfaces
+--- PASS: TestAutoBlockWithUnboundAndReleasedNICsOnFake (0.10s)
+--- PASS: TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake (0.05s)
+ok  	ngfw/agent/internal/agent	0.330s
+exit=0
+
+$ env -u NGFW_INTEGRATION go test -race -count=1 -v -run 'TestGlobalBlocking|TestACL|TestParseGlobalBlocking|TestProjectPhysicalNic|TestProjectAutoBlock|TestAutoBlock|TestAllInterfaces|PhysicalNIC|PhysicalNic|TestPBRPolicyNamesFACLList|RuleExpiry|Expiry|Project|Global|Acl|Nic|NIC|Split|Unbound' ./internal/desired/ ./internal/agent/ ./internal/subsystems/ > $D/broad-race.log
+exit=0
+ok  	ngfw/agent/internal/desired	24.406s
+ok  	ngfw/agent/internal/agent	7.704s
+ok  	ngfw/agent/internal/subsystems	4.173s
+PASS=146 FAIL=0 SKIP=3 RACE=0   (SKIPs: TestHostNicsOnHost, TestSrv6GlobalsOnHost, TestUntaggedNICClaimsOnHost — NGFW_INTEGRATION unset, true on this host)
+$ go vet ./internal/desired/ ./internal/agent/          → vet_exit=0
+$ gofmt -l <the 4 changed Go files>                      → (no output)
+
+$ go list -deps ./internal/autoblock/ | grep '^ngfw/'
+ngfw/agent/gen/ngfw/v1
+ngfw/agent/internal/autoblock
+$ go list -f '{{.ImportPath}}: {{join .Imports " "}}' ./internal/... | grep 'ngfw/agent/internal/autoblock' | cut -d: -f1
+ngfw/agent/internal/agent · ngfw/agent/internal/autoblock (itself) · ngfw/agent/internal/desired
+
+# Mutations via -overlay (copies from `git show b74ad2b1b:<file> | sed`; the worktree is untouched)
+# C : global_blocking.go:119  allIfs = sortedKeys(ds.GetInterfaces())     (the developer's red)
+# D : global_blocking.go:130  computed = true → _ = computed
+# M1: rpc_autoblock.go:142    s.log.Warn(...) → _ = m
+# M2: rpc_autoblock.go:137    if false && text == s.autoBlock.skipped
+# M3: rpc_autoblock.go:118    s.logSkippedNICsLocked(resp) → _ = resp
+$ env -u NGFW_INTEGRATION go test -overlay=$D/ov-<m>.json -count=1 -v -run '<the seven tests>' ./internal/desired/ ./internal/agent/
+C : exit=1  6 FAIL — global_blocking_test.go:268, :305, :338; physical_nics_acl_test.go:108, :169 (Unavailable … acl.interface-binding/ens161: mandatory dependency …), :238 (APPLY_STATUS_FAILED); PASS TestProjectAutoBlockOverlayAddsNoNetdevLookups   (= red-2.log line for line)
+D : exit=1  only FAIL TestGlobalBlockingTwoAllInterfacesLists — global_blocking_test.go:330: … block list "b" … skipped: ens192, ens192
+M1: exit=0  all seven PASS
+M2: exit=0  all seven PASS
+M3: exit=1  only FAIL TestAutoBlockWithUnboundAndReleasedNICsOnFake — physical_nics_acl_test.go:177: the auto-block reconcile must log the NIC awaiting the engine (not the released one): ""
+
+# Scratch test (overlay-added $D/zz_review_r1v2_test.go; logger captured with slog.NewTextHandler)
+$ env -u NGFW_INTEGRATION go test -race -overlay=$D/ov-T.json -count=1 -v -run TestReviewR1V2 ./internal/agent/
+TestReviewR1V2AutoBlockOnly:
+  1 one entry      : level=WARN msg="auto-block: automatic blocking selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192"
+  2 same again     : (nothing)
+  3 two entries    : (nothing)
+  4 empty snapshot : level=INFO msg="auto-block: every physical NIC is bound to the data plane again; automatic blocking covers all interfaces"   [ens192 still a kernel NIC: true]
+  5 one entry again: level=WARN msg="auto-block: automatic blocking … skipped: ens192"
+  6 expiry reconcile (err=<nil>): level=INFO msg="auto-block: every physical NIC is bound to the data plane again; …"   [ens192 still a kernel NIC: true]
+TestReviewR1V2WithUserList (nicsAllInterfacesDoc + autoBlock enabled):
+  1: WARN auto-block: block list "bad" … skipped: ens192 | WARN auto-block: automatic blocking … skipped: ens192
+  4 empty snapshot: WARN auto-block: block list "bad" … skipped: ens192   (unchanged user-list warning logged again)
+--- PASS (both) ; ok ngfw/agent/internal/agent 2.088s ; exit=0
+$ ls apps/agent/internal/agent/zz_* → No such file or directory ; git status --porcelain → (empty)
+
+$ grep -c '^ok' agent-gate-3.log → 143 ; grep -c -E '^(FAIL|--- FAIL)' → 0 ; "0 issues." ; AGENT_GATE_EXIT=0 ; agent.vet BEGIN 12:26:12Z, race-test END 12:28:24Z
+$ grep 'branch\|CI GATE\|CI_QUICK_EXIT\|wall time' ci-quick-3.log → branch … @ 0e96796ae · Tasks: 35 successful, 35 total · wall time 5m09s · CI GATE PASSED · CI_QUICK_EXIT=0
+$ grep -ho 'main.version=[0-9a-f]*' /root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-122852-2050388/*agent*.log → main.version=0e96796ae ; 09-agent.log ok=143 FAIL=0
+$ git log -5 --format='%h %cI %s' b74ad2b1b → b74ad2b1b 12:34:23Z · 0e96796ae 12:24:51Z · 1377ae788 12:24:51Z · 873f1d946 12:03:06Z · 0b57dc070 11:52:50Z
+$ gh pr view 241 --repo mcoder1001-cyber/NGFW --json headRefOid,mergeable,mergeStateStatus,statusCheckRollup
+{"headRefOid":"b74ad2b1ba5cddd91f583278794d45dcbf2392e2","mergeStateStatus":"DIRTY","mergeable":"CONFLICTING","statusCheckRollup":[]}
+```
+
+Not run, as the brief required: `tools/ci.sh`, `make`, `pnpm`, `turbo` and whole-tree `go test ./...`. Instead I checked the developer's gate outputs for `0e96796ae` against the logs, and ran the targeted tests and mutations above myself.
+
+**Verdict line: R1 APPROVE — 0 BLOCKER, 0 MAJOR, 1 MINOR (N1), 2 NIT (N2, N3).**
+- V1–V4 are all fixed.
+- The developer may fix N1–N3 or answer won't-fix in one line each. N1 needs only a wording change to the line at `rpc_autoblock.go:145`.
+- Merge still needs the conflict with main resolved and a green hosted Mandatory quick gate on the resulting head. If the rebase touches `apps/agent`, the product verify must be repeated.

@@ -158,4 +158,57 @@ Independent panel per `prompts/REVIEW-PROMPT.md`, read-only reviewer agents, han
 |---|---|---|
 | R1 | APPROVE (0 MINOR, 3 NIT N4–N6); N1–N3 and R6's log-line note confirmed fixed | N4 all-clear line "no list on all interfaces skips a NIC awaiting the engine any more"; N5 the nothing-bound test pins the explicit-list wording and the Protect-the-box clause (only when the setting is on) with exact lines; N6 comments corrected. Gated again below. |
 
-@@GATES5@@
+Gates on the NIT commit's head `f6d7056ea` (product commit `f53747c65`; red/green re-captured: six of seven fail with the pre-fix line, `red-4.log`; green `green-4.log`, exit 0):
+
+`env -u NGFW_INTEGRATION make -C apps/agent lint test`, log `agent-gate-5.log` — unedited except the marked elisions:
+
+```
+make: Entering directory '/root/NGFW/.claude/worktrees/funny-meninsky-c9ef19/apps/agent'
+NGFW_TIMING BEGIN agent.vet 2026-10-17T13:06:35.914422468Z
+go vet ./...
+NGFW_TIMING END agent.vet 2026-10-17T13:06:44.702627770Z
+NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-17T13:06:44.727806206Z
+0 issues.
+NGFW_TIMING END agent.lint-dispatch 2026-10-17T13:06:55.488410242Z
+NGFW_TIMING BEGIN agent.race-test 2026-10-17T13:06:55.514718598Z
+go test -race -count=1 ./...
+ok  	ngfw/agent/internal/agent	60.685s
+ok  	ngfw/agent/internal/desired	32.465s
+# 141 further "ok" lines, 166 "?  … [no test files]" lines and the final "make: Leaving directory" line elided — grep -c '^ok' agent-gate-5.log → 143; grep -c -E '^(FAIL|--- FAIL)' → 0
+NGFW_TIMING END agent.race-test 2026-10-17T13:08:28.078956629Z
+AGENT_GATE_EXIT=0
+```
+
+Complete `tools/ci.sh quick` (unchanged) on the same head, nothing committed while it ran; log `ci-quick-5.log` and `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-130843-2148474`:
+
+```
+branch    claude/agent-allifs-unbound-nics @ f6d7056ea
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    55.644s  
+== summary (quick) ==
+  tools (golangci-lint, gitleaks)                    0m01s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   0m59s
+  forbidden patterns (+ gitleaks)                    0m16s
+  packet-trace ban on the shared VPP (D-128)         0m00s
+  ip classify reset after every shell interface create (D-185)   0m02s
+  slot resource scheme (1..32, no collisions)        0m04s
+  lint · typecheck · unit tests · build (turbo)   0m56s
+  apps/agent: make lint test build                   1m25s
+  apps/cli: make lint test build                     0m09s
+  test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/ab-upgrade test/topology/acl test/topology/backup-restore test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/ha-state-sync test/topology/hardening-lite test/topology/host-acl-nftables test/topology/images test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/qos-flat test/topology/system-identity test/topology/traffic-a/globals test/topology/traffic-c/globals test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp)   1m06s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m07s
+  warnings:
+    - control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+      apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+      apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+      apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+      apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+      apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+  mode quick · wall time 5m07s · logs /root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-130843-2148474
+
+CI GATE PASSED
+CI_QUICK_EXIT=0
+```

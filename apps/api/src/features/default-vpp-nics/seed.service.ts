@@ -34,7 +34,7 @@ const BACKED_OFF: ReadonlySet<SeedOutcome> = new Set<SeedOutcome>(['no-nics', 'f
 const FINAL_PROBLEMS: ReadonlySet<string> = new Set(['validation', 'license-required']);
 
 /**
- * F-default-vpp-nics (HIST-NATIVE-D-164; owner instruction 2026-10-10, D-249): at every API start the non-management
+ * F-default-vpp-nics (HIST-NATIVE-D-164; owner instruction 2026-10-10, D-252): at every API start the non-management
  * host NICs the running configuration does not carry yet are registered as dataplane interfaces. The service asks the
  * agent for the host NIC inventory (HostNics), adds `dataplane.managementPci` / `pciWhitelist` / `devices` and one
  * `interfaces.<netdev>` row with a `physical` marker per missing NIC, and persists a system commit (no author) —
@@ -310,7 +310,7 @@ export function reasonOnly(note: string): string {
 /**
  * A display name for a NIC already bound to a DPDK driver (no netdev), derived from its PCI address in systemd's
  * `enp<bus>s<slot>f<function>` style (decimal; `en<domain>p…` outside domain 0) — not necessarily the name the kernel
- * or VPP gave it, so it is used for inventory counts and reports only, never as a registered logical name (D-249).
+ * or VPP gave it, so it is used for inventory counts and reports only, never as a registered logical name (D-252).
  * undefined when it would not be a valid logical name (1–15 chars, D-069).
  */
 export function pciIfName(pci: string): string | undefined {

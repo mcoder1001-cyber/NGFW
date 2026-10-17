@@ -10,7 +10,7 @@ User=ngfw
 Group=ngfw
 WorkingDirectory=/usr/lib/ngfw/api
 ExecStart=/usr/bin/node dist/main.js
-# D-192/D-249: the appliance registers its data NICs at every API start (NGFW_SEED_DEFAULT_NICS=1), existing revisions included.
+# D-192/D-252: the appliance registers its data NICs at every API start (NGFW_SEED_DEFAULT_NICS=1), existing revisions included.
 # A site value in /etc/ngfw/api.env (EnvironmentFile) takes precedence over this line, whatever the line order.
 Environment=NODE_ENV=production NGFW_HTTP_HOST=127.0.0.1 NGFW_HTTP_PORT=3000 NGFW_COOKIE_SECURE=1 NGFW_SEED_DEFAULT_NICS=1
 EnvironmentFile=/etc/ngfw/api.env

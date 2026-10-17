@@ -15,7 +15,7 @@ startup apply.
 
 ### 1. MINOR — rollback to before a NIC's registration removes its built-in row; the next boot hands a released NIC back to the engine; guard comments out of date
 Files: `apps/api/src/datastore/physical-nics.ts:6-9`, `:31-35`, `:82`; `seed.service.ts:301-320`;
-`docs/user/interfaces/default-dataplane-nics.md:41` vs `:98`. Under D-249 markers are created at any revision N; a rollback
+`docs/user/interfaces/default-dataplane-nics.md:41` vs `:98`. Under D-252 markers are created at any revision N; a rollback
 (`POST /config/rollback/:rev`) to a revision older than N removes those rows without `assertPhysicalNicEdit`; `clusterCommit`
 can do the same (HA sync copies `/interfaces`, `/dataplane` stays node-local — pre-existing). The operator releases ens161,
 rolls back to before registration, and the next API boot registers ens161 again as `owner: dataplane`. Fix: update the

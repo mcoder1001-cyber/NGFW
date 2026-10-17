@@ -199,7 +199,7 @@ for name in ('backups','updates','support'):
             self.assertIn('NoNewPrivileges=yes', unit)
 
     def test_api_unit_enables_default_nic_registration(self):
-        # D-192/D-249: the appliance registers its data NICs at every API start. systemd applies Environment= lines in
+        # D-192/D-252: the appliance registers its data NICs at every API start. systemd applies Environment= lines in
         # order (the last assignment wins), EnvironmentFile= overrides them whatever the line order, and
         # UnsetEnvironment= removes a variable: check the effective value, not a line position.
         units = ROOT / 'deploy/systemd'

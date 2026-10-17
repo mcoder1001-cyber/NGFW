@@ -11,6 +11,11 @@ iteration 6 = `ab6d223b2` (R1 verify-round tests; **final head**, gated below).
 PR: https://github.com/mcoder1001-cyber/NGFW/pull/238 (draft until the final gate is green and the review rounds are combined).
 Owned files: see `boot-nic-registration-port-envelope.md`.
 
+Manager decision (2026-10-17, after the review rounds): the NIC-registration decision is **D-252** (it was logged as D-249 on
+this branch; PR #240 keeps D-249, #242 D-250, #241 D-251). Merge order: #240 → #242 → #241 → #238; the R4 agent fix lands as
+PR #241 before this branch, so the R4 debt row is closed with a pointer to #241 and the user-doc exception removed once #241 is
+on `main` (rebase, re-gate, push — recorded below when done).
+
 ## Completed code
 
 - `apps/api/src/features/default-vpp-nics/seed.service.ts`: `SeedService` registers the non-management host NICs
@@ -36,7 +41,7 @@ Owned files: see `boot-nic-registration-port-envelope.md`.
   outcome sets the next delay (a deferral after a long backoff is retried in `retryMs`). Log/event text passes
   `reasonOnly()`. `OnModuleDestroy` stops the watch and timer; `start()` is idempotent.
 - `apps/api/src/datastore/physical-nics.ts`: guard comments and the 403 texts say "boot-time registration" and state the
-  rollback behaviour under D-249 (wording only, no logic change).
+  rollback behaviour under D-252 (wording only, no logic change).
 - `deploy/systemd/ngfw-api.service`: comment on the kept `NGFW_SEED_DEFAULT_NICS=1` (precedence, not line order);
   `deploy/debian/ngfw/tests/test_packaging.py`: `test_api_unit_enables_default_nic_registration` shell-splits every
   `Environment=` value of the unit and the hardening drop-in (last assignment wins ∈ {1, true}; no `UnsetEnvironment=`).
@@ -48,7 +53,7 @@ Owned files: see `boot-nic-registration-port-envelope.md`.
   and registration after the confirm), regenerated `seed.golden.json` (bound unnamed NIC no longer registered), e2e
   wording.
 - Docs: `docs/decisions/PENDING-automatic-network-bootstrap.md` (implemented state, owner instruction 2026-10-10, not-run
-  list, operator-visible behaviour changes), `docs/decisions/LOG.md` D-249 (amends HIST-NATIVE-D-164),
+  list, operator-visible behaviour changes), `docs/decisions/LOG.md` D-252 (amends HIST-NATIVE-D-164),
   `docs/user/interfaces/default-dataplane-nics.md`, `docs/user/interfaces/basics.md`, `docs/install/bare-metal.md`,
   `docs/install/upgrade.md`, `docs/status/DEFERRED-ACCEPTANCE.md` (appliance reboot case), `docs/tech-debt.md` (HA sync
   vs node-local physical rows; rollback warning for dropped built-in rows; systemCommit vs configure lock).
@@ -213,7 +218,7 @@ of NICs). Round 1 on `814532721`: R2 APPROVE WITH CHANGES, R7 BLOCK (evidence ga
 updated, PENDING wording — all done in iteration 3), R8 verify APPROVE (new MINOR N1: finality limited to deterministic
 problems — done), R6 APPROVE WITH CHANGES (docs precision — done), R1 BLOCK (MAJOR #1 planner name claim across PCIs,
 MAJOR #2 4xx finality — both fixed in iteration 4 with tests; MINORs fixed), R4 BLOCK (MAJOR #1: pre-existing agent
-defect — `allInterfaces` block lists / auto-block over unbound and released rows — widened by D-249: handled as a
+defect — `allInterfaces` block lists / auto-block over unbound and released rows — widened by D-252: handled as a
 `docs/tech-debt.md` row with a proposed separate agent fix plus the corrected user-doc sentences, option (b) of the
 reviewer; MINOR #2 fixed in the planner (`name-mismatch`, `bound-unnamed`); #3–#8 documented) — reports and answers in
 `boot-nic-registration-port-review-R{1,4}.md`. Round 3 on `9574d997a`: R4 verify — BLOCK pending (1) the manager's

@@ -148,7 +148,7 @@ describe('CommitService (fake agent over gRPC)', () => {
     expect(applies(fake)).toEqual([]);
   });
 
-  it('D-249: boot NIC registration persists missing interfaces through gRPC after an existing commit and preserves released NICs', async () => {
+  it('D-252: boot NIC registration persists missing interfaces through gRPC after an existing commit and preserves released NICs', async () => {
     await ds.patchCandidate(ADMIN, '/system', { hostname: 'edge1' });
     await commits.commit(ADMIN, {});
     fake.hostNicList = [
@@ -202,7 +202,7 @@ describe('CommitService (fake agent over gRPC)', () => {
     }
   });
 
-  it('D-249: boot NIC registration defers while an operator has candidate edits or a commit awaits confirmation', async () => {
+  it('D-252: boot NIC registration defers while an operator has candidate edits or a commit awaits confirmation', async () => {
     fake.hostNicList = [
       { netdev: 'ens192', pci: '0000:0b:00.0', isManagement: true },
       { netdev: 'ens161', pci: '0000:04:00.0', isManagement: false },

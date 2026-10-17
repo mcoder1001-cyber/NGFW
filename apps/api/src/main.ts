@@ -24,7 +24,7 @@ app.get(RelayService).start();
 await app.get(AlarmsService).start();
 // F-bruteforce-block: load thresholds/allow-list and start the auto-block expiry sweep
 await app.get(AutoBlockService).start();
-// F-default-vpp-nics (D-249): register the data NICs missing from running at every API start (retried on agent connect; never blocks start)
+// F-default-vpp-nics (D-252): register the data NICs missing from running at every API start (retried on agent connect; never blocks start)
 app.get(SeedService).start();
 await app.listen({ port: env.NGFW_HTTP_PORT, host: env.NGFW_HTTP_HOST });
 console.log(

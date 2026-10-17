@@ -12,7 +12,7 @@ row (owner + date) **and** the two user-doc sentences it falsifies corrected in 
 docs only. Takeover still needs the admin approve → apply flow, the root executor and `apply-startup.sh` (SHA-bound approval,
 handover check, management snapshot, dead-man rollback). The generator still refuses a host-flagged management NIC in
 `pciWhitelist`/`devices`; the `management-engine-owned` rule is the right call. The block comes from the agent's "unbound NIC is
-only a warning" chain being bypassed by one implicit all-rows consumer, which D-249 makes reachable on existing configurations.
+only a warning" chain being bypassed by one implicit all-rows consumer, which D-252 makes reachable on existing configurations.
 
 1. **MAJOR — unbound or released physical rows break `allInterfaces` block lists and auto-block enforcement.**
    `apps/agent/internal/desired/global_blocking.go:100,129-131` (`allIfs := sortedKeys(ds.GetInterfaces())` takes every row,
@@ -25,7 +25,7 @@ only a warning" chain being bypassed by one implicit all-rows consumer, which D-
    every interfaces/security commit is refused while entries exist; releasing does not help (a released row is a permanent
    trigger). If a list or entry exists when registration runs, the registration commit itself is rejected (safe, but registration
    never happens). Contradicts `default-dataplane-nics.md:87` ("the commit succeeds …") and `:128-129` ("a released row … does not
-   make commits fail"). Pre-existing on `main` (fresh appliances, any released NIC); widened by D-249. Fix (agent): compute
+   make commits fail"). Pre-existing on `main` (fresh appliances, any released NIC); widened by D-252. Fix (agent): compute
    `allIfs` from the rows `SplitUnboundPhysical` keeps; projection test (auto-block overlay + one unbound + one released row → no
    binding, no plan issue). Land as a separate small agent PR, or a manager-accepted debt row + the two doc sentences reworded.
    Evidence: code reading only.
@@ -49,7 +49,7 @@ only a warning" chain being bypassed by one implicit all-rows consumer, which D-
    clear, management keeps its addresses; (e) block lists / auto-block with an unbound and a released row (#1); (f) saved name ≠
    kernel name (#2); (g) agent restart with registered-but-unbound rows.
 5. **MINOR (shared host) — dev and test stacks inherit the caller's environment** (`tools/app:130-132` `env` without `-i`;
-   topology stacks). Nothing in the repo sets the flag except the appliance unit; under D-249 an exported `=1` would register the
+   topology stacks). Nothing in the repo sets the flag except the appliance unit; under D-252 an exported `=1` would register the
    shared host's six vmxnet3 NICs into the integrated database (VPP untouched). Fix (not owned here): `tools/app` passes `=0`, or the
    API honours the flag only when `/var/lib/ngfw/firstboot-complete` exists.
 6. **NIT** — "registration only creates configuration rows" is imprecise: the system commit is a full agent Apply; a newly

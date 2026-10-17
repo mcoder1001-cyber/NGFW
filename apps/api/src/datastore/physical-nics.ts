@@ -3,10 +3,10 @@ import { getAt } from '../common/json.js';
 import { ProblemError } from '../common/problem.js';
 import type { Doc } from './repo.js';
 
-// F-default-vpp-nics (HIST-NATIVE-D-164, D-249): the physical-NIC guards of every candidate edit (DatastoreService.edit():
+// F-default-vpp-nics (HIST-NATIVE-D-164, D-252): the physical-NIC guards of every candidate edit (DatastoreService.edit():
 // PATCH, PUT, DELETE and import all pass through it). Boot-time registration (SeedService) and rollback are commits of
 // whole documents, not edits: registration is the only writer that creates the marker, and a rollback restores an
-// earlier revision verbatim. Since D-249 a NIC may be registered at any revision, so a rollback to a revision from
+// earlier revision verbatim. Since D-252 a NIC may be registered at any revision, so a rollback to a revision from
 // before its registration drops its row — the next API start registers the NIC again (engine-owned); see
 // docs/user/interfaces/default-dataplane-nics.md.
 

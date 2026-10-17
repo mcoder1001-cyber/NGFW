@@ -27,7 +27,7 @@ cases retry on agent-ready or after 60 s; a site `NGFW_SEED_DEFAULT_NICS=0` in `
 3. **MINOR** — `docs/install/upgrade.md` not updated; `bare-metal.md`: first API start after upgrade adds one `system`
    revision; backup import needs the box's physical rows; rollback drops rows until the next start; the site opt-out is valid
    only after firstboot and must be set before the first post-upgrade API start.
-4. **MINOR** — `apps/api/src/datastore/physical-nics.ts:6-9, 33, 82, 86`: comments and the 403 text state invariants D-249 makes
+4. **MINOR** — `apps/api/src/datastore/physical-nics.ts:6-9, 33, 82, 86`: comments and the 403 text state invariants D-252 makes
    false ("created only by the first-boot seed", "a rollback cannot drop one").
 5. **MINOR [other: R4]** — `vrrp-config-sync/document.ts:5-12`: HA sync keeps `/dataplane` node-local but copies `/interfaces`;
    a backup with different PCI addresses re-adds its rows at every start and loses them at the next sync. Fix: document the

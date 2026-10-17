@@ -143,7 +143,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(got).toEqual(JSON.parse(readFileSync(GOLDEN, 'utf8')));
   });
 
-  it('seedDocument: preserves other configuration (D-249) and needs a management and a data NIC (review R1R3 #8)', () => {
+  it('seedDocument: preserves other configuration (D-252) and needs a management and a data NIC (review R1R3 #8)', () => {
     const touched = structuredClone(emptyDocument()) as Doc & { system: { hostname?: string } };
     touched.system.hostname = 'edge1';
     const next = seedDocument(touched, NGFW_A)!;

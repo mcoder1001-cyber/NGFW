@@ -16,7 +16,7 @@ Reviewers were read-only agents (Opus 5.5); their reports were handed back in ch
 
 ## Combined verdict: APPROVE WITH CHANGES — one condition open for the manager, merge only on the owner's go-ahead
 
-1. **R4 #1 (MAJOR, pre-existing on `main`, widened by D-249):** the agent's `allInterfaces` block lists and automatic blocking target
+1. **R4 #1 (MAJOR, pre-existing on `main`, widened by D-252):** the agent's `allInterfaces` block lists and automatic blocking target
    unbound and released physical rows (`apps/agent/internal/desired/global_blocking.go`). Not fixed in this branch (agent code, outside
    the port's scope); handled as reviewer option (b): `docs/tech-debt.md` row with the fix and the projection test (owner manager,
    proposed Due 2026-10-31) plus the user-doc exception. **The manager must confirm the row (owner + date, drop "proposed") or have

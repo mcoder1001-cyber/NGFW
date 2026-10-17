@@ -14,7 +14,7 @@ The BLOCKER is an evidence gap, not a code defect. The port matches `76484d79f` 
   were correctly left out.
 - **Pasted evidence:** the 113 files / 806 tests, 19 + 26 cases and 10/10 tasks all match `turbo-api.log`, and the api lint,
   typecheck and test tasks there were real cache misses. 17 packaging tests confirmed.
-- **Decision log and links:** D-249 lists options (a), (b) and (c) and collides with nothing. All markdown links resolve. The
+- **Decision log and links:** D-252 lists options (a), (b) and (c) and collides with nothing. All markdown links resolve. The
   DEFERRED-ACCEPTANCE row is honest.
 
 1. **BLOCKER** — `PENDING-automatic-network-bootstrap.md:38`, `boot-nic-registration-port-wip.md:46`: the PENDING doc says the
@@ -47,7 +47,7 @@ The BLOCKER is an evidence gap, not a code defect. The port matches `76484d79f` 
 - `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_packaging.py -k test_api_unit_registers_default_nics_before_site_overrides -v` → ok / Ran 1 test / OK
 - turbo-api.log: `@ngfw/api:{typecheck,test,lint}: cache miss, executing`; `✓ commit.service.test.ts (26 tests)`, `✓ seed.service.test.ts (19 tests)`; `Test Files 113 passed`, `Tests 806 passed`, `Tasks: 10 successful`, `exit=0`
 - `python3 tools/board.py --check` → `board valid: 212 tasks; read-only validation`; every relative markdown link in the changed .md files resolves (0 broken)
-- D-249 numbering: no other D-249 on main, PR #239's diff or any remote-tracking `LOG.md`
+- D-252 numbering: no other D-252 on main, PR #239's diff or any remote-tracking `LOG.md`
 - `grep -rn "waiting for confirmation" apps/api --include=*.test.ts` → only `seed.service.test.ts:327` (mocked)
 
 ## Developer answers (second iteration)
@@ -79,7 +79,7 @@ The BLOCKER is an evidence gap, not a code defect. The port matches `76484d79f` 
    revisions `[[1,'commit'],[2,'system']]`). I could not run it myself (filtered vitest denied while the gate runs); evidence is
    the developer's paste at `wip.md:86-88` plus the api test task inside the running gate.
 3. **MAJOR, panel: fixed.** `wip.md:108-112`: R1, R2, R7 mandatory, plus R8, R6 (`docs/user/**`) and R4.
-4. **MINOR, LOG.md: fixed.** `LOG.md:286` says "Amends HIST-NATIVE-D-164". Correction to round 1: the D-249 row already sat
+4. **MINOR, LOG.md: fixed.** `LOG.md:286` says "Amends HIST-NATIVE-D-164". Correction to round 1: the D-252 row already sat
    directly under D-247 at `814532721`; the table detachment is older (main breaks at `LOG.md:39`) — out of scope.
 5. **MINOR, SHAs: fixed.** `wip.md:3-6` full base and iteration-1 SHAs; iteration-2 SHA promised for the next checkpoint
    (acceptable: a commit cannot contain its own SHA). `git ls-remote` → `db5042e38`; next command at `wip.md:120`.

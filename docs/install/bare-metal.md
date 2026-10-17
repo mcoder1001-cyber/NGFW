@@ -40,7 +40,7 @@ Initial API env is canonical and accepts only the three generated database, secr
 and JWT-key fields. Configure optional runtime overrides after provisioning, preserving
 the effective key precedence documented by the API.
 
-The appliance API unit sets `NGFW_SEED_DEFAULT_NICS=1` (D-192, D-249): every API boot
+The appliance API unit sets `NGFW_SEED_DEFAULT_NICS=1` (D-192, D-252): every API boot
 registers the data NICs missing from the running configuration from the agent's host
 inventory, PCI-backed virtio NICs included, through one system commit. This also repairs
 existing installations whose other settings were saved before NIC discovery. Existing

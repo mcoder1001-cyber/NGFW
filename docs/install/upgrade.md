@@ -18,7 +18,7 @@ valid keys/certificates. A pending bootstrap cleanup may still run after interru
 Restart/maintenance-window coordination belongs to the manager/operator. Check
 service health, API login, configuration revision, agent reconciliation and rollback
 before closing the window. The first API start after an upgrade to a release with
-boot-time NIC registration (D-249) adds one `system` revision ("register missing
+boot-time NIC registration (D-252) adds one `system` revision ("register missing
 dataplane NICs from the host inventory (F-default-vpp-nics)", events `COMMIT_APPLIED` (or
 `COMMIT_NOT_ENFORCED`) and `system.seed-defaults`) when the host has data NICs the saved
 configuration does not carry; an unchanged inventory adds nothing. It is deferred while a

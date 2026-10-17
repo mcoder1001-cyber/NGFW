@@ -1,7 +1,7 @@
 # PENDING: automatic network bootstrap
 
 - raised: 2026-09-30 by network-defaults-web
-- decision: **Persistent NIC registration implemented (owner instruction 2026-10-10, D-249); hardware takeover and
+- decision: **Persistent NIC registration implemented (owner instruction 2026-10-10, D-252); hardware takeover and
   routing TAP policy remain pending**
 - dependent work: boot-time NIC takeover, automatic routing TAP activation and hardware ownership migration
 
@@ -10,7 +10,7 @@
 On 2026-10-10 the product owner reiterated that host interfaces must be registered automatically at boot, without
 manual addition. The dev-host implemented this as commit `76484d79f` (on no branch or tag; reachable by SHA, see below);
 this update is its port
-onto the current `main` with the `ngfw` naming (D-249). The appliance API unit keeps `NGFW_SEED_DEFAULT_NICS=1` and the
+onto the current `main` with the `ngfw` naming (D-252). The appliance API unit keeps `NGFW_SEED_DEFAULT_NICS=1` and the
 registration service (`apps/api/src/features/default-vpp-nics/seed.service.ts`) now runs at **every** API start
 (boot, service restart, package upgrade), not only on a database without revisions: the data NICs missing from the running configuration are added through one
 system commit. Existing rows, logical names, interface settings, device tuning and host ownership (released NICs) are

@@ -221,10 +221,10 @@ elif name == 'tar':
 elif name == 'curl': sys.exit(1 if failure == 'health' else 0)
 elif name == 'nginx':
     # Preflight: `nginx -t -q` before any transfer; install: `nginx -t` with its output kept.
-    installed = (root / 'installed').exists()
-    assert args == (['-t'] if installed else ['-t', '-q']), args
-    if installed: print('nginx: fixture configuration test', file=sys.stderr)
-    sys.exit(1 if failure == ('nginx-config' if installed else 'nginx-preconfig') else 0)
+    # Decided by the arguments: a repeated upgrade of the same host is already 'installed'.
+    assert args in (['-t', '-q'], ['-t']), args
+    if args == ['-t']: print('nginx: fixture configuration test', file=sys.stderr)
+    sys.exit(1 if failure == ('nginx-config' if args == ['-t'] else 'nginx-preconfig') else 0)
 elif name == 'systemctl':
     if args[0] == 'reload':
         assert args == ['reload', 'nginx.service'], args

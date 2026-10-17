@@ -68,8 +68,8 @@ preflight names a missing tool.
 | R8 | MAJOR 1 (nginx failure message), MINORs 2 to 7, NITs 8 to 13 | APPROVE: message, `nginx-test.txt`, recovery copy and docs verified; targeted fixtures `Ran 3 tests in 110.542s` / `OK` | O-1 same as R1-8; O-2 `-T`; N-a D-250 said `nginx -t -q`; N-b exact one-member restore command and a preflight `nginx -t` |
 
 **Combined verdict: APPROVE** on `083a7ce87` (R1, R7 and R8 APPROVE in their verify rounds; R2's
-APPROVE WITH CHANGES had no MAJOR and its MINOR is fixed). Checkpoint 4 adds only the optional
-items listed below (no reviewer re-check required under the shared rules). Merge also needs the
+APPROVE WITH CHANGES had no MAJOR and its MINOR is fixed). Checkpoints 4 and 5 add only the
+optional items listed below plus one fixture fix (no reviewer re-check required under the shared rules). Merge also needs the
 hosted quick gate and packaging fixtures green on the final head, which the manager records at merge
 time.
 
@@ -83,4 +83,7 @@ to rebased SHAs and the archive ref · R7-V3: D-250 item 1 says "empty stdin (`/
 "#241 already carries D-251" · R8-N-a: D-250 says `nginx -t` · R8-N-b: the failure message and the
 guide give `tar -C / -xzf <recovery>/preupgrade-config.tar.gz etc/ngfw/nginx.conf`, and the preflight
 runs `nginx -t -q` so a site that already fails is refused before any transfer (fixture
-`nginx-preconfig`). Checkpoint 4 is the final head recorded in PR #242.
+`nginx-preconfig`). The full run on checkpoint 4 (`3d4debffd`, pushed before that run was read)
+failed one fixture: the fake `nginx` decided preflight-vs-install by the `installed` marker, which a
+repeated upgrade of the same host already has; checkpoint 5 makes it decide by its arguments and is
+the final head recorded in PR #242.

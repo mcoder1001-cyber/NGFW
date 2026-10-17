@@ -22,7 +22,8 @@ stacked SHAs live on the archive ref; the rebased SHAs are the branch `origin/fi
 | 1 | `1a42cb3a0` | `6fbd33c2c` | the five items, fixtures, guide, D-250 line, envelope, this file | — |
 | 2 | `e1157fa6e` | `2fd8d5a64` | full-run evidence, review plan; product tree unchanged | panel R1/R2/R7/R8 reviewed this tree |
 | 3 | `a01b58d67` | `083a7ce87` (tree `9741770f3`, identical to `a01b58d67`) | panel MAJORs and minors (see combined review), docs, the four reports verbatim, this file | verify rounds R1/R7/R8 on `083a7ce87` |
-| 4 | — | the commit carrying this version of this file; final head recorded in PR #242 and the combined review | verify-round minors (ssh case model, `-T`, preflight `nginx -t`, exact restore command, this file) | — |
+| 4 | — | `3d4debffd` | verify-round minors (ssh case model, `-T`, preflight `nginx -t`, exact restore command, status files) | superseded: pushed before run J was read (one fixture failed, see run J); no product change versus checkpoint 5 |
+| 5 | — | the commit carrying this version of this file; final head recorded in PR #242 and the combined review | fake `nginx` decides by its arguments (repeated upgrades), run L evidence, this file | — |
 
 ## Owned files
 
@@ -100,7 +101,9 @@ Iterations, in order, with the real summary lines (nothing below is edited outpu
 | G (checkpoint 3) | full discover | `Ran 33 tests in 625.916s` / `OK` (verbatim lines below); R1's verify-round rerun of the same tree: `Ran 33 tests in 643.642s` / `OK` |
 | H (checkpoint 4 draft) | 5 targeted tests | `Ran 5 tests in 91.039s` / `FAILED (failures=1)`: the nginx-failure regex did not allow the new "restore with" clause; fix: regex ends at `tar.gz;` |
 | I | the nginx test | `Ran 1 test in 37.163s` / `OK` |
-| J (checkpoint 4) | full discover | RUN_J_SUMMARY |
+| J (checkpoint 4, `3d4debffd`) | full discover | `Ran 33 tests in 619.241s` / `FAILED (failures=1)`: `test_repeated_upgrade_keeps_previous_backup`. The fake `nginx` decided preflight-vs-install by the `installed` marker, which a second upgrade of the same host already has, so its argument assertion failed in the preflight; fix: decide by the arguments. The product script is unaffected. The developer committed and pushed `3d4debffd` before this result was read (the command chain did not stop on the failed guard), so that head carries the failing fixture model and unfilled run markers; superseded by checkpoint 5 |
+| K | the repeated-upgrade and nginx tests | `Ran 2 tests in 61.932s` / `OK` |
+| L (checkpoint 5) | full discover | `Ran 33 tests in 630.637s` / `OK` (verbatim lines below) |
 
 Run D, verbatim (`python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v`, tree `1a42cb3a0`):
 
@@ -184,13 +187,48 @@ Ran 33 tests in 625.916s
 OK
 ```
 
-Run J, verbatim (tree of checkpoint 4):
+Run L, verbatim (tree of checkpoint 5):
 
 ```text
-RUN_J_BLOCK
+test_build_and_cache_reuse_are_bound_to_source_and_vpp (test_deploy_hosts.DeployHosts.test_build_and_cache_reuse_are_bound_to_source_and_vpp) ... ok
+test_corrupt_package_fails_before_ssh (test_deploy_hosts.DeployHosts.test_corrupt_package_fails_before_ssh) ... ok
+test_descendant_sources_install_including_legacy_hash_versions (test_deploy_hosts.DeployHosts.test_descendant_sources_install_including_legacy_hash_versions) ... ok
+test_development_versions_increase_for_descendants_and_preserve_release_guard (test_deploy_hosts.DeployHosts.test_development_versions_increase_for_descendants_and_preserve_release_guard) ... ok
+test_existing_deployment_lock_prevents_install (test_deploy_hosts.DeployHosts.test_existing_deployment_lock_prevents_install) ... ok
+test_external_secret_key_requires_manual_backup_review (test_deploy_hosts.DeployHosts.test_external_secret_key_requires_manual_backup_review) ... ok
+test_help_and_build_only_have_no_network_or_host_mutation (test_deploy_hosts.DeployHosts.test_help_and_build_only_have_no_network_or_host_mutation) ... ok
+test_hostile_preflight_output_is_rejected_before_git_or_transfer (test_deploy_hosts.DeployHosts.test_hostile_preflight_output_is_rejected_before_git_or_transfer) ... ok
+test_inactive_preflight_service_prevents_install (test_deploy_hosts.DeployHosts.test_inactive_preflight_service_prevents_install) ... ok
+test_install_and_postinstall_failures_are_reported_and_stop_fleet (test_deploy_hosts.DeployHosts.test_install_and_postinstall_failures_are_reported_and_stop_fleet) ... ok
+test_installed_version_changed_between_preflight_and_lock_is_refused (test_deploy_hosts.DeployHosts.test_installed_version_changed_between_preflight_and_lock_is_refused) ... ok
+test_metadata_identity_version_and_architecture_fail_closed (test_deploy_hosts.DeployHosts.test_metadata_identity_version_and_architecture_fail_closed) ... ok
+test_missing_or_incomplete_or_traversing_manifest_fails_before_ssh (test_deploy_hosts.DeployHosts.test_missing_or_incomplete_or_traversing_manifest_fails_before_ssh) ... ok
+test_newer_main_build_over_divergent_branch_needs_explicit_override (test_deploy_hosts.DeployHosts.test_newer_main_build_over_divergent_branch_needs_explicit_override) ... ok
+test_nginx_is_validated_and_reloaded_after_install (test_deploy_hosts.DeployHosts.test_nginx_is_validated_and_reloaded_after_install) ... ok
+test_no_default_route_needs_explicit_flag_and_is_recorded (test_deploy_hosts.DeployHosts.test_no_default_route_needs_explicit_flag_and_is_recorded) ... ok
+test_noncanonical_database_fails_before_backup_or_install (test_deploy_hosts.DeployHosts.test_noncanonical_database_fails_before_backup_or_install) ... ok
+test_old_python_is_refused_on_this_machine_and_on_the_target (test_deploy_hosts.DeployHosts.test_old_python_is_refused_on_this_machine_and_on_the_target) ... ok
+test_old_shared_lock_symlink_cannot_truncate_target (test_deploy_hosts.DeployHosts.test_old_shared_lock_symlink_cannot_truncate_target) ... ok
+test_override_never_accepts_release_downgrade_or_mixed_versions (test_deploy_hosts.DeployHosts.test_override_never_accepts_release_downgrade_or_mixed_versions) ... ok
+test_preinstall_failures_do_not_install_or_continue_to_second_host (test_deploy_hosts.DeployHosts.test_preinstall_failures_do_not_install_or_continue_to_second_host) ... ok
+test_remote_children_cannot_consume_the_script (test_deploy_hosts.DeployHosts.test_remote_children_cannot_consume_the_script) ... ok
+test_remote_lock_symlink_is_refused_without_truncation (test_deploy_hosts.DeployHosts.test_remote_lock_symlink_is_refused_without_truncation) ... ok
+test_repeated_upgrade_keeps_previous_backup (test_deploy_hosts.DeployHosts.test_repeated_upgrade_keeps_previous_backup) ... ok
+test_rollback_within_one_history_is_refused_even_with_override (test_deploy_hosts.DeployHosts.test_rollback_within_one_history_is_refused_even_with_override) ... ok
+test_shallow_build_refuses_incomplete_version_history (test_deploy_hosts.DeployHosts.test_shallow_build_refuses_incomplete_version_history) ... ok
+test_stale_branch_with_higher_commit_count_is_refused_before_transfer (test_deploy_hosts.DeployHosts.test_stale_branch_with_higher_commit_count_is_refused_before_transfer) ... ok
+test_stale_source_cache_and_preexisting_work_are_not_reused_or_deleted (test_deploy_hosts.DeployHosts.test_stale_source_cache_and_preexisting_work_are_not_reused_or_deleted) ... ok
+test_success_uses_private_backup_and_verified_installs (test_deploy_hosts.DeployHosts.test_success_uses_private_backup_and_verified_installs) ... ok
+test_symlink_and_extra_archive_fail_before_ssh (test_deploy_hosts.DeployHosts.test_symlink_and_extra_archive_fail_before_ssh) ... ok
+test_underscore_hosts_need_a_configured_ssh_alias (test_deploy_hosts.DeployHosts.test_underscore_hosts_need_a_configured_ssh_alias) ... ok
+test_unknown_source_is_fetched_once_then_refused_without_override (test_deploy_hosts.DeployHosts.test_unknown_source_is_fetched_once_then_refused_without_override) ... ok
+test_unsafe_arguments_fail_before_ssh (test_deploy_hosts.DeployHosts.test_unsafe_arguments_fail_before_ssh) ... ok
+----------------------------------------------------------------------
+Ran 33 tests in 630.637s
+OK
 ```
 
-Other gates on the checkpoint-4 tree (identical results on checkpoint 3):
+Other gates on the checkpoint-5 tree (identical results on checkpoints 3 and 4):
 
 ```text
 bash -n deploy/deploy-hosts.sh deploy/debian/ngfw/prepare.sh      -> exit 0

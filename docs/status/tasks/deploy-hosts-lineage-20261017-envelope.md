@@ -1,7 +1,8 @@
 # Task envelope: deploy-hosts-lineage-20261017
 
 Source: independent product review 2026-10-17 (`docs/status/2026-10-17-unmerged-audit-product-review.md`
-on `claude/review-unmerged-code-product-0351a9`, section 2-الف) of PR #237 (`deploy/deploy-hosts.sh`).
+at commit `b0cab4260f9214b988508258b493f209ffa2f789` on `claude/review-unmerged-code-product-0351a9`,
+section 2-الف) of PR #237 (`deploy/deploy-hosts.sh`).
 
 Fix on a branch cut from `origin/main`, with fixtures, and open a PR:
 

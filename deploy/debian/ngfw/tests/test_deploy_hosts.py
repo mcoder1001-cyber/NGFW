@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Run the deployment entry point with real .debs and disposable recording seams.
 
-Only SSH/host commands and expensive builds are fixtures. The shipped shell,
-package/checksum validation and remote control flow execute. Fixed host paths
-are redirected in the SSH seam; production exposes no fixture/root override.
+Only SSH/host commands, expensive builds and the source history (a fake `git`
+with a private lineage) are fixtures. The shipped shell, package/checksum
+validation and remote control flow execute. Fixed host paths are redirected in
+the SSH seam; production exposes no fixture/root override.
 """
 import fcntl
 import hashlib
@@ -19,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = ROOT / 'deploy/deploy-hosts.sh'
 VERSION = '0.1.0~dev+git42.' + 'a' * 12
 SOURCE = 'a' * 40
-# Fixture source history: c is an ancestor of a; b is an unrelated history; d is unknown.
+# Fixture source history: c < a < e on one line; b branched from c; d is unknown.
 INSTALLED_VERSIONS = {
     'downgrade': '99.0',
     'unrelated-lower': '0.1.0~dev+git41.' + 'b' * 12,
@@ -27,7 +28,14 @@ INSTALLED_VERSIONS = {
     'ancestor': '0.1.0~dev+git40.' + 'c' * 12,
     'legacy-ancestor': '0.1.0~dev+' + 'c' * 12,
     'unresolved': '0.1.0~dev+git40.' + 'd' * 12,
+    'unresolved-new': '0.1.0~dev+git40.' + 'c' * 12,
+    'rollback': '0.1.0~dev+git50.' + 'e' * 12,
+    'race': '0.1.0~dev+git40.' + 'c' * 12,
+    'unparsed-dev': '0.1.0~dev+git40.' + 'c' * 13,
+    'hostile-version': '1.0;id',
+    'hostile-extra': '0.0.1\nextra line',
 }
+BUILD_INFO = {'source_commit': SOURCE, 'source_count': 42, 'vpp_manifest_sha256': 'f' * 64}
 PACKAGES = {'ngfw-agent': 'amd64', 'ngfw-api': 'amd64', 'ngfw-meta': 'all', 'ngfw-web': 'all'}
 
 
@@ -116,6 +124,7 @@ while args and args[0].startswith('-'):
     args = args[2:] if args[0] == '-o' else args[1:]
 destination = root / 'host' / args[-1].split(':', 1)[1].lstrip('/')
 for source in args[:-1]: shutil.copy2(source, destination)
+(root / 'staged').write_text('yes')
 if os.environ.get('FAIL_STAGE') == 'transfer':
     with next(destination.glob('*.deb')).open('ab') as output: output.write(b'corrupt')
 ''')
@@ -129,19 +138,25 @@ with (root / 'events').open('a') as log: log.write(name + ' ' + repr(args) + '\n
 if name == 'id': print('1000' if failure == 'root' else '0')
 elif name == 'dpkg-query':
     if '${Status}' in args[1]: print('install ok installed')
-    elif '${Version}' in args[1]:
+    elif args[1] == '-f=${Version}':
         if (root / 'installed').exists(): print(os.environ['FIXTURE_VERSION'])
         elif failure == 'mixed' and args[-1] == 'ngfw-web': print('0.0.2')
+        elif failure == 'race' and (root / 'staged').exists(): print(os.environ['FIXTURE_INSTALLED_UNRELATED_LOWER'])
         else: print(os.environ.get('FIXTURE_INSTALLED_' + failure.replace('-', '_').upper(), '0.0.1'))
     else: print('ngfw-api 0.0.1\nvpp 26.06-release+ngfw3')
 elif name == 'ip':
     installed = (root / 'installed').exists()
     if args[0] == '-4':
         gateway = '192.0.2.254' if failure == 'route' and installed else '192.0.2.1'
-        print(f'default via {gateway} dev fixture proto dhcp src 192.0.2.10 metric 100')
+        metric = 200 if failure == 'route-metric' and installed else 100
+        print(f'default via {gateway} dev fixture proto dhcp src 192.0.2.10 metric {metric}')
     elif args[0] == '-6':
         gateway = 'fe80::2' if failure == 'route6' and installed else 'fe80::1'
-        print(f'default via {gateway} dev fixture proto ra metric 1024 expires {1402 if installed else 1693}sec hoplimit 64 pref medium')
+        device = 'other' if failure == 'route-dev' and installed else 'fixture'
+        print(f'default via {gateway} dev {device} proto ra metric 1024 expires {1402 if installed else 1693}sec hoplimit 64 pref medium')
+        hops = ('fe80::b', 'fe80::a') if failure == 'route-nexthop' and installed else ('fe80::a', 'fe80::b')
+        print(f'default proto ra metric 2048 expires {1300 if installed else 1500}sec pref medium')
+        print(f'\tnexthop via {hops[0]} dev fixture weight 1 \n\tnexthop via {hops[1]} dev fixture2 weight 1 ')
 elif name == 'apt-get':
     if '--simulate' in args:
         print('Inst vpp [old] (new)' if failure == 'dependency' else 'Inst ngfw-api [old] (new)')
@@ -164,8 +179,9 @@ elif name == 'systemctl':
         assert args[1:4] == ['-p', 'NRestarts', '--value'] and len(args) == 5
         marker = root / ('shown-' + args[4])
         seen = marker.exists(); marker.write_text('seen')
-        # The agent is still 'active' at each probe but was restarted in between.
-        print('1' if failure == 'crashloop' and seen and args[4] == 'ngfw-agent.service' else '0')
+        # The daemon is still 'active' at each probe but was restarted in between.
+        looping = {'crashloop': 'ngfw-agent.service', 'crashloop-api': 'ngfw-api.service'}.get(failure)
+        print('1' if seen and args[4] == looping else '0')
         sys.exit(0)
     # Match systemctl's ANY-active multi-unit exit semantics to catch regressions.
     if args[0] == 'is-active' and failure.startswith(('inactive-', 'preinactive-')):
@@ -190,21 +206,25 @@ import os, pathlib, shutil, sys
 root = pathlib.Path(os.environ['FIXTURE_ROOT'])
 args = sys.argv[1:]
 with (root / 'events').open('a') as log: log.write('git ' + repr(args) + '\n')
-commits = {'a' * 40, 'b' * 40, 'c' * 40}
-ancestors = {'a' * 40: {'a' * 40, 'c' * 40}, 'b' * 40: {'b' * 40}, 'c' * 40: {'c' * 40}}
+a, b, c, e = 'a' * 40, 'b' * 40, 'c' * 40, 'e' * 40
+ancestors = {a: {a, c}, b: {b, c}, c: {c}, e: {e, a, c}}
 if '--is-shallow-repository' in args: print('true' if os.environ.get('FAIL_STAGE') == 'shallow' else 'false')
+elif '--is-inside-work-tree' in args: print('true')
 elif 'rev-parse' in args:
     target = args[-1].removesuffix('^{commit}')
-    if target == 'FETCH_HEAD': print('a' * 40)
+    if target == 'FETCH_HEAD': print(a)
     else:
-        found = [commit for commit in commits if commit.startswith(target)]
+        if os.environ.get('FAIL_STAGE') == 'unresolved-new' and target.startswith('a'): sys.exit(1)
+        found = [commit for commit in ancestors if commit.startswith(target)]
         if len(found) != 1: sys.exit(1)
         print(found[0])
 elif 'merge-base' in args:
-    assert args[-3] == '--is-ancestor'
-    sys.exit(0 if args[-2] in ancestors[args[-1]] else 1)
-elif 'rev-list' in args: print('42')
-elif 'fetch' in args: pass
+    if '--is-ancestor' in args: sys.exit(0 if args[-2] in ancestors[args[-1]] else 1)
+    common = ancestors[args[-2]] & ancestors[args[-1]]
+    if not common: sys.exit(1)
+    print(max(common, key=lambda commit: len(ancestors[commit])))
+elif 'rev-list' in args: print('3\t2' if '--left-right' in args else '42')
+elif 'fetch' in args: assert args[-4:] == ['--no-tags', '--no-write-fetch-head', 'origin'] or args[-1] == 'main'
 elif 'worktree' in args and 'add' in args:
     source = pathlib.Path(args[-2]); (source / 'tools').mkdir(parents=True)
     shutil.copy2(root / 'heavy.sh', source / 'tools/heavy.sh')
@@ -224,8 +244,16 @@ else: raise AssertionError(args)
 
     def reset_host(self):
         self.events.unlink(missing_ok=True)
-        (self.root / 'installed').unlink(missing_ok=True)
-        for marker in self.root.glob('shown-*'): marker.unlink()
+        for marker in [self.root / 'installed', self.root / 'staged', *self.root.glob('shown-*')]:
+            marker.unlink(missing_ok=True)
+        shutil.rmtree(self.host / 'root/ngfw-deploy', ignore_errors=True)
+
+    def add_build_info(self):
+        (self.delivery / 'build-info.json').write_text(json.dumps(BUILD_INFO))
+        checksums(self.delivery)
+
+    def runs(self):
+        return sorted((self.host / 'root/ngfw-deploy').glob('run.*'))
 
     def log(self):
         return self.events.read_text() if self.events.exists() else ''
@@ -252,15 +280,19 @@ else: raise AssertionError(args)
         self.assertEqual(log.count("systemctl ['show', '-p', 'NRestarts', '--value', 'ngfw-agent.service']"), 2)
         self.assertEqual(log.count("systemctl ['show', '-p', 'NRestarts', '--value', 'ngfw-api.service']"), 2)
         self.assertLess(log.index("systemctl ['restart'"), log.index("'NRestarts'"))
-        self.assertLess(log.rindex('curl '), log.index("sleep ['5']"))
-        self.assertLess(log.index("sleep ['5']"), log.rindex("systemctl ['is-active'"))
-        self.assertLess(log.index("sleep ['5']"), log.rindex("'NRestarts'"))
+        self.assertLess(log.rindex('curl '), log.index("sleep ['10']"))
+        self.assertLess(log.index("sleep ['10']"), log.rindex("'NRestarts'"))
+        self.assertLess(log.rindex("'NRestarts'"), log.rindex("systemctl ['is-active'"))
+        self.assertNotIn("sleep ['1']", log)
         # The RA-learned IPv6 route expiry differs before and after; only via/dev/metric count.
         self.assertIn('expires 1693sec', (runs[0] / 'default-route-v6.txt').read_text())
         self.assertIn('src 192.0.2.10', (runs[0] / 'default-route-v4.txt').read_text())
         self.assertEqual(log.count("ip ['-6', 'route', 'show', 'default']"), 3)
+        self.assertFalse((runs[0] / 'default-route-v6-after.txt').exists())
+        self.assertFalse((runs[0] / 'override.txt').exists())
+        self.assertFalse((runs[0] / 'service-status.txt').exists())
         self.assertNotIn('git ', log)
-        self.assertRegex(log, r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 0'")
+        self.assertRegex(log, r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 0 0\.0\.1'")
 
     def test_repeated_upgrade_keeps_previous_backup(self):
         for _ in range(2):
@@ -280,7 +312,9 @@ else: raise AssertionError(args)
         for args in [('-p', self.delivery, 'bad;touch'), ('-u', 'root;true', '-p', self.delivery, 'host'),
                      ('-r', '--upload-pack=x', '-p', self.delivery, 'host'),
                      ('-p', self.delivery, '-w', self.root, 'host'), ('-p', self.delivery),
-                     ('--allow-divergent=1', '-p', self.delivery, 'host'), ('--allow', '-p', self.delivery, 'host')]:
+                     ('--allow-divergent=1', '-p', self.delivery, 'host'), ('--allow', '-p', self.delivery, 'host'),
+                     ('--allow-divergent', '-p', self.delivery, 'a.example', 'b.example'),
+                     ('-p', self.delivery, 'a.example', '--allow-divergent')]:
             with self.subTest(args=args): self.assert_rejected_without_ssh(self.run_script(*args))
 
     def test_missing_or_incomplete_or_traversing_manifest_fails_before_ssh(self):
@@ -344,37 +378,82 @@ else: raise AssertionError(args)
                     self.assertIn('pg_restore ', self.log())
 
     def test_install_and_postinstall_failures_are_reported_and_stop_fleet(self):
-        for failure in ('apt', 'health', 'service', 'route', 'route6', 'crashloop', 'ssh', 'inactive-ngfw-agent', 'inactive-nginx', 'inactive-vpp'):
+        for failure in ('apt', 'health', 'service', 'route', 'route6', 'route-dev', 'route-metric', 'route-nexthop',
+                        'crashloop', 'crashloop-api', 'ssh', 'inactive-ngfw-agent', 'inactive-nginx', 'inactive-vpp'):
             with self.subTest(failure=failure):
                 self.reset_host()
                 result = self.deploy('first.example', 'second.example', failure=failure)
                 self.assertNotEqual(result.returncode, 0, result.stdout)
                 self.assertNotIn('second.example', self.log())
                 self.assertIn('inspect /root/ngfw-deploy/run.', result.stderr)
-                if failure in ('route', 'route6'):
+                if failure != 'ssh':
+                    self.assertTrue((self.runs()[0] / 'service-status.txt').is_file())
+                if failure.startswith('route'):
                     self.assertIn('management default route changed', result.stderr)
-                if failure == 'crashloop':
-                    self.assertIn('restarted during the stability window', result.stderr)
+                    self.assertIn('after v6:', result.stderr)
+                    self.assertTrue((self.runs()[0] / 'default-route-v6-after.txt').is_file())
+                if failure.startswith('crashloop'):
+                    unit = 'ngfw-api.service' if failure == 'crashloop-api' else 'ngfw-agent.service'
+                    self.assertIn(f'after: {unit} NRestarts=1', result.stderr.replace('ngfw-agent.service NRestarts=0, ', ''))
                     self.assertTrue((self.root / 'installed').exists())
 
     def test_stale_branch_with_higher_commit_count_is_refused_before_transfer(self):
         # dpkg orders git41.b below git42.a, so the old count-only guard accepted this older tree.
         subprocess.run(['dpkg', '--compare-versions', VERSION, 'gt', INSTALLED_VERSIONS['unrelated-lower']], check=True)
+        self.add_build_info()
         result = self.deploy('first.example', 'second.example', failure='unrelated-lower')
         self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn('is not an ancestor of', result.stderr)
-        self.assertIn("git ['-C', '" + str(ROOT) + "', 'merge-base', '--is-ancestor', '" + 'b' * 40 + "', '" + 'a' * 40 + "']", self.log())
-        self.assertNotIn('scp', self.log())
-        self.assertNotIn('apt-get ', self.log())
-        self.assertNotIn('second.example', self.log())
+        self.assertIn('divergent histories: installed bbbbbbbbbbbb, new aaaaaaaaaaaa, merge-base cccccccccccc, commits only in installed/new: 3/2', result.stderr)
+        self.assertIn('review: git -C ' + str(ROOT) + ' log --oneline bbbbbbbbbbbb..aaaaaaaaaaaa', result.stderr)
+        self.assertIn('nothing was transferred', result.stderr)
+        log = self.log()
+        self.assertIn("'" + 'a' * 40 + "^{commit}'", log)
+        self.assertIn("git ['-C', '" + str(ROOT) + "', 'merge-base', '--is-ancestor', '" + 'b' * 40 + "', '" + 'a' * 40 + "']", log)
+        self.assertNotIn('scp', log)
+        self.assertNotIn('apt-get ', log)
+        self.assertNotIn('second.example', log)
+        self.assertRegex(log, r"'rmdir -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}'")
+        self.assertEqual(self.runs(), [])
+
+    def test_rollback_within_one_history_is_refused_even_with_override(self):
+        for flags in ((), ('--allow-divergent',)):
+            with self.subTest(flags=flags):
+                self.reset_host()
+                result = self.deploy(failure='rollback', flags=flags)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn('is older than installed eeeeeeeeeeee in the same history', result.stderr)
+                self.assertNotIn('scp', self.log())
+                self.assertNotIn('--allow-downgrades', self.log())
+                self.assertEqual(self.runs(), [])
+
+    def test_installed_version_changed_between_preflight_and_lock_is_refused(self):
+        result = self.deploy(failure='race')
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('installed version changed since preflight: ngfw-agent 0.1.0~dev+git41.bbbbbbbbbbbb, expected 0.1.0~dev+git40.cccccccccccc', result.stderr)
+        self.assertIn('is an ancestor of', result.stderr)
+        self.assertNotIn('--simulate', self.log())
+        self.assertFalse((self.root / 'installed').exists())
+
+    def test_hostile_preflight_output_is_rejected_before_git_or_transfer(self):
+        for failure, message in (('hostile-version', 'invalid installed package version'),
+                                 ('hostile-extra', 'unexpected preflight output'),
+                                 ('unparsed-dev', 'carries no recognisable source commit')):
+            with self.subTest(failure=failure):
+                self.reset_host()
+                result = self.deploy(failure=failure)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(message, result.stderr)
+                self.assertNotIn('scp', self.log())
+                self.assertNotIn("'merge-base'", self.log())
 
     def test_newer_main_build_over_divergent_branch_needs_explicit_override(self):
         # dpkg orders git99.b above git42.a: without the override this is a downgrade with no path forward.
         subprocess.run(['dpkg', '--compare-versions', INSTALLED_VERSIONS['unrelated-higher'], 'gt', VERSION], check=True)
         result = self.deploy(failure='unrelated-higher')
         self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn('is not an ancestor of', result.stderr)
+        self.assertIn('commit counts do not order divergent histories', result.stderr)
         self.assertNotIn('scp', self.log())
+        self.assertEqual(self.runs(), [])
         self.reset_host()
         result = self.deploy(failure='unrelated-higher', flags=('--allow-divergent',))
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -383,9 +462,11 @@ else: raise AssertionError(args)
         log = self.log()
         self.assertEqual(log.count("'--allow-downgrades'"), 2)
         self.assertLess(log.index("'--allow-downgrades'"), log.index("'--simulate'"))
+        self.assertRegex(log, r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 1 0\.1\.0~dev\+git99\.b{12}'")
         self.assertTrue((self.root / 'installed').exists())
+        self.assertEqual((self.runs()[0] / 'override.txt').read_text(), 'allow-divergent accepted by operator; apt --allow-downgrades\n')
 
-    def test_override_never_accepts_release_downgrade_or_shell_syntax(self):
+    def test_override_never_accepts_release_downgrade_or_mixed_versions(self):
         for failure in ('downgrade', 'mixed'):
             with self.subTest(failure=failure):
                 self.reset_host()
@@ -393,15 +474,19 @@ else: raise AssertionError(args)
                 self.assertNotEqual(result.returncode, 0, result.stdout)
                 self.assertFalse((self.root / 'installed').exists())
                 self.assertNotIn('--allow-downgrades', self.log())
+                if failure == 'mixed':
+                    self.assertIn('ngfw-api 0.0.1', result.stderr)
         self.reset_host()
+        # A host whose lineage needs no override gets the remote literal 0 even with the flag.
         self.assertEqual(self.deploy(flags=('--allow-divergent',)).returncode, 0)
         self.assertNotIn('--allow-downgrades', self.log())
-        self.assertRegex(self.log(), r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 1'")
+        self.assertRegex(self.log(), r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 0 0\.0\.1'")
 
     def test_descendant_sources_install_including_legacy_hash_versions(self):
         for failure in ('ancestor', 'legacy-ancestor'):
             with self.subTest(failure=failure):
                 self.reset_host()
+                if failure == 'ancestor': self.add_build_info()
                 result = self.deploy(failure=failure)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn('is an ancestor of', result.stderr)
@@ -409,17 +494,24 @@ else: raise AssertionError(args)
                 self.assertNotIn("'fetch'", self.log())
                 self.assertTrue((self.root / 'installed').exists())
 
-    def test_unknown_installed_source_is_fetched_once_then_refused_without_override(self):
-        result = self.deploy(failure='unresolved')
-        self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn('is not in', result.stderr)
-        self.assertEqual(self.log().count("'fetch'"), 1)
-        self.assertNotIn('scp', self.log())
-        self.reset_host()
-        result = self.deploy(failure='unresolved', flags=('--allow-divergent',))
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('lineage unverifiable', result.stderr)
-        self.assertNotIn('--allow-downgrades', self.log())
+    def test_unknown_source_is_fetched_once_then_refused_without_override(self):
+        for failure, missing in (('unresolved', 'installed source dddddddddddd is not in'), ('unresolved-new', 'new source aaaaaaaaaaaa is not in')):
+            with self.subTest(failure=failure):
+                self.reset_host()
+                result = self.deploy(failure=failure)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(missing, result.stderr)
+                self.assertIn('fetching origin branches', result.stderr)
+                self.assertEqual(self.log().count("'fetch'"), 1)
+                self.assertIn("'--no-tags', '--no-write-fetch-head', 'origin'", self.log())
+                self.assertNotIn('scp', self.log())
+                self.assertEqual(self.runs(), [])
+                self.reset_host()
+                result = self.deploy(failure=failure, flags=('--allow-divergent',))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('lineage unverifiable', result.stderr)
+                self.assertNotIn('--allow-downgrades', self.log())
+                self.assertIn('without --allow-downgrades', (self.runs()[0] / 'override.txt').read_text())
 
     def test_inactive_preflight_service_prevents_install(self):
         for unit in ('ngfw-agent', 'nginx', 'vpp'):
@@ -523,6 +615,9 @@ if sys.argv[1] == 'dpkg-buildpackage':
         self.assertNotEqual(result.returncode, 0)
         # Counts say nothing about unrelated histories; the helper checks ancestry separately.
         subprocess.run(['dpkg', '--compare-versions', '0.1.0~dev+git99.' + 'b' * 12, 'gt', VERSION], check=True)
+        # The lineage parser must keep matching prepare.sh's version format.
+        self.assertIn('VERSION=0.1.0~dev+git$SOURCE_COUNT.$COMMIT\n', (ROOT / 'deploy/debian/ngfw/prepare.sh').read_text())
+        self.assertIn("'^0\\.1\\.0~dev\\+(git[1-9][0-9]*\\.)?[a-f0-9]{12}$'", SCRIPT.read_text())
 
     def test_stale_source_cache_and_preexisting_work_are_not_reused_or_deleted(self):
         script, vpp = self.build_fixture()

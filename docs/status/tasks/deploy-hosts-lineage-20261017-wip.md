@@ -2,7 +2,11 @@
 
 Branch: `fix/deploy-hosts-lineage-routes-20261017` (cut from `origin/main` 99a774734).
 Envelope: [deploy-hosts-lineage-20261017-envelope.md](deploy-hosts-lineage-20261017-envelope.md).
-Checkpoint 1: local = remote `4550231934f28ea793ae7f488f7761ee10732520` (pushed 2026-10-17).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/240 (open, base `main` = `99a774734`).
+Checkpoint 1: `455023193` + status `1649dd100` (pushed 2026-10-17; reviewed tree).
+Checkpoint 2: review fixes; SHA recorded in the PR after push (see "Actual test results").
+Combined review: [deploy-hosts-lineage-20261017-review.md](deploy-hosts-lineage-20261017-review.md)
+(BLOCK on `1649dd100`; all MAJORs fixed in checkpoint 2; verify round requested from R1/R2).
 
 ## Owned files
 
@@ -12,6 +16,7 @@ Checkpoint 1: local = remote `4550231934f28ea793ae7f488f7761ee10732520` (pushed 
 - `docs/decisions/DEC-248-development-package-ordering.md`
 - `docs/install/deploy-hosts.md`
 - `docs/status/tasks/deploy-hosts-lineage-20261017-*.md`
+- `docs/decisions/LOG.md` (one appended line, D-249)
 
 ## Completed code
 
@@ -48,4 +53,31 @@ gate are unchanged and remain required.
 
 ## Remaining code / current failure / next command
 
-None known at the time of the PR; reviewer findings go here.
+- Remaining code: none known after checkpoint 2. Open: R1/R2 verify round; hosted CI result on
+  the PR (quick gate + packaging fixture gate), to be recorded here.
+- Current failure: none locally.
+- Exact next command (verify round, in the worktree):
+  `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v`
+
+## Decisions
+
+- D-249 (amends D-248): operator-side ancestry verification with a one-host `--allow-divergent`
+  override; rollbacks, stable-release downgrades and mixed versions always refused.
+- The installed build's identity is the source commit embedded in the package version; no new
+  host state file. The override and the service status are recorded in the recovery directory.
+- 10 s stability window after API health (RestartSec=3); no agent-socket anchor (path is
+  overridable and may persist across restarts).
+
+## Out of scope (from the originating review, 2-الف.4, unchanged here)
+
+- remote scripts are fed to `bash -s` on stdin (a child reading stdin would consume the script;
+  none found);
+- nginx is not reloaded after the upgrade;
+- a host without any default route is refused;
+- Python ≥ 3.11 (`hashlib.file_digest`) is not documented as a target requirement;
+- the host pattern rejects underscores.
+
+## Open questions
+
+- Manager: confirm the D-249 number and add the `plan/tasks.yaml` row.
+- Hosted packaging job duration with 33 fixtures (15-minute budget) to be read from the PR run.

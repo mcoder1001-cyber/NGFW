@@ -10,7 +10,7 @@ diff against its base `origin/fix/deploy-hosts-lineage-routes-20261017` (PR #240
 | deploy tooling (product) | `deploy/deploy-hosts.sh` |
 | deploy fixtures | `deploy/debian/ngfw/tests/test_deploy_hosts.py` |
 | operator docs | `docs/install/deploy-hosts.md` |
-| decisions / status | `docs/decisions/LOG.md` (D-250), `docs/status/tasks/deploy-hosts-minors-20261017-*.md` |
+| decisions / status | `docs/decisions/LOG.md` (D-250), `docs/status/tasks/deploy-hosts-minors-20261017-*.md`, `docs/install/upgrade.md` (one nginx note), `docs/status/DEFERRED-ACCEPTANCE.md` (one deferred row) |
 
 ## Reviewers to spawn
 
@@ -27,5 +27,5 @@ restarted), R5 (no hot path), R6 (no web/i18n change).
 ## Testers
 
 None beyond the host-independent fixtures (`test_deploy_hosts.py`, `test_prepare.py`); there is no
-lab acceptance for this tool in scope. Appliance acceptance of a real upgrade stays deferred per
-`docs/status/DEFERRED-ACCEPTANCE.md`.
+lab acceptance for this tool in scope. A real appliance upgrade with this tool (PR #240 and this
+branch) is NOT RUN and is recorded as a deferred row in `docs/status/DEFERRED-ACCEPTANCE.md`.

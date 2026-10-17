@@ -2,6 +2,16 @@
 
 Owner authorization, 2026-10-02: remove Telegram; merge reviewed code without waiting for laboratory access; collect deferred tests here and continue development. This supersedes historical lab-only BLOCK verdicts. Real code defects and the complete hosted quick CI remain merge blockers. NOT RUN never means PASS. Existing security, secret-channel, shared-host and privilege handover decisions remain applicable.
 
+## Operator upgrade tool — 2026-10-17
+
+`deploy/deploy-hosts.sh` as changed by PR #240 (source lineage, stable default-route comparison,
+restart counters) and PR #242 (remote launcher with private script descriptor, `nginx -t` and
+reload, `--allow-no-default-route`, Python >= 3.11 checks, underscore SSH aliases) is proven only
+by the host-independent fixtures (`deploy/debian/ngfw/tests/test_deploy_hosts.py`, 33 tests). A
+real upgrade of an initialized appliance with it, including the nginx reload taking effect, the
+no-default-route path on a management-only appliance and recovery from a failed step, is
+NOT RUN; record it here when a disposable appliance is available.
+
 ## Current dual-host acceptance checkpoint — 2026-10-11
 
 The four board rows `P12-fib-proof`, `F-ospf-host`, `F-nat46-host` and

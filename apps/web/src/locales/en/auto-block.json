@@ -1,13 +1,13 @@
 {
   "nav": "Auto-block",
   "title": "Auto-block",
-  "intro": "Source IPs that failed too many logins or scanned the box are blocked here for a while. Detector thresholds and the allow-list live in Config → Security; the allow-list (and loopback) is never blocked.",
+  "intro": "Source IPs that failed too many logins or scanned the box are blocked here for a while. Detector thresholds and the allow-list are set on the Auto-block policy tab; the allow-list (and loopback) is never blocked.",
   "refresh": "Refresh",
   "loading": "Loading blocked sources",
   "empty": "No sources are blocked right now.",
   "blockByHand": "Block by hand",
   "unblock": "Unblock",
-  "allowlistHint": "To stop a source from ever being blocked, add it to the allow-list in Config → Security. Unblocking here is temporary — a source that keeps offending is blocked again.",
+  "allowlistHint": "To stop a source from ever being blocked, add it to the allow-list on the Auto-block policy tab. Unblocking here is temporary — a source that keeps offending is blocked again.",
   "col": {
     "source": "Source",
     "reason": "Detector",

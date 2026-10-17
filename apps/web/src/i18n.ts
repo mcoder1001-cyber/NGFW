@@ -166,6 +166,9 @@ import faMultiwan from './locales/fa/multiwan.json';
 // F-bruteforce-block (unanchored)
 import enAutoBlock from './locales/en/auto-block.json';
 import faAutoBlock from './locales/fa/auto-block.json';
+// F-security-page (unanchored): the Security domain page (auto-block policy + blocked sources)
+import enSecurity from './locales/en/security.json';
+import faSecurity from './locales/fa/security.json';
 // wave-A: F-nat44-ed-sessions
 import enNat44EdSessions from './locales/en/nat44-ed-sessions.json';
 import faNat44EdSessions from './locales/fa/nat44-ed-sessions.json';
@@ -285,6 +288,7 @@ export const NAMESPACES = [
   'dashboard-prom-alarms', // wave-BC: F-dashboard-prom-alarms
   'multiwan', // F-multiwan (unanchored)
   'auto-block', // F-bruteforce-block (unanchored)
+  'security', // F-security-page (unanchored)
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions',
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -401,6 +405,7 @@ const en = {
   'dashboard-prom-alarms': enDashPromAlarms,
   multiwan: enMultiwan,
   'auto-block': enAutoBlock,
+  security: enSecurity, // F-security-page (unanchored)
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': enNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -514,6 +519,7 @@ const fa = {
   'dashboard-prom-alarms': faDashPromAlarms,
   multiwan: faMultiwan,
   'auto-block': faAutoBlock,
+  security: faSecurity, // F-security-page (unanchored)
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': faNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6

@@ -480,3 +480,141 @@ Not run, as the brief required: `tools/ci.sh`, `make`, `pnpm`, `turbo` and whole
 - V1–V4 are all fixed.
 - The developer may fix N1–N3 or answer won't-fix in one line each. N1 needs only a wording change to the line at `rpc_autoblock.go:145`.
 - Merge still needs the conflict with main resolved and a green hosted Mandatory quick gate on the resulting head. If the rebase touches `apps/agent`, the product verify must be repeated.
+
+## Verify round 3 (head `b11a29700`)
+
+- **Reviewer:** panel R1, correctness and tests (Opus 5.5, read-only agent).
+- **Read-only:** I created, modified or deleted no repository or worktree file. No stash, checkout, worktree, apply, commit, push or network call. HEAD is `6ba91e042` throughout, and `git status --porcelain -- apps/agent` is empty before and after every run.
+  - Other changes in the worktree are not mine. The developer's uncommitted edits to `docs/status/tasks/agent-allifs-unbound-nics{,-wip}.md` are still there. The `tools/ci.sh quick` running in this worktree deleted `apps/agent/gen/**` for a while during its `turbo run gen` step, and it has left `packages/api-client/src/generated/schema.d.ts` modified.
+  - My first mutation batch hit that gen step and failed to build (`open gen/ngfw/v1/dataplane.pb.go: no such file`). I re-ran every mutation after `apps/agent/gen` was restored and matched HEAD. Only the re-run results are reported.
+- **Scratch files:** all under `<scratchpad>/review-R1-verify3/`: mutation copies made from `git show b11a29700:<file>`, overlay JSONs, two scratch test files and logs. Mutations and scratch tests used Go's `-overlay` flag only.
+- **Scope:** `git diff --stat b11a29700 HEAD -- apps` is empty. The product delta `1377ae788..b11a29700` touches four files: `agent/rpc_autoblock.go`, `agent/physical_nics_acl_test.go`, `desired/global_blocking.go` and `desired/global_blocking_test.go`.
+
+### Verdict: R1 APPROVE — 0 BLOCKER, 0 MAJOR, 0 MINOR, 3 NIT (new N4–N6). N1, N2 and N3 are fixed, and so is R6's note on `rpc_autoblock.go`.
+
+### Verify-round findings
+
+**1. N1 MINOR (false all-clear line, wrong prefix): FIXED.** One residual wording point is new NIT N4.
+
+What changed:
+- `rpc_autoblock.go:132-147` now logs every `acl.global-blocking` WARNING as `block lists: <pointer> — <message>`.
+- The all-clear line is `block lists: no list on all interfaces skips a physical NIC any more`.
+- The comment at `:124-129` now describes what the function does.
+
+I checked every case from my verify-2 report with a scratch test. The NIC ens192 stays unbound throughout:
+
+| Scenario | Logged | All-clear correct? |
+|---|---|---|
+| Auto-block only, empty snapshot | the all-clear line, once (pinned by the branch test at `:189`) | Yes. No all-interfaces list exists any more. |
+| Auto-block only, expiry on the agent clock (`now += 2m`, then `reconcileAutoBlockLocked` under `s.lock`, the watcher's path) | the all-clear line (n=0); the next tick logs nothing | Yes |
+| User list `bad` (all interfaces) plus Auto-block entry | two WARN lines: `/acl/globalBlocking/lists/bad/allInterfaces — block list "bad" …` and `/security/autoBlock — Auto-block …` | n/a |
+| Same snapshot again | nothing | n/a |
+| Then empty snapshot | only the `bad` line again, no all-clear | Yes |
+| Entry again | both lines | n/a |
+| Expiry on the agent clock | only the `bad` line, no all-clear | Yes |
+
+- **Re-logging an unchanged user-list warning when the overlay appears or disappears is acceptable.** It happens once per change of the warning set, never per tick. It carries its pointer, so it cannot be mistaken for Auto-block's line. Logging the user-list warnings is correct: R2's name-clash drop also hits them in the same acl-only transaction.
+- **R6's note on `rpc_autoblock.go:130-146`:**
+  - Problem 1 (the `auto-block:` prefix on user-list lines) is fixed: generic prefix plus pointer.
+  - Problem 2 (wrong all-clear) is fixed for the cases above. See N4 for released NICs.
+  - Problem 3 ("covers all interfaces") is fixed: that sentence is gone.
+- `grep` finds no remaining "automatic blocking selects", "every physical NIC is bound" or "released to the host are skipped" in `apps`, `packages` or `docs/user`.
+
+**2. N2 NIT (the test checked bookkeeping, not the log): FIXED.**
+- `physical_nics_acl_test.go:163-164` captures the logger. Lines `:181-193` and `:229` assert:
+  - exactly one WARN line;
+  - no new `block lists:` line for a repeated snapshot;
+  - the all-clear line once after an empty snapshot;
+  - the WARN line again (count 2) when entries return;
+  - the all-clear line a second time after the bind;
+  - no `ens161` anywhere.
+- Every logging mutation now fails it:
+  - M1 (no `Warn`) fails at `:184` (got 0).
+  - M2 (no dedupe) fails at `:187` ("a repeated snapshot logs nothing new").
+  - M3 (pointer dropped from the line) fails at `:184`.
+  - M4 (the old all-clear wording) fails at `:190`.
+
+**3. N3 NIT and R6 NIT-10 (the "selects no interface" warning used the hidden list name and pointer): FIXED.**
+- `global_blocking.go:164` hoists `what, at`. Line `:167` moves `at` to `…/allInterfaces`, and `:169` sets `"Auto-block"` and `/security/autoBlock`. Lines `:175-182` split the warning three ways.
+- Scratch projection with an Auto-block list, a user all-interfaces list without Protect-the-box (`np`) and an explicit list with no interfaces (`ex`), all physical rows unbound or released:
+  ```
+  W /security/autoBlock acl.global-blocking Auto-block selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192
+  W /security/autoBlock acl.global-blocking Auto-block has no interface the engine has yet: it is not enforced in the data plane (traffic to the appliance itself is still dropped)
+  W /acl/globalBlocking/lists/ex/interfaces acl.global-blocking block list "ex" selects no interface: it is not enforced in the data plane
+  W /acl/globalBlocking/lists/np/allInterfaces acl.global-blocking block list "np" selects all interfaces, but … skipped: ens192
+  W /acl/globalBlocking/lists/np/allInterfaces acl.global-blocking block list "np" has no interface the engine has yet: it is not enforced in the data plane
+  ```
+  The explicit-list line is byte-identical to the old one. The released-only and no-rows cases give the same three "no interface" lines.
+- **The Protect-the-box clause is true.** `nftables/blocking.go:41` selects host lists by enabled, `protectHost` and entries only, not by interfaces. On the fake VPP with every data row still a kernel NIC, `AutoBlockSet` returns active=1, the host rule is installed, and the log shows both `/security/autoBlock` lines.
+- **Released NICs are no longer reported (R6 MINOR-4, option a).** The `released` slice and the `infof` call are gone from `global_blocking.go`. `infof` is still used at `cnat.go:132`, so it does not become an unused function. Mutation M7 (report released rows again) fails four tests.
+- M5 (old pointer and wording restored) and M8 (Protect-the-box clause dropped) fail `global_blocking_test.go:306`. M6 ("automatic blocking" restored) fails `physical_nics_acl_test.go:121` and `:184`.
+
+### New findings (all NIT)
+
+**N4 NIT: the all-clear line overclaims when a NIC is released to the host.**
+- **Where:** `apps/agent/internal/agent/rpc_autoblock.go:146` and comment `:128-129`. Pinned at `physical_nics_acl_test.go:182, :229`.
+- **What happens:** since released rows are no longer reported, an all-interfaces list that skips a released NIC produces no warning. After the bind at `:229`, the branch's own test logs "no list on all interfaces skips a physical NIC any more". At that moment ens161 is still `owner: host`, and Auto-block's list (one live entry) still skips it.
+- **A related mismatch:** the same line is logged when the only cleared warning was an explicit list's "selects no interface". The line is still true then, but it does not describe what cleared.
+- **Low impact:** a released NIC carries no data-plane traffic, and Auto-block's host rule still covers it.
+- **Fix:** reword to something like `block lists: no list on all interfaces skips a NIC awaiting the engine any more`, or use a neutral `block lists: the warnings above no longer apply`.
+
+**N5 NIT: two of the three new "no interface" branches are untested.**
+- **Where:** `apps/agent/internal/desired/global_blocking.go:177` and `:181`.
+- **What survives:** M9 (the explicit-list wording changed) passes every test. So does M10, which adds "(traffic to the appliance itself is still dropped)" to the branch without Protect-the-box: a false claim no test catches.
+- **Before this commit,** the explicit-list text was the same line `TestGlobalBlockingAllInterfacesNothingBound` checked. The split left it uncovered.
+- **Fix:** add a `protectHost:false` all-interfaces list and an explicit list with `interfaces: []` to `TestGlobalBlockingAllInterfacesNothingBound`, and assert the exact lines shown in item 3 above.
+
+**N6 NIT: two test comments still say released NICs are named.**
+- `physical_nics_acl_test.go:92-94` says "the unbound and the released row … are named at the list".
+- `global_blocking_test.go:237-238` says "The skipped NICs are named in one warning per list".
+- Since this commit only the unbound row is named; the assertions at `:116-121` and `:255-259` say so.
+- **Fix:** "the unbound row is named at the list; the released row only through agent.nic-released".
+
+### Notes outside R1 (not graded)
+
+- **[other: R7]** At HEAD `6ba91e042`, the committed WIP (`git show HEAD:…-wip.md:2,7-8`) still describes checkpoint and gates on `0e96796ae`. Gate claims for `6ba91e042` / `b11a29700` exist only as uncommitted edits in the working tree. I did not run or verify those gates (the brief forbids it), and a `tools/ci.sh quick` was still running during this review.
+
+### Commands run
+Worktree `/root/NGFW/.claude/worktrees/funny-meninsky-c9ef19`; Go commands from `apps/agent`; `D=<scratchpad>/review-R1-verify3`.
+
+```
+$ git rev-parse HEAD → 6ba91e0427405795a4b411e68f361a18612940bb
+$ git diff --stat b11a29700 HEAD -- apps | wc -l → 0
+$ cmp <(git show b11a29700:…/rpc_autoblock.go) …/rpc_autoblock.go && cmp <(… global_blocking.go) → "head files == b11a29700"
+
+$ env -u NGFW_INTEGRATION go test -race -count=1 -v -run 'TestAutoBlockWithUnboundAndReleasedNICsOnFake|TestProjectAutoBlockOverlay|TestAllInterfacesBlockList|TestGlobalBlockingAllInterfaces|TestGlobalBlockingTwoAllInterfacesLists' ./internal/desired/ ./internal/agent/
+--- PASS ×8 (4 desired, 4 agent); ok desired 1.475s; ok agent 2.287s
+
+$ env -u NGFW_INTEGRATION go test -race -count=1 -run 'TestGlobalBlocking|TestACL|TestParseGlobalBlocking|TestProjectPhysicalNic|TestProjectAutoBlock|TestAutoBlock|TestAllInterfaces|PhysicalNIC|PhysicalNic|RuleExpiry|Expiry' ./internal/desired/ ./internal/agent/
+ok desired 27.235s · ok agent 6.232s · exit=0
+
+$ env -u NGFW_INTEGRATION go test -count=1 -v -run 'Project|Global|ACL|Acl|AutoBlock|AllInterfaces|Nic|NIC|Split|Unbound|Expiry' ./internal/desired/ ./internal/agent/
+exit=0 PASS=109 FAIL=0 SKIP=2 (TestHostNicsOnHost, TestSrv6GlobalsOnHost: NGFW_INTEGRATION unset) · ok desired 7.080s · ok agent 7.920s
+
+$ go vet ./internal/desired/ ./internal/agent/ → exit 0
+$ gofmt -l <the 4 changed Go files> → (no output) exit 0
+
+# Mutations: go test -overlay=$D/ov-<m>.json -count=1 -v -run 'TestAutoBlockWithUnboundAndReleasedNICsOnFake|TestProjectAutoBlockOverlay|TestAllInterfacesBlockList|TestGlobalBlocking' ./internal/desired/ ./internal/agent/
+M1  rpc_autoblock.go:143 Warn → `_ = m`              exit=1 FAIL TestAutoBlockWithUnboundAndReleasedNICsOnFake  physical_nics_acl_test.go:184 … got 0
+M2  :138 `if false && text == …`                    exit=1 FAIL same test  :187 a repeated snapshot logs nothing new
+M3  :134 pointer dropped                            exit=1 FAIL same test  :184
+M4  :146 old all-clear wording                      exit=1 FAIL same test  :190
+M5  global_blocking.go:176-177 old pointer/wording  exit=1 FAIL TestGlobalBlockingAllInterfacesNothingBound  global_blocking_test.go:306
+M6  :169 "automatic blocking"                       exit=1 FAIL TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs (:121), TestAutoBlockWithUnboundAndReleasedNICsOnFake (:184)
+M7  :126 released rows reported again               exit=1 FAIL 4 tests (global_blocking_test.go:259, :306; physical_nics_acl_test.go:121, :184)
+M8  :178 Protect-the-box clause dropped             exit=1 FAIL TestGlobalBlockingAllInterfacesNothingBound :306
+M9  :177 explicit-list wording changed              exit=0 all PASS   ← N5
+M10 :181 clause added to the protectHost=false line exit=0 all PASS   ← N5
+
+# Scratch tests (overlay-only, never on disk)
+$ go test -overlay=$D/ov-scratch.json -count=1 -v -run TestReviewR1V3 ./internal/desired/ ./internal/agent/
+exit=0; output as quoted in items 1 and 3 above
+$ ls apps/agent/internal/{desired,agent}/zz_review_r1v3_test.go → No such file or directory (both)
+$ git status --porcelain -- apps/agent → (empty, before and after)
+```
+
+Not run, as the brief required: `tools/ci.sh`, `make`, `pnpm`, `turbo`, whole-tree `go test ./...` and `gh` / network calls.
+
+**Verdict line: R1 APPROVE — 0 BLOCKER, 0 MAJOR, 0 MINOR, 3 NIT (N4–N6).**
+- N1, N2 and N3 are fixed, and so are R6 NIT-10, R6 MINOR-4 (option a) and R6's note on `rpc_autoblock.go`.
+- The NITs are optional: fix them or answer won't-fix in one line each.

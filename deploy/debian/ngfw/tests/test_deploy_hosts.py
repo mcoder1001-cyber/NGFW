@@ -233,8 +233,9 @@ elif 'merge-base' in args:
     print(max(common, key=lambda commit: len(ancestors[commit])))
 elif 'rev-list' in args: print('3\t2' if '--left-right' in args else '42')
 elif 'fetch' in args:
-    assert args[-4:] == ['--quiet', '--no-tags', '--no-write-fetch-head', 'origin'] or args[-1] == 'main', args
-    assert os.environ.get('GIT_TERMINAL_PROMPT') == '0' and os.environ.get('GIT_SSH_COMMAND') == 'ssh -o BatchMode=yes'
+    if args[-1] != 'main':  # the lineage fetch; the build fetches origin REF
+        assert args[-4:] == ['--quiet', '--no-tags', '--no-write-fetch-head', 'origin'], args
+        assert os.environ.get('GIT_TERMINAL_PROMPT') == '0' and os.environ.get('GIT_SSH_COMMAND') == 'ssh -o BatchMode=yes'
     (root / 'fetched').write_text('yes')
 elif 'worktree' in args and 'add' in args:
     source = pathlib.Path(args[-2]); (source / 'tools').mkdir(parents=True)

@@ -1,83 +1,37 @@
 # agent-allifs-unbound-nics — status
 
 PR: https://github.com/mcoder1001-cyber/NGFW/pull/241 · branch `claude/agent-allifs-unbound-nics` · base `origin/main` `99a774734` · fixes finding #1 of review R4 of [PR #238](https://github.com/mcoder1001-cyber/NGFW/pull/238) ([review file](https://github.com/mcoder1001-cyber/NGFW/blob/c2f898d2b/docs/status/tasks/boot-nic-registration-port-review-R4.md), [tech-debt row dated 2026-10-17 "PR #238 review R4, MAJOR"](https://github.com/mcoder1001-cyber/NGFW/blob/c2f898d2b/docs/tech-debt.md), both on the #238 branch only; `main` carries neither).
-Product commits: `9a63c09ce` (the fix), `856bf743a` (review round 1) and `1377ae788` (verify round); the other commits are docs/status. Agent only; no schema/proto/API change; no VPP, lab slot or host service touched.
+Product commits: `9a63c09ce` (the fix), `856bf743a` (review round 1), `1377ae788` (verify round), `b11a29700` (verify round 2) and `f53747c65` (R1's last NITs); the other commits are docs/status. Agent only; no schema/proto/API change; no VPP, lab slot or host service touched.
 
 ## What was built
 
 - `apps/agent/internal/desired/acl.go`: `desired.ACL` takes the interface rows the projection keeps (`kept`, from `SplitUnboundPhysical`); nil is the split without a netdev lookup (every engine-owned row kept, released rows dropped). The 15 test callers pass nil.
-- `apps/agent/internal/desired/global_blocking.go`: the implicit all-interfaces target set of the block lists — `allInterfaces` lists and the auto-block overlay, which always selects all interfaces — is `sortedKeys(kept)`, computed once per projection and only when a list asks for it. A list that selects all interfaces reports the rows it skips at the field the operator set (`acl.global-blocking` at `/acl/globalBlocking/lists/<name>/allInterfaces`; the auto-block overlay at `/security/autoBlock` as "automatic blocking"): a NIC awaiting the engine as a warning, a NIC released to the host as an info note. Commit and DryRun reports carry them; the auto-block runtime reconcile, which returns no report, logs the warnings once per change (`logSkippedNICsLocked` in `agent/rpc_autoblock.go`), so a binding dropped in an acl-only transaction leaves a trace. Explicit interface lists are unchanged.
+- `apps/agent/internal/desired/global_blocking.go`: the implicit all-interfaces target set of the block lists — `allInterfaces` lists and the auto-block overlay, which always selects all interfaces — is `sortedKeys(kept)`, computed once per projection and only when a list asks for it. A list that selects all interfaces reports, at the field the operator set (`acl.global-blocking` at `/acl/globalBlocking/lists/<name>/allInterfaces`; Auto-block's overlay at `/security/autoBlock`), the NICs it skips because they are still awaiting the engine (a warning) and the case where it has no interface the engine has yet; a NIC released to the host is not repeated (the interfaces projection's `agent.nic-released` note and the user doc cover it; the UI shows every note like a warning). Commit and DryRun reports carry the warnings; the auto-block runtime reconcile, which returns no report, logs them with their pointer once per change of their text and a true all-clear line (`logSkippedNICsLocked` in `agent/rpc_autoblock.go`), so a binding dropped in an acl-only transaction leaves a trace. Explicit interface lists are unchanged.
 - `apps/agent/internal/agent/projection.go`: passes `boundIfs` — the result of the one `SplitUnboundPhysical` call per projection — so the interfaces and acl domains see one observation of the kernel and the acl projection adds no netlink dumps.
 - Why: an unbound seeded NIC (still a Linux kernel interface) or a NIC released to the host has no `interface/<row>` alias (never projected), so `acl.interface-binding/<row>` failed the plan with a missing mandatory dependency: every interfaces/security commit was refused and `AutoBlockSet` returned `Unavailable` (new automatic blocks enforced nowhere, VPP and host nftables alike) while an all-interfaces list or live auto-block entries existed. Pre-existing on `main`; #238's boot-time registration makes it reachable on every appliance with kernel NICs.
 
 ## How verified (pasted output, unedited)
 
-Red: the committed head with one line of `global_blocking.go` put back to the pre-fix form (`allIfs = sortedKeys(ds.GetInterfaces())` instead of `sortedKeys(kept)`, by `sed`, then `git checkout -- apps/agent/internal/desired/global_blocking.go`); run from `apps/agent`. Six of the seven tests fail; `TestProjectAutoBlockOverlayAddsNoNetdevLookups` guards the lookup count, which this line does not change, and is red only against an acl-side re-lookup (R1's verify-round mutation A):
+Red: the committed head with one line of `global_blocking.go` put back to the pre-fix form (`allIfs = sortedKeys(ds.GetInterfaces())` instead of `sortedKeys(kept)`, by `sed`, then `git checkout -- apps/agent/internal/desired/global_blocking.go`); run from `apps/agent`, the agent's own log lines filtered out as marked. Six of the seven tests fail; `TestProjectAutoBlockOverlayAddsNoNetdevLookups` guards the lookup count, which this line does not change, and is red only against an acl-side re-lookup (R1's verify-round mutation A):
 
 ```
-$ env -u NGFW_INTEGRATION go test -count=1 -run 'TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs|TestGlobalBlockingAllInterfacesNothingBound|TestGlobalBlockingTwoAllInterfacesLists|TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs|TestProjectAutoBlockOverlayAddsNoNetdevLookups|TestAutoBlockWithUnboundAndReleasedNICsOnFake|TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake' ./internal/desired/ ./internal/agent/
---- FAIL: TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs (0.02s)
+$ env -u NGFW_INTEGRATION go test -count=1 -run 'TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs|TestGlobalBlockingAllInterfacesNothingBound|TestGlobalBlockingTwoAllInterfacesLists|TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs|TestProjectAutoBlockOverlayAddsNoNetdevLookups|TestAutoBlockWithUnboundAndReleasedNICsOnFake|TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake' ./internal/desired/ ./internal/agent/ 2>&1 | grep -vE '^[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9:]+ (INFO|WARN|DEBUG|ERROR) '
+--- FAIL: TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs (0.01s)
     global_blocking_test.go:268: a released NIC is not an all-interfaces target
 --- FAIL: TestGlobalBlockingAllInterfacesNothingBound (0.00s)
-    global_blocking_test.go:305: want the unbound-NIC warning and the not-enforced warning, got [W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking block list "all" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192]
+    global_blocking_test.go:306: want the unbound-NIC warning and the not-enforced warning at the field the operator set, got [W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking block list "all" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192]
 --- FAIL: TestGlobalBlockingTwoAllInterfacesLists (0.00s)
-    global_blocking_test.go:338: the unbound NIC is not bound
+    global_blocking_test.go:339: the unbound NIC is not bound
 FAIL
-FAIL	ngfw/agent/internal/desired	0.188s
+FAIL	ngfw/agent/internal/desired	0.172s
 --- FAIL: TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs (0.02s)
-    physical_nics_acl_test.go:108: no binding for ens192: its interface alias is never projected
-2026/10/17 12:25:17 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
-2026/10/17 12:25:17 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
-2026/10/17 12:25:17 INFO PKI file materialiser wired root=/tmp/TestAutoBlockWithUnboundAndReleasedNICsOnFake232119022/001/pki-w7 source=true
-2026/10/17 12:25:17 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
-2026/10/17 12:25:17 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
-2026/10/17 12:25:17 INFO fqdn state reloaded family=objects file=/tmp/TestAutoBlockWithUnboundAndReleasedNICsOnFake232119022/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
-2026/10/17 12:25:17 INFO objects domain wired store=/tmp/TestAutoBlockWithUnboundAndReleasedNICsOnFake232119022/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns=127.0.0.1:9
-2026/10/17 12:25:17 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
-2026/10/17 12:25:17 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/tmp/TestAutoBlockWithUnboundAndReleasedNICsOnFake232119022/001/host-acl-w7.nft
-2026/10/17 12:25:17 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO kea descriptors off (NGFW_KEA_MODE=off)
-2026/10/17 12:25:17 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-3626512644/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-3626512644/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-3626512644/rsyslog/rsyslog.conf vpp_dns_cache="required only"
-2026/10/17 12:25:17 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO system identity wired product_paths=false hostname_file=/tmp/ngfw-agent-test-3626512644/sysident/etc/hostname
-2026/10/17 12:25:17 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
-2026/10/17 12:25:17 WARN remote-access initialization unavailable reason=engine-not-ready
-2026/10/17 12:25:17 INFO VPP boot identity identity=6e5470e2-2a93-49f1-9a7e-91932d253fe0/0/? complete=false expired_claims=0
-2026/10/17 12:25:17 INFO reconcile start txn_id=nics-config mode=apply domains="[interfaces security]"
-2026/10/17 12:25:17 INFO reconcile done txn_id=nics-config mode=apply domains="[interfaces security]" status=APPLY_STATUS_APPLIED summary="created:1  unchanged:1" reapplied=0 duration=10.4698ms err=""
-2026/10/17 12:25:17 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
-2026/10/17 12:25:17 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_FAILED summary=failed:2 reapplied=0 duration=0s err="validation failed: acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present"
+    physical_nics_acl_test.go:110: no binding for ens192: its interface alias is never projected
 --- FAIL: TestAutoBlockWithUnboundAndReleasedNICsOnFake (0.03s)
-    physical_nics_acl_test.go:169: auto-block set with an unbound and a released NIC: <nil> rpc error: code = Unavailable desc = auto-block enforcement: validation failed: acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present
-2026/10/17 12:25:17 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
-2026/10/17 12:25:17 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
-2026/10/17 12:25:17 INFO PKI file materialiser wired root=/tmp/TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake3376953298/001/pki-w7 source=true
-2026/10/17 12:25:17 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
-2026/10/17 12:25:17 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
-2026/10/17 12:25:17 INFO fqdn state reloaded family=objects file=/tmp/TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake3376953298/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
-2026/10/17 12:25:17 INFO objects domain wired store=/tmp/TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake3376953298/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns=127.0.0.1:9
-2026/10/17 12:25:17 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
-2026/10/17 12:25:17 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/tmp/TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake3376953298/001/host-acl-w7.nft
-2026/10/17 12:25:17 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO kea descriptors off (NGFW_KEA_MODE=off)
-2026/10/17 12:25:17 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-3626512644/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-3626512644/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-3626512644/rsyslog/rsyslog.conf vpp_dns_cache="required only"
-2026/10/17 12:25:17 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
-2026/10/17 12:25:17 INFO system identity wired product_paths=false hostname_file=/tmp/ngfw-agent-test-3626512644/sysident/etc/hostname
-2026/10/17 12:25:17 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
-2026/10/17 12:25:17 WARN remote-access initialization unavailable reason=engine-not-ready
-2026/10/17 12:25:17 INFO VPP boot identity identity=6e5470e2-2a93-49f1-9a7e-91932d253fe0/0/? complete=false expired_claims=0
-2026/10/17 12:25:17 INFO reconcile start txn_id=all1 mode=apply domains="[interfaces acl]"
-2026/10/17 12:25:17 INFO reconcile done txn_id=all1 mode=apply domains="[interfaces acl]" status=APPLY_STATUS_FAILED summary=failed:2 reapplied=0 duration=6.569623ms err="validation failed: acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present"
+    physical_nics_acl_test.go:172: auto-block set with an unbound and a released NIC: <nil> rpc error: code = Unavailable desc = auto-block enforcement: validation failed: acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present
 --- FAIL: TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake (0.02s)
-    physical_nics_acl_test.go:238: status APPLY_STATUS_FAILED, want APPLY_STATUS_APPLIED: validation failed: acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present results=[key:"acl.interface-binding/ens161"  code:OBJECT_RESULT_CODE_DEPENDENCY_MISSING  message:"mandatory dependency interface/ens161 is neither desired nor present"  pointer:"/acl/globalBlocking/lists/bad"  subsystem:"acl" key:"acl.interface-binding/ens192"  code:OBJECT_RESULT_CODE_DEPENDENCY_MISSING  message:"mandatory dependency interface/ens192 is neither desired nor present"  pointer:"/acl/globalBlocking/lists/bad"  subsystem:"acl"] validation=txn_id:"all1"  errors:{pointer:"/acl/globalBlocking/lists/bad"  message:"acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present"  severity:ISSUE_SEVERITY_ERROR  rule:"agent.dependency-missing"}  errors:{pointer:"/acl/globalBlocking/lists/bad"  message:"acl.interface-binding/ens192: mandatory dependency interface/ens192 is neither desired nor present"  severity:ISSUE_SEVERITY_ERROR  rule:"agent.dependency-missing"}  errors:{pointer:"/acl/globalBlocking/lists/bad/allInterfaces"  message:"block list \"bad\" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192"  severity:ISSUE_SEVERITY_WARNING  rule:"acl.global-blocking"}  errors:{pointer:"/acl/globalBlocking/lists/bad/allInterfaces"  message:"block list \"bad\" selects all interfaces; the physical NICs released to the host are skipped: ens161"  severity:ISSUE_SEVERITY_INFO  rule:"acl.global-blocking"}  errors:{pointer:"/interfaces/ens161"  message:"physical NIC \"ens161\" is released to the host (physical.owner = host): nothing is configured on the data plane for it"  severity:ISSUE_SEVERITY_INFO  rule:"agent.nic-released"}  errors:{pointer:"/interfaces/ens192"  message:"physical NIC \"ens192\" is not bound to the data plane yet (still a Linux kernel interface); its configuration is applied once the NIC is handed to VPP"  severity:ISSUE_SEVERITY_WARNING  rule:"agent.nic-not-bound"}  summary:{}
+    physical_nics_acl_test.go:255: status APPLY_STATUS_FAILED, want APPLY_STATUS_APPLIED: validation failed: acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present results=[key:"acl.interface-binding/ens161"  code:OBJECT_RESULT_CODE_DEPENDENCY_MISSING  message:"mandatory dependency interface/ens161 is neither desired nor present"  pointer:"/acl/globalBlocking/lists/bad"  subsystem:"acl" key:"acl.interface-binding/ens192"  code:OBJECT_RESULT_CODE_DEPENDENCY_MISSING  message:"mandatory dependency interface/ens192 is neither desired nor present"  pointer:"/acl/globalBlocking/lists/bad"  subsystem:"acl"] validation=txn_id:"all1"  errors:{pointer:"/acl/globalBlocking/lists/bad"  message:"acl.interface-binding/ens161: mandatory dependency interface/ens161 is neither desired nor present"  severity:ISSUE_SEVERITY_ERROR  rule:"agent.dependency-missing"}  errors:{pointer:"/acl/globalBlocking/lists/bad"  message:"acl.interface-binding/ens192: mandatory dependency interface/ens192 is neither desired nor present"  severity:ISSUE_SEVERITY_ERROR  rule:"agent.dependency-missing"}  errors:{pointer:"/acl/globalBlocking/lists/bad/allInterfaces"  message:"block list \"bad\" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192"  severity:ISSUE_SEVERITY_WARNING  rule:"acl.global-blocking"}  errors:{pointer:"/interfaces/ens161"  message:"physical NIC \"ens161\" is released to the host (physical.owner = host): nothing is configured on the data plane for it"  severity:ISSUE_SEVERITY_INFO  rule:"agent.nic-released"}  errors:{pointer:"/interfaces/ens192"  message:"physical NIC \"ens192\" is not bound to the data plane yet (still a Linux kernel interface); its configuration is applied once the NIC is handed to VPP"  severity:ISSUE_SEVERITY_WARNING  rule:"agent.nic-not-bound"}  summary:{}
 FAIL
-FAIL	ngfw/agent/internal/agent	0.257s
+FAIL	ngfw/agent/internal/agent	0.242s
 FAIL
 exit=1
 ```
@@ -86,52 +40,52 @@ Green, the committed head (the seven tests plus the neighbouring global-blocking
 
 ```
 $ env -u NGFW_INTEGRATION go test -count=1 -run 'TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs|TestGlobalBlockingAllInterfacesNothingBound|TestGlobalBlockingTwoAllInterfacesLists|TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs|TestProjectAutoBlockOverlayAddsNoNetdevLookups|TestAutoBlockWithUnboundAndReleasedNICsOnFake|TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake|TestGlobalBlocking|TestProjectPhysicalNic' ./internal/desired/ ./internal/agent/
-ok  	ngfw/agent/internal/desired	4.961s
-ok  	ngfw/agent/internal/agent	0.384s
+ok  	ngfw/agent/internal/desired	4.908s
+ok  	ngfw/agent/internal/agent	0.423s
 exit=0
 ```
 
-What the seven tests prove: `TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs` (desired) — an all-interfaces list plus an explicit list over bound, unbound and released rows binds the kept rows only, the unbound NIC only through the explicit list, one warning names the NIC awaiting the engine (the released one is an info note), and without a lookup the released row is still dropped; `TestGlobalBlockingAllInterfacesNothingBound` — every row unbound or released: nothing bound, no error, the list reported as not enforced; `TestGlobalBlockingTwoAllInterfacesLists` — two lists in one projection warn once each and name every NIC once (the memo flag); `TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs` (agent) — the auto-block overlay binds the bound NIC only, keeps the nic-not-bound / nic-released notes and reports the skipped rows at `/security/autoBlock` (warning and note); `TestProjectAutoBlockOverlayAddsNoNetdevLookups` — one lookup per engine-owned row, none for a released one, none added by the acl projection; `TestAutoBlockWithUnboundAndReleasedNICsOnFake` (fake VPP) — `AutoBlockSet` succeeds and the bound NIC carries `_gb.auto-block.i00`, an interfaces commit with live entries has no DryRun error and is APPLIED (the new interface bound too), the runtime reconcile logs the NIC awaiting the engine (and nothing once it is bound), a NIC handed to VPP later is bound by the resync together with its own configuration, a second resync changes nothing, and a released NIC loses our binding and goes admin-down; `TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake` — a user all-interfaces list: the bound NIC and the loopback bound, `Retrieve` equals desired, re-apply and resync empty, a later bind picked up.
+What the seven tests prove: `TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs` (desired) — an all-interfaces list plus an explicit list over bound, unbound and released rows binds the kept rows only, the unbound NIC only through the explicit list, one warning names the NIC awaiting the engine (the released one is not reported), and without a lookup the released row is still dropped silently; `TestGlobalBlockingAllInterfacesNothingBound` — every row unbound or released: nothing bound, no error, the list reported at its field as having no interface the engine has yet; `TestGlobalBlockingTwoAllInterfacesLists` — two lists in one projection warn once each and name every NIC once (the memo flag); `TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs` (agent) — the auto-block overlay binds the bound NIC only, keeps the nic-not-bound / nic-released notes and reports the NIC awaiting the engine at `/security/autoBlock` as a warning; `TestProjectAutoBlockOverlayAddsNoNetdevLookups` — one lookup per engine-owned row, none for a released one, none added by the acl projection; `TestAutoBlockWithUnboundAndReleasedNICsOnFake` (fake VPP) — `AutoBlockSet` succeeds and the bound NIC carries `_gb.auto-block.i00`, an interfaces commit with live entries has no DryRun error and is APPLIED (the new interface bound too), the runtime reconcile logs one WARN line for the NIC awaiting the engine (captured logger), nothing for a repeated snapshot, a true all-clear line for an empty snapshot, the WARN again when entries return and the all-clear line after the bind, a NIC handed to VPP later is bound by the resync together with its own configuration, a second resync changes nothing, and a released NIC loses our binding and goes admin-down; `TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake` — a user all-interfaces list: the bound NIC and the loopback bound, `Retrieve` equals desired, re-apply and resync empty, a later bind picked up.
 
-Agent gate on the committed head `0e96796ae` (product commit `1377ae788`): `env -u NGFW_INTEGRATION make -C apps/agent lint test`, run from the worktree root, nothing committed while it ran; log `agent-gate-3.log` (session scratchpad). Pasted unedited except the marked elisions:
+Agent gate on the committed head `6ba91e042` (product commit `b11a29700`): `env -u NGFW_INTEGRATION make -C apps/agent lint test`, run from the worktree root, nothing committed while it ran; log `agent-gate-4.log` (session scratchpad). Pasted unedited except the marked elisions:
 
 ```
 make: Entering directory '/root/NGFW/.claude/worktrees/funny-meninsky-c9ef19/apps/agent'
-NGFW_TIMING BEGIN agent.vet 2026-10-17T12:26:12.018875032Z
+NGFW_TIMING BEGIN agent.vet 2026-10-17T12:51:08.641130556Z
 go vet ./...
-NGFW_TIMING END agent.vet 2026-10-17T12:26:26.334703862Z
-NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-17T12:26:26.359315640Z
+NGFW_TIMING END agent.vet 2026-10-17T12:51:23.030890864Z
+NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-17T12:51:23.054829215Z
 0 issues.
-NGFW_TIMING END agent.lint-dispatch 2026-10-17T12:26:38.298400269Z
-NGFW_TIMING BEGIN agent.race-test 2026-10-17T12:26:38.321578146Z
+NGFW_TIMING END agent.lint-dispatch 2026-10-17T12:51:34.454526764Z
+NGFW_TIMING BEGIN agent.race-test 2026-10-17T12:51:34.476985595Z
 go test -race -count=1 ./...
-ok  	ngfw/agent/internal/agent	60.215s
-ok  	ngfw/agent/internal/descriptors/acl	1.331s
-ok  	ngfw/agent/internal/desired	29.536s
-ok  	ngfw/agent/internal/subsystems	31.740s
-# 139 further "ok" lines, 166 "?  … [no test files]" lines and the final "make: Leaving directory" line elided — grep -c '^ok' agent-gate-3.log → 143; grep -c -E '^(FAIL|--- FAIL)' → 0
-NGFW_TIMING END agent.race-test 2026-10-17T12:28:24.157969882Z
+ok  	ngfw/agent/internal/agent	59.462s
+ok  	ngfw/agent/internal/descriptors/acl	1.330s
+ok  	ngfw/agent/internal/desired	28.553s
+ok  	ngfw/agent/internal/subsystems	31.794s
+# 139 further "ok" lines, 166 "?  … [no test files]" lines and the final "make: Leaving directory" line elided — grep -c '^ok' agent-gate-4.log → 143; grep -c -E '^(FAIL|--- FAIL)' → 0
+NGFW_TIMING END agent.race-test 2026-10-17T12:53:19.936999185Z
 AGENT_GATE_EXIT=0
 ```
 
-Complete `tools/ci.sh quick` (unchanged, from the worktree root, `env -u NGFW_INTEGRATION`) on the same head `0e96796ae`, nothing committed while it ran; log `ci-quick-3.log` (session scratchpad) and `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-122852-2050388`. Header, the turbo line and the summary pasted unedited:
+Complete `tools/ci.sh quick` (unchanged, from the worktree root, `env -u NGFW_INTEGRATION`) on the same head `6ba91e042`, nothing committed while it ran; log `ci-quick-4.log` (session scratchpad) and `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-125345-2113815`. Header, the turbo line and the summary pasted unedited:
 
 ```
-branch    claude/agent-allifs-unbound-nics @ 0e96796ae
-Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    52.82s  
+branch    claude/agent-allifs-unbound-nics @ 6ba91e042
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    56.373s  
 == summary (quick) ==
-  tools (golangci-lint, gitleaks)                    0m01s
+  tools (golangci-lint, gitleaks)                    0m02s
   install (pnpm --frozen-lockfile --prefer-offline)   0m00s
-  generate + generated-output gate                   0m56s
-  forbidden patterns (+ gitleaks)                    0m15s
+  generate + generated-output gate                   0m57s
+  forbidden patterns (+ gitleaks)                    0m16s
   packet-trace ban on the shared VPP (D-128)         0m00s
   ip classify reset after every shell interface create (D-185)   0m02s
   slot resource scheme (1..32, no collisions)        0m04s
-  lint · typecheck · unit tests · build (turbo)   0m54s
-  apps/agent: make lint test build                   1m32s
+  lint · typecheck · unit tests · build (turbo)   0m57s
+  apps/agent: make lint test build                   1m31s
   apps/cli: make lint test build                     0m09s
   test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/ab-upgrade test/topology/acl test/topology/backup-restore test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/ha-state-sync test/topology/hardening-lite test/topology/host-acl-nftables test/topology/images test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/qos-flat test/topology/system-identity test/topology/traffic-a/globals test/topology/traffic-c/globals test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp)   1m07s
-  deploy/vpp: shellcheck + apply-startup fake-host harness   0m07s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m06s
   warnings:
     - control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
       apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
@@ -142,13 +96,13 @@ Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    52.82s
       apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
       apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
       apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
-  mode quick · wall time 5m09s · logs /root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-122852-2050388
+  mode quick · wall time 5m12s · logs /root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-125345-2113815
 
 CI GATE PASSED
 CI_QUICK_EXIT=0
 ```
 
-Earlier gates on the first two product versions (`9a63c09ce`, `0b57dc070`) passed as well; their pasted outputs are in this file's history (`git log -p -- docs/status/tasks/agent-allifs-unbound-nics.md`).
+Earlier gates on the previous product versions (`9a63c09ce`, `0b57dc070`, `0e96796ae`) passed as well; their pasted outputs are in this file's history (`git log -p -- docs/status/tasks/agent-allifs-unbound-nics.md`).
 
 Docs on `main` checked: `docs/user/interfaces/default-dataplane-nics.md` ("the commit succeeds", "does not make commits fail") describes the fixed behaviour and needs no change; `docs/user/security/global-blocking.md` got the one sentence below.
 
@@ -186,9 +140,22 @@ Independent panel per `prompts/REVIEW-PROMPT.md`, read-only reviewer agents, han
 | reviewer | verdict on `873f1d946` | handled in `1377ae788` / `0e96796ae` |
 |---|---|---|
 | R1 | APPROVE (1 MINOR, 3 NIT) | V1 reconcile log; V2 two-lists test; V3 severity split + `/security/autoBlock`; V4 "six fail" → six of seven, the lookup-count test explained |
-| R2 | APPROVE (3 MINOR, 1 NIT open) | #1a reconcile log; #2 PR body republished through the REST API (`gh pr edit` was failing on a GraphQL deprecation error — R7's check prints `[false,false,false,true]`); V-1 doc cell; V-2 released → info |
-| R4 | APPROVE (2 MINOR, 2 NIT) | #4 PR body; N1 reconcile log; N2 released → info; N3 overlay at `/security/autoBlock`, "automatic blocking" |
+| R2 | APPROVE (3 MINOR, 1 NIT open) | #1a reconcile log; #2 PR body republished through the REST API (`gh pr edit` was failing on a GraphQL deprecation error — R7's check prints `[false,false,false,true]`); V-1 doc cell; V-2 released NICs no longer warned |
+| R4 | APPROVE (2 MINOR, 2 NIT) | #4 PR body; N1 reconcile log; N2 released NICs no longer warned; N3 overlay at `/security/autoBlock`, "Auto-block" |
 | R6 | BLOCK (1 MAJOR, 4 MINOR, 4 NIT) | MAJOR-1 / MINOR-2 / NIT-6 the cell reworded with R6's text and links; #3 and #5 tech-debt rows extended (locale keys, picker); #4 warning split, overlay wording; NIT-7 pointer `…/allInterfaces`; NIT-9 one sentence in `auto-block.md`; NIT-8 won't fix (one cell, as R6 allowed) |
 | R7 | APPROVE WITH CHANGES (1 MAJOR, 3 MINOR, 3 NIT) | N1 PR body published + checked; N2 six of seven; N3 cell; N4 relayed to the manager for the #238 session (this session posts no comment on #238); N5 envelope; N6 elision note; N7 heading + "(on PR #238's branch until it merges)" |
 
-Final mini-verify on the head that carries this file (product tree = `1377ae788`): R6 (the reworded cell) and R1 (the verify-round code delta: severity split, overlay pointer, reconcile log, two-lists test). Result recorded here and in the PR when it is in.
+### Verify round 2 (head `b74ad2b1b`) and the changes it asked for
+
+| reviewer | verdict on `b74ad2b1b` | handled in `b11a29700` |
+|---|---|---|
+| R6 | APPROVE (MINOR-4 partial, NIT-10 new; follow-ups accepted) | MINOR-4: released NICs no longer reported by the block lists (the UI shows every note like a warning; `agent.nic-released` and the doc cover them); NIT-10: the "no interface" warning reported at the same field with "has no interface the engine has yet"; "Auto-block" wording; its note on the log lines: pointer logged with each line, generic "block lists:" prefix, true all-clear line |
+| R1 | APPROVE (N1 MINOR, N2/N3 NIT) | N1: the all-clear line is true in every case ("no list on all interfaces skips a physical NIC any more"), user-list warnings logged with their pointer; N2: the test captures the logger (one WARN, none for a repeat, all-clear for an empty snapshot, WARN again, all-clear after the bind); N3: same as R6 NIT-10 |
+
+### Verify round 3 (head `b11a29700`)
+
+| reviewer | verdict | handled in `f53747c65` |
+|---|---|---|
+| R1 | APPROVE (0 MINOR, 3 NIT N4–N6); N1–N3 and R6's log-line note confirmed fixed | N4 all-clear line "no list on all interfaces skips a NIC awaiting the engine any more"; N5 the nothing-bound test pins the explicit-list wording and the Protect-the-box clause (only when the setting is on) with exact lines; N6 comments corrected. Gated again below. |
+
+@@GATES5@@

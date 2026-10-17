@@ -7,7 +7,9 @@ package agent
 // Unavailable) while such a list or live entries existed.
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -111,13 +113,12 @@ func TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs(t *testing.T) {
 	if len(warnsOf(p, "agent.nic-not-bound")) != 1 || len(warnsOf(p, "agent.nic-released")) != 1 {
 		t.Fatalf("want one nic-not-bound and one nic-released note: %+v", p.issues)
 	}
-	// the skipped NICs are reported at /security/autoBlock (the field the operator configured): the NIC awaiting the
-	// engine as a warning, the released NIC as a note
+	// the NIC awaiting the engine is reported at /security/autoBlock (the field the operator configured); the
+	// released NIC only through its agent.nic-released note
 	w := warnsOf(p, "acl.global-blocking")
-	if len(w) != 2 || w[0].pointer != "/security/autoBlock" || w[1].pointer != "/security/autoBlock" ||
-		w[0].severity != ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING || !strings.Contains(w[0].message, "automatic blocking selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192") ||
-		w[1].severity != ngfwv1.IssueSeverity_ISSUE_SEVERITY_INFO || !strings.Contains(w[1].message, "released to the host are skipped: ens161") {
-		t.Fatalf("want a warning for the unbound NIC and a note for the released one at /security/autoBlock: %+v", p.issues)
+	if len(w) != 1 || w[0].pointer != "/security/autoBlock" || w[0].severity != ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING ||
+		w[0].message != "Auto-block selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192" {
+		t.Fatalf("want one warning for the unbound NIC at /security/autoBlock: %+v", p.issues)
 	}
 }
 
@@ -159,6 +160,8 @@ func TestAutoBlockWithUnboundAndReleasedNICsOnFake(t *testing.T) {
 	v.AddInterface("lan", "dpdk", "")
 	kernel := map[string]bool{"ens192": true}
 	s, host := nicsSvc(t, v, kernel)
+	var logs bytes.Buffer
+	s.log = slog.New(slog.NewTextHandler(&logs, nil))
 	ctx := context.Background()
 	ds := doc(t, nicsAutoBlockDoc)
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "nics-config", DesiredState: ds}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
@@ -172,10 +175,24 @@ func TestAutoBlockWithUnboundAndReleasedNICsOnFake(t *testing.T) {
 	if !boundTo(t, v, "lan", block) || host.value == nil {
 		t.Fatal("the bound NIC must carry the auto-block ACL and the host rule must be installed")
 	}
-	// the runtime reconcile returns no report: the skipped NIC is logged (once per change) instead
-	if !strings.Contains(s.autoBlock.skipped, "not bound to the data plane yet and are skipped: ens192") || strings.Contains(s.autoBlock.skipped, "ens161") {
-		t.Fatalf("the auto-block reconcile must log the NIC awaiting the engine (not the released one): %q", s.autoBlock.skipped)
+	// the runtime reconcile returns no report: the skipped NIC is logged, once per change of the warnings (review R1
+	// V1/N1/N2): one WARN line, none for a repeated snapshot, a true all-clear line when the lists are gone (an empty
+	// snapshot removes Auto-block's list) and the WARN again when entries return
+	warnLine := `level=WARN msg="block lists: /security/autoBlock — Auto-block selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192"`
+	clearLine := `level=INFO msg="block lists: no list on all interfaces skips a physical NIC any more"`
+	if n := strings.Count(logs.String(), warnLine); n != 1 || strings.Contains(logs.String(), "ens161") {
+		t.Fatalf("want one WARN line for the NIC awaiting the engine (none for the released one), got %d:\n%s", n, logs.String())
 	}
+	if _, err := s.AutoBlockSet(ctx, &ngfwv1.AutoBlockSetRequest{Owner: testOwner, Entries: []*ngfwv1.AutoBlockRuntimeEntry{autoBlockEntry(now)}}); err != nil || strings.Count(logs.String(), "block lists:") != 1 {
+		t.Fatalf("a repeated snapshot logs nothing new: %v\n%s", err, logs.String())
+	}
+	if _, err := s.AutoBlockSet(ctx, &ngfwv1.AutoBlockSetRequest{Owner: testOwner}); err != nil || strings.Count(logs.String(), clearLine) != 1 {
+		t.Fatalf("an empty snapshot removes Auto-block's list: the all-clear line must be true and logged once: %v\n%s", err, logs.String())
+	}
+	if _, err := s.AutoBlockSet(ctx, &ngfwv1.AutoBlockSetRequest{Owner: testOwner, Entries: []*ngfwv1.AutoBlockRuntimeEntry{autoBlockEntry(now)}}); err != nil || strings.Count(logs.String(), warnLine) != 2 {
+		t.Fatalf("entries returning while the NIC is still unbound log the WARN again: %v\n%s", err, logs.String())
+	}
+	block = ownedACL(t, v, "_gb.auto-block.i00") // the empty snapshot removed the ACL; the returning entries recreated it
 
 	update := proto.Clone(ds).(*ngfwv1.DesiredState)
 	update.Interfaces["loop712"] = &ngfwv1.Interface{Ipv4: []string{"10.71.2.1/24"}}
@@ -208,9 +225,9 @@ func TestAutoBlockWithUnboundAndReleasedNICsOnFake(t *testing.T) {
 	if r := s.Resync(ctx); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || len(r.GetResults()) != 0 {
 		t.Fatalf("a second resync must change nothing: %v", r)
 	}
-	// the next runtime reconcile finds nothing skipped any more
-	if _, err := s.AutoBlockSet(ctx, &ngfwv1.AutoBlockSetRequest{Owner: testOwner, Entries: []*ngfwv1.AutoBlockRuntimeEntry{autoBlockEntry(now)}}); err != nil || s.autoBlock.skipped != "" {
-		t.Fatalf("after the bind nothing is skipped: %v %q", err, s.autoBlock.skipped)
+	// the next runtime reconcile finds nothing skipped any more: the all-clear line, this time because of the bind
+	if _, err := s.AutoBlockSet(ctx, &ngfwv1.AutoBlockSetRequest{Owner: testOwner, Entries: []*ngfwv1.AutoBlockRuntimeEntry{autoBlockEntry(now)}}); err != nil || s.autoBlock.skipped != "" || strings.Count(logs.String(), clearLine) != 2 {
+		t.Fatalf("after the bind nothing is skipped: %v %q\n%s", err, s.autoBlock.skipped, logs.String())
 	}
 
 	// lan released while VPP still has it: the commit is accepted, our binding leaves it and it goes admin-down

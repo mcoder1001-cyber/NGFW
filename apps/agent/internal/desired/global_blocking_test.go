@@ -252,8 +252,8 @@ func TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs(t *testing.T) {
 	kept, _, _ := SplitUnboundPhysical(ds.Interfaces, kernelNIC) // what the projection passes: one split per projection
 	s := newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true}, kept)
-	// the NIC awaiting the engine is a warning at the field the operator set; the released NIC is a note (an info
-	// the minimal test sink does not record)
+	// the NIC awaiting the engine is a warning at the field the operator set; the released NIC is not reported here
+	// (a documented state the interfaces projection reports as agent.nic-released)
 	if len(s.issues) != 1 || !strings.HasPrefix(s.issues[0], "W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking ") ||
 		!strings.Contains(s.issues[0], "not bound to the data plane yet and are skipped: ens192") || strings.Contains(s.issues[0], "ens161") {
 		t.Fatalf("want one warning naming the unbound NIC, got %v", s.issues)
@@ -272,11 +272,11 @@ func TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs(t *testing.T) {
 		t.Fatalf("ens192 (explicit list only): %+v", b)
 	}
 	// nil: the split without a netdev lookup — an unbound NIC cannot be recognised and is kept, as the interfaces
-	// projection keeps it; a released row is still dropped (a note, not a warning)
+	// projection keeps it; a released row is still dropped, silently
 	s = newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	if len(s.issues) != 0 {
-		t.Fatalf("a released NIC alone is a note, not a warning: %v", s.issues)
+		t.Fatalf("a released NIC alone is not reported by the block lists: %v", s.issues)
 	}
 	if b := binding(t, s, "ens192"); strings.Join(b.Input, ",") != "_gb.all.i00,_gb.pick.i00,_gb.pass" {
 		t.Fatalf("ens192 without a lookup: %+v", b)
@@ -301,8 +301,9 @@ func TestGlobalBlockingAllInterfacesNothingBound(t *testing.T) {
 	kept, _, _ := SplitUnboundPhysical(ds.Interfaces, func(string) (string, bool, error) { return "", true, nil })
 	s := newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true}, kept)
-	if len(s.issues) != 2 || !strings.Contains(s.issues[0], "not bound to the data plane yet and are skipped: ens192") || strings.Contains(s.issues[0], "ens161") || !strings.Contains(s.issues[1], "selects no interface") {
-		t.Fatalf("want the unbound-NIC warning and the not-enforced warning, got %v", s.issues)
+	if len(s.issues) != 2 || !strings.Contains(s.issues[0], "not bound to the data plane yet and are skipped: ens192") || strings.Contains(s.issues[0], "ens161") ||
+		s.issues[1] != `W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking block list "all" has no interface the engine has yet: it is not enforced in the data plane (traffic to the appliance itself is still dropped)` {
+		t.Fatalf("want the unbound-NIC warning and the not-enforced warning at the field the operator set, got %v", s.issues)
 	}
 	for _, kv := range s.kvs {
 		if strings.HasPrefix(string(kv.Key), descacl.NameInterfaceBinding+"/") || strings.HasPrefix(string(kv.Key), string(descacl.KeyACL(GlobalBlockingPrefix))) {

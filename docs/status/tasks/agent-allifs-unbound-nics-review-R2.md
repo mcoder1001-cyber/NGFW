@@ -201,3 +201,213 @@ These are code-reading claims, not run: the acl-only deletion path in MINOR-1 an
 ## Verdict
 
 **APPROVE**: 0 BLOCKER, 0 MAJOR, 4 MINOR, 0 NIT. The MINORs are optional under the shared rules. I recommend, as cheap and in scope: the skipped-row warning from MINOR-1 (a), the wording correction from MINOR-2, and the user-doc sentence from MINOR-3. MINOR-1 (c), MINOR-2 (i)/(ii) and MINOR-4 should become tech-debt rows with an owner and date.
+
+## Verify round (head `873f1d946`)
+
+- **Reviewer:** R2 (security), verify round. This was read-only: no repository or worktree file was created, modified or deleted. Scratch files are only under `/tmp/claude-0/…/scratchpad/review-R2-verify/`.
+- **Head verified:** `873f1d946`.
+- **Delta checked:** `git diff 552b9bcce 873f1d946`.
+  - Product commit `856bf743a`: `projection.go`, `desired/acl.go`, `desired/global_blocking.go` and two test files.
+  - Docs commit `0b57dc070`: D-251, the DEFERRED-ACCEPTANCE section, the five tech-debt rows, the user-doc sentence and the envelope.
+  - Status files and the saved R1/R2/R4/R7 reports.
+
+### Round-1 findings
+
+**MINOR-1: partially fixed.**
+- **(b) fixed.**
+  - `projection.go:242` splits once. `projection.go:411` passes that `boundIfs` to `desired.ACL`.
+  - `globalBlocking` (`global_blocking.go:111-131`) no longer does a netdev lookup. It re-splits only when `kept == nil`, and only with a nil lookup.
+  - `projectOwned` is the only production caller (grep below). Neither `ds` nor `boundIfs` is reassigned or mutated between lines 242 and 411.
+  - `TestProjectAutoBlockOverlayAddsNoNetdevLookups` proves the acl projection adds no lookups. So the "two observations disagree" variant is gone.
+- **(c) fixed as a tech-debt row.** `docs/tech-debt.md:226`: decide bound or unbound by `physical.pci`; owner manager; due 2026-11-14 (proposed). The main scenario still exists by design: an acl-only transaction drops the binding of a name-clashed row that VPP still owns. This is the recorded debt.
+- **(a) partially fixed.**
+  - The warning exists: `global_blocking.go:163-172`, one per all-interfaces list, at `/acl/globalBlocking/lists/<name>/interfaces`. It reaches DryRun/validate and commit responses (API `commit.service.ts` returns `warnings`). It is tested in `desired` and `agent`.
+  - **Residual (MINOR, open):** the two agent-internal acl transactions throw the warning away.
+    - The auto-block reconcile (`rpc_autoblock.go:112-115`) keeps only `resp.Status` and `resp.Message` and ignores `resp.Validation`. It runs from `AutoBlockSet` and from the 1 s `watchAutoBlock` loop.
+    - The connect resync (`agent.go:491-493`) logs only status and summary.
+    - Projection issues are never logged (`service.go:561-566` attaches them to the response only).
+  - **Scenario:** the MINOR-1 name clash appears, and the next acl transaction is the auto-block reconcile, usually triggered by a new entry from outside activity. The block lists and `_gb.auto-block.*` leave the live VPP interface with no log line, metric or response anyone reads. The operator learns of it only at the next validate or commit.
+  - Two texts say the drop is "never silent" / "not silent" and name the auto-block reconcile first, which is not yet true: the comment at `global_blocking.go:106-108` and the tech-debt row at `docs/tech-debt.md:226`.
+  - **Fix (any one):**
+    - In `reconcileAutoBlockLocked`, log `resp.GetValidation()` warnings of rule `acl.global-blocking` at Warn, once per change of the skipped set (dedupe on the message) so the 1 Hz loop does not spam.
+    - Do the same in `fullResync`.
+    - Or reword the comment and the debt row to "named in validate and commit responses; the auto-block reconcile and resync do not surface it", and extend the row.
+
+**MINOR-2: partially fixed.**
+- **Fixed:**
+  - The status report (`docs/status/tasks/agent-allifs-unbound-nics.md:155`) now says "fail-closed for commits, fail-open for auto-block".
+  - Tech-debt row `docs/tech-debt.md:227` covers (i) a schema refusal of, or an agent skip-with-warning for, explicit references to dropped rows, and (ii) decoupling host nftables auto-block from VPP binding errors. Owner manager, due 2026-11-14 (proposed).
+- **Not fixed:** the PR body.
+  - `gh pr view 241` (headRefOid `873f1d946…`, 0 comments) still says at body line 10: "a list that names an unbound NIC still binds it (and fails closed, like any explicit reference …)".
+  - The status report's review table ("#2 wording corrected") therefore over-states this.
+  - **Fix:** `gh pr edit 241` with the corrected sentence before merge.
+
+**MINOR-3: fixed.**
+- `docs/user/security/global-blocking.md:27` now says:
+  - a NIC awaiting the engine is covered once bound;
+  - a released NIC is never covered by the list, and its traffic to the appliance is covered by *Protect the box*;
+  - automatic blocking targets the same set.
+- This is accurate for released NICs. For an awaiting NIC, "covered once it is bound" implies it is not covered before.
+- The status report now says #238's paragraph is "replaced (not dropped)", as I asked.
+- The wording itself is R6's call. See V-1 for a new over-claim in the same sentence.
+
+**MINOR-4: fixed as a tech-debt row.** `docs/tech-debt.md:228` (sub-interfaces; owner manager; due 2026-11-14, proposed). The row correctly states the top-level-rows-only behaviour and that `in__gb` still covers host-destined traffic.
+
+### Change-specific checks requested
+
+**Warning content.**
+- The text is the list name (`%q`) plus a `%s` join of interface row names. No auto-block entry, prefix or address appears in it.
+- The row names are format arguments, never the format string.
+- They are schema-restricted to `^[A-Za-z][A-Za-z0-9_-]*(?:\/[0-9a-fA-F]+)*$`, max 63 characters (`packages/schema/src/domains/interfaces.ts:43-49`). No newline, quote or `;` can be injected.
+- The message goes to a protobuf `ValidationIssue`; there is no shell, file or log sink.
+- Size is bounded by rows × 63 bytes, with one warning per all-interfaces list. Nothing leaks.
+
+**Classification of rows absent from `kept`.**
+- `SplitUnboundPhysical` (`hostnics.go:18-36`) excludes exactly two kinds of row, both only for KindExisting rows with `physical` set:
+  - `owner == "host"` → released, decided by configuration alone;
+  - an engine-owned row whose netdev lookup returns exists with no kind → unbound.
+- `globalBlocking` (`global_blocking.go:118-127`) re-labels absent rows with the same predicate (`physical.owner == "host"` → released, else unbound). The label therefore always matches the reason and depends only on the configuration.
+- The kernel observation can only move an engine-owned row from kept to unbound. That is the pre-existing name-based decision (MINOR-1 (c) row). It cannot relabel or release a row, and a lookup error keeps the row.
+- Auto-block entries, the attacker-influenced input, only add the `auto-block` list (`autoblock/runtime.go:123`). They never touch interface rows.
+
+### New findings
+
+**V-1 (MINOR): the new user-doc sentence over-claims coverage for VLAN sub-interfaces.**
+- **Where:** `docs/user/security/global-blocking.md:27`.
+- **Problem:** "*All interfaces* means every interface the data plane has". VLAN sub-interfaces are interfaces the data plane has, but they are never targeted (MINOR-4, `tech-debt.md:228`).
+- **Scenario:** an operator relies on this sentence and believes transit traffic arriving on a dot1q sub-interface is filtered by an all-interfaces list or by auto-block. It is not. Only host-destined traffic is dropped, by `in__gb`.
+- The schema help (`packages/schema/src/domains/ext/global-blocking.ts:66`, "every L3 interface") already over-claimed. This PR restates it more strongly in new text.
+- **Fix:** say "every top-level interface the data plane has (VLAN sub-interfaces are not covered yet)". The `tech-debt.md:228` row already lists this as a fix option. Wording is for R6.
+
+**V-2 (NIT): released NICs raise a warning on every acl-carrying projection.**
+- **Where:** `global_blocking.go:163-172`.
+- **Problem:** on a typical appliance the management NIC is released to the host. With auto-block enabled, every security or interfaces commit and every validate now carries an `acl.global-blocking` warning for the overlay list `auto-block`. That is a permanent, expected state, which the interfaces projection reports only as Info (`agent.nic-released`, `projection.go:250`).
+- **Risk:** the warning becomes noise, and operators learn to ignore the one that matters in MINOR-1's name-clash case.
+- **Fix (optional):** emit the warning only when `unbound` is non-empty, naming released rows inside it, or drop the released rows since the user doc now documents them. Adjust the two test assertions that expect the released-only warning.
+
+### Notes for other reviewers
+- **[other: R7]**
+  - The PR #241 body is still the round-1 text:
+    - it describes D-250 and "`desired.ACL` takes the Linux netdev lookup … re-split", not D-251 with kept rows;
+    - "The user-doc exception paragraph can then be dropped" contradicts the status report's "replaced (not dropped)";
+    - "`PR #@@N@@`" is unfilled;
+    - it still says "quick: running" and review "in progress".
+  - The status report marks R7 #7 (PR body) as handled.
+  - `gh` reports the PR `mergeable: CONFLICTING` at `873f1d946`. I did not check this further; read-only means no merge-tree.
+- **[other: R6]** In commits and validates with auto-block enabled, the new warning's pointer is `/acl/globalBlocking/lists/auto-block/interfaces`. That is the runtime overlay list, not a list the user can see in the configuration.
+
+### Commands run (outputs)
+
+```
+$ git rev-parse HEAD          -> 873f1d946a0c8e65f08603db4891025560bcaa66
+$ git log --oneline 552b9bcce..873f1d946
+873f1d946 docs(status): report and WIP after the review fixes and the gates on 0b57dc070 (PR #241)
+0b57dc070 docs: D-251, deferred acceptance, tech-debt rows and the user-doc sentence for PR #241
+856bf743a fix(agent): acl block lists reuse the projection's kept rows and name the NICs they skip
+20c3303fd docs(status): save review R4 hand-back for agent-allifs-unbound-nics (APPROVE WITH CHANGES)
+c8f3a608a docs(status): save review R1 and R2 hand-backs for agent-allifs-unbound-nics (both APPROVE)
+736c45aa9 docs(status): save review R7 hand-back for agent-allifs-unbound-nics (BLOCK: D-250 clash, merge order)
+7afee7aef docs(status): quick gate PASSED for agent-allifs-unbound-nics
+$ git diff --stat 552b9bcce 873f1d946   -> 16 files changed, 1263 insertions(+), 128 deletions(-)
+
+$ grep -rn "desired\.ACL(\| ACL(" apps/agent --include=*.go   (production callers)
+apps/agent/internal/agent/projection.go:411:		desired.ACL(p, ds, in, boundIfs)
+  (all other hits are *_test.go, passing nil or a kept map from SplitUnboundPhysical)
+$ grep -rn "SplitUnboundPhysical\|LinuxNetdevKind" apps/agent --include=*.go | grep -v _test.go
+  projection.go:242 (the one split with the lookup); global_blocking.go:115 (nil lookup, only when kept == nil); subsystems wiring
+$ awk 'NR>=193&&NR<=520' projection.go | grep -nE "\bds\s*=|ds\.Interfaces\s*=|boundIfs\s*=|boundIfs\[" -> exit 1 (no reassignment)
+$ grep -nE "\bifs\[[^]]+\]\s*=|delete\(ifs|boundIfs\[[^]]+\]\s*=|delete\(boundIfs" desired/interfaces.go desired/lcp*.go desired/pppoe*.go agent/projection.go -> exit 1 (kept map not mutated)
+$ sed -n 100,117p apps/agent/internal/agent/rpc_autoblock.go
+	resp, _ := s.applyLocked(ctx, modeRuntime, "", s.st.desired, []string{"acl"}, 0)
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		return 0, status.Errorf(codes.Unavailable, "auto-block enforcement: %s", resp.GetMessage())
+	}            <- resp.Validation (the projection warnings) is not read
+$ grep -rn "GetValidation()" apps/agent/internal --include=*.go | grep -v _test   -> (no output)
+$ sed -n 489,494p apps/agent/internal/agent/agent.go
+	resp := a.svc.Resync(ctx)
+	if resp != nil {
+		a.log.Info("resync finished", "why", why, "status", ..., "summary", ...)
+
+$ gh pr view 241 --repo mcoder1001-cyber/NGFW --json title,state,headRefOid,baseRefName,mergeable,body
+fix(agent): all-interfaces block lists skip unbound and released NICs
+OPEN
+873f1d946a0c8e65f08603db4891025560bcaa66
+main
+CONFLICTING
+$ grep -n -i "fail.\{0,3\}closed\|fail.\{0,3\}open" <pr-body> docs/status/tasks/agent-allifs-unbound-nics.md docs/status/tasks/agent-allifs-unbound-nics-wip.md
+docs/status/tasks/agent-allifs-unbound-nics.md:155:- Explicit references ... — fail-closed for commits, fail-open for auto-block. ...
+<pr-body>:10:- Explicit interface lists are unchanged: a list that names an unbound NIC still binds it (and fails closed, like any explicit reference to an interface the data plane does not have).
+$ gh pr view 241 --json comments,updatedAt,commits --jq ...
+{"comments":[],"lastcommits":["856bf743a","0b57dc070","873f1d946"],"ncomments":0,"updatedAt":"2026-10-17T12:09:43Z"}
+
+# secret scan of the delta: scratch copy (git show 873f1d946:<f>) of all 16 changed files
+$ gitleaks version -> 8.30.1
+$ gitleaks detect --no-git -s <scratch>/copy --redact --no-banner -v
+INF scanned ~474971 bytes (474.97 KB) in 855ms
+INF no leaks found                         (exit 0)
+$ git diff 552b9bcce 873f1d946 | gitleaks stdin --redact --no-banner
+INF scanned ~166347 bytes (166.35 KB) in 611ms
+INF no leaks found                         (exit 0)
+$ grep -rnE 'BEGIN (RSA|EC|OPENSSH) PRIVATE|password\s*[:=]\s*[^<]' <scratch>/copy   -> exit 1 (no match)
+$ git diff 552b9bcce 873f1d946 | grep '^+' | grep -niE 'ghp_|github_pat|gho_|Bearer [A-Za-z0-9]|xox[abp]-|AKIA[0-9A-Z]{12}|-----BEGIN|api[_-]?key\s*[:=]|secret\s*[:=]|token\s*[:=]|@gmail|172\.30\.|psk'
+  2 hits, both my own round-1 grep commands quoted in the saved R2 report (no secret)
+$ grep -rnE 'x-access-token|https?://[^ /]*:[^ /]*@|AUTH(ORIZATION)?=|_TOKEN=|_SECRET=|passwd|private key' <scratch>/copy -> exit 1
+  added-line IPs: 10.71.1.1/24 (test), 127.0.0.1 (pasted test log), 192.0.2.7/32, 198.51.100.1/32, 203.0.113.9/32 (documentation ranges)
+  added-line paths: the worktree path, /root/ngfw-wt/logs/ci/..., go-test /tmp dirs in pasted output; no emails; URLs are github.com/mcoder1001-cyber/NGFW only
+
+# interface-name alphabet (warning injection)
+$ grep -n "parentInterfaceName\s*=" -A6 packages/schema/src/domains/interfaces.ts
+  .string().min(1).max(63).regex(/^[A-Za-z][A-Za-z0-9_-]*(?:\/[0-9a-fA-F]+)*$/, ...
+$ grep -n "AllInterfaces" apps/agent/internal/autoblock/runtime.go
+123: out.Acl.GlobalBlocking.Lists[ListName] = &ngfwv1.GlobalBlockingList{... AllInterfaces: true, ... ProtectHost: true ... Entries: prefixes ...}   (overlay adds a list only; interface rows untouched)
+
+# targeted tests (from apps/agent, head 873f1d946)
+$ env -u NGFW_INTEGRATION go test -count=1 -v -run 'TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs|TestGlobalBlockingAllInterfacesNothingBound|TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs|TestProjectAutoBlockOverlayAddsNoNetdevLookups|TestAutoBlockWithUnboundAndReleasedNICsOnFake|TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake|TestSplitUnboundPhysical|TestProjectPhysicalNic' ./internal/desired/ ./internal/agent/ | grep -E '^(--- |ok|FAIL|PASS)'
+--- PASS: TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs (0.01s)
+--- PASS: TestGlobalBlockingAllInterfacesNothingBound (0.00s)
+PASS
+ok  	ngfw/agent/internal/desired	0.162s
+--- PASS: TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs (0.02s)
+--- PASS: TestProjectAutoBlockOverlayAddsNoNetdevLookups (0.00s)
+--- PASS: TestAutoBlockWithUnboundAndReleasedNICsOnFake (0.08s)
+--- PASS: TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake (0.05s)
+--- PASS: TestProjectPhysicalNicAwaitingDataplane (0.00s)
+--- PASS: TestProjectPhysicalNicBoundProjectsNormally (0.00s)
+--- PASS: TestProjectPhysicalNicNoLookupProjectsNormally (0.00s)
+--- PASS: TestProjectPhysicalNicLcpTapIsNotUnbound (0.00s)
+--- PASS: TestProjectPhysicalNicUnboundHasNoLcpPair (0.00s)
+--- PASS: TestProjectPhysicalNicReleasedToHost (0.00s)
+PASS
+ok  	ngfw/agent/internal/agent	0.314s
+$ env -u NGFW_INTEGRATION go test -count=1 -run 'ACL|GlobalBlocking|AutoBlock|HostACL|PhysicalNic|SplitUnbound|NICs' ./internal/desired/ ./internal/agent/
+ok  	ngfw/agent/internal/desired	7.397s
+ok  	ngfw/agent/internal/agent	7.283s
+$ git rev-parse HEAD -> 873f1d946a0c8e65f08603db4891025560bcaa66 ; git status --porcelain | wc -l -> 0
+```
+
+These are code-reading claims, not tested: that the auto-block reconcile and the resync discard the warning (V-1 residual of MINOR-1 (a)), and that the scheduler deletes the binding in an acl-only transaction (unchanged from round 1). No experiment was run, because the allowed command set does not include building a modified copy.
+
+### Other security checks on the delta
+- **Injection / shell-outs:** no `exec.Command`, shell, `vppctl` or file writes added.
+- **AuthN/authz:** no route, API, proto or schema change; no auth change.
+- **Dependencies:** `go.mod`/`go.sum` unchanged.
+- **Input limits:** unchanged; the warning is bounded by row count.
+- **DEFERRED-ACCEPTANCE:** the section keeps the shared-host boundary ("never on the shared host's real NICs").
+
+### Verdict
+
+**APPROVE**: 0 BLOCKER, 0 MAJOR.
+
+| Finding | Status |
+|---|---|
+| MINOR-1 | partially fixed: (b) fixed, (c) debt row; (a) residual open, the warning is dropped by the auto-block reconcile and resync |
+| MINOR-2 | partially fixed: the PR body still says "fails closed" |
+| MINOR-3 | fixed |
+| MINOR-4 | tracked as tech-debt |
+| V-1 (new) | MINOR, open: "every interface the data plane has" over-claims for VLAN sub-interfaces |
+| V-2 (new) | NIT, open: released NICs warn on every acl-carrying projection |
+
+Open: 3 MINOR (the two residuals and V-1) and 1 NIT, all optional under the shared rules. I recommend before merge, as cheap and in scope:
+- correct the PR body;
+- either log the warning in `reconcileAutoBlockLocked` or reword the "never silent" comment and the debt row;
+- qualify "every interface" in the user doc.

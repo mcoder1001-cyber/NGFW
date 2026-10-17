@@ -149,3 +149,175 @@ $ gh pr view 241 --repo mcoder1001-cyber/NGFW --json headRefOid,statusCheckRollu
 Not run, as the brief required: `tools/ci.sh`, `make`, `pnpm` and whole-tree `go test ./...`. In their place I checked the developer's pasted gate output against the CI log directory and the package count, and ran the targeted tests above myself. I did not reproduce the red state; it is reasoned from the diff and the failure line numbers.
 
 **Verdict line: R1 APPROVE — 0 BLOCKER, 0 MAJOR, 2 MINOR (#1, #2), 3 NIT (#3–#5).** The MINORs and NITs are optional; the developer may fix them or answer won't-fix in one line. The merge still needs the hosted Mandatory quick gate to finish green.
+
+## Verify round (head `873f1d946`)
+
+- **Reviewer:** panel R1, correctness and tests (Opus 5.5, read-only agent).
+- **Read-only:** no repository or worktree file was created, modified or deleted. No stash, checkout, worktree, apply, commit or push. `git status --porcelain` was empty before and after, and HEAD is `873f1d946` throughout.
+- **Scratch files:** all under `<scratchpad>/review-R1-verify/`: mutation copies, overlay JSONs, one scratch test and logs.
+- **Mutation runs:** I used Go's `-overlay` flag. It swaps a file's contents for a scratch copy at build time only. This is the one addition to the allowed `go test -count=1 -run … ./internal/…` form; nothing in the worktree is touched.
+- **Scope:** product delta `9a63c09ce..856bf743a` (`apps/agent/internal/{agent/projection.go, agent/physical_nics_acl_test.go, desired/acl.go, desired/global_blocking.go, desired/global_blocking_test.go}`). `856bf743a..873f1d946` is docs/status only: `git diff --stat 856bf743a 873f1d946 -- apps packages tools deploy test` is empty.
+
+### Verdict: R1 APPROVE — 0 BLOCKER, 0 MAJOR, 1 MINOR (new V1), 3 NIT (new V2–V4). All five round-1 findings are fixed. Everything left is optional.
+
+### Round-1 findings
+
+1. **MINOR #1 (two separate netdev observations per projection): FIXED.**
+   - **What changed:** `projection.go:242` runs the only `SplitUnboundPhysical(…, netdev)` in production. `projection.go:411` passes its `boundIfs` to `desired.ACL`.
+   - **`globalBlocking`** (`global_blocking.go:109-131`) uses `x.kept` and falls back to `SplitUnboundPhysical(ds.GetInterfaces(), nil)` only when `kept == nil`.
+   - **Only one production split:** `grep -rn "SplitUnboundPhysical(" --include=*.go . | grep -v _test` lists only `projection.go:242` and the nil fallback `global_blocking.go:115`. `.globalBlocking(` and `aclExpander{` have one caller each (`acl.go:108,118`).
+   - **No production nil:** `SplitUnboundPhysical` always returns `make(map…)` (`hostnics.go:19`), so `boundIfs` is never nil. The only production caller of `desired.ACL` is `projection.go:411`, so nil reaches `ACL` only from tests.
+   - **Same `ds` throughout:** `ds` is not reassigned in `projectOwned` between `:242` and `:411`. `boundIfs` is read-only (the only `ifs[...] =` in `acl.go:639,642` writes a local `map[string]bool`).
+   - **The split was already unconditional at base** (`99a774734` `projection.go:241`), so acl-only projections gain no netlink cost.
+   - **The guard test bites.** With mutation A (the acl domain re-runs the split with the lookup), `TestProjectAutoBlockOverlayAddsNoNetdevLookups` fails at `:143` with `map[ens192:2 lan:2] vs map[ens192:1 lan:1]`; the other five tests stay green. The check is one-directional (it only asserts that acl adds none), which is exactly the property claimed.
+
+2. **MINOR #2 (no test varies the netdev answer within one service lifetime): FIXED.**
+   - **Lookup that changes over time:** `nicLookup(kernel)` closes over a map the test mutates, and `nicsSvc` installs it as `s.netdevKind`.
+   - **`TestAutoBlockWithUnboundAndReleasedNICsOnFake` (`:153-213`) covers all four requested steps:**
+     - `AutoBlockSet` OK with ens192 unbound;
+     - `AddInterface("ens192")`, the lookup flipped, `Resync`: ens192 bound to `_gb.auto-block.i00` and admin-up;
+     - a second `Resync` is APPLIED with `len(Results)==0` (`:200-202`);
+     - `lan` released in an interfaces commit: APPLIED, binding gone, admin-down; ens192 and loop712 keep the ACL (`:205-213`).
+   - **`TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake` (`:219-248`)** covers the user-list half: `Retrieve` equals desired before and after the bind, re-apply summary 0, resync empty, a later bind picked up.
+   - **`len(r.GetResults()) == 0` is the right idempotence signal.**
+     - `fillResponse` (`service.go:1271-1281`) copies `res.Results`. The scheduler appends one per executed op (`reconciler.go:1030`) plus plan issues, skips and verify failures (`:781,821,833`), so no results means no create, update, delete or recreate.
+     - Reapplier calls are counted separately (`TxnResult.Reapplied`, not in `Results`). That is resync's normal re-assertion, not a change.
+     - The paired `GetStatus()==APPLIED` check rules out a nil response (lock error), where `Results` would also be empty.
+     - My `-v` run log shows the second resync as `summary=unchanged:15 reapplied=9`.
+
+3. **NIT #3 (inaccurate doc comment for nil): FIXED.** `acl.go:91-96` now reads "nil: the split without a netdev lookup, which keeps every engine-owned row (an unbound NIC cannot be recognised) and drops the released rows". This matches `hostnics.go:22-29` and the nil case of `TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs` (`:271-283`).
+
+4. **NIT #4 (memo depended on `sortedKeys` returning non-nil): FIXED, but no test pins it** (see V2).
+   - The memo now uses an explicit `computed` flag (`global_blocking.go:110,112,128`).
+   - Mutation D (the flag never set) passes all six committed tests.
+
+5. **NIT #5 ("selects no interface" untested for the overlay case): FIXED.** `TestGlobalBlockingAllInterfacesNothingBound` (`global_blocking_test.go:290-310`) checks three things:
+   - exactly two warnings: the skipped NICs, then "selects no interface";
+   - no `acl.interface-binding/*` key;
+   - no `_gb.` ACL.
+
+**The 15 nil callers** (`acl_test.go` ×5, `rule_expiry_test.go` ×3, `global_blocking_test.go` ×6 plus the deliberate nil case at `:275`, `subsystems/acl_pbr_test.go:74`):
+- Nil means exactly what the old nil lookup meant: `SplitUnboundPhysical(ifs, nil)`.
+- None of them has a physical row. `grep Physical` hits only the two new tests. The one other all-interfaces list (`:126`) uses loopbacks only, so no new warning appears and nothing is hidden.
+
+**A row missing from `kept` that is not physical cannot occur.** `kept` comes from the same `ds` and `SplitUnboundPhysical` only drops KindExisting rows with `physical`. A row with `owner: host` that is not KindExisting is kept, and so is never classified.
+
+### New findings
+
+**V1 — MINOR: the "never silent" claim is not met on the auto-block runtime reconcile, the main acl-only path.**
+- **Where:** `apps/agent/internal/desired/global_blocking.go:106-108` (the comment names "auto-block reconcile"), `docs/status/tasks/agent-allifs-unbound-nics.md:9` ("so an acl-only transaction never drops a binding silently"), `apps/agent/internal/agent/rpc_autoblock.go:112-115`, `apps/agent/internal/agent/service.go:660`.
+- **What happens:** `reconcileAutoBlockLocked` runs `applyLocked(modeRuntime, …, []string{"acl"})` and checks only `resp.GetStatus()`. `resp.Validation`, which carries the new `acl.global-blocking` warning, is dropped. `AutoBlockSetResponse` has only `ActiveEntries`. The `reconcile done` log line has status, summary and err, but no issues. `lastResp` is read only by the revert path (`service.go:935`).
+- **Scenario:** R2's name-clash case. VPP owns X and a kind-less kernel netdev named X appears. The next `AutoBlockSet` or expiry reconcile deletes `acl.interface-binding/X`. The only trace is `summary=deleted:N`; the warning naming X is computed and discarded.
+- **Where it is not silent:** security, interfaces and acl commits do surface the warning (`service.go:563-566`).
+- **Fix, either of:**
+  - (a) In `reconcileAutoBlockLocked`, or `applyLocked` for `modeRuntime`, log WARNING-severity projection issues when their set changes. De-duplicate by message set, so the 1 s expiry ticker does not spam.
+  - (b) Narrow the comment and status wording to "commit responses carry it", and add the auto-block path to the #238 name-clash debt row.
+- **[other: R2]:** whether this satisfies R2 MINOR-1 option (a) is R2's call.
+
+**V2 — NIT: the memo flag and two all-interfaces lists in one projection are untested.**
+- **Where:** `global_blocking.go:110-131`, `global_blocking_test.go`.
+- **Realistic case:** a user `allInterfaces` list plus the auto-block overlay in the same projection.
+- **What breaks without the flag:** with mutation D, the second list's warning reads "not bound to the data plane yet: ens192, ens192; released to the host: ens161, ens161", and the committed suite stays green.
+- **Evidence:** my scratch test `TestReviewR1TwoAllInterfacesLists` (overlay-added, never written to the worktree) checks two lists, one warning each, each NIC named once, loopbacks bound to `_gb.a.i00,_gb.b.i00,_gb.pass`. It passes at head and fails under mutation D.
+- **Fix:** add that case.
+
+**V3 — NIT: the overlay warning has the wrong severity and points at a path the user cannot have.**
+- **Where:** `global_blocking.go:163-172`; the test pins the pointer at `physical_nics_acl_test.go:115`.
+- **Severity:** a released NIC is a deliberate operator state. The interfaces domain reports it at INFO (`projection.go:250`, `agent.nic-released`), but the new list warning reports it at WARNING.
+- **Pointer:** for the overlay list, the pointer is `/acl/globalBlocking/lists/auto-block/interfaces`, a reserved list that the user's document is forbidden to contain (`service.go:1413-1414`).
+- **Effect:** after #238 a released management NIC is normal. So every interfaces or security commit made while auto-block entries are live (the overlay list is non-empty only then) carries a WARNING the operator cannot act on, pointing at nothing in their document. There is precedent for the pointer (the reserved-list error, the "selects no interface" warning), so this is not a regression of convention.
+- **Fix:** emit the released-only part at INFO (keep WARNING for unbound), and for the overlay point at `/security/autoBlock`.
+- **[other: R6]**
+
+**V4 — NIT: the WIP red-run claim is wrong.**
+- **Where:** `docs/status/tasks/agent-allifs-unbound-nics-wip.md:6` ("red with the pre-fix line put back — the six tests fail"), repeated in the manager brief.
+- **What actually happens:** the pre-fix mutation (`allIfs = sortedKeys(ds.GetInterfaces())`) fails five tests. `TestProjectAutoBlockOverlayAddsNoNetdevLookups` passes under it; it is red only against an acl-side re-lookup (mutation A above).
+- **The paste itself is honest:** `red.log` and the status-file paste both show five `--- FAIL` lines.
+- **Fix:** say "five fail" and cite the re-lookup mutation for the sixth.
+- **[other: R7]**
+
+### Notes outside R1 (not graded)
+
+- **[other: manager/R7] The PR cannot merge as it stands.**
+  - `gh pr view 241` reports `mergeable: CONFLICTING`, `mergeStateStatus: DIRTY`, `statusCheckRollup: []` on `873f1d946`. No hosted quick gate result exists for this head.
+  - The branch must be brought up to date with main and the hosted gate run.
+  - If the conflict resolution touches `apps/agent`, the product verify must be repeated on the new tree.
+- **Gate evidence matches the logs:**
+  - `agent-gate-2.log`: `ok=143`, `FAIL=0`, `0 issues.`, `AGENT_GATE_EXIT=0`.
+  - `ci-quick-2.log`: header `@ 0b57dc070`, `CI GATE PASSED`, `CI_QUICK_EXIT=0`, wall time 5m09s from 11:57:04Z.
+  - `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-115704-1958055/09-agent.log` embeds `main.version=0b57dc070`, with 143 `ok` and 0 FAIL.
+  - `873f1d946` was committed at 12:03:06Z, after the gate ended (about 12:02:13Z), so the round-1 SHA-mismatch note is resolved.
+
+### Commands run (worktree `/root/NGFW/.claude/worktrees/funny-meninsky-c9ef19`; Go from `apps/agent`; `D=<scratchpad>/review-R1-verify`)
+
+```
+$ git rev-parse HEAD ; git status --porcelain
+873f1d946a0c8e65f08603db4891025560bcaa66
+(empty)
+$ git diff --stat 99a774734...873f1d946 -- apps packages tools deploy test
+ physical_nics_acl_test.go 249 + · projection.go 5 · acl.go 11 · acl_test.go 10 · global_blocking.go 45 · global_blocking_test.go 90 · rule_expiry_test.go 6 · subsystems/acl_pbr_test.go 2   (8 files, +396 -22)
+$ git diff --stat 856bf743a 873f1d946 -- apps packages tools deploy test
+(empty)
+
+$ env -u NGFW_INTEGRATION go test -count=1 -v -run 'TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs|TestGlobalBlockingAllInterfacesNothingBound|TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs|TestProjectAutoBlockOverlayAddsNoNetdevLookups|TestAutoBlockWithUnboundAndReleasedNICsOnFake|TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake' ./internal/desired/ ./internal/agent/
+--- PASS: TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs (0.02s)
+--- PASS: TestGlobalBlockingAllInterfacesNothingBound (0.00s)
+ok  	ngfw/agent/internal/desired	0.183s
+--- PASS: TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs (0.02s)
+--- PASS: TestProjectAutoBlockOverlayAddsNoNetdevLookups (0.00s)
+  reconcile done txn_id=nics-config  status=APPLIED summary="created:1 unchanged:1"
+  reconcile done mode=auto-block domains=[acl] status=APPLIED summary=created:6
+  reconcile done txn_id=nics-update domains=[interfaces] status=APPLIED summary="created:4 unchanged:8"
+  reconcile done mode=resync status=APPLIED summary="created:2 unchanged:13" reapplied=7
+  reconcile done mode=resync status=APPLIED summary=unchanged:15 reapplied=9
+  reconcile done txn_id=nics-release domains=[interfaces] status=APPLIED summary="deleted:2 unchanged:12"
+--- PASS: TestAutoBlockWithUnboundAndReleasedNICsOnFake (0.08s)
+  reconcile done txn_id=all1 status=APPLIED summary="created:10 unchanged:1"
+  reconcile done txn_id=all2 status=APPLIED summary=unchanged:11
+  reconcile done mode=resync status=APPLIED summary=unchanged:11 reapplied=6
+  reconcile done mode=resync status=APPLIED summary="created:2 unchanged:12" reapplied=7
+--- PASS: TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake (0.05s)
+ok  	ngfw/agent/internal/agent	0.323s
+exit=0          (log lines abridged to the fields shown)
+
+$ env -u NGFW_INTEGRATION go test -race -count=1 -run 'TestGlobalBlocking|TestACL|TestParseGlobalBlocking|TestProjectPhysicalNic|TestProjectAutoBlock|TestAutoBlock|TestAllInterfaces|PhysicalNIC|PhysicalNic|TestPBRPolicyNamesFACLList|RuleExpiry|Expiry' ./internal/desired/ ./internal/agent/ ./internal/subsystems/
+ok  	ngfw/agent/internal/desired	26.277s
+ok  	ngfw/agent/internal/agent	5.914s
+ok  	ngfw/agent/internal/subsystems	1.738s
+exit=0
+
+$ env -u NGFW_INTEGRATION go test -count=1 -v -run 'Project|Global|ACL|Acl|AutoBlock|AllInterfaces|Nic|NIC|Split|Unbound|Expiry' ./internal/desired/ ./internal/agent/ ./internal/subsystems/ > $D/broad.log
+exit=0 ; ok desired 7.723s · ok agent 7.909s · ok subsystems 2.670s ; PASS=157 FAIL=0 SKIP=3
+(the 3 SKIPs are TestHostNicsOnHost, TestSrv6GlobalsOnHost and TestUntaggedNICClaimsOnHost: "integration test: set NGFW_INTEGRATION=1" — true on this host)
+
+$ go vet ./internal/desired/ ./internal/agent/          → vet_exit=0
+$ gofmt -l <the 5 changed Go files>                      → (no output)
+
+# Mutations via -overlay (scratch copies made with git show 873f1d946:<file> | sed; the worktree is untouched)
+# A: projection.go:411 → desired.ACL(p, ds, in, func() map[string]*ngfwv1.Interface { k, _, _ := desired.SplitUnboundPhysical(ds.GetInterfaces(), netdev); return k }())
+# B: projection.go:411 → desired.ACL(p, ds, in, nil)
+# C: global_blocking.go:117 → allIfs = sortedKeys(ds.GetInterfaces())     (the developer's red)
+# D: global_blocking.go:128 → `_ = computed` (the memo flag is never set)
+$ env -u NGFW_INTEGRATION go test -overlay=$D/ov-<m>.json -count=1 -v -run '<the six tests>' ./internal/desired/ ./internal/agent/
+A: exit=1  only FAIL TestProjectAutoBlockOverlayAddsNoNetdevLookups — physical_nics_acl_test.go:143: the acl projection must not look netdevs up again: map[ens192:2 lan:2] vs map[ens192:1 lan:1]
+B: exit=1  FAIL TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs (:108 no binding for ens192…), TestAutoBlockWithUnboundAndReleasedNICsOnFake (:165 …Unavailable… acl.interface-binding/ens192: mandatory dependency…), TestAllInterfacesBlockListWithUnboundAndReleasedNICsOnFake (:226 APPLY_STATUS_FAILED); desired pkg ok
+C: exit=1  5 FAIL (global_blocking_test.go:266, :303; physical_nics_acl_test.go:108, :165, :226); PASS TestProjectAutoBlockOverlayAddsNoNetdevLookups
+D: exit=0  all six PASS
+$ env -u NGFW_INTEGRATION go test -overlay=$D/ov-T.json  -count=1 -v -run TestReviewR1TwoAllInterfacesLists ./internal/desired/   → --- PASS, ok
+$ env -u NGFW_INTEGRATION go test -overlay=$D/ov-TD.json -count=1 -v -run TestReviewR1TwoAllInterfacesLists ./internal/desired/   → --- FAIL zz_review_r1_test.go:32: … list "b" … (not bound to the data plane yet: ens192, ens192; released to the host: ens161, ens161)
+$ ls apps/agent/internal/desired/zz_review_r1_test.go → No such file or directory ; git status --porcelain → (empty)
+
+$ grep -c '^ok' agent-gate-2.log → 143 ; grep -c -E '^(FAIL|--- FAIL)' agent-gate-2.log → 0 ; AGENT_GATE_EXIT=0
+$ grep 'branch\|CI GATE\|CI_QUICK_EXIT\|wall time' ci-quick-2.log → branch … @ 0b57dc070 · wall time 5m09s · CI GATE PASSED · CI_QUICK_EXIT=0
+$ grep -ho 'main.version=[0-9a-f]*' /root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-115704-1958055/09-agent.log → main.version=0b57dc070 (143 ok, 0 FAIL)
+$ git log -4 --format='%h %cI %s' 873f1d946 → 873f1d946 12:03:06Z · 0b57dc070 11:52:50Z · 856bf743a 11:52:49Z · 20c3303fd 11:46:10Z
+$ gh pr view 241 --repo mcoder1001-cyber/NGFW --json headRefOid,mergeable,mergeStateStatus,statusCheckRollup
+{"headRefOid":"873f1d946a0c8e65f08603db4891025560bcaa66","mergeStateStatus":"DIRTY","mergeable":"CONFLICTING","statusCheckRollup":[]}
+```
+
+Not run, as the brief required: `tools/ci.sh`, `make`, `pnpm`, `turbo` and whole-tree `go test ./...`. Instead I checked the gate outputs pasted for `0b57dc070` against the logs, as above.
+
+**Verdict line: R1 APPROVE — 0 BLOCKER, 0 MAJOR, 1 MINOR (V1), 3 NIT (V2–V4).**
+- Round-1 #1–#5 are all fixed.
+- The developer may fix the new MINOR and NITs or answer won't-fix in one line each.
+- Merge still needs the conflict with main resolved and a green hosted Mandatory quick gate on the resulting head.

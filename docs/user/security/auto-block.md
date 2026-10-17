@@ -57,6 +57,7 @@ republished after reconnect and retried every five seconds. The agent caches the
 allowlisted entries using its own clock, and reuses Global Blocking for VPP ACLs and nftables local-in. Runtime updates
 never change the running/candidate document. Removing a block or changing the allowlist republishes the entire set.
 The agent expires blocks even if the API is unavailable and recreates them during its usual VPP resync.
+Blocks are enforced on the same interfaces as a block list set to *All interfaces* (see the *All interfaces / Interfaces* setting in [Global blocking](global-blocking.md)) and, for traffic to the appliance itself, on every host interface.
 
 `auto-block` is reserved as a system-owned Global Blocking list. The current host supports at most 20,000 entries,
 keeping a complete IPv6 snapshot below the existing gRPC 4-MiB receive boundary. A `security.autoBlock.maxEntries` above that limit is refused during

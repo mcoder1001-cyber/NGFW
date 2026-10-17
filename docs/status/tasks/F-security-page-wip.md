@@ -4,6 +4,7 @@ Branch: `claude/F-security-page` (worktree `/root/NGFW/.claude/worktrees/wizardl
 Base: `origin/main` 99a774734.
 Checkpoints (local = remote, pushed to `origin/claude/F-security-page`):
 - 51e10036a feat(web): build the Security domain page with the auto-block policy tab — pushed.
+- feb6ef0da docs(security): point the auto-block guide at the Security page; F-security-page status — pushed.
 Owned files: see `F-security-page-envelope.md`.
 
 ## Completed code
@@ -32,10 +33,15 @@ Owned files: see `F-security-page-envelope.md`.
 ## Actual test results
 - `pnpm exec vitest run src/domains/security src/nav/nav.test.ts` (apps/web): 5 files, 22 tests passed.
 - `pnpm run typecheck` (apps/web): exit 0. `pnpm run lint` (apps/web, eslint + check-logical-css): exit 0.
-- Full `vitest run` and `pnpm run build` (apps/web): running — see "Current failure" below once done.
+- Full `vitest run` (apps/web, 2026-10-17 09:08): `Test Files 117 passed (117)`, `Tests 692 passed (692)`, 414 s.
+- `pnpm run build` (repo root, turbo `build` for all 14 tasks incl. `@ngfw/web` vite build, bundle-budget OK,
+  check-no-dev-routes OK): exit 0, 2m13s.
+- `tools/ci.sh check --base origin/main`: `check PASSED` (forbidden patterns, gitleaks, contract guard).
+- Not run here: the hosted quick gate (`tools/ci.sh --base main`) in full — the manager runs it on the PR; the Go
+  agent/API trees are untouched by this task.
 
 ## Remaining
-- Full web test suite and build results; open the PR with the pasted output.
+- PR review and merge (manager). Live appliance/browser acceptance of the new screen is not claimed here.
 
 ## Current failure
 - none in this task's scope. `python3 tools/docs/generate-reference.py --check` reports drift in
@@ -45,5 +51,5 @@ Owned files: see `F-security-page-envelope.md`.
 
 ## Exact next command
 ```
-cd apps/web && pnpm exec vitest run && pnpm run build
+gh pr view --repo mcoder1001-cyber/NGFW claude/F-security-page --json url,statusCheckRollup
 ```

@@ -183,7 +183,13 @@ multipath `nexthop` entries, sorted by route. `proto`, `expires`, `hoplimit`,
 `pref`, `mtu`, `onlink` and `nhid` are ignored, because RA-learned IPv6 routes
 print changing lifetimes. The raw route text before the upgrade stays in the
 recovery directory; on a mismatch the normalised before/after forms are printed
-and the raw after-state is saved as `default-route-v{4,6}-after.txt`.
+and the raw after-state is saved as `default-route-v{4,6}-after.txt`. Installed
+versions are rechecked, then a fresh SSH connection is opened. Only that final
+connection writes `upgrade-complete`.
+This check does not certify externally served TLS, login, dataplane forwarding,
+agent reconciliation or application rollback; run those acceptance checks before
+closing the maintenance window.
+
 A host with neither an IPv4 nor an IPv6 default route is refused
 ("no management default route") unless `--allow-no-default-route` is given. A
 management-only appliance on a directly connected (for example link-local)
@@ -192,12 +198,7 @@ route table is also what a broken host looks like. With the flag the empty
 before-state is accepted and recorded in `no-default-route.txt` in the recovery
 directory; the before/after comparison still applies, so a default route that
 appears during the upgrade is reported as a change. The upgrade itself needs no
-default route: APT runs with downloads forbidden. Installed
-versions are rechecked, then a fresh SSH connection is opened. Only that final
-connection writes `upgrade-complete`.
-This check does not certify externally served TLS, login, dataplane forwarding,
-agent reconciliation or application rollback; run those acceptance checks before
-closing the maintenance window.
+default route: APT runs with downloads forbidden.
 
 If a step fails, stop and inspect the reported recovery directory, APT plan,
 previous versions, backups and system logs through the console or surviving SSH

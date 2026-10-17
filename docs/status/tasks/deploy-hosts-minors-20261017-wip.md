@@ -74,8 +74,54 @@ OK
 git diff --stat origin/main...HEAD -- .github tools/ci.sh           -> empty
 ```
 
-Full `test_deploy_hosts.py` discover run (33 tests): in progress at this checkpoint; result is
-recorded below when it finishes.
+Full discover run on the checkpoint-1 product tree (`1a42cb3a0`; later commits touch docs and
+status files only), 2026-10-17, this worktree:
+
+```text
+python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v
+test_build_and_cache_reuse_are_bound_to_source_and_vpp ... ok
+test_corrupt_package_fails_before_ssh ... ok
+test_descendant_sources_install_including_legacy_hash_versions ... ok
+test_development_versions_increase_for_descendants_and_preserve_release_guard ... ok
+test_existing_deployment_lock_prevents_install ... ok
+test_external_secret_key_requires_manual_backup_review ... ok
+test_help_and_build_only_have_no_network_or_host_mutation ... ok
+test_hostile_preflight_output_is_rejected_before_git_or_transfer ... ok
+test_inactive_preflight_service_prevents_install ... ok
+test_install_and_postinstall_failures_are_reported_and_stop_fleet ... ok
+test_installed_version_changed_between_preflight_and_lock_is_refused ... ok
+test_metadata_identity_version_and_architecture_fail_closed ... ok
+test_missing_or_incomplete_or_traversing_manifest_fails_before_ssh ... ok
+test_newer_main_build_over_divergent_branch_needs_explicit_override ... ok
+test_nginx_is_validated_and_reloaded_after_install ... ok
+test_no_default_route_needs_explicit_flag_and_is_recorded ... ok
+test_noncanonical_database_fails_before_backup_or_install ... ok
+test_old_python_is_refused_on_this_machine_and_on_the_target ... ok
+test_old_shared_lock_symlink_cannot_truncate_target ... ok
+test_override_never_accepts_release_downgrade_or_mixed_versions ... ok
+test_preinstall_failures_do_not_install_or_continue_to_second_host ... ok
+test_remote_children_cannot_consume_the_script ... ok
+test_remote_lock_symlink_is_refused_without_truncation ... ok
+test_repeated_upgrade_keeps_previous_backup ... ok
+test_rollback_within_one_history_is_refused_even_with_override ... ok
+test_shallow_build_refuses_incomplete_version_history ... ok
+test_stale_branch_with_higher_commit_count_is_refused_before_transfer ... ok
+test_stale_source_cache_and_preexisting_work_are_not_reused_or_deleted ... ok
+test_success_uses_private_backup_and_verified_installs ... ok
+test_symlink_and_extra_archive_fail_before_ssh ... ok
+test_underscore_hosts_need_a_configured_ssh_alias ... ok
+test_unknown_source_is_fetched_once_then_refused_without_override ... ok
+test_unsafe_arguments_fail_before_ssh ... ok
+----------------------------------------------------------------------
+Ran 33 tests in 604.668s
+
+OK
+```
+
+No live host, database, VPP, nginx, credentials or network were used; the fake `git` never touches
+the real repository. Hosted quick CI and the packaging fixture gate are unchanged and remain
+required; the suite grew from 28 to 33 tests (604 s here against the former 455 s), to be read
+against the hosted packaging job's budget on the PR run.
 
 ## Remaining code / current failure / next command
 
@@ -84,8 +130,10 @@ recorded below when it finishes.
   stdin-draining recorder broke `dpkg-deb -f` (it pipes archive members into `tar`; `tar` is now
   exempt) and the fake old interpreter must answer only the version probes (the recorders are
   Python scripts themselves).
-- Exact next command (in the worktree):
+- Exact next command (panel verify round, in the worktree):
   `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v`
+- Review plan: [deploy-hosts-minors-20261017-review-plan.md](deploy-hosts-minors-20261017-review-plan.md)
+  (R1, R2, R7, R8); reports land as `deploy-hosts-minors-20261017-review-R<n>.md`.
 
 ## Decisions
 

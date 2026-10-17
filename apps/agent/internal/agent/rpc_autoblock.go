@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -24,6 +25,7 @@ type autoBlockRuntime struct {
 	entries     []*ngfwv1.AutoBlockRuntimeEntry
 	dirty       bool
 	fingerprint string
+	skipped     string // the last logged acl.global-blocking warnings of the runtime reconcile (logSkippedNICsLocked)
 }
 
 func (s *Service) loadAutoBlock() error {
@@ -113,9 +115,35 @@ func (s *Service) reconcileAutoBlockLocked(ctx context.Context) (int, error) {
 	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		return 0, status.Errorf(codes.Unavailable, "auto-block enforcement: %s", resp.GetMessage())
 	}
+	s.logSkippedNICsLocked(resp)
 	s.autoBlock.dirty = false
 	s.autoBlock.fingerprint = fingerprint(view, []string{"acl"})
 	return n, nil
+}
+
+// logSkippedNICsLocked logs the acl.global-blocking warnings of a runtime reconcile — the physical NICs the
+// overlay's all-interfaces list skips because they are not bound to the data plane yet — once per change of their
+// text: the reconcile returns no report (AutoBlockSetResponse carries the entry count only) and the expiry ticker
+// repeats it, so without this line a binding dropped in an acl-only transaction would leave no trace until the next
+// commit (PR #241 reviews R1 V1, R2 #1, R4 N1).
+func (s *Service) logSkippedNICsLocked(resp *ngfwv1.ApplyResponse) {
+	var msgs []string
+	for _, is := range resp.GetValidation().GetErrors() {
+		if is.GetRule() == "acl.global-blocking" && is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+			msgs = append(msgs, is.GetMessage())
+		}
+	}
+	text := strings.Join(msgs, "\n")
+	if text == s.autoBlock.skipped {
+		return
+	}
+	s.autoBlock.skipped = text
+	for _, m := range msgs {
+		s.log.Warn("auto-block: " + m)
+	}
+	if len(msgs) == 0 {
+		s.log.Info("auto-block: every physical NIC is bound to the data plane again; automatic blocking covers all interfaces")
+	}
 }
 
 // Expiry is enforced even when the API is down. Reconnect/full resync use the same

@@ -26,6 +26,7 @@ import (
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
+	"ngfw/agent/internal/autoblock"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/vpp"
@@ -104,8 +105,9 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 	// unbound or released physical NIC has no interface alias, so a binding for it fails the plan (dependency
 	// missing) and with it every interfaces/security commit and auto-block enforcement on every interface (PR #238
 	// review R4 #1, PR #241). An explicit interface list is the user's choice and stays as written. The skipped NICs
-	// are named in a warning: an acl-only transaction (auto-block reconcile, security commit) carries no
-	// agent.nic-not-bound note and the drop must never be silent (review R2 #1).
+	// are named at the field the operator set: commit and DryRun reports carry it, and the auto-block runtime
+	// reconcile logs it (agent/rpc_autoblock.go), so a binding dropped in an acl-only transaction — which has no
+	// agent.nic-not-bound note — leaves a trace (reviews R1/R2/R4).
 	var allIfs, unbound, released []string
 	computed := false
 	allInterfaces := func() []string {
@@ -160,15 +162,19 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 		ifs := l.GetInterfaces()
 		if l.GetAllInterfaces() {
 			ifs = allInterfaces()
-			if len(unbound)+len(released) > 0 {
-				var skipped []string
-				if len(unbound) > 0 {
-					skipped = append(skipped, "not bound to the data plane yet: "+strings.Join(unbound, ", "))
-				}
-				if len(released) > 0 {
-					skipped = append(skipped, "released to the host: "+strings.Join(released, ", "))
-				}
-				x.s.Warnf(lp+"/interfaces", "acl.global-blocking", "block list %q selects all interfaces; the physical NICs the data plane does not have are skipped (%s)", name, strings.Join(skipped, "; "))
+			// A NIC awaiting the engine is a warning (its configuration is not effective yet; in an acl-only
+			// transaction this is the only trace of a dropped binding); a NIC released to the host is a note, a
+			// deliberate state the interfaces projection reports as agent.nic-released. The auto-block overlay is
+			// reported at /security/autoBlock, the field the operator configured: its list is never in the document.
+			what, at := fmt.Sprintf("block list %q", name), lp+"/allInterfaces"
+			if name == autoblock.ListName {
+				what, at = "automatic blocking", Ptr("security", "autoBlock")
+			}
+			if len(unbound) > 0 {
+				x.s.Warnf(at, "acl.global-blocking", "%s selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: %s", what, strings.Join(unbound, ", "))
+			}
+			if len(released) > 0 {
+				infof(x.s, at, "acl.global-blocking", "%s selects all interfaces; the physical NICs released to the host are skipped: %s", what, strings.Join(released, ", "))
 			}
 		}
 		if len(ifs) == 0 {

@@ -35,7 +35,7 @@ func TestACLRuleExpiry(t *testing.T) {
 		rule(30, "permit", func(r *ngfwv1.AclRule) { r.Source = prefix("10.3.3.0/24") }),
 	}}}}}
 	s := newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	if len(s.issues) != 1 || !strings.HasPrefix(s.issues[0], "W /acl/lists/l/rules/0 rule.expired ") {
 		t.Fatalf("issues %v", s.issues)
 	}
@@ -67,7 +67,7 @@ func TestACLRuleExpiry(t *testing.T) {
 	// an hour later the re-projection drops rule 20 too
 	now = now.Add(time.Hour)
 	s = newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	a2, _ := descacl.FromProto(s.value(t, descacl.KeyACL("l")))
 	for _, r := range a2.Rules {
 		if r.Src == "10.3.2.0/24" {
@@ -80,7 +80,7 @@ func TestACLRuleExpiry(t *testing.T) {
 	// an unparsable expiry is a projection error at its pointer
 	ds.Acl.Lists["l"].Rules[2].ExpiresAt = proto.String("friday")
 	s = newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	if !strings.Contains(strings.Join(s.issues, "\n"), "E /acl/lists/l/rules/2/expiresAt rule.expires-at") {
 		t.Fatalf("issues %v", s.issues)
 	}

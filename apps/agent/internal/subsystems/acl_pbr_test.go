@@ -73,7 +73,7 @@ func TestPBRPolicyNamesFACLList(t *testing.T) {
 	sink := &kvSink{}
 	desired.ACL(sink, &ngfwv1.DesiredState{Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{"pbr-match": {Rules: []*ngfwv1.AclRule{
 		{Sequence: proto.Uint32(10), Action: proto.String("permit"), IpVersion: proto.String("ipv4"), Source: &ngfwv1.AddressMatch{Kind: proto.String("prefix"), Prefix: proto.String("10.3.1.0/24")}},
-	}}}}}, map[string]bool{"acl": true})
+	}}}}}, map[string]bool{"acl": true}, nil)
 	p, err := abf.NormalizePolicy(&abf.Policy{PolicyId: 3001, Acl: "pbr-match", Paths: []*df2.FibPath{{NextHop: "10.3.2.2", Weight: 1}}})
 	if err != nil {
 		t.Fatal(err)

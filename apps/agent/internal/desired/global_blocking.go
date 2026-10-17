@@ -6,6 +6,8 @@ package desired
 //	acl.globalBlocking.lists.<name>  → acl.acl/_gb.<name>.i<nn>   deny src ∈ bucket nn (inbound)
 //	                                   acl.acl/_gb.<name>.o<nn>   deny dst ∈ bucket nn (outbound)
 //	                                   prepended to acl.interface-binding/<ifname> of every selected interface
+//	                                   (allInterfaces: every interface row the projection keeps — not an unbound
+//	                                   or released physical NIC, which has no VPP interface to bind to)
 //	(an interface with no user ACL in a direction) → acl.acl/_gb.pass  permit any, appended after the
 //	                                   block lists (VPP denies a packet no ACL of a bound direction matches)
 //
@@ -24,6 +26,7 @@ import (
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
+	"ngfw/agent/internal/autoblock"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/vpp"
@@ -97,7 +100,37 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 	if g == nil {
 		return plan
 	}
-	allIfs := sortedKeys(ds.GetInterfaces())
+	// The implicit all-interfaces target set is the interface rows the projection keeps (SplitUnboundPhysical, done
+	// once per projection by the caller, so the interfaces and acl domains see one observation of the kernel): an
+	// unbound or released physical NIC has no interface alias, so a binding for it fails the plan (dependency
+	// missing) and with it every interfaces/security commit and auto-block enforcement on every interface (PR #238
+	// review R4 #1, PR #241). An explicit interface list is the user's choice and stays as written. The skipped NICs
+	// still awaiting the engine are named in a warning at the field the operator set: commit and DryRun reports
+	// carry it, and the auto-block runtime reconcile logs it (agent/rpc_autoblock.go), so a binding dropped in an
+	// acl-only transaction — which has no agent.nic-not-bound note — leaves a trace (reviews R1/R2/R4). A NIC
+	// released to the host is a deliberate, documented state the interfaces projection reports (agent.nic-released)
+	// and the UI shows every note like a warning, so it is not repeated here (review R6).
+	var allIfs, unbound []string
+	computed := false
+	allInterfaces := func() []string {
+		if !computed {
+			kept := x.kept
+			if kept == nil {
+				kept, _, _ = SplitUnboundPhysical(ds.GetInterfaces(), nil)
+			}
+			allIfs = sortedKeys(kept)
+			for _, ifn := range sortedKeys(ds.GetInterfaces()) {
+				if _, ok := kept[ifn]; ok {
+					continue
+				}
+				if ds.GetInterfaces()[ifn].GetPhysical().GetOwner() != "host" { // released rows are documented, not reported here
+					unbound = append(unbound, ifn)
+				}
+			}
+			computed = true
+		}
+		return allIfs
+	}
 	for _, name := range sortedKeys(g.GetLists()) {
 		l := g.GetLists()[name]
 		lp := Ptr("acl", "globalBlocking", "lists", name)
@@ -126,12 +159,27 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 			x.s.Errorf(lp+"/direction", "acl.global-blocking", "unknown direction %q", l.GetDirection())
 			continue
 		}
+		// What the list is called and where its interface choice is reported: the field the operator set; the
+		// auto-block overlay at /security/autoBlock, since its list is never in the document (review R6).
+		what, at := fmt.Sprintf("block list %q", name), lp+"/interfaces"
 		ifs := l.GetInterfaces()
 		if l.GetAllInterfaces() {
-			ifs = allIfs
+			ifs, at = allInterfaces(), lp+"/allInterfaces"
+			if name == autoblock.ListName {
+				what, at = "Auto-block", Ptr("security", "autoBlock")
+			}
+			if len(unbound) > 0 { // in an acl-only transaction this is the only trace of a dropped binding
+				x.s.Warnf(at, "acl.global-blocking", "%s selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: %s", what, strings.Join(unbound, ", "))
+			}
 		}
 		if len(ifs) == 0 {
-			x.s.Warnf(lp+"/interfaces", "acl.global-blocking", "block list %q selects no interface: it is not enforced in the data plane", name)
+			if !l.GetAllInterfaces() {
+				x.s.Warnf(at, "acl.global-blocking", "%s selects no interface: it is not enforced in the data plane", what)
+			} else if l.GetProtectHost() {
+				x.s.Warnf(at, "acl.global-blocking", "%s has no interface the engine has yet: it is not enforced in the data plane (traffic to the appliance itself is still dropped)", what)
+			} else {
+				x.s.Warnf(at, "acl.global-blocking", "%s has no interface the engine has yet: it is not enforced in the data plane", what)
+			}
 			continue
 		}
 		prefixes, ok := x.gbEntries(lp, l.GetEntries())

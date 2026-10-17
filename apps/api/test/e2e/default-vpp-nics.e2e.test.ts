@@ -44,9 +44,9 @@ const NICS: HostNic[] = [
 ];
 
 /**
- * F-default-vpp-nics (D-164) e2e on the host PostgreSQL with the fake agent: first-boot seeding (revision 1 from the
- * HostNics inventory), idempotency, the physical-NIC delete guard (403 on PATCH-null / DELETE / import-without-it) and
- * release (owner → host keeps pciWhitelist consistent).
+ * F-default-vpp-nics (D-164, D-249) e2e on the host PostgreSQL with the fake agent: boot-time registration (revision 1
+ * from the HostNics inventory on a fresh database), idempotency across restarts, the physical-NIC delete guard (403 on
+ * PATCH-null / DELETE / import-without-it) and release (owner → host keeps pciWhitelist consistent).
  */
 describe('default-vpp-nics e2e (PostgreSQL + fake agent)', () => {
   let h: Harness;
@@ -62,14 +62,14 @@ describe('default-vpp-nics e2e (PostgreSQL + fake agent)', () => {
   });
   afterAll(async () => h?.close());
 
-  it('seeds revision 1 from the host inventory and is idempotent', async () => {
+  it('registers the host inventory as revision 1 and adds nothing on later boots', async () => {
     const seed = h.app.get(SeedService);
     expect(await seed.seedIfNeeded()).toBe('seeded');
     // a second start never re-seeds (no new revision)
     expect(await seed.seedIfNeeded()).not.toBe('seeded');
     const revs = await h.call(admin, 'GET', '/api/v1/config/revisions');
     expect(revs.body.items).toHaveLength(1);
-    // an API restart on the same database (a fresh service instance) finds the revision and never re-seeds
+    // an API restart on the same database (a fresh service instance) finds every NIC registered: no new revision
     const fresh = new SeedService(
       h.app.get(AgentClient),
       h.app.get(DatastoreService),

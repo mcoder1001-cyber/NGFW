@@ -197,6 +197,20 @@ for name in ('backups','updates','support'):
             self.assertIn('ProtectHome=yes', unit)
             self.assertIn('NoNewPrivileges=yes', unit)
 
+    def test_api_unit_registers_default_nics_before_site_overrides(self):
+        units = ROOT / 'deploy/systemd'
+        if not units.is_dir():
+            units = SOURCE / 'stage/usr/lib/systemd/system'
+        api = (units / 'ngfw-api.service').read_text()
+        # D-192/D-249: the appliance registers its data NICs at every API boot; a site override in api.env is read later
+        enabled = [i for i, line in enumerate(api.splitlines())
+                   if line.startswith('Environment=') and ' NGFW_SEED_DEFAULT_NICS=1' in f' {line}']
+        overrides = [i for i, line in enumerate(api.splitlines()) if line.startswith('EnvironmentFile=')]
+        self.assertEqual(len(enabled), 1, 'the appliance unit must enable automatic NIC registration exactly once')
+        self.assertTrue(overrides and overrides[0] > enabled[0],
+                        'the site environment file must be read after the default NIC registration opt-in')
+        self.assertNotIn('NGFW_SEED_DEFAULT_NICS=0', api)
+
     def test_pppoe_runtime_dependencies_belong_to_agent(self):
         # The agent renders pppd/rp-pppoe units and starts DHCPv6 helpers.
         # Direct dependencies keep standalone ngfw-agent installs usable too.

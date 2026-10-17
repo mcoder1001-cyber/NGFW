@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { HostNic } from '@ngfw/proto';
+import type { DataplaneConfig, InterfaceConfig } from '@ngfw/schema';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadEnv } from '../../config.js';
 import { emptyDocument } from '../../datastore/documents.js';
@@ -37,24 +38,41 @@ const nic = (netdev: string, pci: string, isManagement: boolean): HostNic => ({
   linkUp: true,
 });
 
-function service(nics: HostNic[], seedEnabled = true, hostNics?: () => Promise<unknown>) {
+/**
+ * A SeedService over fakes. `running` is the persisted state: the fake systemCommit applies the change to it like the
+ * commit engine does (null → unchanged, else one more revision), so tests see what a later boot would read back.
+ */
+function service(
+  nics: HostNic[],
+  seedEnabled = true,
+  hostNics?: () => Promise<unknown>,
+  running: { revision: number | null; doc: Doc } = { revision: null, doc: emptyDocument() },
+) {
   let ready: (() => void) | undefined;
   const record = vi.fn(async () => undefined);
-  const systemCommit = vi.fn(async () => ({ status: 'applied' }));
+  const systemCommit = vi.fn(async (change: (doc: Doc) => Doc | null) => {
+    const next = change(structuredClone(running.doc));
+    if (next === null) return { status: 'unchanged' };
+    running.doc = next;
+    running.revision = (running.revision ?? 0) + 1;
+    return { status: 'applied' };
+  });
+  const stopWatch = vi.fn();
+  const watchReady = vi.fn((cb: () => void) => {
+    ready = cb;
+    return stopWatch;
+  });
   const svc = new SeedService(
     {
       hostNics: hostNics ?? (async () => ({ nics, managementNotes: [], owner: 'w1' })),
-      watchReady: (cb: () => void) => {
-        ready = cb;
-        return () => undefined;
-      },
+      watchReady,
     } as never,
-    { getRunning: async () => ({ revision: null, doc: {} }) } as never,
+    { getRunning: async () => structuredClone(running) } as never,
     { systemCommit } as never,
     { record } as never,
     { NGFW_SEED_DEFAULT_NICS: seedEnabled } as never,
   );
-  return { svc, record, systemCommit, ready: () => ready?.() };
+  return { svc, record, systemCommit, running, watchReady, stopWatch, ready: () => ready?.() };
 }
 
 describe('SeedService (F-default-vpp-nics)', () => {
@@ -116,10 +134,13 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(got).toEqual(JSON.parse(readFileSync(GOLDEN, 'utf8')));
   });
 
-  it('seedDocument: never layers over a non-empty document; needs a management and a data NIC (review R1R3 #8)', () => {
+  it('seedDocument: preserves other configuration (D-249) and needs a management and a data NIC (review R1R3 #8)', () => {
     const touched = structuredClone(emptyDocument()) as Doc & { system: { hostname?: string } };
     touched.system.hostname = 'edge1';
-    expect(seedDocument(touched, NGFW_A)).toBeNull();
+    const next = seedDocument(touched, NGFW_A)!;
+    expect(next['system']).toEqual(touched.system);
+    expect(Object.keys(next['interfaces'] as object)).toHaveLength(7);
+    expect(touched['interfaces']).toEqual({}); // pure: the input is not mutated
     expect(
       seedDocument(
         emptyDocument(),
@@ -132,6 +153,146 @@ describe('SeedService (F-default-vpp-nics)', () => {
         NGFW_A.filter((n) => n.isManagement),
       ),
     ).toBeNull();
+  });
+
+  it('registers NICs after other settings have already been committed, without repeating the revision on restart', async () => {
+    const doc = structuredClone(emptyDocument());
+    (doc['system'] as Record<string, unknown>)['hostname'] = 'edge1';
+    const initial = { revision: 4, doc };
+    const { svc, systemCommit, running, record } = service(NGFW_A, true, undefined, initial);
+    expect(await svc.seedIfNeeded()).toBe('seeded');
+    expect(systemCommit).toHaveBeenCalledTimes(1);
+    expect(running.revision).toBe(5);
+    expect(running.doc['system']).toEqual(doc['system']);
+    expect(Object.keys(running.doc['interfaces'] as object)).toHaveLength(7);
+    expect(record).toHaveBeenCalledWith(
+      'info',
+      'system',
+      'system.seed-defaults',
+      'registered 7 missing dataplane NIC(s) from the host inventory',
+      expect.objectContaining({
+        dataplane: expect.arrayContaining([{ name: 'ens161', pci: '0000:04:00.0' }]),
+      }),
+    );
+    // the next boot (a fresh service instance on the same database) finds nothing to add: no revision 6
+    const fresh = service(NGFW_A, true, undefined, running);
+    expect(await fresh.svc.seedIfNeeded()).toBe('exists');
+    expect(fresh.systemCommit).toHaveBeenCalledTimes(1);
+    expect(running.revision).toBe(5);
+    expect(fresh.record).not.toHaveBeenCalled();
+  });
+
+  it('adds a newly discovered NIC while preserving released and disabled physical NICs and device tuning', () => {
+    const doc = seedDocument(emptyDocument(), NGFW_A.slice(0, 3))!;
+    const interfaces = doc['interfaces'] as Record<string, InterfaceConfig>;
+    const dp = doc['dataplane'] as DataplaneConfig;
+    // an operator released ens161 to the host, disabled ens193 with an address, and tuned the ens193 device
+    interfaces['ens161']!.physical!.owner = 'host';
+    interfaces['ens193']!.enabled = false;
+    interfaces['ens193']!.ipv4 = ['192.0.2.1/24'];
+    dp.pciWhitelist = dp.pciWhitelist.filter((pci) => pci !== '0000:04:00.0');
+    delete dp.devices['0000:04:00.0'];
+    dp.devices['0000:0c:00.0']!.rxQueues = 4;
+    const next = seedDocument(doc, NGFW_A)!;
+    expect((next['interfaces'] as Record<string, unknown>)['ens161']).toEqual(interfaces['ens161']);
+    expect((next['interfaces'] as Record<string, unknown>)['ens193']).toEqual(interfaces['ens193']);
+    expect((next['dataplane'] as typeof dp).devices['0000:0c:00.0']).toEqual(
+      dp.devices['0000:0c:00.0'],
+    );
+    expect((next['dataplane'] as typeof dp).pciWhitelist).not.toContain('0000:04:00.0');
+    expect(Object.keys(next['interfaces'] as object)).toHaveLength(7);
+    expect((next['interfaces'] as Record<string, InterfaceConfig>)['ens224']).toEqual({
+      enabled: true,
+      physical: { pci: '0000:13:00.0', owner: 'dataplane', builtIn: true },
+    });
+    // and the same inventory on the next boot adds nothing
+    expect(seedDocument(next, NGFW_A)).toBeNull();
+  });
+
+  it('keeps explicit logical names, device tuning and interface settings when adopting an existing NIC', () => {
+    const doc = structuredClone(emptyDocument());
+    doc['interfaces'] = { wan: { enabled: false, ipv4: ['192.0.2.1/24'], mtu: 1400 } };
+    const dp = doc['dataplane'] as { pciWhitelist: string[]; devices: Record<string, unknown> };
+    dp.pciWhitelist = ['0000:0C:00.0'];
+    dp.devices['0000:0C:00.0'] = { name: 'wan', rxQueues: 4 };
+    const next = seedDocument(doc, [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens193', '0000:0c:00.0', false),
+    ])!;
+    expect(next['interfaces']).toEqual({
+      wan: {
+        enabled: false,
+        ipv4: ['192.0.2.1/24'],
+        mtu: 1400,
+        physical: { pci: '0000:0c:00.0', owner: 'dataplane', builtIn: true },
+      },
+    });
+    expect((next['dataplane'] as typeof dp).devices).toEqual(dp.devices);
+    expect((next['dataplane'] as typeof dp).pciWhitelist).toEqual(dp.pciWhitelist);
+  });
+
+  it('never attaches a NIC to a bond or a second physical row, nor adopts a reserved name', () => {
+    const doc = seedDocument(emptyDocument(), [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens193', '0000:0c:00.0', false),
+    ])!;
+    // a bond named like the new NIC's kernel name, and a device whose saved name is the one ens193 already uses
+    (doc['interfaces'] as Record<string, unknown>)['ens224'] = {
+      enabled: true,
+      bond: { mode: 'lacp', members: {} },
+    };
+    (doc['dataplane'] as DataplaneConfig).devices['0000:14:00.0'] = { name: 'ens193' };
+    const next = seedDocument(doc, [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens193', '0000:0c:00.0', false),
+      nic('ens224', '0000:13:00.0', false),
+      nic('ens225', '0000:14:00.0', false),
+      nic('loop7', '0000:1b:00.0', false),
+      nic('Bad-Name', '0000:1c:00.0', false),
+    ]);
+    expect(next).toBeNull();
+  });
+
+  it('matches existing NICs by PCI after binding removes or renames the kernel netdev', () => {
+    const doc = seedDocument(emptyDocument(), NGFW_A)!;
+    const bound = NGFW_A.map((n) =>
+      n.isManagement ? n : { ...n, netdev: '', boundToDpdk: true, driver: 'vfio-pci' },
+    );
+    expect(seedDocument(doc, bound)).toBeNull();
+    const renamed = NGFW_A.map((n) => (n.netdev ? { ...n, netdev: `x${n.netdev}` } : n));
+    expect(seedDocument(doc, renamed)).toBeNull();
+  });
+
+  it('protects persisted management PCI addresses even when current discovery does not flag them', () => {
+    const doc = structuredClone(emptyDocument());
+    (doc['dataplane'] as { managementPci: string[] }).managementPci = ['0000:04:00.0'];
+    const next = seedDocument(doc, NGFW_A)!;
+    expect((next['interfaces'] as Record<string, unknown>)['ens161']).toBeUndefined();
+    expect((next['dataplane'] as { managementPci: string[] }).managementPci).toEqual([
+      '0000:04:00.0',
+      '0000:0b:00.0',
+    ]);
+  });
+
+  it('uses the persisted management identity while the management route is still coming up', async () => {
+    const doc = structuredClone(emptyDocument());
+    (doc['dataplane'] as DataplaneConfig).managementPci = ['0000:0b:00.0'];
+    const { svc, running, record } = service(
+      NGFW_A.map((n) => ({ ...n, isManagement: false })),
+      true,
+      undefined,
+      { revision: 1, doc },
+    );
+    expect(await svc.seedIfNeeded()).toBe('seeded');
+    expect((running.doc['interfaces'] as Record<string, unknown>)['ens192']).toBeUndefined();
+    expect(Object.keys(running.doc['interfaces'] as object)).toHaveLength(7);
+    expect(record).not.toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-deferred',
+      expect.any(String),
+      expect.anything(),
+    );
   });
 
   it('pciIfName names a DPDK-bound NIC from its PCI address', () => {
@@ -172,5 +333,38 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(await svc.seedIfNeeded()).toBe('skipped'); // done: no third attempt
     expect(systemCommit).toHaveBeenCalledTimes(2);
     svc.stop();
+  });
+
+  it('retries an initially empty data inventory while the agent stays connected', async () => {
+    const nics = [nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit } = service(nics);
+    svc.retryMs = 20;
+    svc.start();
+    await vi.waitFor(() => expect(svc['retryTimer']).toBeDefined());
+    expect(systemCommit).not.toHaveBeenCalled();
+    nics.push(nic('ens161', '0000:04:00.0', false));
+    await vi.waitFor(() => expect(systemCommit).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    svc.stop();
+  });
+
+  it('does not recreate a retry timer when the application shuts down during an inventory request', async () => {
+    let reject!: (e: Error) => void;
+    const { svc, watchReady, stopWatch } = service(
+      [],
+      true,
+      () =>
+        new Promise((_, no) => {
+          reject = no;
+        }),
+    );
+    svc.start();
+    svc.start(); // idempotent: one watch, one attempt in flight
+    await vi.waitFor(() => expect(reject).toBeDefined());
+    expect(watchReady).toHaveBeenCalledTimes(1);
+    svc.onModuleDestroy();
+    reject(new Error('agent unreachable'));
+    await vi.waitFor(() => expect(svc['inFlight']).toBe(false));
+    expect(svc['retryTimer']).toBeUndefined();
+    expect(stopWatch).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,14 +1,14 @@
 # Default data-plane NICs
 
-Out of the box, **every physical NIC except the management interface belongs to the engine**. On first boot the
-appliance reads the host's NIC inventory and seeds the configuration so that each non-management NIC is a data-plane
-interface. You see these interfaces already present on the **Interfaces** screen, marked **built-in**; they can be
+Out of the box, **every physical NIC except the management interface belongs to the engine**. At each boot the
+appliance reads the host's NIC inventory and registers the NICs still missing from the configuration, so that each
+non-management NIC is a data-plane interface. You see these interfaces already present on the **Interfaces** screen, marked **built-in**; they can be
 edited and disabled but never deleted.
 
-## What is seeded
+## What is registered
 
-On the very first boot (no saved configuration yet) the management API asks the agent for the host NIC inventory
-(`HostNics`) and commits revision 1 with:
+At boot the management API asks the agent for the host NIC inventory (`HostNics`) and saves the missing NICs in a
+system revision (revision 1 on a fresh appliance) with:
 
 - `dataplane.managementPci` — the PCI address of the management NIC(s);
 - `dataplane.pciWhitelist` — every non-management NIC's PCI address (the NICs the engine takes over);
@@ -37,12 +37,15 @@ Worked example — the reference host (management NIC `ens192`, six data NICs); 
 }
 ```
 
-Seeding runs once, and only on a configuration nobody has touched yet. A later boot, or a boot after an operator has
-committed, never re-seeds. It is audited as the system event `system.seed-defaults`.
+Registration also runs on existing installations and picks up NICs installed later on a subsequent boot. Existing
+interface settings, logical names (`dataplane.devices.<pci>.name`), device tuning and explicit releases to the host are
+preserved; a row that already exists under the NIC's name is adopted (its settings kept, the `physical` marker added).
+NICs are matched by PCI address, so a NIC that loses its kernel name after binding is not added twice. An unchanged
+inventory creates no revision. Registration is audited as the system event `system.seed-defaults`.
 
-Seeding is controlled by `NGFW_SEED_DEFAULT_NICS` and is **off by default** (fail-closed): only the appliance's own API
-service / first boot sets `NGFW_SEED_DEFAULT_NICS=1`. Development stacks, lab slots and tests leave it unset, so they
-never seed the host's real NICs.
+Registration is controlled by `NGFW_SEED_DEFAULT_NICS` and is **off by default** (fail-closed): only the appliance's
+own API service sets `NGFW_SEED_DEFAULT_NICS=1`. Development stacks, lab slots and tests leave it unset, so they never
+seed the host's real NICs.
 
 ## Why the management interface is excluded
 
@@ -52,30 +55,32 @@ an SSH session arrives on, or a NIC named explicitly (`NGFW_MGMT_IF` / `NGFW_MGM
 excluded (`dataplane.managementPci`) and stays a normal host interface.
 
 **If no management NIC can be identified** (no default route and no SSH session yet — for example the first boot
-before DHCP has answered) the appliance does **not** seed: it records the warning event
+before DHCP has answered) the appliance does **not** register anything: it records the warning event
 `system.seed-defaults-deferred` and tries again every minute and whenever the agent reconnects. Bring the management
-network up, or name the management NIC with `NGFW_MGMT_IF` / `NGFW_MGMT_PCI`. If an operator commits a configuration
-before a retry succeeds, the seed is abandoned (it only ever seeds an untouched configuration); the NICs can then be
-added by hand.
+network up, or name the management NIC with `NGFW_MGMT_IF` / `NGFW_MGMT_PCI`. Management PCI addresses saved by an
+earlier boot (`dataplane.managementPci`) stay protected even while the management route is still coming up.
+Uncommitted candidate edits and a commit awaiting confirmation (the setup wizard's included) defer registration; it
+retries once those edits are committed or discarded. Saving other settings never disables automatic registration, and
+an initially empty data inventory is retried as well.
 
 ## Which NICs are inventoried
 
-Every network NIC with a **PCI address**: NICs the host kernel drives (with their kernel name, driver, MAC and link
-state) and NICs already bound to a user-space driver (`vfio-pci`, `uio_pci_generic`, `igb_uio` — reported as bound).
+Every network NIC with a **PCI address**, PCI-backed virtio devices included: NICs the host kernel drives (with their
+kernel name, driver, MAC and link state) and NICs already bound to a user-space driver (`vfio-pci`, `uio_pci_generic`, `igb_uio` — reported as bound).
 NICs **without a PCI address** — virtio-mmio devices, USB network adapters — are never inventoried and never become
 data-plane interfaces.
 
 ## "Awaiting engine"
 
-A seeded NIC is only really taken over once the engine's start-up configuration is regenerated from the data-plane
-settings and the engine restarts (a first-boot / maintenance step). Until then the NIC is still a host interface: the
+A registered NIC is only really taken over once the engine's start-up configuration is regenerated from the data-plane
+settings and the engine restarts (a first-boot / maintenance step; registration itself binds nothing). Until then the NIC is still a host interface: the
 Interfaces screen shows the row as **awaiting engine**, and the agent reports a warning (`agent.nic-not-bound`), not an
 error — the commit succeeds and nothing is taken over early.
 
 ## Releasing a NIC to the host, and reclaiming it
 
 A built-in NIC cannot be **deleted** from the configuration: the Remove button is hidden and the API refuses removal
-with `403 interfaces.physical-nic-not-deletable`. The `physical` marker itself is read-only — only the first-boot seed
+with `403 interfaces.physical-nic-not-deletable`. The `physical` marker itself is read-only — only boot registration
 creates it; an edit that adds it to another interface or changes its `pci` / `builtIn` is refused with
 `403 interfaces.physical-marker-readonly`. The supported way to give a NIC back to the host is to **release** it:
 
@@ -89,19 +94,20 @@ The web UI does both halves in one step. The rule `dataplane.owner-consistent` r
 effect with the next start-up configuration apply. Releasing a NIC does not configure it on the host side (no address,
 no netplan).
 
-A **rollback** restores an earlier revision as a whole; every revision since the seed carries the same built-in rows,
-so a rollback can change their owner or settings but never removes them.
+A **rollback** restores an earlier revision as a whole; every revision since a NIC was registered carries its built-in
+row, so a rollback can change the owner or settings but never removes it. A rollback to a revision from before a NIC
+was registered drops its row — the next boot registers the NIC again.
 
 ## Restoring a backup, replacement hardware, removed NICs
 
 The `physical` markers describe the NICs of *this* box, so a configuration import (restore) treats them like any other
 edit:
 
-- **Importing a backup onto a box that has not seeded** (seeding off, or seeding deferred): the backup's physical rows
-  are new markers there and the import is refused with `403 interfaces.physical-marker-readonly`, pointer
-  `/interfaces/<name>/physical`. Remove the `physical` members from the backup file (the rows then import as ordinary
-  interfaces), or let the box seed its own NICs first and import the rest of the configuration.
-- **Importing onto a replacement box** that seeded different NICs: a row whose PCI address differs is refused
+- **Importing a backup onto a box that has not registered its NICs yet** (registration off, or deferred): the
+  backup's physical rows are new markers there and the import is refused with `403 interfaces.physical-marker-readonly`,
+  pointer `/interfaces/<name>/physical`. Remove the `physical` members from the backup file (the rows then import as
+  ordinary interfaces), or let the box register its own NICs first and import the rest of the configuration.
+- **Importing onto a replacement box** that registered different NICs: a row whose PCI address differs is refused
   (`…/physical/pci`), and a seeded row the backup does not contain is refused as a removal
   (`403 interfaces.physical-nic-not-deletable`). Keep the replacement box's own `physical` rows and `dataplane` NIC
   lists, and carry over only the other settings (addresses, VRFs, descriptions …).

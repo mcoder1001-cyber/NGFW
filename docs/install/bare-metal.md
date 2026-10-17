@@ -40,6 +40,16 @@ Initial API env is canonical and accepts only the three generated database, secr
 and JWT-key fields. Configure optional runtime overrides after provisioning, preserving
 the effective key precedence documented by the API.
 
+The appliance API unit sets `NGFW_SEED_DEFAULT_NICS=1` (D-192, D-249): every API boot
+registers the data NICs missing from the running configuration from the agent's host
+inventory, PCI-backed virtio NICs included, through one system commit. This also repairs
+existing installations whose other settings were saved before NIC discovery. Existing
+ownership, logical names and settings are preserved and management NICs are excluded;
+candidate edits or a pending confirmation defer the commit to a retry. Registration only
+creates the interface configuration — it binds nothing. NIC takeover still requires the
+guarded product apply procedure below. See
+[Default data-plane NICs](../user/interfaces/default-dataplane-nics.md).
+
 The shipped initial dataplane document explicitly enables `linux_cp_plugin.so`,
 `linux_nl_plugin.so` and `npt66_plugin.so` for appliance policy and routing support
 (D-060). These plugins are disabled by default upstream even when their files are

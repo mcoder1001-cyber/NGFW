@@ -6,6 +6,8 @@ package desired
 //	acl.globalBlocking.lists.<name>  → acl.acl/_gb.<name>.i<nn>   deny src ∈ bucket nn (inbound)
 //	                                   acl.acl/_gb.<name>.o<nn>   deny dst ∈ bucket nn (outbound)
 //	                                   prepended to acl.interface-binding/<ifname> of every selected interface
+//	                                   (allInterfaces: every interface row the projection keeps — not an unbound
+//	                                   or released physical NIC, which has no VPP interface to bind to)
 //	(an interface with no user ACL in a direction) → acl.acl/_gb.pass  permit any, appended after the
 //	                                   block lists (VPP denies a packet no ACL of a bound direction matches)
 //
@@ -97,7 +99,19 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 	if g == nil {
 		return plan
 	}
-	allIfs := sortedKeys(ds.GetInterfaces())
+	// The implicit all-interfaces target set is the rows the projection keeps (SplitUnboundPhysical): an unbound or
+	// released physical NIC has no interface alias, so a binding for it fails the plan (dependency missing) and
+	// with it every interfaces/security commit and auto-block enforcement on every interface (PR #238 review R4
+	// #1). An explicit interface list is the user's choice and stays as written. Computed once, only when a list
+	// asks for it (the lookup is a netlink call per physical row).
+	var allIfs []string
+	allInterfaces := func() []string {
+		if allIfs == nil {
+			kept, _, _ := SplitUnboundPhysical(ds.GetInterfaces(), x.netdev)
+			allIfs = sortedKeys(kept)
+		}
+		return allIfs
+	}
 	for _, name := range sortedKeys(g.GetLists()) {
 		l := g.GetLists()[name]
 		lp := Ptr("acl", "globalBlocking", "lists", name)
@@ -128,7 +142,7 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 		}
 		ifs := l.GetInterfaces()
 		if l.GetAllInterfaces() {
-			ifs = allIfs
+			ifs = allInterfaces()
 		}
 		if len(ifs) == 0 {
 			x.s.Warnf(lp+"/interfaces", "acl.global-blocking", "block list %q selects no interface: it is not enforced in the data plane", name)

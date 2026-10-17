@@ -88,8 +88,10 @@ func CurrentACLEnv() ACLEnv {
 	return *withACLDefaults(ACLEnv{})
 }
 
-// ACL emits the acl.* objects of ds.acl; in says which domains the transaction carries.
-func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool) {
+// ACL emits the acl.* objects of ds.acl; in says which domains the transaction carries. netdev (nil: no check)
+// is the Linux netdev lookup of SplitUnboundPhysical: a block list that selects all interfaces targets only the
+// interface rows the projection keeps (desired/hostnics.go), never an unbound or released physical NIC.
+func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, netdev NetdevKind) {
 	env := CurrentACLEnv()
 	if env.GlobalsOwner {
 		s.Add(descacl.KeyStatsEnable, descacl.StatsEnable{Enabled: true}.Proto(), Ptr("acl"))
@@ -102,7 +104,7 @@ func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool) {
 		s.Warnf(Ptr("acl", "hostAttachments"), "agent.unsupported-field", "host ACL attachments are rendered by F-host-acl-nftables (nftables), not by this agent build")
 	}
 	x := &aclExpander{
-		env: env, s: s, objs: ds.GetObjects(), haveObjects: in["objects"],
+		env: env, s: s, netdev: netdev, objs: ds.GetObjects(), haveObjects: in["objects"],
 		addrs: map[string]addrSide{}, svcs: map[string][]objects.PortSpec{}, fqdn: map[string][]string{},
 	}
 	for _, name := range sortedKeys(cfg.GetLists()) {
@@ -117,6 +119,7 @@ func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool) {
 type aclExpander struct {
 	env         ACLEnv
 	s           Sink
+	netdev      NetdevKind // SplitUnboundPhysical's lookup: the all-interfaces target set of the block lists
 	objs        *ngfwv1.ObjectsConfig
 	haveObjects bool
 	addrs       map[string]addrSide

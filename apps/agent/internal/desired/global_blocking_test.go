@@ -53,7 +53,7 @@ func TestGlobalBlockingProjection(t *testing.T) {
 		"bad": gbList("both", []string{"loop1", "loop2"}, "192.0.2.7/32", "2001:db8::/48"),
 	}, attachIn("a", "loop1"))
 	s := newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	if len(s.issues) != 0 {
 		t.Fatalf("issues: %v", s.issues)
 	}
@@ -98,7 +98,7 @@ func TestGlobalBlockingDriftReconstructs(t *testing.T) {
 		"bad": gbList("inbound", []string{"loop1"}, "192.0.2.7/32", "198.51.100.0/24"),
 	}, attachIn("a", "loop1"))
 	s := newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	var kvs []scheduler.KV
 	for _, kv := range s.kvs {
 		if kv.Key == descacl.KeyACL("_gb.bad.i00") {
@@ -128,7 +128,7 @@ func TestGlobalBlockingAllInterfacesAndDisabled(t *testing.T) {
 	off.Enabled = proto.Bool(false)
 	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{"all": all, "off": off, "empty": gbList("both", []string{"loop2"})})
 	s := newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	if len(s.issues) != 0 {
 		t.Fatalf("issues: %v", s.issues)
 	}
@@ -162,7 +162,7 @@ func TestGlobalBlockingBucketsAndScale(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
 	project := func(entries []string) map[scheduler.Key]proto.Message {
 		s := newRecSink()
-		ACL(s, gbDoc(map[string]*ngfwv1.GlobalBlockingList{"big": gbList("both", []string{"loop1"}, entries...)}), map[string]bool{"acl": true})
+		ACL(s, gbDoc(map[string]*ngfwv1.GlobalBlockingList{"big": gbList("both", []string{"loop1"}, entries...)}), map[string]bool{"acl": true}, nil)
 		if len(s.issues) != 0 {
 			t.Fatalf("issues: %v", s.issues)
 		}
@@ -203,7 +203,7 @@ func TestGlobalBlockingBucketsAndScale(t *testing.T) {
 func TestGlobalBlockingLimits(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
 	s := newRecSink()
-	ACL(s, gbDoc(map[string]*ngfwv1.GlobalBlockingList{strings.Repeat("n", 53): gbList("both", []string{"loop1"}, "192.0.2.7/32")}), map[string]bool{"acl": true})
+	ACL(s, gbDoc(map[string]*ngfwv1.GlobalBlockingList{strings.Repeat("n", 53): gbList("both", []string{"loop1"}, "192.0.2.7/32")}), map[string]bool{"acl": true}, nil)
 	if len(s.issues) != 1 || !strings.Contains(s.issues[0], "acl.name") {
 		t.Fatalf("issues %v", s.issues)
 	}
@@ -212,7 +212,7 @@ func TestGlobalBlockingLimits(t *testing.T) {
 		lists[fmt.Sprintf("l%d", i)] = gbList("both", []string{"loop1"}, "192.0.2.7/32")
 	}
 	s = newRecSink()
-	ACL(s, gbDoc(lists), map[string]bool{"acl": true})
+	ACL(s, gbDoc(lists), map[string]bool{"acl": true}, nil)
 	if len(s.issues) != 1 || !strings.Contains(s.issues[0], "acl.global-blocking-limit") {
 		t.Fatalf("issues %v", s.issues)
 	}
@@ -228,5 +228,51 @@ func TestParseGlobalBlockingACLName(t *testing.T) {
 		if got != want {
 			t.Errorf("%s: %q, want %q", in, got, want)
 		}
+	}
+}
+
+// PR #238 review R4 #1: a list that selects all interfaces targets the rows the projection keeps — not a physical NIC
+// that is still a kernel interface (unbound) or released to the host — so no acl.interface-binding/<row> is emitted
+// for an interface the data plane does not have (its alias is never projected; the binding would fail the plan with a
+// missing dependency and with it every interfaces/security commit). An explicit interface list stays as written.
+func TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs(t *testing.T) {
+	withEnv(t, ACLEnv{Owner: "w3"})
+	physical := func(owner string) *ngfwv1.Interface {
+		return &ngfwv1.Interface{Enabled: proto.Bool(true), Physical: &ngfwv1.InterfacePhysical{Pci: proto.String("0000:04:00.0"), Owner: proto.String(owner), BuiltIn: proto.Bool(true)}}
+	}
+	all := gbList("both", nil, "203.0.113.9/32")
+	all.AllInterfaces = proto.Bool(true)
+	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{"all": all, "pick": gbList("inbound", []string{"ens161"}, "198.51.100.1/32")})
+	ds.Interfaces["lan"] = physical("dataplane")    // bound: no kernel netdev of that name
+	ds.Interfaces["ens161"] = physical("dataplane") // unbound: still a kernel NIC (netdev present, no rtnetlink kind)
+	ds.Interfaces["ens192"] = physical("host")      // released to the host
+	kernelNIC := func(name string) (string, bool, error) { return "", name == "ens161", nil }
+	s := newRecSink()
+	ACL(s, ds, map[string]bool{"acl": true}, kernelNIC)
+	if len(s.issues) != 0 {
+		t.Fatalf("issues: %v", s.issues)
+	}
+	for _, ifn := range []string{"loop1", "loop2", "loop3", "lan"} {
+		b := binding(t, s, ifn)
+		if strings.Join(b.Input, ",") != "_gb.all.i00,_gb.pass" || strings.Join(b.Output, ",") != "_gb.all.o00,_gb.pass" {
+			t.Fatalf("%s: %+v", ifn, b)
+		}
+	}
+	if _, ok := s.ptrs[descacl.KeyInterfaceBinding("ens192")]; ok {
+		t.Fatal("a released NIC is not an all-interfaces target")
+	}
+	// the unbound NIC is bound only by the list that names it explicitly
+	if b := binding(t, s, "ens161"); strings.Join(b.Input, ",") != "_gb.pick.i00,_gb.pass" || len(b.Output) != 0 {
+		t.Fatalf("ens161 (explicit list only): %+v", b)
+	}
+	// without a netdev lookup the agent cannot tell an unbound NIC: the row is kept, as the interfaces projection keeps
+	// it (SplitUnboundPhysical); a released row is still dropped
+	s = newRecSink()
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
+	if b := binding(t, s, "ens161"); strings.Join(b.Input, ",") != "_gb.all.i00,_gb.pick.i00,_gb.pass" {
+		t.Fatalf("ens161 without a lookup: %+v", b)
+	}
+	if _, ok := s.ptrs[descacl.KeyInterfaceBinding("ens192")]; ok {
+		t.Fatal("a released NIC is not an all-interfaces target (no lookup)")
 	}
 }

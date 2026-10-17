@@ -99,16 +99,33 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 	if g == nil {
 		return plan
 	}
-	// The implicit all-interfaces target set is the rows the projection keeps (SplitUnboundPhysical): an unbound or
-	// released physical NIC has no interface alias, so a binding for it fails the plan (dependency missing) and
-	// with it every interfaces/security commit and auto-block enforcement on every interface (PR #238 review R4
-	// #1). An explicit interface list is the user's choice and stays as written. Computed once, only when a list
-	// asks for it (the lookup is a netlink call per physical row).
-	var allIfs []string
+	// The implicit all-interfaces target set is the interface rows the projection keeps (SplitUnboundPhysical, done
+	// once per projection by the caller, so the interfaces and acl domains see one observation of the kernel): an
+	// unbound or released physical NIC has no interface alias, so a binding for it fails the plan (dependency
+	// missing) and with it every interfaces/security commit and auto-block enforcement on every interface (PR #238
+	// review R4 #1, PR #241). An explicit interface list is the user's choice and stays as written. The skipped NICs
+	// are named in a warning: an acl-only transaction (auto-block reconcile, security commit) carries no
+	// agent.nic-not-bound note and the drop must never be silent (review R2 #1).
+	var allIfs, unbound, released []string
+	computed := false
 	allInterfaces := func() []string {
-		if allIfs == nil {
-			kept, _, _ := SplitUnboundPhysical(ds.GetInterfaces(), x.netdev)
+		if !computed {
+			kept := x.kept
+			if kept == nil {
+				kept, _, _ = SplitUnboundPhysical(ds.GetInterfaces(), nil)
+			}
 			allIfs = sortedKeys(kept)
+			for _, ifn := range sortedKeys(ds.GetInterfaces()) {
+				if _, ok := kept[ifn]; ok {
+					continue
+				}
+				if ds.GetInterfaces()[ifn].GetPhysical().GetOwner() == "host" {
+					released = append(released, ifn)
+				} else {
+					unbound = append(unbound, ifn)
+				}
+			}
+			computed = true
 		}
 		return allIfs
 	}
@@ -143,6 +160,16 @@ func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 		ifs := l.GetInterfaces()
 		if l.GetAllInterfaces() {
 			ifs = allInterfaces()
+			if len(unbound)+len(released) > 0 {
+				var skipped []string
+				if len(unbound) > 0 {
+					skipped = append(skipped, "not bound to the data plane yet: "+strings.Join(unbound, ", "))
+				}
+				if len(released) > 0 {
+					skipped = append(skipped, "released to the host: "+strings.Join(released, ", "))
+				}
+				x.s.Warnf(lp+"/interfaces", "acl.global-blocking", "block list %q selects all interfaces; the physical NICs the data plane does not have are skipped (%s)", name, strings.Join(skipped, "; "))
+			}
 		}
 		if len(ifs) == 0 {
 			x.s.Warnf(lp+"/interfaces", "acl.global-blocking", "block list %q selects no interface: it is not enforced in the data plane", name)

@@ -60,7 +60,9 @@ pinning `prepare.sh`'s version format · R8-11 option messages.
 | R2 | `f1679314c` | APPROVE | MAJOR 1 and MINORs 2-7 fixed; new NIT (merge-base exit > 1 read as divergence) fixed in `ce7c2ead5` |
 | R7 | `f1679314c` | APPROVE | MAJORs 1-2 fixed; new MINORs (stale WIP text, crash-loop docs sentence) and NITs (pull ref, `die` paths leaving the staging dir, PR body, 4th SC2029) fixed in `ce7c2ead5`/`0df76f417` |
 | R8 | `f1679314c` | APPROVE | MAJOR 1 and MINORs 2-8 fixed; new NITs (fake-fetch assertion, SSH command override, cosmetic log text, `die` paths) fixed in `ce7c2ead5`/`4f1cba348` except the cosmetic empty reason on a 124 timeout exit |
-| R1 | `4f1cba348` | pending | requested after the developer's full run (28/28 OK); result appended here when it lands |
+| R1 | `4f1cba348` | APPROVE | MAJORs 1-3 fixed, each proven by a reverting mutant that now fails the suite; full run 28/28 OK in a clean environment (`ce7c2ead5` alone would have been BLOCK: three build-mode fixtures failed on the fake-fetch environment assertion, fixed in `4f1cba348`); new MINOR (fixture depended on the runner's `GIT_SSH_COMMAND`) and two subtest-coupling NITs fixed in checkpoint 4; surviving mutants (ungrouped next hops, `inet6` skip, remote defence-in-depth conditions) accepted as NIT |
 
-Combined verdict after the verify rounds: pending R1 (R2, R7, R8 APPROVE). Merge also needs the
-hosted quick gate and the packaging fixture gate green on PR #240.
+**Combined verdict after the verify rounds: APPROVE** (R1, R2, R7, R8). The product tree is
+unchanged since `4f1cba348`; later commits are fixture and status-file changes only. Merge
+also needs the hosted quick gate and the packaging fixture gate green on PR #240, and the
+manager's confirmation of the D-249 number.

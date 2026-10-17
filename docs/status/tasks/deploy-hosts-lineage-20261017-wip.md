@@ -5,9 +5,11 @@ Envelope: [deploy-hosts-lineage-20261017-envelope.md](deploy-hosts-lineage-20261
 PR: https://github.com/mcoder1001-cyber/NGFW/pull/240 (open, base `main` = `99a774734`).
 Checkpoint 1: `455023193` + status `1649dd100` (pushed 2026-10-17; reviewed tree).
 Checkpoint 2: `f1679314c` (all panel MAJORs fixed; R2/R7/R8 verify rounds APPROVE on it).
-Checkpoint 3: `ce7c2ead5` + fixture guard `4f1cba348` (verify-round NITs; R1 verify round on it).
+Checkpoint 3: `ce7c2ead5` + fixture guard `4f1cba348` (verify-round NITs; R1 verify round APPROVE).
+Checkpoint 4: fixtures isolated from the runner's `GIT_SSH_COMMAND`/`GIT_TERMINAL_PROMPT`
+(R1 verify MINOR), subtest coupling removed; product script unchanged since `4f1cba348`.
 Combined review: [deploy-hosts-lineage-20261017-review.md](deploy-hosts-lineage-20261017-review.md)
-(BLOCK on `1649dd100`; all MAJORs fixed in checkpoint 2; verify round requested from R1/R2).
+(BLOCK on `1649dd100`; all MAJORs fixed in checkpoint 2; verify rounds: R1, R2, R7, R8 APPROVE).
 
 ## Owned files
 

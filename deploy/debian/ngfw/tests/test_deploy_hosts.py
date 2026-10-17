@@ -94,6 +94,9 @@ class DeployHosts(unittest.TestCase):
         self.events = self.root / 'events'
         self.env = dict(os.environ, PATH=str(self.bin) + ':' + os.environ['PATH'],
                         FIXTURE_ROOT=str(self.root), FIXTURE_VERSION=VERSION)
+        # The lineage fetch keeps an operator's own SSH command; the runner's must not leak in.
+        for name in ('GIT_SSH_COMMAND', 'GIT_TERMINAL_PROMPT'):
+            self.env.pop(name, None)
         command(self.bin, 'ssh', r'''
 import os, pathlib, subprocess, sys
 root = pathlib.Path(os.environ['FIXTURE_ROOT'])
@@ -235,7 +238,8 @@ elif 'rev-list' in args: print('3\t2' if '--left-right' in args else '42')
 elif 'fetch' in args:
     if args[-1] != 'main':  # the lineage fetch; the build fetches origin REF
         assert args[-4:] == ['--quiet', '--no-tags', '--no-write-fetch-head', 'origin'], args
-        assert os.environ.get('GIT_TERMINAL_PROMPT') == '0' and os.environ.get('GIT_SSH_COMMAND') == 'ssh -o BatchMode=yes'
+        assert os.environ.get('GIT_TERMINAL_PROMPT') == '0'
+        assert os.environ.get('GIT_SSH_COMMAND') == os.environ.get('FIXTURE_SSH_COMMAND', 'ssh -o BatchMode=yes')
     (root / 'fetched').write_text('yes')
 elif 'worktree' in args and 'add' in args:
     source = pathlib.Path(args[-2]); (source / 'tools').mkdir(parents=True)
@@ -244,21 +248,24 @@ elif 'worktree' in args and 'remove' in args: shutil.rmtree(args[-1])
 else: raise AssertionError(args)
 ''')
 
-    def run_script(self, *args, failure='', script=SCRIPT):
-        env = dict(self.env, FAIL_STAGE=failure)
+    def run_script(self, *args, failure='', script=SCRIPT, **extra_env):
+        env = dict(self.env, FAIL_STAGE=failure, **extra_env)
         for mode, installed in INSTALLED_VERSIONS.items():
             env['FIXTURE_INSTALLED_' + mode.replace('-', '_').upper()] = installed
         return subprocess.run(['bash', str(script), *map(str, args)], env=env,
                               text=True, capture_output=True, timeout=30)
 
-    def deploy(self, *hosts, failure='', flags=()):
-        return self.run_script('-p', self.delivery, *flags, *(hosts or ['appliance.example']), failure=failure)
+    def deploy(self, *hosts, failure='', flags=(), **extra_env):
+        return self.run_script('-p', self.delivery, *flags, *(hosts or ['appliance.example']), failure=failure, **extra_env)
 
     def reset_host(self):
         self.events.unlink(missing_ok=True)
         for marker in [self.root / 'installed', self.root / 'staged', self.root / 'fetched', *self.root.glob('shown-*')]:
             marker.unlink(missing_ok=True)
         shutil.rmtree(self.host / 'root/ngfw-deploy', ignore_errors=True)
+        if (self.delivery / 'build-info.json').exists():
+            (self.delivery / 'build-info.json').unlink()
+            checksums(self.delivery)
 
     def add_build_info(self):
         (self.delivery / 'build-info.json').write_text(json.dumps(BUILD_INFO))
@@ -327,7 +334,9 @@ else: raise AssertionError(args)
                      ('--allow-divergent=1', '-p', self.delivery, 'host'), ('--allow', '-p', self.delivery, 'host'),
                      ('--allow-divergent', '-p', self.delivery, 'a.example', 'b.example'),
                      ('-p', self.delivery, 'a.example', '--allow-divergent')]:
-            with self.subTest(args=args): self.assert_rejected_without_ssh(self.run_script(*args))
+            with self.subTest(args=args):
+                self.events.unlink(missing_ok=True)
+                self.assert_rejected_without_ssh(self.run_script(*args))
 
     def test_missing_or_incomplete_or_traversing_manifest_fails_before_ssh(self):
         manifest = self.delivery / 'SHA256SUMS'
@@ -524,14 +533,18 @@ else: raise AssertionError(args)
                 self.assertIn('lineage unverifiable', result.stderr)
                 self.assertNotIn('--allow-downgrades', self.log())
                 self.assertIn('without --allow-downgrades', (self.runs()[0] / 'override.txt').read_text())
-        # A commit that the fetch brings in resolves and installs without any override.
-        self.reset_host()
-        result = self.deploy(failure='fetch-resolves')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('fetching origin branches', result.stderr)
-        self.assertIn('installed source dddddddddddd is an ancestor of aaaaaaaaaaaa', result.stderr)
-        self.assertEqual(self.log().count("'fetch'"), 1)
-        self.assertTrue((self.root / 'installed').exists())
+        # A commit that the fetch brings in resolves and installs without any override; an
+        # operator's own GIT_SSH_COMMAND is kept for that fetch.
+        for ssh_command in (None, 'ssh -i /nonexistent/deploy_key'):
+            with self.subTest(ssh_command=ssh_command):
+                self.reset_host()
+                extra = {'GIT_SSH_COMMAND': ssh_command, 'FIXTURE_SSH_COMMAND': ssh_command} if ssh_command else {}
+                result = self.deploy(failure='fetch-resolves', **extra)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('fetching origin branches', result.stderr)
+                self.assertIn('installed source dddddddddddd is an ancestor of aaaaaaaaaaaa', result.stderr)
+                self.assertEqual(self.log().count("'fetch'"), 1)
+                self.assertTrue((self.root / 'installed').exists())
         # git failing to decide ancestry is refused, not read as divergence, even with the flag.
         self.reset_host()
         result = self.deploy(failure='broken-repo', flags=('--allow-divergent',))

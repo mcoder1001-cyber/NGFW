@@ -237,7 +237,8 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 		}
 	}
 
-	// wave-BC: F-default-vpp-nics — the interfaces map without seeded NICs that are not bound yet (Interfaces, Lcp)
+	// wave-BC: F-default-vpp-nics — the interfaces map without seeded NICs that are not bound yet (Interfaces, Lcp;
+	// the acl block lists' all-interfaces target set applies the same split through netdev)
 	boundIfs, unboundNICs, releasedNICs := desired.SplitUnboundPhysical(ds.GetInterfaces(), netdev)
 
 	if in["interfaces"] {
@@ -407,7 +408,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 	}
 	// wave-A: F-acl
 	if in["acl"] {
-		desired.ACL(p, ds, in) // lists, MACIP, attachments, stats flag (internal/desired/acl.go)
+		desired.ACL(p, ds, in, netdev) // lists, MACIP, attachments, stats flag (internal/desired/acl.go)
 	}
 	// wave-A: F-host-acl-nftables
 	if in["acl"] {

@@ -91,7 +91,7 @@ func TestACLBindingsOrderAndZones(t *testing.T) {
 		},
 	}
 	s := newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true, "objects": true})
+	ACL(s, ds, map[string]bool{"acl": true, "objects": true}, nil)
 	if len(s.issues) != 0 {
 		t.Fatalf("issues: %v", s.issues)
 	}
@@ -143,7 +143,7 @@ func TestACLNameTooLongForTag(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
 	name := strings.Repeat("n", 61)
 	s := newRecSink()
-	ACL(s, &ngfwv1.DesiredState{Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{name: {}}}}, map[string]bool{"acl": true})
+	ACL(s, &ngfwv1.DesiredState{Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{name: {}}}}, map[string]bool{"acl": true}, nil)
 	if len(s.issues) != 1 || !strings.Contains(s.issues[0], "acl.name") {
 		t.Fatalf("issues %v", s.issues)
 	}
@@ -166,7 +166,7 @@ func TestACLListLimitAndProjectionTime(t *testing.T) {
 	ds := build(100_000)
 	start := time.Now()
 	s := newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	took := time.Since(start)
 	if len(s.issues) != 0 {
 		t.Fatalf("issues %v", s.issues[:1])
@@ -179,7 +179,7 @@ func TestACLListLimitAndProjectionTime(t *testing.T) {
 
 	ds.Acl.Lists["big"].Rules = append(ds.Acl.Lists["big"].Rules, rule(200_000, "deny", func(r *ngfwv1.AclRule) { r.IpVersion = proto.String("ipv4") }))
 	s = newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true})
+	ACL(s, ds, map[string]bool{"acl": true}, nil)
 	if len(s.kvs) != 0 || len(s.issues) != 1 || !strings.Contains(s.issues[0], "E /acl/lists/big acl.list-limit") {
 		t.Fatalf("over the cap: kvs %d issues %v", len(s.kvs), s.issues)
 	}
@@ -202,7 +202,7 @@ func TestACLFQDNUnresolvedAndFamilies(t *testing.T) {
 	rec := aclstate.NewRecord(0)
 	withEnv(t, ACLEnv{Owner: "w3", Record: rec})
 	s := newRecSink()
-	ACL(s, ds, map[string]bool{"acl": true, "objects": true})
+	ACL(s, ds, map[string]bool{"acl": true, "objects": true}, nil)
 	if len(s.issues) != 1 || !strings.Contains(s.issues[0], "W /acl/lists/l/rules/0 acl.fqdn-unresolved") {
 		t.Fatalf("issues %v", s.issues)
 	}

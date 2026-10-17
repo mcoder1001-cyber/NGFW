@@ -4,7 +4,9 @@
 Only SSH/host commands, expensive builds and the source history (a fake `git`
 with a private lineage) are fixtures. The shipped shell, package/checksum
 validation and remote control flow execute. Fixed host paths are redirected in
-the SSH seam; production exposes no fixture/root override.
+the SSH seam; production exposes no fixture/root override. Every fake remote
+child drains its stdin and records what it swallowed, so a remote script that a
+child could consume shows up as a defect.
 """
 import fcntl
 import hashlib
@@ -13,6 +15,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -38,6 +41,11 @@ INSTALLED_VERSIONS = {
     'hostile-extra': '0.0.1\nextra line',
 }
 BUILD_INFO = {'source_commit': SOURCE, 'source_count': 42, 'vpp_manifest_sha256': 'f' * 64}
+# The remote launcher as the fake ssh records it (repr of the single command word),
+# followed by the validated install arguments: directory, manifest digest, then
+# VERSION OVERRIDE INSTALLED NO_DEFAULT_ROUTE and the closing repr quote.
+LAUNCHER = r'''env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -c \\'exec 3<&0 </dev/null && exec bash /dev/fd/3 "\$@"\\' ngfw-deploy '''
+REMOTE_ARGS = LAUNCHER + r'/root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} '
 PACKAGES = {'ngfw-agent': 'amd64', 'ngfw-api': 'amd64', 'ngfw-meta': 'all', 'ngfw-web': 'all'}
 
 
@@ -102,12 +110,28 @@ import os, pathlib, subprocess, sys
 root = pathlib.Path(os.environ['FIXTURE_ROOT'])
 args = sys.argv[1:]
 with (root / 'events').open('a') as log: log.write('ssh ' + repr(args) + '\n')
+if args[0] == '-G':
+    # Effective client configuration without connecting: lab_appliance is the only
+    # configured alias. Like OpenSSH, Host patterns match the name as typed and an
+    # unmatched name is echoed lowercased.
+    assert args[1] == '-T', args
+    host = args[-1].rsplit('@', 1)[-1]
+    print('user root\nhostname ' + {'lab_appliance': '192.0.2.7'}.get(host, host.lower()) + '\nport 22')
+    sys.exit(0)
 # OpenSSH concatenates remote command words into a shell command. Reproduce it.
 while args and args[0] == '-o': args = args[2:]
 assert len(args) >= 2
 host, cmd = args[0], ' '.join(args[1:])
 if os.environ.get('FAIL_STAGE') == 'ssh' and cmd.startswith('umask 077;'): sys.exit(1)
-script = sys.stdin.read() if 'bash -s' in cmd else ''
+# Only the remote launcher takes a script on stdin; a plain command that receives
+# any stdin (the fixtures feed the tool a line of operator input) is recorded.
+if 'exec bash /dev/fd/3' in cmd:
+    script = sys.stdin.read()
+else:
+    script = ''
+    leaked = '' if sys.stdin.isatty() else sys.stdin.read()
+    if leaked:
+        with (root / 'events').open('a') as log: log.write('ssh plain command read stdin ' + repr(leaked[:40]) + '\n')
 def redirect(value):
     for prefix in ['/root/ngfw-deploy', '/run/lock', '/etc/ngfw', '/etc/vpp', '/var/lib/ngfw']:
         value = value.replace(prefix, str(root / 'host') + prefix)
@@ -115,7 +139,8 @@ def redirect(value):
 cmd, script = redirect(cmd), redirect(script)
 # Keep fixture PATH/environment only in this recorder, never on a real host.
 cmd = cmd.replace('env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root ', '')
-result = subprocess.run(['bash', '-c', cmd], input=script, text=True, capture_output=True)
+result = subprocess.run(['bash', '-c', cmd], input=script, text=True, capture_output=True,
+                        env=dict(os.environ, FIXTURE_REMOTE='1'))
 sys.stdout.write(result.stdout.replace(str(root / 'host'), ''))
 sys.stderr.write(result.stderr)
 sys.exit(result.returncode)
@@ -140,6 +165,18 @@ name = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
 failure = os.environ.get('FAIL_STAGE', '')
 with (root / 'events').open('a') as log: log.write(name + ' ' + repr(args) + '\n')
+# A child that can read the remote script swallows the rest of it; record any bytes.
+# tar is exempt: dpkg-deb legitimately feeds it archive members on stdin.
+swallowed = '' if name == 'tar' or sys.stdin is None or sys.stdin.isatty() else sys.stdin.read()
+if swallowed:
+    with (root / 'events').open('a') as log: log.write(name + ' consumed stdin ' + repr(swallowed[:60]) + '\n')
+# The launcher parks the script pipe on descriptor 3; the remote scripts must close it
+# before any child (also the ngfw-uid pg_dump) runs.
+try:
+    import stat
+    if stat.S_ISFIFO(os.fstat(3).st_mode):
+        with (root / 'events').open('a') as log: log.write(name + ' inherited script pipe on descriptor 3\n')
+except OSError: pass
 if name == 'id': print('1000' if failure == 'root' else '0')
 elif name == 'dpkg-query':
     if '${Status}' in args[1]: print('install ok installed')
@@ -151,6 +188,9 @@ elif name == 'dpkg-query':
     else: print('ngfw-api 0.0.1\nvpp 26.06-release+ngfw3')
 elif name == 'ip':
     installed = (root / 'installed').exists()
+    # A management-only appliance prints no default route (no-route); in the
+    # no-route-after mode one appears only once the packages are installed.
+    if failure == 'no-route' or (failure == 'no-route-after' and not installed): sys.exit(0)
     if args[0] == '-4':
         gateway = '192.0.2.254' if failure == 'route' and installed else '192.0.2.1'
         metric = 200 if failure == 'route-metric' and installed else 100
@@ -179,7 +219,16 @@ elif name == 'tar':
     if '-C' in args: args[args.index('-C') + 1] = str(root / 'host')
     sys.exit(subprocess.run(['/usr/bin/tar'] + args).returncode)
 elif name == 'curl': sys.exit(1 if failure == 'health' else 0)
+elif name == 'nginx':
+    # Preflight: `nginx -t -q` before any transfer; install: `nginx -t` with its output kept.
+    # Decided by the arguments: a repeated upgrade of the same host is already 'installed'.
+    assert args in (['-t', '-q'], ['-t']), args
+    if args == ['-t']: print('nginx: fixture configuration test', file=sys.stderr)
+    sys.exit(1 if failure == ('nginx-config' if args == ['-t'] else 'nginx-preconfig') else 0)
 elif name == 'systemctl':
+    if args[0] == 'reload':
+        assert args == ['reload', 'nginx.service'], args
+        sys.exit(1 if failure == 'nginx-reload' else 0)
     if args[0] == 'show':
         assert args[1:4] == ['-p', 'NRestarts', '--value'] and len(args) == 5
         marker = root / ('shown-' + args[4])
@@ -203,7 +252,7 @@ elif name == 'stat':
 elif name in ('sleep', 'pg_dump'): pass
 else: raise AssertionError(name)
 '''
-        for name in ('id', 'dpkg-query', 'ip', 'apt-get', 'runuser', 'pg_restore', 'tar', 'curl', 'systemctl', 'sleep', 'pg_dump', 'stat'):
+        for name in ('id', 'dpkg-query', 'ip', 'apt-get', 'runuser', 'pg_restore', 'tar', 'curl', 'systemctl', 'sleep', 'pg_dump', 'stat', 'nginx'):
             command(self.bin, name, recorder)
         # Private source history: the real repository is never read or fetched.
         command(self.bin, 'git', r'''
@@ -252,7 +301,8 @@ else: raise AssertionError(args)
         env = dict(self.env, FAIL_STAGE=failure, **extra_env)
         for mode, installed in INSTALLED_VERSIONS.items():
             env['FIXTURE_INSTALLED_' + mode.replace('-', '_').upper()] = installed
-        return subprocess.run(['bash', str(script), *map(str, args)], env=env,
+        # The tool runs with a line of operator input on stdin; nothing of it may reach a host.
+        return subprocess.run(['bash', str(script), *map(str, args)], env=env, input='operator stdin\n',
                               text=True, capture_output=True, timeout=30)
 
     def deploy(self, *hosts, failure='', flags=(), **extra_env):
@@ -306,12 +356,19 @@ else: raise AssertionError(args)
         # The RA-learned IPv6 route expiry differs before and after; only via/dev/metric count.
         self.assertIn('expires 1693sec', (runs[0] / 'default-route-v6.txt').read_text())
         self.assertIn('src 192.0.2.10', (runs[0] / 'default-route-v4.txt').read_text())
-        self.assertEqual(log.count("ip ['-6', 'route', 'show', 'default']"), 3)
+        # Preflight probe, stable before-state, raw before-state, stable after-state.
+        self.assertEqual(log.count("ip ['-6', 'route', 'show', 'default']"), 4)
         self.assertFalse((runs[0] / 'default-route-v6-after.txt').exists())
         self.assertFalse((runs[0] / 'override.txt').exists())
         self.assertFalse((runs[0] / 'service-status.txt').exists())
         self.assertNotIn('git ', log)
-        self.assertRegex(log, r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 0 0\.0\.1'")
+        self.assertRegex(log, REMOTE_ARGS + r"0\.1\.0~dev\+git42\.a{12} 0 0\.0\.1 0'")
+        self.assertRegex(log, LAUNCHER + r"0'")
+        self.assertNotIn('consumed stdin', log)
+        self.assertNotIn('inherited script pipe', log)
+        self.assertNotIn('read stdin', log)
+        self.assertEqual(log.count("ssh ['-o'"), 4)
+        self.assertEqual((runs[0] / 'nginx-test.txt').read_text(), 'nginx: fixture configuration test\n')
 
     def test_repeated_upgrade_keeps_previous_backup(self):
         for _ in range(2):
@@ -333,6 +390,7 @@ else: raise AssertionError(args)
                      ('-p', self.delivery, '-w', self.root, 'host'), ('-p', self.delivery),
                      ('--allow-divergent=1', '-p', self.delivery, 'host'), ('--allow', '-p', self.delivery, 'host'),
                      ('--allow-divergent', '-p', self.delivery, 'a.example', 'b.example'),
+                     ('--allow-no-default-route', '-p', self.delivery, 'a.example', 'b.example'),
                      ('-p', self.delivery, 'a.example', '--allow-divergent')]:
             with self.subTest(args=args):
                 self.events.unlink(missing_ok=True)
@@ -434,6 +492,7 @@ else: raise AssertionError(args)
         self.assertNotIn('apt-get ', log)
         self.assertNotIn('second.example', log)
         self.assertRegex(log, r"'rmdir -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}'")
+        self.assertNotIn('read stdin', log)
         self.assertEqual(self.runs(), [])
 
     def test_rollback_within_one_history_is_refused_even_with_override(self):
@@ -483,7 +542,7 @@ else: raise AssertionError(args)
         log = self.log()
         self.assertEqual(log.count("'--allow-downgrades'"), 2)
         self.assertLess(log.index("'--allow-downgrades'"), log.index("'--simulate'"))
-        self.assertRegex(log, r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 1 0\.1\.0~dev\+git99\.b{12}'")
+        self.assertRegex(log, REMOTE_ARGS + r"0\.1\.0~dev\+git42\.a{12} 1 0\.1\.0~dev\+git99\.b{12} 0'")
         self.assertTrue((self.root / 'installed').exists())
         self.assertEqual((self.runs()[0] / 'override.txt').read_text(), 'allow-divergent accepted by operator; apt --allow-downgrades\n')
 
@@ -501,7 +560,7 @@ else: raise AssertionError(args)
         # A host whose lineage needs no override gets the remote literal 0 even with the flag.
         self.assertEqual(self.deploy(flags=('--allow-divergent',)).returncode, 0)
         self.assertNotIn('--allow-downgrades', self.log())
-        self.assertRegex(self.log(), r"bash -s -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}/packages [a-f0-9]{64} 0\.1\.0~dev\+git42\.a{12} 0 0\.0\.1'")
+        self.assertRegex(self.log(), REMOTE_ARGS + r"0\.1\.0~dev\+git42\.a{12} 0 0\.0\.1 0'")
 
     def test_descendant_sources_install_including_legacy_hash_versions(self):
         for failure in ('ancestor', 'legacy-ancestor'):
@@ -604,6 +663,184 @@ else: raise AssertionError(args)
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('runuser ', self.log())
         self.assertFalse((self.root / 'installed').exists())
+
+    def test_remote_children_cannot_consume_the_script(self):
+        # Every fake remote child drains stdin (and would record what it swallowed); with the
+        # launcher the preflight and install scripts still run to their last line.
+        result = self.deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = self.log()
+        self.assertNotIn('consumed stdin', log)
+        self.assertEqual(log.count("exec 3<&0 </dev/null && exec bash /dev/fd/3"), 2)
+        self.assertNotIn('bash -s', log)
+        self.assertTrue((self.runs()[0] / 'upgrade-complete').is_file())
+        self.assertEqual(log.count("dpkg-query ['-W', '-f=${Version}', 'ngfw-web']"), 3)
+        # Negative control for the detector: fed to `bash -s` on a pipe, the first fake child
+        # that reads stdin (id) swallows the rest of the script; the launcher does not let it.
+        self.events.unlink()
+        control = subprocess.run(['bash', '-s'], input='id -u\necho reached\n', env=self.env, text=True, capture_output=True)
+        self.assertEqual(control.stdout, '0\n')
+        self.assertIn("id consumed stdin 'echo reached\\n'", self.log())
+        self.events.unlink()
+        launcher = ['bash', '-c', 'exec 3<&0 </dev/null && exec bash /dev/fd/3 "$@"', 'ngfw-deploy']
+        control = subprocess.run(launcher, input='id -u\necho reached\n', env=self.env, text=True, capture_output=True)
+        self.assertEqual(control.stdout, '0\nreached\n')
+        self.assertNotIn('consumed stdin', self.log())
+        # Without the scripts' `exec 3<&-` every child would inherit the script pipe.
+        self.assertIn('id inherited script pipe on descriptor 3', self.log())
+        self.events.unlink()
+        control = subprocess.run(launcher, input='exec 3<&-\nid -u\n', env=self.env, text=True, capture_output=True)
+        self.assertEqual(control.stdout, '0\n')
+        self.assertNotIn('inherited script pipe', self.log())
+
+    def test_nginx_is_validated_and_reloaded_after_install(self):
+        result = self.deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = self.log()
+        self.assertEqual(log.count("nginx ['-t']"), 1)
+        self.assertEqual(log.count("systemctl ['reload', 'nginx.service']"), 1)
+        self.assertLess(log.rindex('apt-get '), log.index("systemctl ['restart'"))
+        self.assertLess(log.index("systemctl ['restart'"), log.index("'NRestarts'"))
+        self.assertLess(log.index("'NRestarts'"), log.index("nginx ['-t']"))
+        self.assertLess(log.index("nginx ['-t']"), log.index("systemctl ['reload', 'nginx.service']"))
+        self.assertLess(log.index("systemctl ['reload', 'nginx.service']"), log.index('curl '))
+        # A site that already fails its test is refused in the preflight, before any transfer.
+        self.reset_host()
+        result = self.deploy('first.example', 'second.example', failure='nginx-preconfig')
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('nginx configuration already fails its test before the upgrade', result.stderr)
+        self.assertIn('preflight failed', result.stderr)
+        self.assertNotIn('scp', self.log())
+        self.assertEqual(self.runs(), [])
+        self.assertEqual(self.log().count("nginx ['-t', '-q']"), 1)
+        for failure in ('nginx-config', 'nginx-reload'):
+            with self.subTest(failure=failure):
+                self.reset_host()
+                result = self.deploy('first.example', 'second.example', failure=failure)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertTrue((self.root / 'installed').exists())
+                self.assertNotIn('second.example', self.log())
+                self.assertIn('inspect /root/ngfw-deploy/run.', result.stderr)
+                self.assertTrue((self.runs()[0] / 'service-status.txt').is_file())
+                self.assertFalse((self.runs()[0] / 'upgrade-complete').exists())
+                if failure == 'nginx-config':
+                    self.assertIn('nginx configuration test failed after the upgrade', result.stderr)
+                    self.assertIn('nginx will not start again until it is fixed; agent/API health was not checked', result.stderr)
+                    # Remote stderr carries the fixture's redirected host prefix.
+                    self.assertRegex(result.stderr, r'member etc/ngfw/nginx\.conf of \S*/root/ngfw-deploy/run\.[A-Za-z0-9]{8}/preupgrade-config\.tar\.gz;')
+                    self.assertIn('nginx -t && systemctl reload nginx.service', result.stderr)
+                    self.assertRegex(result.stderr, r'restore with: tar -C / -xzf \S*/preupgrade-config\.tar\.gz etc/ngfw/nginx\.conf\)')
+                    self.assertIn('nginx: fixture configuration test', result.stderr)
+                    self.assertEqual((self.runs()[0] / 'nginx-test.txt').read_text(), 'nginx: fixture configuration test\n')
+                    self.assertNotIn("systemctl ['reload'", self.log())
+                    self.assertNotIn('curl ', self.log())
+
+    def test_no_default_route_needs_explicit_flag_and_is_recorded(self):
+        result = self.deploy('first.example', 'second.example', failure='no-route')
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('no management default route', result.stderr)
+        self.assertIn('--allow-no-default-route); nothing was transferred', result.stderr)
+        self.assertIn('preflight failed', result.stderr)
+        self.assertNotIn('upgrade failed', result.stderr)
+        self.assertNotIn('scp', self.log())
+        self.assertNotIn('apt-get ', self.log())
+        self.assertNotIn('second.example', self.log())
+        self.assertEqual(self.runs(), [])
+        self.assertFalse((self.root / 'installed').exists())
+        self.reset_host()
+        result = self.deploy(failure='no-route', flags=('--allow-no-default-route',))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('WARNING: --allow-no-default-route set', result.stderr)
+        self.assertIn('--allow-no-default-route accepted by operator', result.stderr)
+        self.assertRegex(self.log(), LAUNCHER + r"1'")
+        run = self.runs()[0]
+        self.assertEqual((run / 'no-default-route.txt').read_text(), 'no default route; --allow-no-default-route accepted by operator\n')
+        self.assertEqual((run / 'no-default-route.txt').stat().st_mode & 0o777, 0o600)
+        self.assertEqual((run / 'default-route-v4.txt').read_text(), '')
+        self.assertTrue((run / 'upgrade-complete').is_file())
+        self.assertNotIn('--allow-downgrades', self.log())
+        self.assertRegex(self.log(), REMOTE_ARGS + r"0\.1\.0~dev\+git42\.a{12} 0 0\.0\.1 1'")
+        self.reset_host()
+        # A default route that appears during the upgrade is still a change.
+        result = self.deploy(failure='no-route-after', flags=('--allow-no-default-route',))
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('management default route changed', result.stderr)
+        self.assertTrue((self.runs()[0] / 'default-route-v4-after.txt').is_file())
+        self.reset_host()
+        # With a default route present the flag changes nothing and leaves no marker.
+        result = self.deploy(flags=('--allow-no-default-route',))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.runs()[0] / 'no-default-route.txt').exists())
+        self.assertIn('expires 1693sec', (self.runs()[0] / 'default-route-v6.txt').read_text())
+        # Like --allow-divergent, the declaration is accepted for exactly one host.
+        self.reset_host()
+        result = self.deploy('first.example', 'second.example', failure='no-route', flags=('--allow-no-default-route',))
+        self.assert_rejected_without_ssh(result)
+        self.assertIn('exactly one declared host', result.stderr)
+
+    def test_old_python_is_refused_on_this_machine_and_on_the_target(self):
+        fake = self.bin / 'python3'
+        # Runs the version probes with sys.version_info spoofed to 3.10 (the last release
+        # without hashlib.file_digest) on this machine (old-python) or on the target only
+        # (old-python-remote, where the SSH seam sets FIXTURE_REMOTE), so the probes' own
+        # comparison decides; everything else, the fixture recorders included, passes through.
+        fake.write_text(f'''#!/bin/bash
+if [[ ${{FAIL_STAGE-}} == old-python && -z ${{FIXTURE_REMOTE-}} || ${{FAIL_STAGE-}} == old-python-remote && -n ${{FIXTURE_REMOTE-}} ]]; then
+  case "$*" in
+    *--version*) echo 'Python 3.10.12'; exit 0 ;;
+    *version_info*) exec {sys.executable} -I -c 'import sys; sys.version_info = (3, 10, 12, "final", 0); exec(sys.argv[1])' "${{@: -1}}" ;;
+  esac
+fi
+exec {sys.executable} "$@"
+''')
+        fake.chmod(0o755)
+        result = self.deploy(failure='old-python')
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('python3 >= 3.11 is required on this machine (hashlib.file_digest); found 3.10', result.stderr)
+        self.assertNotIn('ssh ', self.log())
+        self.events.unlink(missing_ok=True)
+        result = self.deploy(failure='old-python-remote')
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('target python3 must be >= 3.11 (hashlib.file_digest); found: Python 3.10.12', result.stderr)
+        self.assertIn('preflight failed', result.stderr)
+        self.assertNotIn('scp', self.log())
+        self.assertEqual(self.runs(), [])
+        # The passthrough interpreter satisfies both checks.
+        self.events.unlink(missing_ok=True)
+        result = self.deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_underscore_hosts_need_a_configured_ssh_alias(self):
+        # lab_appliance is the only alias the fake `ssh -G` maps to a HostName.
+        result = self.deploy('lab_appliance')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = self.log()
+        self.assertIn("ssh ['-G', '-T', '-o', 'BatchMode=yes'", log)
+        self.assertLess(log.index("ssh ['-G'"), log.index('/dev/fd/3'))
+        self.assertIn("'root@lab_appliance', ", log)
+        self.assertTrue((self.runs()[0] / 'upgrade-complete').is_file())
+        # Anything else with an underscore is refused before any connection: unconfigured
+        # aliases (ssh -G echoes them lowercased, whatever their case), a differently cased
+        # spelling of the alias (Host patterns match the name as typed), DNS-looking names,
+        # and the usual alphabet and position rules.
+        for host in ('other_host', 'My_Host', 'Lab_Appliance', 'web_01.example', 'lab_appliance_', '_lab', 'a_b..c', 'lab_appliance;id', 'lab_appliance/x'):
+            with self.subTest(host=host):
+                self.events.unlink(missing_ok=True)
+                result = self.deploy(host)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn('invalid host', result.stderr)
+                connections = [line for line in self.log().splitlines() if line.startswith('ssh ') and "['-G'" not in line]
+                self.assertEqual(connections, [])
+                self.assertNotIn('scp', self.log())
+                if host in ('other_host', 'My_Host', 'Lab_Appliance', 'web_01.example', 'lab_appliance_'):
+                    self.assertIn('underscores are valid only in an SSH configuration alias', result.stderr)
+                    self.assertIn("ssh ['-G'", self.log())
+                else:
+                    self.assertNotIn('ssh ', self.log())
+        # Names without underscores never trigger the alias lookup.
+        self.reset_host()
+        self.assertEqual(self.deploy('appliance.example').returncode, 0)
+        self.assertNotIn("['-G'", self.log())
 
     def build_fixture(self):
         repo = self.root / 'repo'

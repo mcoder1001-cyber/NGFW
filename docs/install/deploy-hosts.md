@@ -11,6 +11,14 @@ pinned VPP runtime must already be installed. See [package upgrades](upgrade.md)
 for release and recovery prerequisites and [bare metal](bare-metal.md) for initial
 installation.
 
+**Python:** the package checks use `hashlib.file_digest`, so the operator machine
+and the appliance both need Python 3.11 or newer. The packages depend on an
+unversioned `python3`; the Ubuntu 26.04 appliance image satisfies this, so the
+check guards operator machines and foreign or older installations. The script
+refuses an older interpreter with a clear message: on the operator machine
+before it connects anywhere, on the appliance in the preflight before any
+staging directory is made.
+
 Build from an origin ref using independently verified VPP build output:
 
 ```sh
@@ -66,9 +74,29 @@ deploy/deploy-hosts.sh -p /path/to/reviewed-packages appliance-a.example applian
 the script does not configure credentials or elevate privileges. SSH uses batch
 mode and strict existing host-key verification. Hosts must be DNS names, IPv4
 addresses or SSH configuration aliases. Use an alias for IPv6 and custom ports.
-The first failed host stops the fleet. `-b` never connects to the supplied hosts.
-Options must precede hosts. `--allow-divergent` is the only long option and is
-accepted with exactly one host; see source lineage below.
+DNS names and addresses may contain only letters, digits, dots and hyphens. An
+alias may also contain underscores, which DNS names never do: such a host is
+accepted only when `ssh -G` (the effective client configuration, read without
+connecting) shows that its `Host` block sets a `HostName` other than the alias
+itself; otherwise it is refused before any connection, and an error from the
+operator's ssh configuration is shown as is. `Host` patterns match the name as
+typed and `ssh -G` echoes an unmatched name lowercased, which the check
+recognises: a differently cased spelling of an alias is refused like any other
+unconfigured name. `ssh -G` evaluates the operator's own client configuration,
+including any `Match exec` it contains, exactly as the connection would. The first failed host stops the fleet. `-b` never
+connects to the supplied hosts. Options must precede hosts. The long options are
+`--allow-divergent` (exactly one host; see source lineage below) and
+`--allow-no-default-route` (exactly one host; see default routes below).
+
+The remote preflight and install scripts are fixed code sent over the SSH
+session's standard input. The remote launcher moves that input to a private
+descriptor, gives the shell and every remote child `/dev/null` as standard
+input and lets bash read the script from its own copy of the pipe, so a child
+that reads standard input (an APT or maintainer-script prompt, for example)
+gets end-of-file instead of the rest of the script. Plain remote commands are
+sent with an empty standard input (`/dev/null`). This relies on the SSH
+session's standard input being a pipe, which OpenSSH provides for a command
+without a terminal; remote shell errors are reported as `/dev/fd/3: line N`.
 
 Each host gets a distinct root-private recovery directory at
 `/root/ngfw-deploy/run.XXXXXXXX`. A lock in that root-owned, mode-0700 parent directory serializes this tool's
@@ -76,8 +104,10 @@ install phase; symbolic or incorrectly owned/mode lock files are refused.
 A private local snapshot is copied there, and its manifest digest, archive
 hashes, package metadata and installed package versions are rechecked remotely.
 The target must have a completed firstboot marker, all four packages installed
-at one version and agent/API/nginx/VPP services individually active. Stopped
-appliances and mixed installed versions are refused before installation.
+at one version, agent/API/nginx/VPP services individually active and an nginx
+configuration that passes `nginx -t`; a missing tool is named. Stopped
+appliances, mixed installed versions and a site that already fails its test
+are refused before anything is transferred.
 
 **Source lineage (D-249):** development versions embed the source commit, and
 their commit counts order only descendant commits. Before copying anything the
@@ -138,8 +168,28 @@ filesystem archive and database dump are sequential backups, not an atomic
 cross-store snapshot. Backup restore and database migration compatibility still
 require appliance acceptance; fixtures do not prove those properties.
 
-After APT, the script restarts agent/API, records their automatic restart
-counters (`NRestarts`, read after the manual restart with retries), checks the
+After APT, the script restarts agent/API, validates the nginx configuration
+(`nginx -t`) and reloads `nginx.service`: `ngfw-web` ships the site
+`/etc/ngfw/nginx.conf` (linked from `sites-enabled` by firstboot) and the static
+web assets without a maintainer script, and a changed site file takes effect
+only on reload. The reload is graceful. The explicit test, the same step
+firstboot runs before enabling the site, writes its output to `nginx-test.txt`
+in the recovery directory. When it fails the run stops: the running nginx still
+serves the previous configuration, but the new site file is already on disk
+and the unit's own start-time test would fail on the next restart or reboot,
+and the agent/API health check has not run. Restore or fix
+`/etc/ngfw/nginx.conf` (the previous copy is member `etc/ngfw/nginx.conf` of
+`preupgrade-config.tar.gz` in the recovery directory:
+`tar -C / -xzf <recovery>/preupgrade-config.tar.gz etc/ngfw/nginx.conf`), then
+run `nginx -t && systemctl reload nginx.service`. Two limits: `systemctl reload`
+only signals nginx, so a configuration that passes the test but is rejected at
+runtime (a port held by another process, a path the sandboxed unit cannot open)
+leaves nginx on its previous configuration without failing the run; check
+nginx's error log when the web UI does not reflect the upgrade. And APT keeps a
+locally modified site file (`--force-confold`), in which case the shipped one
+lands as `/etc/ngfw/nginx.conf.dpkg-dist` to be merged by hand. Before the
+nginx steps the script records the agent/API automatic restart counters
+(`NRestarts`, read after the manual restart with retries); it then checks the
 local loopback HTTP health endpoint through the SSH session, waits a ten-second
 stability window, reads the counters again, then checks each
 agent/API/nginx/VPP service individually and requires the counters to be
@@ -165,6 +215,19 @@ This check does not certify externally served TLS, login, dataplane forwarding,
 agent reconciliation or application rollback; run those acceptance checks before
 closing the maintenance window.
 
+A host with neither an IPv4 nor an IPv6 default route is refused
+("no management default route") unless `--allow-no-default-route` is given. A
+management-only appliance on a directly connected (for example link-local)
+network is a valid target, but the operator must declare it, because an empty
+route table is also what a broken host looks like; like `--allow-divergent`,
+the flag is accepted with exactly one host per run and prints a local warning.
+The preflight refuses such a host before anything is transferred; the install
+step rechecks the routes under its lock. With the flag the empty before-state is
+accepted and recorded in `no-default-route.txt` in the recovery directory; the
+before/after comparison still applies, so a default route that appears during
+the upgrade is reported as a change. The upgrade itself needs no default route:
+APT runs with downloads forbidden.
+
 If a step fails, stop and inspect the reported recovery directory, APT plan,
 previous versions, backups and system logs through the console or surviving SSH
 session. The tool reports failure and retains evidence. It does not automatically
@@ -176,6 +239,7 @@ Host-independent verification:
 
 ```sh
 bash -n deploy/deploy-hosts.sh
+shellcheck --external-sources deploy/deploy-hosts.sh
 python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v
 ```
 
@@ -190,7 +254,12 @@ default route, a changed IPv4/IPv6 gateway, a crash-looping agent, mixed
 installed versions, a rollback under the override, an installed version that
 changes between preflight and the locked install, hostile preflight output,
 multipath next-hop swaps, device/metric-only route changes, a crash-looping
-API, the `build-info.json` provenance path and the private deployment lock. A
+API, the `build-info.json` provenance path and the private deployment lock,
+remote children that drain their standard input (with a negative control for the
+former `bash -s` launcher), nginx validation and reload failures, a host without
+a default route with and without the flag (and the flag with two hosts),
+interpreters older than 3.11 on either side, and underscore hosts in either case
+that are or are not configured SSH aliases. A
 private fake `git` supplies the source history; the real repository is never
 read or fetched. They do not access a live host, a real database, VPP,
 credentials or the network. The unchanged strict hosted packaging

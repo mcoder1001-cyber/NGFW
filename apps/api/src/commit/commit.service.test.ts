@@ -17,6 +17,7 @@ import type { AuditService } from '../audit/audit.service.js';
 import type { SystemEventsService } from '../audit/system-events.service.js';
 import type { TokensService } from '../auth/tokens.service.js';
 import { ProblemError } from '../common/problem.js';
+import { SeedService } from '../features/default-vpp-nics/seed.service.js';
 import { DatastoreService } from '../datastore/datastore.service.js';
 import { emptyDocument } from '../datastore/documents.js';
 import { Bus } from '../infra/bus.js';
@@ -145,6 +146,98 @@ describe('CommitService (fake agent over gRPC)', () => {
   it('commit without edits is a no-op (agent untouched)', async () => {
     expect((await commits.commit(ADMIN, {})).status).toBe('unchanged');
     expect(applies(fake)).toEqual([]);
+  });
+
+  it('D-252: boot NIC registration persists missing interfaces through gRPC after an existing commit and preserves released NICs', async () => {
+    await ds.patchCandidate(ADMIN, '/system', { hostname: 'edge1' });
+    await commits.commit(ADMIN, {});
+    fake.hostNicList = [
+      { netdev: 'ens192', pci: '0000:0b:00.0', isManagement: true },
+      { netdev: 'ens161', pci: '0000:04:00.0', isManagement: false },
+    ];
+    // the data NICs are not bound to the data plane yet: VPP has no such live interface (a warning, not a failure)
+    fake.liveMissing = new Set(['ens161', 'ens193']);
+    const seed = () =>
+      new SeedService(agent, ds, commits, events as unknown as SystemEventsService, {
+        ...env,
+        NGFW_SEED_DEFAULT_NICS: true,
+      });
+    try {
+      expect(await seed().seedIfNeeded()).toBe('seeded');
+      expect((await ds.getRunning()).doc).toMatchObject({
+        system: { hostname: 'edge1' },
+        interfaces: {
+          ens161: {
+            enabled: true,
+            physical: { pci: '0000:04:00.0', owner: 'dataplane', builtIn: true },
+          },
+        },
+      });
+      expect(repo.state.revisions.at(-1)).toMatchObject({ id: 2, kind: 'system', authorId: null });
+      // an operator releases ens161 to the host, then a NIC is added to the box
+      await ds.patchCandidate(ADMIN, '', {
+        interfaces: { ens161: { enabled: false, physical: { owner: 'host' } } },
+        dataplane: { pciWhitelist: [], devices: { '0000:04:00.0': null } },
+      });
+      await commits.commit(ADMIN, {});
+      fake.hostNicList.push({ netdev: 'ens193', pci: '0000:0c:00.0', isManagement: false });
+      expect(await seed().seedIfNeeded()).toBe('seeded');
+      const running = await ds.getRunning();
+      expect(running.doc).toMatchObject({
+        system: { hostname: 'edge1' },
+        interfaces: {
+          ens161: { enabled: false, physical: { owner: 'host' } },
+          ens193: { enabled: true, physical: { owner: 'dataplane' } },
+        },
+        dataplane: {
+          pciWhitelist: ['0000:0c:00.0'],
+          devices: { '0000:0c:00.0': { name: 'ens193' } },
+        },
+      });
+      // the next boot adds nothing: no fifth revision
+      expect(await seed().seedIfNeeded()).toBe('exists');
+      expect(repo.state.revisions).toHaveLength(4);
+    } finally {
+      fake.hostNicList = [];
+    }
+  });
+
+  it('D-252: boot NIC registration defers while an operator has candidate edits or a commit awaits confirmation', async () => {
+    fake.hostNicList = [
+      { netdev: 'ens192', pci: '0000:0b:00.0', isManagement: true },
+      { netdev: 'ens161', pci: '0000:04:00.0', isManagement: false },
+    ];
+    fake.liveMissing = new Set(['ens161']);
+    try {
+      await ds.patchCandidate(ADMIN, '/system', { hostname: 'edge1' });
+      const before = await repo.candidate();
+      const seed = new SeedService(agent, ds, commits, events as unknown as SystemEventsService, {
+        ...env,
+        NGFW_SEED_DEFAULT_NICS: true,
+      });
+      // staged candidate (the setup wizard stages its whole document the same way): nothing staged is lost
+      expect(await seed.seedIfNeeded()).toBe('deferred');
+      expect(await repo.candidate()).toEqual(before);
+      expect(repo.state.revisions).toHaveLength(0);
+      expect(applies(fake)).toEqual([]);
+      // a confirmed commit awaiting confirmation (the wizard's apply step): deferred until it is confirmed
+      const r = await commits.commit(ADMIN, { confirmSec: 30 });
+      expect(r.status).toBe('pending');
+      expect(await seed.seedIfNeeded()).toBe('deferred');
+      expect(repo.state.revisions).toHaveLength(0);
+      expect((await commits.confirm(ADMIN)).status).toBe('confirmed');
+      expect(await seed.seedIfNeeded()).toBe('seeded');
+      expect(repo.state.revisions.map((rev) => [rev.id, rev.kind])).toEqual([
+        [1, 'commit'],
+        [2, 'system'],
+      ]);
+      expect((await ds.getRunning()).doc).toMatchObject({
+        system: { hostname: 'edge1' },
+        interfaces: { ens161: { physical: { pci: '0000:04:00.0', owner: 'dataplane' } } },
+      });
+    } finally {
+      fake.hostNicList = [];
+    }
   });
 
   it('semantic errors (overlapping IPs) are 400 with pointers before the agent is asked', async () => {

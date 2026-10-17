@@ -1,9 +1,9 @@
 {
   "system": {
-    "hostname": "ngfw",
     "setup": {
       "completed": false
     },
+    "hostname": "ngfw",
     "timezone": "UTC",
     "banner": {},
     "dns": {
@@ -19,8 +19,7 @@
       "0000:13:00.0",
       "0000:14:00.0",
       "0000:1b:00.0",
-      "0000:1c:00.0",
-      "0000:1d:00.0"
+      "0000:1c:00.0"
     ],
     "managementPci": ["0000:0b:00.0"],
     "devices": {
@@ -41,9 +40,6 @@
       },
       "0000:1c:00.0": {
         "name": "ens257"
-      },
-      "0000:1d:00.0": {
-        "name": "enp29s0f0"
       }
     }
   },
@@ -92,14 +88,6 @@
       "enabled": true,
       "physical": {
         "pci": "0000:1c:00.0",
-        "owner": "dataplane",
-        "builtIn": true
-      }
-    },
-    "enp29s0f0": {
-      "enabled": true,
-      "physical": {
-        "pci": "0000:1d:00.0",
         "owner": "dataplane",
         "builtIn": true
       }

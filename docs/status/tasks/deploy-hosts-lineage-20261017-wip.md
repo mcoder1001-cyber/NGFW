@@ -2,7 +2,7 @@
 
 Branch: `fix/deploy-hosts-lineage-routes-20261017` (cut from `origin/main` 99a774734).
 Envelope: [deploy-hosts-lineage-20261017-envelope.md](deploy-hosts-lineage-20261017-envelope.md).
-Remote/local SHAs: see the PR; updated at each checkpoint below.
+Checkpoint 1: local = remote `4550231934f28ea793ae7f488f7761ee10732520` (pushed 2026-10-17).
 
 ## Owned files
 
@@ -29,9 +29,22 @@ Remote/local SHAs: see the PR; updated at each checkpoint below.
    version table per failure mode, IPv6 RA route with changing `expires`, `route6`, `crashloop`,
    `mixed`, `--allow-divergent` paths, bad long options.
 
-## Actual test results
+## Actual test results (checkpoint 1, this worktree, disposable seams only)
 
-Recorded at the checkpoint commit; see the PR description for the pasted output.
+```text
+bash -n deploy/deploy-hosts.sh deploy/debian/ngfw/prepare.sh      -> exit 0
+shellcheck --external-sources deploy/deploy-hosts.sh               -> no findings (0.11.0)
+python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v
+Ran 25 tests in 324.557s
+OK
+python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_prepare.py -v
+Ran 4 tests in 3.335s
+OK
+```
+
+No live host, database, VPP, credentials or network were used; the fake `git`
+never touches the real repository. Hosted quick CI and the packaging fixture
+gate are unchanged and remain required.
 
 ## Remaining code / current failure / next command
 

@@ -54,11 +54,12 @@ HOSTS=("$@")
 [[ $SSH_USER =~ ^[a-z_][a-z0-9_-]*$ ]] || die 'invalid SSH user'
 # DNS names never contain underscores; an SSH configuration alias may, and it
 # then has to map to a HostName. ssh -G prints the effective configuration
-# without connecting; without a matching Host block it echoes the name
-# lowercased, so compare case-insensitively, as ssh matches Host blocks.
+# without connecting (-T: no pseudo-terminal notice). Host patterns match the
+# name as typed; an unmatched name is echoed lowercased, so the comparison
+# ignores case to recognise that echo as "no HostName".
 configured_alias() {
   local hostname
-  hostname=$(ssh -G "${SSH_OPTS[@]}" "$SSH_USER@$1" </dev/null | sed -n 's/^hostname //p') || return 1
+  hostname=$(ssh -G -T "${SSH_OPTS[@]}" "$SSH_USER@$1" </dev/null | sed -n 's/^hostname //p') || return 1
   [[ -n $hostname && ${hostname,,} != "${1,,}" ]]
 }
 for host in "${HOSTS[@]}"; do
@@ -309,6 +310,9 @@ done
 for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
   systemctl is-active --quiet "$service"
 done
+# A site that already fails its test is not the new packages' fault; refuse it
+# before anything is transferred.
+nginx -t -q || { echo 'nginx configuration already fails its test before the upgrade; fix it first' >&2; exit 1; }
 # Refuse a host without any default route before anything is transferred; the
 # install step rechecks the routes under its lock and records the acceptance.
 routes=$(ip -4 route show default; ip -6 route show default)
@@ -451,7 +455,7 @@ restarts_before=$(restart_counts)
 # the next restart or reboot, so the message names the recovery.
 if ! nginx -t > "$BACKUP/nginx-test.txt" 2>&1; then
   cat "$BACKUP/nginx-test.txt" >&2
-  printf 'nginx configuration test failed after the upgrade (output in %s/nginx-test.txt). The running nginx still serves the previous configuration, but the new site file is on disk and nginx will not start again until it is fixed; agent/API health was not checked. Restore or fix /etc/ngfw/nginx.conf (previous copy: member etc/ngfw/nginx.conf of %s/preupgrade-config.tar.gz), then run: nginx -t && systemctl reload nginx.service\n' "$BACKUP" "$BACKUP" >&2
+  printf 'nginx configuration test failed after the upgrade (output in %s/nginx-test.txt). The running nginx still serves the previous configuration, but the new site file is on disk and nginx will not start again until it is fixed; agent/API health was not checked. Restore or fix /etc/ngfw/nginx.conf (previous copy: member etc/ngfw/nginx.conf of %s/preupgrade-config.tar.gz; restore with: tar -C / -xzf %s/preupgrade-config.tar.gz etc/ngfw/nginx.conf), then run: nginx -t && systemctl reload nginx.service\n' "$BACKUP" "$BACKUP" "$BACKUP" >&2
   exit 1
 fi
 systemctl reload nginx.service

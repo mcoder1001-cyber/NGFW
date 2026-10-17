@@ -21,8 +21,8 @@ MAJORs in a verify round (R2 raised no MAJOR).
 
 | finding | fix |
 |---|---|
-| R1-1 / R7-3 / R8-4: real `ssh -G` lowercases an unconfigured name, so a mixed-case underscore host (`Unconfigured_Host`) passed the alias check and the guide's "refused before any connection" was false | `configured_alias` compares `${hostname,,}` with `${1,,}` (ssh matches `Host` blocks case-insensitively); the fake `ssh -G` lowercases like OpenSSH; fixtures: `Lab_Appliance` deploys as the configured alias, `My_Host` is refused with the others; guide reworded ("a `HostName` other than the alias itself") |
-| R7-1: D-250 also added by PR #241 (`8d34740d4`); two D-250 rows on `main` if both merge as they are | resolved by the manager (2026-10-17): the merge order is #240 → #242 → #241, this branch keeps D-250 and PR #241 renumbers its line; the LOG line here is unchanged apart from the wording fixes below |
+| R1-1 / R7-3 / R8-4: real `ssh -G` lowercases an unconfigured name, so a mixed-case underscore host (`Unconfigured_Host`) passed the alias check and the guide's "refused before any connection" was false | `configured_alias` compares `${hostname,,}` with `${1,,}` so the lowercased echo of an unmatched name is recognised; guide reworded ("a `HostName` other than the alias itself"). Checkpoint 3 wrongly described this as "ssh matches `Host` blocks case-insensitively" and the fake `ssh -G` lowercased before its lookup (R7-V1, R8-O-1 in the verify rounds); checkpoint 4 corrects the wording, makes the fake match the name as typed and echo an unmatched name lowercased like OpenSSH, and refuses `Lab_Appliance` alongside `My_Host` |
+| R7-1: D-250 also added by PR #241 (`8d34740d4`); two D-250 rows on `main` if both merge as they are | resolved by the manager (2026-10-17): the merge order is #240 → #242 → #241, this branch keeps D-250 and PR #241 has already renumbered its line to D-251 (`0b57dc070`); the LOG line here is unchanged apart from the wording fixes below |
 | R8-1: after a failed `nginx -t` the message "nginx keeps its previous configuration" hid that the broken site file is already on disk (the unit's start-time test fails on the next restart or reboot), that agent/API health was not checked, and gave no recovery step | `nginx -t` output is kept in `nginx-test.txt` in the recovery directory and echoed; the message states the running/on-disk states, that nginx will not start again until fixed, that health was unchecked, and names the previous copy (member `etc/ngfw/nginx.conf` of `preupgrade-config.tar.gz`) and the command `nginx -t && systemctl reload nginx.service`; guide and D-250 updated |
 
 ## MINOR / NIT items also fixed in checkpoint 3
@@ -58,6 +58,29 @@ preflight names a missing tool.
 - R8-3 worker-PID check after the reload: the limit is documented instead (the fixtures cannot model
   nginx's runtime rejection without a real nginx).
 
-## Verify rounds
+## Verify rounds (on `083a7ce87`, the rebased checkpoint 3)
 
-Pending on checkpoint 3: R1 (finding 1), R7 (MAJOR 1), R8 (MAJOR 1). Results are appended here.
+| reviewer | re-checked | verify verdict | new optional items |
+|---|---|---|---|
+| R1 | finding 1 (mixed-case underscore hosts), optional 2 to 7 | APPROVE: refusal confirmed against real OpenSSH 10.2 `ssh -G`; reverting the fix fails `test_underscore_hosts_need_a_configured_ssh_alias`; full suite `Ran 33 tests in 643.642s` / `OK` | MINOR 8: the fixture and docs modelled `Host` matching as case-insensitive (it is as typed); NIT 9: `-T` for `ssh -G`; one-line gap: `rmdir` refusal path not checked for leaked stdin |
+| R2 | no verify round: the shared rules re-check MAJORs only and R2 raised none; its verdict APPROVE WITH CHANGES on `e1157fa6e` (= `2fd8d5a64` rebased) stands, its MINOR M1 (descriptor-3 and `env -i` not tested) is fixed in checkpoint 3 and NIT N1 documented; N2 is the recorded follow-up | APPROVE WITH CHANGES (original round) | — |
+| R7 | MAJOR 1 (D-250 collision), MINORs 2 to 8, NITs 9 to 15 | APPROVE: only one D-250 row on the branch; PR #241 already carries D-251 (`0b57dc070`) | V1 same as R1-8; V2 WIP rebase state and SHA mapping; V3 D-250 item 1 "empty stdin"; V4 "#241 renumbers" is past tense |
+| R8 | MAJOR 1 (nginx failure message), MINORs 2 to 7, NITs 8 to 13 | APPROVE: message, `nginx-test.txt`, recovery copy and docs verified; targeted fixtures `Ran 3 tests in 110.542s` / `OK` | O-1 same as R1-8; O-2 `-T`; N-a D-250 said `nginx -t -q`; N-b exact one-member restore command and a preflight `nginx -t` |
+
+**Combined verdict: APPROVE** on `083a7ce87` (R1, R7 and R8 APPROVE in their verify rounds; R2's
+APPROVE WITH CHANGES had no MAJOR and its MINOR is fixed). Checkpoint 4 adds only the optional
+items listed below (no reviewer re-check required under the shared rules). Merge also needs the
+hosted quick gate and packaging fixtures green on the final head, which the manager records at merge
+time.
+
+### Checkpoint 4 (post-verify minors, no product behaviour change beyond the listed lines)
+
+R1-8 / R7-V1 / R8-O-1: the fake `ssh -G` matches the name as typed and echoes an unmatched name
+lowercased like OpenSSH; `Lab_Appliance` moves to the refused list; the comment, guide, D-250, WIP
+and this file say "Host patterns match the name as typed" · R1-9 / R8-O-2: `ssh -G -T` · R1 gap:
+the lineage-refusal `rmdir` path asserts no leaked stdin · R7-V2: WIP checkpoint table maps stacked
+to rebased SHAs and the archive ref · R7-V3: D-250 item 1 says "empty stdin (`/dev/null`)" · R7-V4:
+"#241 already carries D-251" · R8-N-a: D-250 says `nginx -t` · R8-N-b: the failure message and the
+guide give `tar -C / -xzf <recovery>/preupgrade-config.tar.gz etc/ngfw/nginx.conf`, and the preflight
+runs `nginx -t -q` so a site that already fails is refused before any transfer (fixture
+`nginx-preconfig`). Checkpoint 4 is the final head recorded in PR #242.

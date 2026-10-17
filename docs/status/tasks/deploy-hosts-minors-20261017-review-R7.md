@@ -231,3 +231,158 @@ $ git status --short   -> (clean before this report)
 I did not run the 10-minute `test_deploy_hosts.py` suite; that is R1's.
 
 **Verdict: APPROVE WITH CHANGES** (0 BLOCKER, 1 MAJOR, 7 MINOR, 7 NIT). The MAJOR is a decision-log number collision with PR #241. It has no code impact and must be renumbered by whichever PR merges second.
+
+## Verify round on 083a7ce87
+
+- Reviewer: independent R7 panel agent. Read-only session. The only file written is this appended section.
+- HEAD `083a7ce87`. It is rebased onto `origin/main` `3f099b530`, which is PR #240 squash-merged and has the same tree as `d50d4fd2c`.
+- Rebased pairs, all with identical trees (checked with `git rev-parse <c>^{tree}`):
+  - `1a42cb3a0` -> `6fbd33c2c`
+  - `e1157fa6e` -> `2fd8d5a64`
+  - `a01b58d67` -> `083a7ce87`
+- Stacked history: `origin/archive/deploy-hosts-minors-20261017-stacked` = `a01b58d67`. It contains `1a42cb3a0` and `e1157fa6e`.
+- Scope of this round:
+  - MAJOR 1 is graded.
+  - MINORs 2-8 and NITs 9-13 are noted as addressed or not addressed.
+  - NITs 14-15 are answered "won't fix" in the combined review; both answers are accepted.
+- Remote state is read from the local remote-tracking refs only (no network). `FETCH_HEAD` is dated 2026-10-10. The 2026-10-17 refs come from pushes made from this machine.
+
+### MAJOR 1 (D-250 collision with PR #241): RESOLVED
+
+- **The LOG line is consistent.** `docs/decisions/LOG.md:287` is the only `| D-250 |` row at HEAD. `git diff origin/main...HEAD -- docs/decisions/LOG.md` adds exactly that one line. `origin/main` ends at D-249.
+- **The ruling is stated in the WIP.**
+  - `wip.md:9` says that PR #241 also added a D-250, that the manager ruled on 2026-10-17 that the merge order is #240 -> #242 -> #241, and that this branch keeps D-250 while #241 renumbers.
+  - `wip.md:208` (Decisions) and `wip.md:227` (open questions: "D-250 confirmed by the manager; PR #241 renumbers its line") agree.
+- **The ruling is stated in the combined review.** `review.md:25` gives the same ruling and the same order. It also says the LOG line changed only in wording.
+  - The wording changes are listed at `review.md:41-45`: options for item 4, the nginx wording and the preflight wording.
+  - I confirmed them in `git diff 2fd8d5a64 083a7ce87 -- docs/decisions/LOG.md`. That diff touches only line 287, and the id is unchanged.
+- **The review plan is consistent.** `review-plan.md:13,21` still say D-250. It does not repeat the ruling, which is acceptable for a dispatcher path list.
+- **The ruling is already carried out on the other side.**
+  - `origin/claude/agent-allifs-unbound-nics` (PR #241, `873f1d946`) carries `| 2026-10-17 | D-251 |` for its block-list decision. It was renumbered in `0b57dc070` (2026-10-17 11:52 UTC).
+  - Its remaining "D-250" strings are history only: old commit subjects and review text.
+- **No other ref collides.** A scan of every local and remote-tracking ref finds:
+  - D-250 only on this branch (local, `origin/...` and the archive);
+  - D-251 only on PR #241.
+- **The ruling is durable.** It is no longer only in chat, and the collision can no longer occur in either merge order.
+
+### MINOR 2-8 and NIT 9-13
+
+2. **Addressed.** `wip.md:82-92` lists iterations A-G. Each has its real `Ran N tests` / `OK|FAILED (failures=n)` lines and the cause and fix in prose. No output is spliced into a code block. Run A, "8 tests / failures=9", is plausible: the file has 15 `subTest` uses.
+3. **Code addressed. The docs reason is inaccurate** (see V1 below).
+   - `configured_alias` (`sh:59-63`) compares `${hostname,,}` with `${1,,}`.
+   - With real OpenSSH 10.2p1, `ssh -G` with no Host block prints `hostname my_host` for `My_Host`, so the tool now refuses it.
+4. **Addressed.**
+   - `sh:69` enforces one host with the flag, and `sh:542` prints the local WARNING.
+   - Usage header lines 11-12 and `docs/install/deploy-hosts.md:88,219-220` say "exactly one host".
+   - I read the two-host refusal in the code but could not execute it (see Commands).
+5. **Addressed.**
+   - `docs/status/DEFERRED-ACCEPTANCE.md` has the section "Operator upgrade tool — 2026-10-17", which records the real appliance upgrade as NOT RUN.
+   - The WIP has "Out of scope / not run" (`wip.md:216-223`).
+   - `review-plan.md:29-31` now points to that real row.
+6. **Partly addressed** (see V2).
+   - The checkpoint table (`wip.md:13-19`) has the SHAs and push results for checkpoints 1 and 2.
+   - Checkpoint 3 has no SHA, and the "final head below" it promises is not there.
+   - The post-rebase SHAs are not mapped.
+7. **Addressed.** `wip.md:76-78` discloses 5 command-scoped `SC2029` annotations, up from 4. I counted 5 at HEAD and 4 at `origin/main`, at `sh:491,500,506,518,521`.
+8. **Addressed.** `docs/install/upgrade.md:15-18` says that `ngfw-web` has no maintainer script and that the operator must run `nginx -t` and reload `nginx.service`. `debian/` has only `ngfw-web.install`, plus postinsts for agent, api and meta.
+9. **Addressed.** The guide (`:15-17`) names the Ubuntu 26.04 appliance image. "Debian 12" no longer appears in the guide, the script or the LOG.
+10. **Addressed.** D-250 lists the options for item 4: a versioned Depends, or the runtime check on both sides plus docs. The reasons for items 4 and 5 are given inline in the options column, which is acceptable.
+11. **Addressed.**
+    - Runs D and G are pasted verbatim, including the ` (test_deploy_hosts.DeployHosts.<name>)` suffix.
+    - Run G's 33 names equal the 33 `def test_*` names in `test_deploy_hosts.py`, in order. Every suffix matches. Run D also matches.
+12. **Addressed.** "A bare reload would hide the error" is gone. The guide (`:173-189`) now gives the firstboot-equivalent test, `nginx-test.txt`, the real states after a failure and the recovery command.
+13. **Partly addressed.** The guide (`:96`) now says "an empty standard input (`/dev/null`)". D-250 (`LOG.md:287`, item 1) still says "plain remote commands get no stdin" (see V3).
+14. **Won't fix, accepted.** The manager adds the board rows.
+15. **Won't fix, accepted.** AGENTS.md names `<task>-wip.md` as the status file.
+
+### New observations in this round (they do not change the MAJOR 1 grade)
+
+**V1. MINOR. The case-insensitivity reason is false for OpenSSH 10.2.**
+- The claim "as ssh matches `Host` blocks [case-insensitively]" appears in:
+  - `docs/install/deploy-hosts.md:82-83`
+  - the comment at `deploy/deploy-hosts.sh:58`
+  - D-250 item 5 ("case-insensitive like ssh")
+  - `wip.md:70,211`
+  - `review.md:24`
+  - the test comment `test_deploy_hosts.py:799-800`
+- Probed with `ssh -G -F <scratch config>` (no connection):
+  - `Host lab_lower` with `Lab_Lower` gives `hostname lab_lower`: no match.
+  - `Host Lab_Appliance` with `lab_appliance` gives `hostname lab_appliance`: no match.
+  - So Host blocks match case-sensitively. Only the name echoed for a host with no Host block is lowercased.
+- The tool's comparison is still correct and fails closed. A wrongly-cased spelling of a configured alias gets the same hostname back, so it is refused. It is never connected to as a DNS name.
+- The docs, however, tell the operator that a mixed-case spelling is "the same alias", and that is not true.
+- The fake `ssh -G` (`test_deploy_hosts.py:116`) lowercases the name before the Host lookup. So the fixture deploys `Lab_Appliance` for a `lab_appliance` block, which real ssh would refuse. [other: R1]
+- Fix:
+  - Reword the docs to: "`ssh -G` echoes a name that has no Host block in lower case, so the comparison ignores case. Host blocks themselves match case-sensitively, so spell the alias as in its `Host` line."
+  - Apply the same wording to the script comment and D-250.
+  - Make the fake match Host patterns case-sensitively and expect `Lab_Appliance` to be refused. [other: R1]
+
+**V2. NIT. Statements in the WIP went stale with the rebase.**
+- `wip.md:3-5` ("PR #240 was still open ... rebases onto `main` once #240 merges") is out of date.
+- `wip.md:8` ("open, base `fix/deploy-hosts-lineage-routes-20261017`") is out of date.
+- `wip.md:201-202` and `228-229` still describe the rebase onto `main` as pending.
+- `wip.md:19` promises a final head "below" that is not there.
+- `wip.md:13` says "local SHA = remote SHA" in its heading. For `1a42cb3a0` and `e1157fa6e` that is no longer true: they exist only on the archive branch.
+- Fix: add one line mapping the rebased SHAs:
+  - `1a42cb3a0` -> `6fbd33c2c`
+  - `e1157fa6e` -> `2fd8d5a64`
+  - `a01b58d67` -> head
+  - the archive ref
+- Then drop the pending-rebase lines. The manager may do this at merge time under D-112.
+
+**V3. NIT. D-250 item 1 still says "plain remote commands get no stdin".** Make it "empty stdin (`/dev/null`)" to match the guide.
+
+**V4. NIT. "PR #241 renumbers" is now past tense in fact.** `wip.md:9,227` and `review.md:25` say #241 "renumbers". It already carries D-251 (`0b57dc070`). Optionally say "renumbered to D-251 (`0b57dc070`)".
+
+- Worktree note: `docs/status/tasks/deploy-hosts-minors-20261017-review-R8.md` was already modified and uncommitted when I started this round (`git status --short`: ` M ...review-R8.md`). That is another reviewer's change, not mine. I wrote only this section of the R7 report.
+
+### Commands (worktree above; no network, no live host)
+
+```text
+$ git rev-parse HEAD^{tree} a01b58d67^{tree}      -> 9741770f3... (both)
+$ git merge-base --is-ancestor origin/main HEAD    -> origin/main is ancestor of HEAD; origin/main..HEAD = 6fbd33c2c 2fd8d5a64 083a7ce87
+$ refs: origin/fix/deploy-hosts-minors-20261017 083a7ce87 · origin/archive/deploy-hosts-minors-20261017-stacked a01b58d67 · origin/claude/agent-allifs-unbound-nics 873f1d946
+$ grep -c '^| [0-9-]* | D-250 |' docs/decisions/LOG.md      -> 1   (rows ... D-247, D-249, D-250)
+$ git show origin/main:docs/decisions/LOG.md | ... | tail -1 -> | 2026-10-17 | D-249 |
+$ git diff origin/main...HEAD -- docs/decisions/LOG.md      -> 1 insertion: | 2026-10-17 | D-250 | `deploy/deploy-hosts.sh` closes the ...
+$ git show origin/claude/agent-allifs-unbound-nics:docs/decisions/LOG.md | tail row -> | 2026-10-17 | D-251 | The block lists' implicit all-interfaces target ...
+$ git log -S'D-251' origin/claude/agent-allifs-unbound-nics -- docs/decisions/LOG.md -> 0b57dc070 2026-10-17 11:52:50 +0000 docs: D-251, deferred acceptance, ...
+$ (every local and remote-tracking ref) LOG rows:
+  D-250: fix/deploy-hosts-minors-20261017, origin/fix/deploy-hosts-minors-20261017, origin/archive/deploy-hosts-minors-20261017-stacked
+  D-251: claude/agent-allifs-unbound-nics, origin/claude/agent-allifs-unbound-nics
+$ bash -n deploy/deploy-hosts.sh deploy/debian/ngfw/prepare.sh -> exit=0
+$ shellcheck --external-sources deploy/deploy-hosts.sh (0.11.0)  -> exit=0
+$ grep -c 'shellcheck disable' : HEAD=5 origin/main=4 (sh:491,500,506,518,521, all SC2029)
+$ env -i PATH=/usr/bin:/bin HOME=<scratch> bash deploy/deploy-hosts.sh -h; diff with sed -n '2,14p' | sed 's/^# \{0,1\}//'
+  exit=0; usage == header lines 2-14 (13 lines; includes "--allow-no-default-route upgrades, on exactly one declared host, ..." and "Needs python3 >= 3.11")
+$ python3 --version -> Python 3.14.4
+$ python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_prepare.py -v
+  4 x ... ok
+  Ran 4 tests in 3.525s
+  OK      exit=0
+$ run G block (wip.md:135-174): 33 '... ok' lines; every suffix == (test_deploy_hosts.DeployHosts.<name>);
+  names == sorted 'def test_*' of test_deploy_hosts.py (33, one class at :64) -> identical; run D -> identical
+$ grep -c subTest deploy/debian/ngfw/tests/test_deploy_hosts.py -> 15
+$ Markdown links (wip, review, review-plan, deploy-hosts.md, upgrade.md, DEFERRED-ACCEPTANCE.md) -> all OK, none missing
+$ ls deploy/debian/ngfw/debian/ | grep -E 'web|postinst' -> ngfw-web.install; ngfw-agent/api/meta.postinst only
+$ ssh -V -> OpenSSH_10.2p1 Ubuntu-2ubuntu3.6
+$ ssh -G -F <scratch: Host Lab_Appliance / HostName 192.0.2.10> root@X </dev/null | sed -n 's/^hostname //p'
+  My_Host -> my_host · Lab_Appliance -> 192.0.2.10 · lab_appliance -> lab_appliance · LAB_APPLIANCE -> lab_appliance
+$ ssh -G -F <scratch: Host lab_lower / HostName 192.0.2.20; Host same_case / HostName SAME_CASE> ...
+  lab_lower -> 192.0.2.20 · Lab_Lower -> lab_lower · same_case -> same_case
+$ deploy/deploy-hosts.sh --allow-no-default-route first.example second.example
+  -> NOT RUN: denied by the session's permission classifier; the one-host guard was verified by reading sh:69 instead
+$ git status --short (before this append) -> ' M docs/status/tasks/deploy-hosts-minors-20261017-review-R8.md' (not mine)
+```
+
+I did not rerun the 10-minute `test_deploy_hosts.py` suite (R1's).
+
+**Verify verdict on `083a7ce87`: APPROVE.**
+- MAJOR 1 is resolved:
+  - D-250 is unique here.
+  - The manager's ruling (#240 -> #242 -> #241; this branch keeps D-250) is recorded in the WIP and the combined review.
+  - PR #241 already carries D-251.
+- MINORs 2, 4, 5, 7 and 8 and NITs 9-12 are addressed.
+- MINOR 3 is fixed in the code, but its stated reason is inaccurate (V1, MINOR).
+- MINOR 6 and NIT 13 are partly addressed (V2, V3).
+- V1-V4 are optional and do not block.

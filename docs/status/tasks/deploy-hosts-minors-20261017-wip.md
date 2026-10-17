@@ -1,22 +1,28 @@
 # WIP: deploy-hosts-minors-20261017
 
 Branch: `fix/deploy-hosts-minors-20261017`, cut from `origin/fix/deploy-hosts-lineage-routes-20261017`
-(PR #240 head `d50d4fd2c`; PR #240 was still open, so this branch stacks on it and rebases onto
-`main` once #240 merges).
+(PR #240 head `d50d4fd2c`) while PR #240 was still open; after #240 was squash-merged as `3f099b530`
+(2026-10-17 11:59 UTC, tree identical to `d50d4fd2c`) the branch was rebased onto `origin/main`
+(`git rebase --onto origin/main d50d4fd2c`; the tree hash did not change) and the stacked history
+was kept at `refs/heads/archive/deploy-hosts-minors-20261017-stacked` (= `a01b58d67`).
 Envelope: [deploy-hosts-minors-20261017-envelope.md](deploy-hosts-minors-20261017-envelope.md).
 Originating review: `docs/status/2026-10-17-unmerged-audit-product-review.md` §2-الف.4 (`b0cab4260`).
-PR: https://github.com/mcoder1001-cyber/NGFW/pull/242 (open, base `fix/deploy-hosts-lineage-routes-20261017`).
-Decision: D-250 in `docs/decisions/LOG.md` (PR #241 also added a D-250; the manager ruled on 2026-10-17 that the merge order is #240 → #242 → #241, so this branch keeps D-250 and PR #241 renumbers).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/242 (open; base retargeted to `main` by the manager after #240 merged).
+Decision: D-250 in `docs/decisions/LOG.md` (PR #241 had also added a D-250; the manager ruled on 2026-10-17 that the merge order is #240 → #242 → #241, so this branch keeps D-250, and PR #241 has already renumbered its line to D-251 in `0b57dc070`).
 Review plan: [deploy-hosts-minors-20261017-review-plan.md](deploy-hosts-minors-20261017-review-plan.md);
 combined review: [deploy-hosts-minors-20261017-review.md](deploy-hosts-minors-20261017-review.md).
 
-## Checkpoints (local SHA = remote SHA on `origin/fix/deploy-hosts-minors-20261017`)
+## Checkpoints
 
-| checkpoint | SHA | content | published |
-|---|---|---|---|
-| 1 | `1a42cb3a0` | the five items, fixtures, guide, D-250 line, envelope, this file | pushed 2026-10-17 (new branch; local = remote verified) |
-| 2 | `e1157fa6e` | full-run evidence, review plan; product tree unchanged | pushed 2026-10-17 (local = remote verified); panel reviewed this tree |
-| 3 | the commit carrying this file (see `git log`; recorded as the final head below after the rebase onto `main`) | panel MAJORs and minors (see combined review), docs, this file | pushed 2026-10-17 after PR #240 merged: rebased onto `origin/main` (`3f099b530`, tree identical to the old base `d50d4fd2c`), stacked history kept at `refs/heads/archive/deploy-hosts-minors-20261017-stacked` |
+Each checkpoint was pushed the moment it was committed (local SHA = remote SHA verified). The
+stacked SHAs live on the archive ref; the rebased SHAs are the branch `origin/fix/deploy-hosts-minors-20261017`.
+
+| checkpoint | stacked SHA (archive ref) | rebased SHA (branch) | content | reviews |
+|---|---|---|---|---|
+| 1 | `1a42cb3a0` | `6fbd33c2c` | the five items, fixtures, guide, D-250 line, envelope, this file | — |
+| 2 | `e1157fa6e` | `2fd8d5a64` | full-run evidence, review plan; product tree unchanged | panel R1/R2/R7/R8 reviewed this tree |
+| 3 | `a01b58d67` | `083a7ce87` (tree `9741770f3`, identical to `a01b58d67`) | panel MAJORs and minors (see combined review), docs, the four reports verbatim, this file | verify rounds R1/R7/R8 on `083a7ce87` |
+| 4 | — | the commit carrying this version of this file; final head recorded in PR #242 and the combined review | verify-round minors (ssh case model, `-T`, preflight `nginx -t`, exact restore command, this file) | — |
 
 ## Owned files
 
@@ -66,9 +72,11 @@ combined review: [deploy-hosts-minors-20261017-review.md](deploy-hosts-minors-20
    itself is exercised.
 5. **Underscore hosts.** Host alphabet is `[A-Za-z0-9][A-Za-z0-9._-]*` without `..`; a host with an
    underscore must be an SSH configuration alias whose `Host` block sets a `HostName` other than the
-   alias itself, verified with `ssh -G` (no connection; errors from the operator's configuration are
-   shown) and compared case-insensitively, as ssh matches `Host` blocks and lowercases an unconfigured
-   name; DNS names and addresses keep the old rule.
+   alias itself, verified with `ssh -G -T` (no connection; errors from the operator's configuration are
+   shown). OpenSSH matches `Host` patterns on the name as typed and echoes an unmatched name
+   lowercased; the comparison ignores case to recognise that echo, so a differently cased spelling of
+   an alias is refused like any unconfigured name (verified against OpenSSH 10.2 in the verify round).
+   DNS names and addresses keep the old rule.
 
 Remote command construction is unchanged in kind: the launcher is a fixed literal; the preflight
 argument and the six install arguments are validated locally (0/1 literals, path prefix + 8
@@ -89,7 +97,10 @@ Iterations, in order, with the real summary lines (nothing below is edited outpu
 | D (checkpoint 1) | full discover | `Ran 33 tests in 604.668s` / `OK` (verbatim lines below) |
 | E (checkpoint 3 draft) | 9 targeted tests | `Ran 9 tests in 182.306s` / `FAILED (failures=2)`: `ip -6` count `4 != 3` (the preflight's new route probe) and the nginx recovery message carries the fixture's redirected host prefix on remote stderr; fixes: expected count 4 with a comment, regex that allows the prefix |
 | F | those 2 tests | `Ran 2 tests in 44.632s` / `OK` |
-| G (checkpoint 3) | full discover | `Ran 33 tests in 625.916s` / `OK` (verbatim lines below) |
+| G (checkpoint 3) | full discover | `Ran 33 tests in 625.916s` / `OK` (verbatim lines below); R1's verify-round rerun of the same tree: `Ran 33 tests in 643.642s` / `OK` |
+| H (checkpoint 4 draft) | 5 targeted tests | `Ran 5 tests in 91.039s` / `FAILED (failures=1)`: the nginx-failure regex did not allow the new "restore with" clause; fix: regex ends at `tar.gz;` |
+| I | the nginx test | `Ran 1 test in 37.163s` / `OK` |
+| J (checkpoint 4) | full discover | RUN_J_SUMMARY |
 
 Run D, verbatim (`python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v`, tree `1a42cb3a0`):
 
@@ -173,7 +184,13 @@ Ran 33 tests in 625.916s
 OK
 ```
 
-Other gates on the checkpoint-3 tree:
+Run J, verbatim (tree of checkpoint 4):
+
+```text
+RUN_J_BLOCK
+```
+
+Other gates on the checkpoint-4 tree (identical results on checkpoint 3):
 
 ```text
 bash -n deploy/deploy-hosts.sh deploy/debian/ngfw/prepare.sh      -> exit 0
@@ -184,11 +201,16 @@ OK
 git diff --stat origin/main...HEAD -- .github tools/ci.sh           -> empty
 ```
 
-Hosted CI on PR #242 (checkpoint 2 tree): "Offline packaging and temporary-key signing fixtures"
-passed in 2 min 42 s (run 39029184371; its "Run all fixtures without skips" step: `Ran 124 tests in
-150.154s` / `OK`, the 33 deploy-hosts tests included), well inside the job's 15-minute budget. The
-mandatory quick gate was still pending when this was written; its result on the checkpoint-3 head is
-recorded by the manager at merge time.
+Hosted CI on PR #242:
+
+| head | Mandatory quick gate | Offline packaging and temporary-key signing fixtures |
+|---|---|---|
+| `e1157fa6e` (checkpoint 2, stacked) | run 39029184249 (superseded by the rebase) | PASS 2 min 42 s, run 39029184371 ("Run all fixtures without skips": `Ran 124 tests in 150.154s` / `OK`, the 33 deploy-hosts tests included) |
+| `083a7ce87` (checkpoint 3, rebased onto `main`) | PASS 21 min 22 s, run 39031611498 | PASS 2 min 42 s (run 39031609208) and PASS 1 min 54 s (run 39031611496) |
+| checkpoint 4 | recorded in PR #242 by the manager at merge time | idem |
+
+The hosted packaging job stays well inside its 15-minute budget (the whole packaging suite runs in
+about 2.5 minutes there; the deploy-hosts suite alone takes 10.5 to 10.7 minutes on this machine).
 
 Independent panel reviewers reproduced the evidence on `e1157fa6e`: R1 `Ran 33 tests in 607.350s`
 / `OK`, `tools/ci.sh check --base d50d4fd2c` PASSED; R2, R7, R8 `bash -n`, `shellcheck` and single
@@ -198,8 +220,8 @@ fixtures clean (see their reports).
 
 - Remaining code: none known after checkpoint 3.
 - Current failure: none.
-- Open: verify rounds (R1 finding 1, R7 MAJOR 1, R8 MAJOR 1) on checkpoint 3; hosted quick gate on
-  the checkpoint-3 head; rebase onto `main` after PR #240 merges.
+- Open: hosted quick gate and packaging fixtures on the final head (recorded in PR #242 and the
+  combined review when they finish); the manager merges.
 - Exact next command (verify round, in the worktree):
   `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v`
 
@@ -208,7 +230,7 @@ fixtures clean (see their reports).
 - D-250 (one LOG line; options per item): launcher with private descriptor; test-then-reload nginx
   with the recovery named; explicit one-host `--allow-no-default-route` refused in the preflight
   before transfer and recorded; Python >= 3.11 checked on both sides (no versioned package dependency
-  in this task); underscores only in configured SSH aliases, case-insensitive like ssh.
+  in this task); underscores only in configured SSH aliases (Host patterns match the name as typed; the lowercased echo of an unmatched name is recognised).
 - Not done on purpose: no versioned `python3 (>= 3.11)` dependency in `debian/control` (packaging
   change outside the five items; R8 agrees the preflight check plus docs suffice), no worker-PID check
   after the nginx reload (limit documented; not modellable without a real nginx).
@@ -224,6 +246,4 @@ fixtures clean (see their reports).
 
 ## Open questions
 
-- Manager: add the `plan/tasks.yaml` row (D-250 confirmed by the manager; PR #241 renumbers its line).
-- PR #240 merge order: this branch stacks on `fix/deploy-hosts-lineage-routes-20261017`; after #240
-  lands, rebase onto `main` (expected clean: same files, disjoint hunks) before merging.
+- Manager: add the `plan/tasks.yaml` row (D-250 confirmed by the manager; PR #241 already carries D-251).

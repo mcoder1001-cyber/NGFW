@@ -79,10 +79,11 @@ alias may also contain underscores, which DNS names never do: such a host is
 accepted only when `ssh -G` (the effective client configuration, read without
 connecting) shows that its `Host` block sets a `HostName` other than the alias
 itself; otherwise it is refused before any connection, and an error from the
-operator's ssh configuration is shown as is. Names are compared case-insensitively, as ssh
-matches `Host` blocks. `ssh -G` evaluates the operator's own client
-configuration, including any `Match exec` it contains, exactly as the
-connection would. The first failed host stops the fleet. `-b` never
+operator's ssh configuration is shown as is. `Host` patterns match the name as
+typed and `ssh -G` echoes an unmatched name lowercased, which the check
+recognises: a differently cased spelling of an alias is refused like any other
+unconfigured name. `ssh -G` evaluates the operator's own client configuration,
+including any `Match exec` it contains, exactly as the connection would. The first failed host stops the fleet. `-b` never
 connects to the supplied hosts. Options must precede hosts. The long options are
 `--allow-divergent` (exactly one host; see source lineage below) and
 `--allow-no-default-route` (exactly one host; see default routes below).
@@ -103,9 +104,10 @@ install phase; symbolic or incorrectly owned/mode lock files are refused.
 A private local snapshot is copied there, and its manifest digest, archive
 hashes, package metadata and installed package versions are rechecked remotely.
 The target must have a completed firstboot marker, all four packages installed
-at one version and agent/API/nginx/VPP services individually active; a missing
-tool is named. Stopped appliances and mixed installed versions are refused
-before installation.
+at one version, agent/API/nginx/VPP services individually active and an nginx
+configuration that passes `nginx -t`; a missing tool is named. Stopped
+appliances, mixed installed versions and a site that already fails its test
+are refused before anything is transferred.
 
 **Source lineage (D-249):** development versions embed the source commit, and
 their commit counts order only descendant commits. Before copying anything the
@@ -177,8 +179,9 @@ serves the previous configuration, but the new site file is already on disk
 and the unit's own start-time test would fail on the next restart or reboot,
 and the agent/API health check has not run. Restore or fix
 `/etc/ngfw/nginx.conf` (the previous copy is member `etc/ngfw/nginx.conf` of
-`preupgrade-config.tar.gz` in the recovery directory), then run
-`nginx -t && systemctl reload nginx.service`. Two limits: `systemctl reload`
+`preupgrade-config.tar.gz` in the recovery directory:
+`tar -C / -xzf <recovery>/preupgrade-config.tar.gz etc/ngfw/nginx.conf`), then
+run `nginx -t && systemctl reload nginx.service`. Two limits: `systemctl reload`
 only signals nginx, so a configuration that passes the test but is rejected at
 runtime (a port held by another process, a path the sandboxed unit cannot open)
 leaves nginx on its previous configuration without failing the run; check

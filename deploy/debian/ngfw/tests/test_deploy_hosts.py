@@ -112,9 +112,11 @@ args = sys.argv[1:]
 with (root / 'events').open('a') as log: log.write('ssh ' + repr(args) + '\n')
 if args[0] == '-G':
     # Effective client configuration without connecting: lab_appliance is the only
-    # configured alias; like OpenSSH, Host matching and the echoed name are lowercase.
-    host = args[-1].rsplit('@', 1)[-1].lower()
-    print('user root\nhostname ' + {'lab_appliance': '192.0.2.7'}.get(host, host) + '\nport 22')
+    # configured alias. Like OpenSSH, Host patterns match the name as typed and an
+    # unmatched name is echoed lowercased.
+    assert args[1] == '-T', args
+    host = args[-1].rsplit('@', 1)[-1]
+    print('user root\nhostname ' + {'lab_appliance': '192.0.2.7'}.get(host, host.lower()) + '\nport 22')
     sys.exit(0)
 # OpenSSH concatenates remote command words into a shell command. Reproduce it.
 while args and args[0] == '-o': args = args[2:]
@@ -218,9 +220,11 @@ elif name == 'tar':
     sys.exit(subprocess.run(['/usr/bin/tar'] + args).returncode)
 elif name == 'curl': sys.exit(1 if failure == 'health' else 0)
 elif name == 'nginx':
-    assert args == ['-t'], args
-    print('nginx: fixture configuration test', file=sys.stderr)
-    sys.exit(1 if failure == 'nginx-config' else 0)
+    # Preflight: `nginx -t -q` before any transfer; install: `nginx -t` with its output kept.
+    installed = (root / 'installed').exists()
+    assert args == (['-t'] if installed else ['-t', '-q']), args
+    if installed: print('nginx: fixture configuration test', file=sys.stderr)
+    sys.exit(1 if failure == ('nginx-config' if installed else 'nginx-preconfig') else 0)
 elif name == 'systemctl':
     if args[0] == 'reload':
         assert args == ['reload', 'nginx.service'], args
@@ -488,6 +492,7 @@ else: raise AssertionError(args)
         self.assertNotIn('apt-get ', log)
         self.assertNotIn('second.example', log)
         self.assertRegex(log, r"'rmdir -- /root/ngfw-deploy/run\.[A-Za-z0-9]{8}'")
+        self.assertNotIn('read stdin', log)
         self.assertEqual(self.runs(), [])
 
     def test_rollback_within_one_history_is_refused_even_with_override(self):
@@ -699,6 +704,15 @@ else: raise AssertionError(args)
         self.assertLess(log.index("'NRestarts'"), log.index("nginx ['-t']"))
         self.assertLess(log.index("nginx ['-t']"), log.index("systemctl ['reload', 'nginx.service']"))
         self.assertLess(log.index("systemctl ['reload', 'nginx.service']"), log.index('curl '))
+        # A site that already fails its test is refused in the preflight, before any transfer.
+        self.reset_host()
+        result = self.deploy('first.example', 'second.example', failure='nginx-preconfig')
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('nginx configuration already fails its test before the upgrade', result.stderr)
+        self.assertIn('preflight failed', result.stderr)
+        self.assertNotIn('scp', self.log())
+        self.assertEqual(self.runs(), [])
+        self.assertEqual(self.log().count("nginx ['-t', '-q']"), 1)
         for failure in ('nginx-config', 'nginx-reload'):
             with self.subTest(failure=failure):
                 self.reset_host()
@@ -713,8 +727,9 @@ else: raise AssertionError(args)
                     self.assertIn('nginx configuration test failed after the upgrade', result.stderr)
                     self.assertIn('nginx will not start again until it is fixed; agent/API health was not checked', result.stderr)
                     # Remote stderr carries the fixture's redirected host prefix.
-                    self.assertRegex(result.stderr, r'member etc/ngfw/nginx\.conf of \S*/root/ngfw-deploy/run\.[A-Za-z0-9]{8}/preupgrade-config\.tar\.gz\)')
+                    self.assertRegex(result.stderr, r'member etc/ngfw/nginx\.conf of \S*/root/ngfw-deploy/run\.[A-Za-z0-9]{8}/preupgrade-config\.tar\.gz;')
                     self.assertIn('nginx -t && systemctl reload nginx.service', result.stderr)
+                    self.assertRegex(result.stderr, r'restore with: tar -C / -xzf \S*/preupgrade-config\.tar\.gz etc/ngfw/nginx\.conf\)')
                     self.assertIn('nginx: fixture configuration test', result.stderr)
                     self.assertEqual((self.runs()[0] / 'nginx-test.txt').read_text(), 'nginx: fixture configuration test\n')
                     self.assertNotIn("systemctl ['reload'", self.log())
@@ -796,22 +811,19 @@ exec {sys.executable} "$@"
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_underscore_hosts_need_a_configured_ssh_alias(self):
-        # lab_appliance is the only alias the fake `ssh -G` maps to a HostName; ssh matches
-        # Host blocks case-insensitively, so the mixed-case spelling is the same alias.
-        for spelling in ('lab_appliance', 'Lab_Appliance'):
-            with self.subTest(spelling=spelling):
-                self.reset_host()
-                result = self.deploy(spelling)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                log = self.log()
-                self.assertIn("ssh ['-G', '-o', 'BatchMode=yes'", log)
-                self.assertLess(log.index("ssh ['-G'"), log.index('/dev/fd/3'))
-                self.assertIn(f"'root@{spelling}', ", log)
-                self.assertTrue((self.runs()[0] / 'upgrade-complete').is_file())
+        # lab_appliance is the only alias the fake `ssh -G` maps to a HostName.
+        result = self.deploy('lab_appliance')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = self.log()
+        self.assertIn("ssh ['-G', '-T', '-o', 'BatchMode=yes'", log)
+        self.assertLess(log.index("ssh ['-G'"), log.index('/dev/fd/3'))
+        self.assertIn("'root@lab_appliance', ", log)
+        self.assertTrue((self.runs()[0] / 'upgrade-complete').is_file())
         # Anything else with an underscore is refused before any connection: unconfigured
-        # aliases (ssh -G echoes them lowercased), DNS-looking names, and the usual alphabet
-        # and position rules.
-        for host in ('other_host', 'My_Host', 'web_01.example', 'lab_appliance_', '_lab', 'a_b..c', 'lab_appliance;id', 'lab_appliance/x'):
+        # aliases (ssh -G echoes them lowercased, whatever their case), a differently cased
+        # spelling of the alias (Host patterns match the name as typed), DNS-looking names,
+        # and the usual alphabet and position rules.
+        for host in ('other_host', 'My_Host', 'Lab_Appliance', 'web_01.example', 'lab_appliance_', '_lab', 'a_b..c', 'lab_appliance;id', 'lab_appliance/x'):
             with self.subTest(host=host):
                 self.events.unlink(missing_ok=True)
                 result = self.deploy(host)
@@ -820,7 +832,7 @@ exec {sys.executable} "$@"
                 connections = [line for line in self.log().splitlines() if line.startswith('ssh ') and "['-G'" not in line]
                 self.assertEqual(connections, [])
                 self.assertNotIn('scp', self.log())
-                if host in ('other_host', 'My_Host', 'web_01.example', 'lab_appliance_'):
+                if host in ('other_host', 'My_Host', 'Lab_Appliance', 'web_01.example', 'lab_appliance_'):
                     self.assertIn('underscores are valid only in an SSH configuration alias', result.stderr)
                     self.assertIn("ssh ['-G'", self.log())
                 else:

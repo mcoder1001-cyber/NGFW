@@ -284,3 +284,192 @@ docs/09-os-packages.md:3  base system Ubuntu 26.04.x LTS
 ```
 
 Verdict: APPROVE WITH CHANGES. Fix MAJOR 1 in this branch; the MINORs and NITs are optional; MINOR 7 needs the hosted duration recorded before merge.
+
+## Verify round on 083a7ce87
+
+- Reviewer: R8, a fresh read-only agent. The only file written is this appended section.
+- Tree: HEAD `083a7ce87`, which is a descendant of `main` `3f099b530`. Its tree `9741770f3` is identical to the pre-rebase checkpoint `a01b58d67`.
+- Response diff: `git diff 2fd8d5a64 083a7ce87 -- deploy docs/install docs/decisions/LOG.md`.
+- Scope: MAJOR 1 is graded. Items 2 to 13 get one line each. New observations are listed separately and do not change the verdict.
+- Not used: network, live host, real `nginx` or `systemctl`, commits or branch switches.
+
+### MAJOR 1: RESOLVED
+
+- **Message** (`deploy/deploy-hosts.sh:452-456`). It is now accurate on every point the finding raised:
+  - the running nginx still serves the previous configuration;
+  - the new site file is on disk, and nginx will not start again until it is fixed;
+  - agent/API health was not checked;
+  - recovery: restore or fix `/etc/ngfw/nginx.conf` (the previous copy is member `etc/ngfw/nginx.conf` of `$BACKUP/preupgrade-config.tar.gz`), then run `nginx -t && systemctl reload nginx.service`.
+  - nginx's own output is echoed first and kept in `nginx-test.txt` with mode 0600 (`umask 077`).
+- **Recovery copy:**
+  - The archive is written at `:419` with `tar -C / ... etc/ngfw ...`, before APT at `:428`. So the named member exists and holds the pre-upgrade file.
+  - Confirmed with a scratch archive built the same way (evidence V3).
+- **Order:**
+  - The `NRestarts` baseline (`:445`) comes before the test (`:452`).
+  - The failure exits before the reload and the health poll (`:457-463`).
+  - The EXIT trap still prints the recovery banner, and locally `install/health failed; inspect ...` is reported (evidence V4).
+- **Docs and D-250:**
+  - `docs/install/deploy-hosts.md:173-181` carries the same meaning.
+  - `docs/install/upgrade.md:15-18` adds the manual test-then-reload step.
+  - D-250 (`docs/decisions/LOG.md:287`) now says "the running nginx keeps the previous configuration, the new file is on disk, nginx would not start again, agent/API health unchecked".
+- **Fixture** (`test_nginx_is_validated_and_reloaded_after_install`). It asserts:
+  - the new sentences, the member path, the recovery command and the echoed nginx output;
+  - the content of `nginx-test.txt`;
+  - that no reload and no `curl` follow the failure.
+  - It passes (V2).
+- **Residual NITs, optional (N-a, N-b):**
+  - **N-a.** D-250 still says the tool "runs `nginx -t -q`". The code at `:452` and the docs run `nginx -t`. Fix the wording in the LOG line.
+  - **N-b.** The message assumes the failed test is caused by the upgraded site. Two other cases point the operator at the wrong file:
+    - nginx's configuration was already broken before the run. The preflight checks only `is-active`, not `nginx -t`.
+    - `--force-confold` kept a locally modified site, so no new site was installed.
+  - The echoed `[emerg]` line names the real file, which mitigates this.
+  - Optional fixes:
+    - Run `nginx -t` in the preflight, so a pre-existing break is refused before the transfer.
+    - Name the exact one-member restore, `tar -C / -xzf <recovery dir>/preupgrade-config.tar.gz etc/ngfw/nginx.conf`. Without it, nobody should extract the whole archive, which also holds `var/lib/ngfw` and `etc/ngfw/api.env`, over a live host.
+
+### Items 2 to 13 (one line each)
+
+2. Partly addressed:
+   - `nginx-test.txt` is kept and echoed, and the docs at `:174-175` say so.
+   - The EXIT trap at `:342` still saves `systemctl status` for agent/API only. A failed `systemctl reload nginx.service` therefore leaves no nginx status in the recovery directory. The docs at `:196-197` state this accurately.
+   - The remainder is optional.
+3. Addressed by documentation:
+   - `docs/install/deploy-hosts.md:181-185` documents the runtime-rejection limit: a port held by another process or a sandbox path; check nginx's error log.
+   - The worker-PID check was declined with a one-line won't-fix in the combined review. Accepted for a MINOR.
+4. Addressed:
+   - `${hostname,,} != "${1,,}"` at `:63`.
+   - With real `ssh -G`, `Other_Host` and `My_Host` are now refused (V5).
+   - See new observation O-1: the stated rationale and the fixture model are wrong in the other direction.
+5. Addressed:
+   - The flag is limited to exactly one host (`:69`), with a local `WARNING` (`:542`).
+   - The docs say so at `:88` and `:219-220`.
+   - A two-host fixture covers the refusal (V2).
+6. Addressed:
+   - The preflight refuses at `:312-315` before `mktemp` and any `scp`, with "nothing was transferred".
+   - The fixture asserts that no `scp` ran, that no run directory was created, and that there is no "upgrade failed" banner.
+   - The install step rechecks under its lock at `:393-397`.
+7. Addressed:
+   - The WIP at `:187-191` records hosted run 39029184371, "Run all fixtures without skips": `Ran 124 tests in 150.154s` / `OK`, on the checkpoint-2 tree, against `timeout-minutes: 15`.
+   - The checkpoint-3 hosted result is honestly marked pending until merge.
+   - I could not re-check it: no network in this round.
+8. Addressed:
+   - The baseline is read at `:445`, before `nginx -t` at `:452`.
+   - The fixture asserts the order restart < `NRestarts` < `nginx -t` < reload < `curl`.
+9. Addressed: `docs/install/deploy-hosts.md:96-98` documents the pipe assumption and the `/dev/fd/3: line N` prefix.
+10. Addressed:
+    - `Match exec` evaluation is documented at `:83-85`.
+    - `ssh -G` stderr is no longer discarded (`:62`). See new observation O-2.
+11. Addressed: `docs/install/deploy-hosts.md:15-17` names the Ubuntu 26.04 image.
+12. Addressed by documentation: `--force-confold` and `/etc/ngfw/nginx.conf.dpkg-dist` are described at `:185-187`. The leftover files are not listed into the recovery directory, which is optional.
+13. Addressed: `missing tool on target: $tool` at `:298`.
+
+### New observations from the response commit (do not affect the verify verdict)
+
+**O-1. MINOR [other: R1, R7]. The case-insensitive comparison is correct, but the rationale "as ssh matches Host blocks" is false, and the fixture models the false version.**
+- **Where:**
+  - `deploy/deploy-hosts.sh:57-58` (comment)
+  - `docs/install/deploy-hosts.md:82-83`
+  - D-250 ("case-insensitive like ssh")
+  - the fake `ssh -G` at `deploy/debian/ngfw/tests/test_deploy_hosts.py:116`, which lowercases the name before the lookup
+  - `:801`, where `Lab_Appliance` must deploy as the configured alias
+- **What real OpenSSH 10.2p1 does (V5):**
+  - It matches `Host` patterns case-sensitively on the typed name.
+  - Only the echoed `hostname` of an unmatched name is lowercased.
+- **Consequence:**
+  - With `Host lab_appliance`, typing `Lab_Appliance` is refused by the shipped check. The `Host lab_appliance` block does not match, so ssh would not use the alias at all; the refusal is fail-closed and correct.
+  - But the docs promise the opposite, and the fixture asserts a deploy that real ssh would not produce.
+  - The operator gets "underscores are valid only in an SSH configuration alias whose Host block sets HostName" for an alias that exists in a different case. This is confusing, but safe.
+- **Fix:**
+  - Fake `ssh -G`: look the name up as typed and echo `host.lower()` only when unmatched.
+  - Move `Lab_Appliance` to the refused list. Optionally add a `Host Mixed_Alias` block that is accepted only as typed.
+  - Reword the docs, the comment and D-250: "an unmatched name is echoed lowercased, so the comparison ignores case; `Host` patterns match case-sensitively, so give the alias exactly as configured".
+
+**O-2. NIT. Every underscore host now prints a spurious OpenSSH notice.**
+- The notice is `Pseudo-terminal will not be allocated because stdin is not a terminal.`
+- Cause: the call at `:62` passes `</dev/null` and no command, and its stderr is now shown.
+- The fake `ssh` does not print this, so the fixtures do not show it.
+- **Fix:** add `-T` to the `ssh -G` call. Verified: with `-T`, `ssh -G` writes nothing to stderr (V5).
+
+### Commands run on 083a7ce87 and output
+
+V1. Tree, syntax, shellcheck, help, CI gate files:
+```text
+$ git rev-parse HEAD                                  -> 083a7ce87f1b692828ff19a87ad9b9e6c3ff78e1
+$ git rev-parse a01b58d67^{tree} 083a7ce87^{tree}     -> 9741770f30845b9cba10a5ccf580ef01ab61e046 (both)
+$ git merge-base --is-ancestor 3f099b530 083a7ce87    -> main 3f099b530 is ancestor
+$ git status --short                                  -> (clean)
+$ bash -n deploy/deploy-hosts.sh                      -> bash -n rc=0
+$ shellcheck --external-sources deploy/deploy-hosts.sh  (version: 0.11.0)  -> shellcheck rc=0, no findings
+$ git grep -n 'shellcheck disable' HEAD -- deploy/deploy-hosts.sh | wc -l  -> 5
+$ git diff --stat 3f099b530...HEAD -- .github tools/ci.sh                  -> (empty)
+$ deploy/deploy-hosts.sh -h
+... --allow-no-default-route upgrades, on exactly one declared host, a
+management-only appliance that has no default route. Needs python3 >= 3.11
+here and on the appliance. See docs/install/deploy-hosts.md for details.
+help rc=0
+```
+
+V2. Targeted fixtures:
+```text
+$ cd deploy/debian/ngfw/tests && time python3 -m unittest -v \
+    test_deploy_hosts.DeployHosts.test_nginx_is_validated_and_reloaded_after_install \
+    test_deploy_hosts.DeployHosts.test_no_default_route_needs_explicit_flag_and_is_recorded \
+    test_deploy_hosts.DeployHosts.test_underscore_hosts_need_a_configured_ssh_alias
+test_nginx_is_validated_and_reloaded_after_install ... ok
+test_no_default_route_needs_explicit_flag_and_is_recorded ... ok
+test_underscore_hosts_need_a_configured_ssh_alias ... ok
+Ran 3 tests in 110.542s
+OK
+real 1m50.779s
+```
+
+V3. Name of the archive member. The archive is built like `:419` from a scratch root; restoring the one member:
+```text
+$ tar -C tarroot -czf preupgrade-config.tar.gz etc/ngfw etc/vpp/startup.conf var/lib/ngfw && tar -tzf preupgrade-config.tar.gz
+etc/ngfw/
+etc/ngfw/api.env
+etc/ngfw/nginx.conf
+etc/vpp/startup.conf
+var/lib/ngfw/
+var/lib/ngfw/secret.key
+$ tar -C restore -xzf preupgrade-config.tar.gz etc/ngfw/nginx.conf && find restore -type f
+restore/etc/ngfw/nginx.conf
+```
+
+V4. The operator-visible output of the `nginx-config` failure. A scratch driver runs the fixture's own `setUpClass`, `setUp` and `deploy(failure='nginx-config')`. The `/tmp/tmp_69kw5v_/host` prefixes are the fixture's path redirection.
+```text
+rc 1
+[12:11:23] [appliance.example] installing; recovery directory: /root/ngfw-deploy/run.r9Uuc9xj
+nginx: fixture configuration test
+nginx configuration test failed after the upgrade (output in /tmp/tmp_69kw5v_/host/root/ngfw-deploy/run.r9Uuc9xj/nginx-test.txt). The running nginx still serves the previous configuration, but the new site file is on disk and nginx will not start again until it is fixed; agent/API health was not checked. Restore or fix /tmp/tmp_69kw5v_/host/etc/ngfw/nginx.conf (previous copy: member etc/ngfw/nginx.conf of /tmp/tmp_69kw5v_/host/root/ngfw-deploy/run.r9Uuc9xj/preupgrade-config.tar.gz), then run: nginx -t && systemctl reload nginx.service
+upgrade failed; preserve /tmp/tmp_69kw5v_/host/root/ngfw-deploy/run.r9Uuc9xj for manual recovery; no automatic rollback attempted
+[12:11:28] ERROR: appliance.example: install/health failed; inspect /root/ngfw-deploy/run.r9Uuc9xj on the host
+nginx-test.txt: 'nginx: fixture configuration test\n' 0o600
+service-status.txt exists: True
+```
+
+V5. Real `ssh -G` with a scratch `-F` configuration; no connection is made.
+- Setup:
+  - OpenSSH_10.2p1 Ubuntu-2ubuntu3.6.
+  - The shipped `configured_alias()` and `SSH_OPTS` were sed-extracted from `:27` and `:60-64`. `ssh` was wrapped to add `-F`.
+  - The configuration has `Host lab_fw1` (ProxyCommand only) and `Host lab_appliance` / `HostName 192.0.2.7`.
+- Shipped function with real `ssh -G`:
+```text
+lab_appliance: accepted as configured alias
+Lab_Appliance: refused
+LAB_APPLIANCE: refused
+other_host: refused
+Other_Host: refused          <- MINOR 4 fixed
+My_Host: refused
+lab_fw1: refused
+(each call also printed: Pseudo-terminal will not be allocated because stdin is not a terminal.)
+```
+- Plain `ssh -G` with `Host lab_appliance / HostName 192.0.2.7` and `Host Mixed_Alias / HostName 192.0.2.8`:
+```text
+lab_appliance  -> 192.0.2.7      Lab_Appliance -> lab_appliance   LAB_APPLIANCE -> lab_appliance
+Mixed_Alias    -> 192.0.2.8      mixed_alias   -> mixed_alias      (Host matching is case-sensitive; O-1)
+stderr of every call: Pseudo-terminal will not be allocated because stdin is not a terminal.
+$ ssh -G -T -F ... root@lab_appliance </dev/null 2>&1 >/dev/null   -> (no stderr) rc=0   (O-2 fix)
+```
+
+**Verify verdict (R8, 083a7ce87): APPROVE.** MAJOR 1 is resolved. Items 2 to 13 are addressed, items 2, 3 and 12 partly or by documentation, which is acceptable for MINOR/NIT. New observations O-1 (MINOR, [other: R1, R7]) and O-2, N-a and N-b (NITs) are optional and do not block.

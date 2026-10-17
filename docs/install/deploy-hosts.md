@@ -23,7 +23,8 @@ and Debian preparation/build steps. `prepare.sh` builds this checkout's API and
 web assets and emits `0.1.0~dev+git<reachable-commit-count>.<12-character-source-commit>`
 package versions. Full Git history is required; shallow checkouts are refused.
 Within one source history, descendant commits have increasing counts, and the
-`git` prefix sorts above the previous hash-only development versions.
+`git` prefix sorts above the previous hash-only development versions. Counts do
+not order unrelated histories; the upgrade step verifies ancestry (below).
 The wrapper preserves the source SHA and VPP manifest digest in `build-info.json`.
 The count is also recorded in the build metadata and checked against package
 versions. Source refs predating this version format need their older reviewed
@@ -63,6 +64,7 @@ the script does not configure credentials or elevate privileges. SSH uses batch
 mode and strict existing host-key verification. Hosts must be DNS names, IPv4
 addresses or SSH configuration aliases. Use an alias for IPv6 and custom ports.
 The first failed host stops the fleet. `-b` never connects to the supplied hosts.
+`--allow-divergent` is the only long option; see source lineage below.
 
 Each host gets a distinct root-private recovery directory at
 `/root/ngfw-deploy/run.XXXXXXXX`. A lock in that root-owned, mode-0700 parent directory serializes this tool's
@@ -70,14 +72,28 @@ install phase; symbolic or incorrectly owned/mode lock files are refused.
 A private local snapshot is copied there, and its manifest digest, archive
 hashes, package metadata and installed package versions are rechecked remotely.
 The target must have a completed firstboot marker, all four packages installed
-and agent/API/nginx/VPP services individually active. Stopped appliances are
-refused before installation. Downgrades, including stable-release to development
-build downgrades, are refused. New development builds use the source history
-count for ordering; unrelated source histories still need explicit review.
-A forced package downgrade cannot undo database migrations.
+at one version and agent/API/nginx/VPP services individually active. Stopped
+appliances and mixed installed versions are refused before installation.
 
-Before installation the script records IPv4/IPv6 default routes and installed
-versions, then simulates APT. Any proposed dependency/VPP change or removal is
+**Source lineage:** development versions embed the source commit, and their
+commit counts order only descendant commits. Before copying anything the
+helper reads the installed version, resolves the installed and new source
+commits in this repository (fetching `origin` once if either is missing) and
+requires the new source to be a descendant of the installed one, via
+`git merge-base --is-ancestor`. A build from a stale or unrelated branch is
+refused even when `dpkg` would sort it higher, and a newer `main` build is
+refused when the appliance runs a build from a divergent branch. After
+reviewing both histories, `--allow-divergent` accepts the divergent development
+build; the remote then also passes `--allow-downgrades` to APT when `dpkg`
+orders the new development version lower. Stable-release downgrades,
+including stable-release to development build downgrades, stay refused with or
+without the flag, and the flag never applies to a stable release on either
+side. An installed source that is not in the repository (for example a deleted
+branch) is refused until it is fetched or the flag is given. A forced package
+downgrade cannot undo database migrations.
+
+Before installation the script records the raw IPv4/IPv6 default routes and
+installed versions, then simulates APT. Any proposed dependency/VPP change or removal is
 rejected. The real APT call forbids downloads and removals and preserves existing
 configuration files. It makes no VPP restart request. Dependencies requiring
 changes must be reviewed separately through the appropriate package workflow.
@@ -96,10 +112,16 @@ filesystem archive and database dump are sequential backups, not an atomic
 cross-store snapshot. Backup restore and database migration compatibility still
 require appliance acceptance; fixtures do not prove those properties.
 
-After APT, the script restarts agent/API, checks the local loopback HTTP health
-endpoint through the SSH session, checks each agent/API/nginx/VPP service individually,
-checks installed versions and unchanged IPv4/IPv6 default routes, then opens a
-fresh SSH connection. Only that final connection writes `upgrade-complete`.
+After APT, the script restarts agent/API, records their automatic restart
+counters, checks the local loopback HTTP health endpoint through the SSH
+session, waits a five-second stability window, then checks each
+agent/API/nginx/VPP service individually and requires the restart counters to
+be unchanged, so a crash-looping daemon that is momentarily active is reported
+as a failure. It checks installed versions and unchanged default routes by
+comparing only the `via`, `dev` and `metric` fields of each default route,
+because RA-learned IPv6 routes print changing `expires NNNsec` lifetimes; the
+raw route text stays in the recovery directory. It then opens a fresh SSH
+connection. Only that final connection writes `upgrade-complete`.
 This check does not certify externally served TLS, login, dataplane forwarding,
 agent reconciliation or application rollback; run those acceptance checks before
 closing the maintenance window.
@@ -123,6 +145,10 @@ shell through recording SSH/APT/service seams and redirected temporary host path
 They test success, repeated backup preservation, failed preflight/transfers/
 backups/install/health/SSH, downgrade/dependency rejection, invalid package sets,
 cache provenance, development version ordering, shallow-history refusal, mixed
-service states, and the private deployment lock. They do not access a live host, a real
+service states, source lineage (stale branch, divergent `main`, legacy hash
+versions, unknown installed source, `--allow-divergent`), an expiring IPv6 RA
+default route, a changed IPv4/IPv6 gateway, a crash-looping agent, mixed
+installed versions and the private deployment lock. A private fake `git`
+supplies the source history; the real repository is never read or fetched. They do not access a live host, a real
 database, VPP, credentials or the network. The unchanged strict hosted packaging
 fixture runner discovers this suite; the complete quick gate remains required.

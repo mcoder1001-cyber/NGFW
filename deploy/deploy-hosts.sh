@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Build reviewed NGFW packages, or upgrade explicitly named installed appliances.
 # Usage: deploy/deploy-hosts.sh [-r REF] [-v VERIFIED_VPP_DIR] [-w NEW_WORK_DIR]
-#        [-p PACKAGE_DIR] [-b] [-u SSH_USER] [HOST ...]
+#        [-p PACKAGE_DIR] [-b] [-u SSH_USER] [--allow-divergent] [HOST ...]
 # -b builds/verifies only. -p requires a complete SHA256SUMS; never creates one.
 # Hosts are DNS names or IPv4 addresses (SSH configuration aliases are supported).
+# --allow-divergent installs a reviewed development build whose source is not a
+# descendant of the installed build's source (never a stable-release downgrade).
 # See docs/install/deploy-hosts.md for trust, maintenance and recovery requirements.
 set -euo pipefail
 umask 077
@@ -14,15 +16,16 @@ VPP_OUTPUT=${NGFW_VPP_OUTPUT:-}
 WORK=
 PKG_DIR=
 BUILD_ONLY=0
+ALLOW_DIVERGENT=0
 SSH_USER=root
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o StrictHostKeyChecking=yes -o ControlMaster=no -o ControlPath=none)
 SNAPSHOT=
 log() { printf '[%(%H:%M:%S)T] %s\n' -1 "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
-usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; }
 cleanup() { if [[ -n $SNAPSHOT ]]; then rm -rf -- "$SNAPSHOT"; fi; }
 trap cleanup EXIT
-while getopts ':r:v:w:p:bu:h' opt; do
+while getopts ':r:v:w:p:bu:h-:' opt; do
   case $opt in
     r) REF=$OPTARG ;;
     v) VPP_OUTPUT=$OPTARG ;;
@@ -31,6 +34,10 @@ while getopts ':r:v:w:p:bu:h' opt; do
     b) BUILD_ONLY=1 ;;
     u) SSH_USER=$OPTARG ;;
     h) usage; exit 0 ;;
+    -) case $OPTARG in
+         allow-divergent) ALLOW_DIVERGENT=1 ;;
+         *) usage >&2; exit 2 ;;
+       esac ;;
     *) usage >&2; exit 2 ;;
   esac
 done
@@ -111,6 +118,46 @@ except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as
 PY
 }
 
+# Development versions embed the 12-character source commit (DEC-248). Reachable
+# commit counts order only descendant commits, so a stale branch with many
+# checkpoints sorts above a newer main build. Trust dpkg ordering only when the
+# new source descends from the installed source, verified in this repository.
+source_of_version() {
+  [[ $1 =~ ^0\.1\.0~dev\+(git[1-9][0-9]*\.)?([a-f0-9]{12})$ ]] && printf '%s\n' "${BASH_REMATCH[2]}"
+}
+resolve_commit() {
+  local commit
+  commit=$(git -C "$REPO" rev-parse --verify --quiet "$1^{commit}") || return 1
+  [[ $commit =~ ^[a-f0-9]{40}$ ]] && printf '%s\n' "$commit"
+}
+check_lineage() {
+  local host=$1 installed=$2 new_source installed_source new_commit installed_commit
+  new_source=$(source_of_version "$VERSION") || true
+  installed_source=$(source_of_version "$installed") || true
+  if [[ -z $new_source || -z $installed_source ]]; then
+    log "[$host] installed $installed; release ordering applies, remote downgrade guard decides"
+    return
+  fi
+  if [[ -f $SNAPSHOT/build-info.json ]]; then
+    new_source=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$SNAPSHOT/build-info.json")
+    [[ $new_source =~ ^[a-f0-9]{40}$ ]] || die 'invalid build provenance'
+  fi
+  if ! installed_commit=$(resolve_commit "$installed_source") || ! new_commit=$(resolve_commit "$new_source"); then
+    git -C "$REPO" fetch --quiet origin 2>/dev/null || log "[$host] fetch from origin failed; using local history only"
+    if ! installed_commit=$(resolve_commit "$installed_source") || ! new_commit=$(resolve_commit "$new_source"); then
+      (( ALLOW_DIVERGENT )) || die "$host: installed source $installed_source or new source ${new_source:0:12} is not in $REPO; fetch the branch it was built from, or pass --allow-divergent after reviewing the lineage"
+      log "[$host] WARNING: source lineage unverifiable; --allow-divergent accepted by operator"
+      return
+    fi
+  fi
+  if git -C "$REPO" merge-base --is-ancestor "$installed_commit" "$new_commit"; then
+    log "[$host] installed source ${installed_commit:0:12} is an ancestor of ${new_commit:0:12}"
+    return
+  fi
+  (( ALLOW_DIVERGENT )) || die "$host: installed source ${installed_commit:0:12} is not an ancestor of ${new_commit:0:12}; commit counts do not order divergent histories (use --allow-divergent after review)"
+  log "[$host] WARNING: ${new_commit:0:12} does not descend from installed ${installed_commit:0:12}; --allow-divergent accepted by operator"
+}
+
 build_packages() {
   local sha source_count vpp_digest src p
   [[ -n $VPP_OUTPUT ]] || die 'build requires -v VERIFIED_VPP_DIR or NGFW_VPP_OUTPUT'
@@ -167,12 +214,17 @@ for tool in apt-get python3 dpkg-deb sha256sum tar runuser pg_dump pg_restore ip
   command -v "$tool" >/dev/null
 done
 [[ -f /var/lib/ngfw/firstboot-complete && -f /etc/ngfw/api.env ]] || { echo 'target is not an initialized appliance' >&2; exit 1; }
+installed=
 for package in ngfw-agent ngfw-api ngfw-meta ngfw-web; do
   [[ $(dpkg-query -W -f='${Status}' "$package") == 'install ok installed' ]]
+  version=$(dpkg-query -W -f='${Version}' "$package")
+  [[ -z $installed || $version == "$installed" ]] || { echo 'mixed installed package versions require manual review' >&2; exit 1; }
+  installed=$version
 done
 for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
   systemctl is-active --quiet "$service"
 done
+echo "$installed"
 [[ ! -L /root/ngfw-deploy ]]
 if [[ -e /root/ngfw-deploy ]]; then
   [[ $(stat -c '%u:%a' /root/ngfw-deploy) == 0:700 ]] || { echo 'untrusted deployment directory' >&2; exit 1; }
@@ -184,9 +236,9 @@ REMOTE
 read -r -d '' REMOTE_INSTALL <<'REMOTE' || true
 set -euo pipefail
 umask 077
-DIR=$1 EXPECTED_SUMS=$2 VERSION=$3
+DIR=$1 EXPECTED_SUMS=$2 VERSION=$3 ALLOW_DIVERGENT=$4
 BACKUP=${DIR%/packages}
-[[ $(id -u) == 0 && -d $DIR && ! -L $DIR && ! -L $BACKUP ]]
+[[ $(id -u) == 0 && -d $DIR && ! -L $DIR && ! -L $BACKUP && $ALLOW_DIVERGENT == [01] ]]
 [[ ! -L /root/ngfw-deploy/upgrade.lock ]]
 if [[ -e /root/ngfw-deploy/upgrade.lock ]]; then
   [[ -f /root/ngfw-deploy/upgrade.lock && $(stat -c '%u:%a' /root/ngfw-deploy/upgrade.lock) == 0:600 ]]
@@ -200,16 +252,40 @@ trap 'rc=$?; if (( rc )); then echo "upgrade failed; preserve $BACKUP for manual
 cd "$DIR"
 actual=$(sha256sum SHA256SUMS); [[ ${actual%% *} == "$EXPECTED_SUMS" ]]
 [[ $(verify_packages "$DIR") == "$VERSION" ]]
+# Development builds from divergent histories are not ordered by their commit
+# counts; the operator verified the lineage locally and passed --allow-divergent.
+# Stable-release downgrades are always refused.
+development='^0\.1\.0~dev\+(git[1-9][0-9]*\.)?[a-f0-9]{12}$'
+downgrade_args=()
 for package in ngfw-agent ngfw-api ngfw-meta ngfw-web; do
   [[ $(dpkg-query -W -f='${Status}' "$package") == 'install ok installed' ]]
   installed=$(dpkg-query -W -f='${Version}' "$package")
-  dpkg --compare-versions "$VERSION" ge "$installed" || { echo "downgrade refused: $package" >&2; exit 1; }
+  dpkg --compare-versions "$VERSION" ge "$installed" && continue
+  [[ $ALLOW_DIVERGENT == 1 && $VERSION =~ $development && $installed =~ $development ]] || { echo "downgrade refused: $package $installed" >&2; exit 1; }
+  echo "divergent development build accepted over $package $installed" >&2
+  downgrade_args=(--allow-downgrades)
 done
-route_before=$(ip -4 route show default)
-route6_before=$(ip -6 route show default)
+# Compare routing intent only. RA-learned routes print volatile fields such as
+# 'expires NNNsec' and hop limits that change between two successful readings.
+stable_routes() {
+  local -a words keep
+  local i
+  ip "-$1" route show default | while read -r -a words; do
+    keep=()
+    for ((i = 0; i < ${#words[@]}; i = i + 1)); do
+      case ${words[i]} in
+        default) keep+=("${words[i]}") ;;
+        via|dev|metric) keep+=("${words[i]} ${words[i + 1]-}"); i=$((i + 1)) ;;
+      esac
+    done
+    printf '%s\n' "${keep[*]}"
+  done | sort
+}
+route_before=$(stable_routes 4)
+route6_before=$(stable_routes 6)
 [[ -n $route_before || -n $route6_before ]] || { echo 'no management default route' >&2; exit 1; }
-printf '%s\n' "$route_before" > "$BACKUP/default-route-v4.txt"
-printf '%s\n' "$route6_before" > "$BACKUP/default-route-v6.txt"
+ip -4 route show default > "$BACKUP/default-route-v4.txt"
+ip -6 route show default > "$BACKUP/default-route-v6.txt"
 # Match the canonical firstboot peer-authenticated database; never source api.env.
 [[ $(grep -Ec '^[[:space:]]*NGFW_DATABASE_URL[[:space:]]*=' /etc/ngfw/api.env) == 1 ]]
 grep -Fxq 'NGFW_DATABASE_URL=postgresql:///ngfw?host=/var/run/postgresql&user=ngfw' /etc/ngfw/api.env || { echo 'database configuration requires manual backup review' >&2; exit 1; }
@@ -219,7 +295,7 @@ grep -Fxq 'NGFW_SECRET_KEY_FILE=/var/lib/ngfw/secret.key' /etc/ngfw/api.env || {
 dpkg-query -W -f='${Package} ${Version}\n' ngfw-agent ngfw-api ngfw-meta ngfw-web vpp > "$BACKUP/previous-versions.txt"
 # Simulation must leave VPP and every dependency untouched. No removals/downloads.
 apt_args=(--no-download --no-remove --assume-yes -o APT::Install-Recommends=false -o Dpkg::Options::=--force-confold)
-apt-get "${apt_args[@]}" --simulate install ./ngfw-*.deb > "$BACKUP/apt-plan.txt"
+apt-get "${apt_args[@]}" "${downgrade_args[@]}" --simulate install ./ngfw-*.deb > "$BACKUP/apt-plan.txt"
 python3 - "$BACKUP/apt-plan.txt" <<'PYPLAN'
 import pathlib, sys
 allowed = {'ngfw-agent', 'ngfw-api', 'ngfw-meta', 'ngfw-web'}
@@ -238,29 +314,47 @@ pg_restore --list "$BACKUP/preupgrade-ngfw.dump" >/dev/null
 actual=$(sha256sum SHA256SUMS); [[ ${actual%% *} == "$EXPECTED_SUMS" ]]
 [[ $(verify_packages "$DIR") == "$VERSION" ]]
 echo 'installing packages'
-DEBIAN_FRONTEND=noninteractive apt-get "${apt_args[@]}" install ./ngfw-*.deb
+DEBIAN_FRONTEND=noninteractive apt-get "${apt_args[@]}" "${downgrade_args[@]}" install ./ngfw-*.deb
 systemctl daemon-reload
 systemctl restart ngfw-agent.service ngfw-api.service
+# Restart=always keeps a crash-looping daemon briefly active; count automatic
+# restarts from the manual restart onwards and recheck after a stability window.
+restart_counts() {
+  local unit count
+  for unit in ngfw-agent.service ngfw-api.service; do
+    count=$(systemctl show -p NRestarts --value "$unit")
+    [[ $count =~ ^[0-9]+$ ]] || { echo "cannot read restart count of $unit" >&2; exit 1; }
+    echo "$count"
+  done
+}
+restarts_before=$(restart_counts)
 healthy=0
 for ((attempt=0; attempt<30; attempt++)); do
   if curl --noproxy '*' -fsS --connect-timeout 2 --max-time 3 http://127.0.0.1:3000/api/v1/health >/dev/null 2>&1; then healthy=1; break; fi
   sleep 2
 done
 [[ $healthy == 1 ]] || { echo 'API health failed' >&2; exit 1; }
+sleep 5
 for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
   systemctl is-active --quiet "$service"
 done
-[[ $(ip -4 route show default) == "$route_before" && $(ip -6 route show default) == "$route6_before" ]] || { echo 'management default route changed' >&2; exit 1; }
+[[ $(restart_counts) == "$restarts_before" ]] || { echo 'agent/API restarted during the stability window' >&2; exit 1; }
+[[ $(stable_routes 4) == "$route_before" && $(stable_routes 6) == "$route6_before" ]] || { echo 'management default route changed' >&2; exit 1; }
 for package in ngfw-agent ngfw-api ngfw-meta ngfw-web; do
   [[ $(dpkg-query -W -f='${Version}' "$package") == "$VERSION" ]]
 done
 REMOTE
 
 deploy_host() {
-  local host=$1 target=$SSH_USER@$1 dir backup digest
+  local host=$1 target=$SSH_USER@$1 dir backup digest preflight installed
   log "[$host] preflight"
-  backup=$(ssh "${SSH_OPTS[@]}" "$target" 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -s' <<<"$REMOTE_PREPARE") || die "$host: preflight failed"
+  preflight=$(ssh "${SSH_OPTS[@]}" "$target" 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -s' <<<"$REMOTE_PREPARE") || die "$host: preflight failed"
+  [[ $(wc -l <<<"$preflight") == 2 ]] || die "$host: unexpected preflight output"
+  installed=${preflight%%$'\n'*}
+  backup=${preflight#*$'\n'}
+  [[ $installed =~ ^[0-9][A-Za-z0-9.+:~-]*$ ]] || die "$host: invalid installed package version"
   [[ $backup =~ ^/root/ngfw-deploy/run\.[A-Za-z0-9]{8}$ ]] || die "$host: invalid remote staging path"
+  check_lineage "$host" "$installed"
   dir=$backup/packages
   # Expand locally: dir is the strictly validated backup path plus /packages.
   # shellcheck disable=SC2029
@@ -270,10 +364,11 @@ deploy_host() {
   log "[$host] copying packages ($VERSION)"
   scp -q "${SSH_OPTS[@]}" "$SNAPSHOT"/* "$target:$dir/"
   log "[$host] installing; recovery directory: $backup"
-  # Expand locally: dir is validated above, digest is hex, and verify_packages
-  # restricts VERSION to a digit followed by [A-Za-z0-9.+:~-], with no shell syntax.
+  # Expand locally: dir is validated above, digest is hex, verify_packages
+  # restricts VERSION to a digit followed by [A-Za-z0-9.+:~-], with no shell
+  # syntax, and ALLOW_DIVERGENT is this script's own 0/1 literal.
   # shellcheck disable=SC2029
-  { declare -f verify_packages; printf '%s\n' "$REMOTE_INSTALL"; } | ssh "${SSH_OPTS[@]}" "$target" "env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -s -- $dir $digest $VERSION" || die "$host: install/health failed; inspect $backup on the host"
+  { declare -f verify_packages; printf '%s\n' "$REMOTE_INSTALL"; } | ssh "${SSH_OPTS[@]}" "$target" "env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C HOME=/root bash -s -- $dir $digest $VERSION $ALLOW_DIVERGENT" || die "$host: install/health failed; inspect $backup on the host"
   # Expand locally: backup matched the fixed prefix and eight alphanumerics above.
   # shellcheck disable=SC2029
   ssh "${SSH_OPTS[@]}" "$target" "umask 077; printf 'complete\n' > $backup/upgrade-complete" || die "$host: SSH lost after upgrade; inspect $backup"
@@ -295,5 +390,6 @@ SNAPSHOT=$(mktemp -d /var/tmp/ngfw-deploy.XXXXXXXX)
 cp -P -- "$PKG_DIR"/* "$SNAPSHOT/"
 copied_sums=$(sha256sum "$SNAPSHOT/SHA256SUMS"); [[ ${copied_sums%% *} == "$input_sums" ]] || die 'delivery changed during snapshot'
 [[ $(verify_packages "$SNAPSHOT") == "$VERSION" ]]
+(( ALLOW_DIVERGENT )) && log 'WARNING: --allow-divergent set; development builds from unrelated source histories will be installed'
 for h in "${HOSTS[@]}"; do deploy_host "$h"; done
 log "deployed to: ${HOSTS[*]}"

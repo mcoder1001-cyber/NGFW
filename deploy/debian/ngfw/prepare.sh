@@ -20,8 +20,11 @@ print(version)
 PY
 )
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'refusing dirty source checkout' >&2; exit 1; }
-# Full-history reachable commit counts strictly increase for descendant commits.
-# The git prefix sorts above legacy hash-only development versions (hex digits).
+# Full-history reachable commit counts strictly increase for descendant commits
+# only; unrelated histories are not ordered by them. deploy/deploy-hosts.sh reads
+# the embedded source commit back from the installed version and verifies
+# ancestry before trusting the count (DEC-248). The git prefix sorts above legacy
+# hash-only development versions (hex digits).
 [[ $(git -C "$ROOT" rev-parse --is-shallow-repository) == false ]] || { echo 'complete Git history required for package version ordering' >&2; exit 1; }
 SOURCE_COUNT=$(git -C "$ROOT" rev-list --count HEAD)
 [[ $SOURCE_COUNT =~ ^[1-9][0-9]*$ ]] || { echo 'invalid source history count' >&2; exit 1; }

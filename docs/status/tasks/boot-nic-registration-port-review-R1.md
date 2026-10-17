@@ -84,3 +84,72 @@ mutation run (HEAD tests vs mutated HEAD service): M1 M2 M3 M5 M6 M7 SURVIVED ·
 - #5: fixed — `whitelist-limit` skip + test. #6: fixed (the once-implementation returns `deferred`, the base implementation applies;
   payload asserted). #7: `issues` (pointer + message, ≤ 20, `reasonOnly`) added to the payload. #8: fixed in iteration 3. #9:
   `onTestFinished(() => svc.stop())` in every timer test. #10: pre-existing, left (documented in the class comment).
+
+---
+
+## Verify round (head `9574d997a`, fix commits `5fa3c01e4`, `9574d997a`) — reviewer text, saved unedited by the developer (abridged in the command listing)
+
+Scope: committed `9574d997a` blobs only (the developer's uncommitted iteration-5 edits, started 10:38 UTC, are not covered; the
+vitest run, the tsx probes and the golden check ran on a clean tree at 10:26–10:33; mutation/timer/kernel-name probes ran on
+`git archive 9574d997a` copies). No product files modified.
+
+1. **#1 MAJOR: fixed.** `seed.service.ts:440-443` builds `claimed` from every `devices.*.name` and physical row; `:481-485` skips
+   `name-in-use` for a different PCI; `:495` adds assigned names. Probes S1 (colliding NIC first) now VALID (adds `ens224`, skips `0c`
+   name-in-use and `14` name-mismatch); S1b/S5 no commit; S2–S4, S6–S13 valid or no commit. End-to-end (real engine, gRPC fake agent):
+   `outcome=seeded`, 2 revisions, `ens224` registered, both skips in the audit event (round 2: `failed`, final, no revision). Test `:403`
+   killed by MC1 and MC4; the validity guard `:435` kills M10 (acceptable). MC2/MC3 equivalent. R4 #2 rules (`name-mismatch` `:466-469`,
+   `bound-unnamed` `:461-464`) correct — the agent decides "unbound" by the row's name (`desired/hostnics.go:30`); MC5 killed by 3 tests,
+   MC6 by 6; MC7 equivalent (`HostNICs` never reports an empty netdev without `BoundToDpdk`). Golden: removing `enp29s0f0` is right;
+   content equals the generator output (prettier collapsing only), passes `validateConfig`. [other: R4] a bound NIC whose saved name is not
+   yet in the installed `startup.conf` still fails closed (`apply-failed`, backed off, recorded once) — covered by the debt row; the commit
+   title's "never" overstates.
+2. **#2 MAJOR: fixed.** `FINAL_PROBLEMS` (`:34`, `:273-274`); tests for 400 final (`:521`), 409 retried (`:583`), 503 retried (`:677`); M5 and
+   M5c killed; M5b equivalent; M5d (`license-required` not final) survives — no test (NIT).
+3. **#3 MINOR: fixed.** All six round-2 survivors (M1, M2, M3, M5, M6, M7) now killed; M4, M8, M10, M14, M15 still killed.
+4. **#4 MINOR: partially fixed — code right, two of three fixes untested.** `:128` ignores `skipped`, `:130-139` replaces the timer,
+   `:290-300` dedups on `lastFailure`. Probes on HEAD: reconnect during a ≥ 1280 ms backoff with a deferred attempt → applied 54 ms later
+   (M17: 1262 ms); an overlapping `skipped` attempt keeps `backoffMs=160` (M16: 0). **M16 and M17 survive the branch's tests** — the test
+   "…lets the latest outcome set the delay" (`:653`) never has a pending timer when the deferral arrives (the timer itself started that
+   attempt). `lastFailure` dedup tested (`:695` kills M18). Timing assertion `:674`: dt 45–48 ms over 6 runs at load ≈ 7 vs limit 150 ms —
+   adequate, not generous. Fix: a test calling `ready()` during a long backoff with a deferred attempt (retry within ≈ `retryMs`) and one
+   for an overlapping attempt.
+5. **#5 MINOR: fixed** (`:486-489`, test `:451`; MC8/MC9 killed; probes S11/S12 valid). 6. **#6 MINOR: fixed** (`:631-651`). 7. **#7 NIT:
+   fixed** (`:276-279`, `:298`, asserted `:544-549`; untested: 20-issue cap, `reasonOnly` on issue messages, pointers in the dedup key).
+8. **#8 NIT: fixed** (iteration 3). 9. **#9 NIT: fixed** (`onTestFinished` at `:566`, `:622`, `:639`, `:658`, `:697`, `:722`). 10. **#10 NIT**:
+   won't-fix accepted.
+Also: `commit.service.test.ts` 26 pass; e2e reasoning holds (three kernel NICs, no saved names, no bound NIC); needs `tools/ci.sh full`.
+
+### New finding
+- **N1 MINOR: on `9574d997a` a bound NIC whose saved device name equals another NIC's current kernel name is registered under that
+  name** (`:465`, `:481-485` consult `claimed` only). Probe K1: `devices['0000:1d:00.0'].name = 'ens192'` (the management NIC's kernel
+  name), 1d bound → `added=[ens192@1d, …]`, valid. Effect: the agent's lookup for `ens192` finds the other NIC's kernel netdev and drops
+  the row as unbound (`agent.nic-not-bound` for a NIC VPP owns, under the management NIC's name); fails closed. Reachable through operator
+  naming or a configuration restored from another host. Fix: also claim the inventory's kernel names, management NICs included — the
+  uncommitted worktree (10:39 UTC) does this correctly (both maps checked); commit it, add the management-NIC case (K1) to the test, run
+  the quick gate on that commit.
+
+### Commands (abridged)
+```
+$ pnpm --filter @ngfw/api exec vitest run src/features/default-vpp-nics src/commit/commit.service.test.ts  (10:26, HEAD) → 33 + 26, Tests 60 passed
+$ tools/ci.sh check --base origin/main → check PASSED (0m10s) · $ pnpm --filter @ngfw/api typecheck → exit=0
+$ tsx scratchpad/r1v/probe.mts → S1 added=[ens224] skipped=[ens193@0c name-in-use, ens193@14 name-mismatch] VALID · S1b null · S5 null · S9/S1c bound NIC under saved name added, kernel NIC skipped · S11 whitelist-limit · S13 golden VALID, 1d bound-unnamed
+$ vitest collision.test.ts (end-to-end, HEAD copy) → R1-PROBE outcome=seeded revisions=2 interfaces=["ens224"] events=[system.seed-defaults … skipped …]
+$ python3 -I scratchpad/r1v/mutate.py → KILLED: MC1 MC4 MC5 MC6 MC8 MC9 M1 M2 M3 M4 M5 M5c M6 M7 M8 M10 M14 M15 M18 · SURVIVED: MC2 MC3 MC7 M5b (equivalent) · M16 M17 (#4 untested) · M5d M19 M20 M21 M22 (NIT)
+$ vitest timer.test.ts → HEAD dt=54 ms, skip 160→160 · M17 dt=1262 FAIL · M16 160→0 FAIL · 6× 'backs off an empty inventory' dt 45–48 ms
+$ vitest kernel.test.ts → K1 added=[ens192@1d, ens161@04] valid · K2 added=[ens224@1d] skipped=[ens224@13 name-in-use]
+CI: scratchpad/ci-quick-4.log → CI GATE PASSED exit=0 (12m11s, turbo 35/35) on 9574d997a
+```
+
+### Verdict: APPROVE WITH CHANGES
+No BLOCKER or MAJOR open. Land in this branch: N1 (commit the kernel-name claim with a management-NIC test case) and the #4 tests
+(timer replacement, skipped attempt ignored). NITs #7, #8, M5d optional. Any further change to `planRegistration` needs its own gate.
+
+### Developer answers (iteration 6)
+- N1: the kernel-name claim (both maps checked) landed in `c5356454c` (iteration 5) with the data-NIC clash test; the management-NIC case
+  K1 is the test "never registers a bound NIC under the name another host NIC (the management NIC included) carries in the kernel".
+- #4 tests: "an overlapping attempt leaves the backoff alone; a reconnect whose attempt is deferred replaces the long backoff timer with a
+  retryMs one" — two back-to-back READY callbacks (the second `skipped`) keep the backoff; a reconnect with a deferred attempt during a
+  ≥ 640 ms backoff completes registration within 300 ms (M17 would need ≥ 640 ms).
+- M5d: test "a missing licence is final for the API start like a validator rejection" added. #7/#8 NIT gaps left as NIT.
+- The commit title's "never" is qualified in the PR body (a saved name not yet applied to `startup.conf` fails closed and backs off).
+- Quick gate on the final head: recorded in the wip and on the PR.

@@ -347,6 +347,19 @@ describe('SeedService (F-default-vpp-nics)', () => {
     ]);
   });
 
+  it('never registers a bound NIC under the name another host NIC (the management NIC included) carries in the kernel', () => {
+    const doc = structuredClone(emptyDocument());
+    (doc['dataplane'] as DataplaneConfig).devices['0000:1d:00.0'] = { name: 'ens192' };
+    const plan = planRegistration(doc, [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens161', '0000:04:00.0', false),
+      { ...nic('', '0000:1d:00.0', false), driver: 'vfio-pci', boundToDpdk: true },
+    ]);
+    expect(plan.added).toEqual([{ name: 'ens161', pci: '0000:04:00.0' }]);
+    expect(plan.skipped).toEqual([{ name: 'ens192', pci: '0000:1d:00.0', reason: 'name-in-use' }]);
+    expect(validateConfig(plan.next).ok).toBe(true);
+  });
+
   it('never registers a bound NIC without a saved device name (VPP\'s name for it is unknown)', () => {
     const plan = planRegistration(emptyDocument(), [
       nic('ens192', '0000:0b:00.0', true),
@@ -571,6 +584,23 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(systemCommit).toHaveBeenCalledTimes(1);
   });
 
+  it('a missing licence is final for the API start like a validator rejection', async () => {
+    const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit, record } = service(nics);
+    systemCommit.mockRejectedValue(
+      new ProblemError(403, 'license-required', 'Forbidden', 'a licence is required for this feature'),
+    );
+    expect(await svc.seedIfNeeded()).toBe('failed');
+    expect(svc['done']).toBe(true);
+    expect(record).toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-failed',
+      'default NIC registration failed (not retried before the next API start): a licence is required for this feature',
+      expect.objectContaining({ final: true, type: 'license-required' }),
+    );
+  });
+
   it('a transient commit failure is retried with exponential backoff and recorded once per reason', async () => {
     const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
     const { svc, systemCommit, record } = service(nics);
@@ -686,6 +716,40 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect(svc['backoffMs']).toBe(0);
     const [deferredAt, appliedAt] = [calls[0]!, Date.now()];
     expect(appliedAt - deferredAt).toBeLessThan(150); // retryMs-class delay, not the ≥ 160 ms backoff
+  });
+
+  it('an overlapping attempt leaves the backoff alone; a reconnect whose attempt is deferred replaces the long backoff timer with a retryMs one', async () => {
+    const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit, ready } = service(nics);
+    const applied = systemCommit.getMockImplementation()!;
+    let mode: 'fail' | 'defer' | 'apply' = 'fail';
+    systemCommit.mockImplementation(async (change) => {
+      if (mode === 'fail') throw new Error('database unavailable');
+      if (mode === 'defer') {
+        mode = 'apply';
+        return { status: 'deferred', reason: 'the candidate has uncommitted changes' };
+      }
+      return applied(change);
+    });
+    svc.retryMs = 5;
+    svc.maxRetryMs = 5000;
+    onTestFinished(() => svc.stop());
+    svc.start();
+    await vi.waitFor(() => expect(svc['backoffMs']).toBeGreaterThanOrEqual(640), { timeout: 4000 });
+    // two READY callbacks back to back: the second finds an attempt in flight (skipped) and must not reset the backoff
+    const before = svc['backoffMs'];
+    ready();
+    ready();
+    await vi.waitFor(() => expect(svc['inFlight']).toBe(false));
+    expect(svc['backoffMs']).toBeGreaterThanOrEqual(before);
+    // the operator is editing when the agent reconnects: that attempt is deferred — the pending ≥ 640 ms backoff timer is
+    // replaced by a retryMs (5 ms) one, so registration follows as soon as the edits are gone, not after the backoff
+    mode = 'defer';
+    const reconnectedAt = Date.now();
+    ready();
+    await vi.waitFor(() => expect(svc['done']).toBe(true), { timeout: 3000 });
+    expect(Date.now() - reconnectedAt).toBeLessThan(300);
+    expect(svc['backoffMs']).toBe(0);
   });
 
   it('a 5xx problem from the commit path is transient: retried, not final', async () => {

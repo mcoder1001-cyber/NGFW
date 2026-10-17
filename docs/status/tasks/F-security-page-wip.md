@@ -40,6 +40,10 @@ Owned files: see `F-security-page-envelope.md`.
 - Not run here: the hosted quick gate (`tools/ci.sh --base main`) in full — the manager runs it on the PR; the Go
   agent/API trees are untouched by this task.
 
+## PR
+- https://github.com/mcoder1001-cyber/NGFW/pull/239 (`claude/F-security-page` → `main`), opened 2026-10-17 with the
+  verification output above in its description.
+
 ## Remaining
 - PR review and merge (manager). Live appliance/browser acceptance of the new screen is not claimed here.
 

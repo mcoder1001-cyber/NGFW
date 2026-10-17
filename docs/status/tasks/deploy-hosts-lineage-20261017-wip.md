@@ -93,8 +93,10 @@ OK
 git diff 99a774734...HEAD -- .github tools/ci.sh                    -> empty
 ```
 
-Earlier full runs: checkpoint 1 (`1649dd100`) 25 tests OK in 324.557 s (reproduced by R1 in
-333.642 s); checkpoint 2 (`f1679314c`) 28 tests OK in 433.522 s. No live host, database, VPP,
+Checkpoint 4 (`e992710e9`, fixtures only; product script unchanged): the same discover command
+`Ran 28 tests in 455.237s` / `OK`. Earlier full runs: checkpoint 1 (`1649dd100`) 25 tests OK in
+324.557 s (reproduced by R1 in 333.642 s); checkpoint 2 (`f1679314c`) 28 tests OK in 433.522 s;
+`4f1cba348` 28 tests OK in 431.701 s (R1: 435.873 s in a clean environment). No live host, database, VPP,
 credentials or network were used; the fake `git` never touches the real repository. Hosted
 quick CI and the packaging fixture gate are unchanged and remain required; their result on
 PR #240 is recorded by the manager at merge time.

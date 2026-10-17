@@ -1,35 +1,51 @@
 # Boot-time NIC registration port — checkpoint
 
-Branch: `claude/boot-nic-registration-port`; base `origin/main` `99a774734`.
-Remote: published to `origin/claude/boot-nic-registration-port` (SHA recorded in the PR; see git log).
+Branch: `claude/boot-nic-registration-port`; base `origin/main` `99a774734e2cf455f71563ff0dba5afb58051685`.
+Remote: `origin/claude/boot-nic-registration-port`. Checkpoints: iteration 1 = `814532721a1e5728ff24f9419ca48e0332243c24`
+(published; quick gate PASSED on it, below); iteration 2 = the commit that carries this file (review findings R2/R7/R8;
+its SHA and gate result are recorded in the next checkpoint of this file). PR: https://github.com/mcoder1001-cyber/NGFW/pull/238
+(draft until the second gate is green and the review rounds are combined).
 Owned files: see `boot-nic-registration-port-envelope.md`.
 
 ## Completed code
 
 - `apps/api/src/features/default-vpp-nics/seed.service.ts`: `SeedService` registers the non-management host NICs
-  missing from the running document at every boot through one system commit. `seedDocument` matches NICs by PCI
-  (case-insensitive), keeps `dataplane.devices.<pci>.name`, device tuning, the whitelist, existing rows and released
-  (`owner: host`) NICs, adopts an existing row of the same name (settings kept, marker added), skips bonds, second
-  physical rows, reserved (`local0`, `loopN`, `host-*`) and invalid names, and appends discovered management PCIs only
-  when something was registered. Saved `dataplane.managementPci` flags NICs as management before the no-management
-  check. `no-nics` is retried; `OnModuleDestroy` stops the watch and timer; `start()` is idempotent.
-- `deploy/systemd/ngfw-api.service`: comment on the kept `NGFW_SEED_DEFAULT_NICS=1`;
-  `deploy/debian/ngfw/tests/test_packaging.py`: `test_api_unit_registers_default_nics_before_site_overrides`.
+  missing from the running document at every API start through one system commit. `planRegistration` (`seedDocument`
+  = its `next`) matches NICs by PCI (case-insensitive), keeps `dataplane.devices.<pci>.name`, device tuning, the
+  whitelist, existing rows and released (`owner: host`) NICs, adopts an existing row of the same name (settings kept,
+  marker added) unless it is a physical row, a bond or a PPPoE client, skips reserved (generator `reservedNames` +
+  `reservedStems`) and invalid names, never writes a management PCI the configuration hands to the engine into
+  `managementPci` (reported as `management-engine-owned`) and never a fifth address (`management-limit`). Saved
+  `dataplane.managementPci` flags NICs as management before the no-management check. Skips are carried in the
+  `system.seed-defaults` payload (with the NICs taken as management) or, when nothing could be registered, in the warning
+  event `system.seed-defaults-skipped`. A commit the validators reject (4xx ProblemError) is final for the boot: one
+  `system.seed-defaults-failed` warning event (reason, pointers, type), no timer; other failures and an empty data
+  inventory retry with exponential backoff (`retryMs` 60 s → `maxRetryMs` 1 h), recorded once per distinct reason
+  (warn-once keyed on outcome + reason). Log/event text passes `reasonOnly()`. `OnModuleDestroy` stops the watch and
+  timer; `start()` is idempotent.
+- `apps/api/src/datastore/physical-nics.ts`: guard comments and the 403 texts say "boot-time registration" and state the
+  rollback behaviour under D-249 (wording only, no logic change).
+- `deploy/systemd/ngfw-api.service`: comment on the kept `NGFW_SEED_DEFAULT_NICS=1` (precedence, not line order);
+  `deploy/debian/ngfw/tests/test_packaging.py`: `test_api_unit_enables_default_nic_registration` shell-splits every
+  `Environment=` value of the unit and the hardening drop-in (last assignment wins ∈ {1, true}; no `UnsetEnvironment=`).
 - `apps/api/src/config.ts`, `main.ts`, `features/default-vpp-nics/index.ts`: comments.
-- Tests: `seed.service.test.ts` (19 cases), `commit.service.test.ts` (+2 cases through real gRPC / fake agent),
-  e2e wording.
-- Docs: `docs/decisions/PENDING-automatic-network-bootstrap.md` (implemented state, owner instruction 2026-10-10),
-  `docs/decisions/LOG.md` D-249, `docs/user/interfaces/default-dataplane-nics.md`, `docs/user/interfaces/basics.md`,
-  `docs/install/bare-metal.md`, `docs/status/DEFERRED-ACCEPTANCE.md` (appliance reboot case).
+- Tests: `seed.service.test.ts` (25 cases), `commit.service.test.ts` (+2 cases through real gRPC / fake agent, incl.
+  deferral while a commit awaits confirmation and registration after the confirm), e2e wording.
+- Docs: `docs/decisions/PENDING-automatic-network-bootstrap.md` (implemented state, owner instruction 2026-10-10, not-run
+  list, operator-visible behaviour changes), `docs/decisions/LOG.md` D-249 (amends HIST-NATIVE-D-164),
+  `docs/user/interfaces/default-dataplane-nics.md`, `docs/user/interfaces/basics.md`, `docs/install/bare-metal.md`,
+  `docs/install/upgrade.md`, `docs/status/DEFERRED-ACCEPTANCE.md` (appliance reboot case), `docs/tech-debt.md` (HA sync
+  vs node-local physical rows; rollback warning for dropped built-in rows; systemCommit vs configure lock).
 
 Not ported (already on `main`): `apps/agent/.../hostfacts.go` `netdevPCI` virtio handling and
 `TestHostNICsVirtioPCIManagementAndData`; `seed.golden.json` (main's copy already carries the newer tunnel domains).
 
 ## Actual test results
 
+Iteration 1 (`814532721`):
+
 ```
 $ python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_packaging.py -v
-test_api_unit_registers_default_nics_before_site_overrides ... ok
 Ran 17 tests in 1.263s
 OK
 
@@ -38,17 +54,67 @@ $ pnpm turbo run lint typecheck test --filter=@ngfw/api
 @ngfw/api:test:  ✓ src/features/default-vpp-nics/seed.service.test.ts (19 tests) 528ms
 @ngfw/api:test:  Test Files  113 passed (113)
 @ngfw/api:test:       Tests  806 passed (806)
- Tasks:    10 successful, 10 total
-Cached:    3 cached, 10 total
-  Time:    2m38.844s
+ Tasks:    10 successful, 10 total   Cached:    3 cached, 10 total   Time:    2m38.844s
+
+$ tools/ci.sh quick          (branch claude/boot-nic-registration-port @ 814532721)
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   1m26s
+  forbidden patterns (+ gitleaks)                    0m15s
+  packet-trace ban on the shared VPP (D-128)         0m00s
+  ip classify reset after every shell interface create (D-185)   0m02s
+  slot resource scheme (1..32, no collisions)        0m04s
+  lint · typecheck · unit tests · build (turbo)   7m21s   (Tasks: 35 successful, 35 total)
+  apps/agent: make lint test build                   2m54s
+  apps/cli: make lint test build                     0m15s
+  test/ Go modules, unit mode (27 modules)           1m29s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   4m34s
+  mode quick · wall time 18m22s · logs /root/ngfw-wt/logs/ci/priceless-lewin-09c0d6-20261017-091540-1233287
+CI GATE PASSED
 ```
 
-`tools/ci.sh quick`: running (result appended below when finished).
+Hosted checks on `814532721` (`gh pr checks 238`):
+
+```
+Mandatory quick gate                                   pass  16m12s  https://github.com/mcoder1001-cyber/NGFW/actions/runs/39020868049/job/117362229500
+Offline packaging and temporary-key signing fixtures   pass  50s     https://github.com/mcoder1001-cyber/NGFW/actions/runs/39020803916/job/117362050625
+Offline packaging and temporary-key signing fixtures   pass  1m8s    https://github.com/mcoder1001-cyber/NGFW/actions/runs/39020868110/job/117362229673
+```
+
+Iteration 2 (this tree, before the gate):
+
+```
+$ pnpm --filter @ngfw/api exec vitest run src/features/default-vpp-nics src/commit/commit.service.test.ts
+ ✓ src/commit/commit.service.test.ts (26 tests) 6322ms
+ ✓ src/features/default-vpp-nics/seed.service.test.ts (25 tests) 792ms
+ ✓ src/features/default-vpp-nics/drift.test.ts (1 test)
+$ pnpm --filter @ngfw/api typecheck      → $ tsc -p tsconfig.json   (no errors)
+$ pnpm --filter @ngfw/api lint           → $ eslint src test        (no findings)
+$ python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_packaging.py -k enables_default_nic -v
+Ran 1 test in 0.001s
+OK
+```
+
+`tools/ci.sh quick` on iteration 2: started right after this checkpoint's commit; result pasted in the next checkpoint.
+
+## Not run
+
+- `apps/api/test/e2e/default-vpp-nics.e2e.test.ts` (PostgreSQL e2e; only under `test:integration` / `tools/ci.sh full`).
+- `tools/ci.sh full` (integration under the lab lock).
+- A boot of a real appliance with existing revisions, an HA pair, a rollback across a registration revision → deferred
+  (`docs/status/DEFERRED-ACCEPTANCE.md`, *Active feature acceptance*). No appliance, lab host or VPP instance was touched.
+
+## Review
+
+Panel: R1, R2, R7 (mandatory), R8 (systemd unit / packaging test), R6 (`docs/user/**` changed), R4 (dataplane ownership
+of NICs). Round 1 on `814532721`: R2 APPROVE WITH CHANGES, R7 BLOCK (evidence gap + not-run list + panel), R8 BLOCK (MAJOR
+#1: unbounded retry of a failing commit without an operator-visible event) — reports and developer answers in
+`boot-nic-registration-port-review-R{2,7,8}.md`. Iteration 2 addresses every finding except the three follow-ups
+recorded in `docs/tech-debt.md`. Round 2 (R1, R4, R6 full; R7/R8 verify) runs on iteration 2.
 
 ## Remaining
 
-Complete `tools/ci.sh quick`, open the PR against `main`, independent review (R1, R2, R7, R8; R3 not needed — no
-contract change). No merge without the owner's go-ahead.
+Second `tools/ci.sh quick` + hosted gate on iteration 2, round-2 reviews, combined verdict
+(`boot-nic-registration-port-review.md`), PR body update, PR out of draft. No merge without the owner's go-ahead.
 
 Current failure: none observed.
-Exact next command: `tools/ci.sh quick` (then `gh pr create`).
+Exact next command: `tools/ci.sh quick` (then `gh pr edit 238 --body-file …`).

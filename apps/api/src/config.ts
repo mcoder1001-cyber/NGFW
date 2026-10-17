@@ -103,7 +103,7 @@ const Env = z
      * F-default-vpp-nics (D-164, D-192, D-249): register the non-management host NICs missing from the running
      * configuration at every API boot — each becomes a dataplane interface owned by VPP; existing rows, names, settings
      * and host ownership are preserved. Fail-closed: the default is `0` (off), so dev stacks, lab slots and tests never
-     * seed the shared host's real NICs; the product unit/firstboot (P10) sets `NGFW_SEED_DEFAULT_NICS=1`.
+     * seed the shared host's real NICs; only the appliance API unit (P10) sets `NGFW_SEED_DEFAULT_NICS=1`.
      */
     NGFW_SEED_DEFAULT_NICS: z
       .enum(['0', '1', 'true', 'false'])

@@ -5,7 +5,15 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadEnv } from '../../config.js';
 import { emptyDocument } from '../../datastore/documents.js';
 import type { Doc } from '../../datastore/repo.js';
-import { pciIfName, reasonOnly, seedDocument, SeedService } from './seed.service.js';
+import { ProblemError } from '../../common/problem.js';
+import {
+  isReservedIfName,
+  pciIfName,
+  planRegistration,
+  reasonOnly,
+  seedDocument,
+  SeedService,
+} from './seed.service.js';
 
 const GOLDEN = new URL('./seed.golden.json', import.meta.url);
 // the reference host (docs/lab/host-ngfw-a.md) plus one NIC already bound to vfio-pci (no netdev)
@@ -231,7 +239,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
     expect((next['dataplane'] as typeof dp).pciWhitelist).toEqual(dp.pciWhitelist);
   });
 
-  it('never attaches a NIC to a bond or a second physical row, nor adopts a reserved name', () => {
+  it('never attaches a NIC to a bond or a second physical row, nor adopts a reserved name — each skip is reported', () => {
     const doc = seedDocument(emptyDocument(), [
       nic('ens192', '0000:0b:00.0', true),
       nic('ens193', '0000:0c:00.0', false),
@@ -242,7 +250,7 @@ describe('SeedService (F-default-vpp-nics)', () => {
       bond: { mode: 'lacp', members: {} },
     };
     (doc['dataplane'] as DataplaneConfig).devices['0000:14:00.0'] = { name: 'ens193' };
-    const next = seedDocument(doc, [
+    const plan = planRegistration(doc, [
       nic('ens192', '0000:0b:00.0', true),
       nic('ens193', '0000:0c:00.0', false),
       nic('ens224', '0000:13:00.0', false),
@@ -250,7 +258,74 @@ describe('SeedService (F-default-vpp-nics)', () => {
       nic('loop7', '0000:1b:00.0', false),
       nic('Bad-Name', '0000:1c:00.0', false),
     ]);
-    expect(next).toBeNull();
+    expect(plan.next).toBeNull();
+    expect(plan.added).toEqual([]);
+    expect(plan.skipped).toEqual([
+      { name: 'ens224', pci: '0000:13:00.0', reason: 'name-in-use' },
+      { name: 'ens193', pci: '0000:14:00.0', reason: 'name-in-use' },
+      { name: 'loop7', pci: '0000:1b:00.0', reason: 'reserved-name' },
+      { name: 'Bad-Name', pci: '0000:1c:00.0', reason: 'invalid-name' },
+    ]);
+  });
+
+  it('isReservedIfName follows the startup generator: a stem alone or followed by a digit, _ or -', () => {
+    for (const name of ['local0', 'default', 'loop0', 'tap1', 'bond-0', 'host-eth0', 'bvi', 'pppoe3', 'wg_1'])
+      expect(isReservedIfName(name), name).toBe(true);
+    for (const name of ['green', 'loopback', 'wan', 'ens161', 'bonding', 'enp29s0f0', 'spanner'])
+      expect(isReservedIfName(name), name).toBe(false);
+  });
+
+  it('never writes a management NIC the configuration hands to the engine into managementPci; reports the conflict', () => {
+    // boot 1: ens161 and ens193 registered as engine-owned; boot 2: the host now reaches the box through ens161
+    // (new default route) and a NIC was added
+    const doc = seedDocument(emptyDocument(), [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens161', '0000:04:00.0', false),
+      nic('ens193', '0000:0c:00.0', false),
+    ])!;
+    const boot2 = [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens161', '0000:04:00.0', true),
+      nic('ens193', '0000:0c:00.0', false),
+      nic('ens224', '0000:13:00.0', false),
+    ];
+    const plan = planRegistration(doc, boot2);
+    expect(plan.added).toEqual([{ name: 'ens224', pci: '0000:13:00.0' }]);
+    expect((plan.next!['dataplane'] as DataplaneConfig).managementPci).toEqual(['0000:0b:00.0']);
+    expect((plan.next!['dataplane'] as DataplaneConfig).pciWhitelist).toEqual([
+      '0000:04:00.0',
+      '0000:0c:00.0',
+      '0000:13:00.0',
+    ]);
+    expect(plan.skipped).toEqual([
+      { name: 'ens161', pci: '0000:04:00.0', reason: 'management-engine-owned' },
+    ]);
+    // the conflict is reported even when there is nothing to register (every data NIC already has its row)
+    const again = planRegistration(doc, boot2.slice(0, 3));
+    expect(again.next).toBeNull();
+    expect(again.skipped).toEqual([
+      { name: 'ens161', pci: '0000:04:00.0', reason: 'management-engine-owned' },
+    ]);
+  });
+
+  it('never exceeds the four management PCI addresses the schema allows', () => {
+    const doc = structuredClone(emptyDocument());
+    (doc['dataplane'] as DataplaneConfig).managementPci = [
+      '0000:0b:00.0',
+      '0000:0b:00.1',
+      '0000:0b:00.2',
+      '0000:0b:00.3',
+    ];
+    const plan = planRegistration(doc, [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens200', '0000:0d:00.0', true),
+      nic('ens161', '0000:04:00.0', false),
+    ]);
+    expect(plan.added).toEqual([{ name: 'ens161', pci: '0000:04:00.0' }]);
+    expect((plan.next!['dataplane'] as DataplaneConfig).managementPci).toHaveLength(4);
+    expect(plan.skipped).toEqual([
+      { name: 'ens200', pci: '0000:0d:00.0', reason: 'management-limit' },
+    ]);
   });
 
   it('matches existing NICs by PCI after binding removes or renames the kernel netdev', () => {
@@ -293,6 +368,98 @@ describe('SeedService (F-default-vpp-nics)', () => {
       expect.any(String),
       expect.anything(),
     );
+  });
+
+  it('reports skipped NICs in the audit event, and as a warning event when nothing could be registered', async () => {
+    const doc = seedDocument(emptyDocument(), [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens161', '0000:04:00.0', false),
+    ])!;
+    (doc['interfaces'] as Record<string, unknown>)['ens193'] = {
+      enabled: true,
+      bond: { mode: 'lacp', members: {} },
+    };
+    const inventory = [
+      nic('ens192', '0000:0b:00.0', true),
+      nic('ens161', '0000:04:00.0', false),
+      nic('ens193', '0000:0c:00.0', false),
+      nic('ens224', '0000:13:00.0', false),
+    ];
+    const { svc, record, running } = service(inventory, true, undefined, { revision: 1, doc });
+    expect(await svc.seedIfNeeded()).toBe('seeded');
+    expect(record).toHaveBeenCalledWith(
+      'info',
+      'system',
+      'system.seed-defaults',
+      'registered 1 missing dataplane NIC(s) from the host inventory',
+      expect.objectContaining({
+        dataplane: [{ name: 'ens224', pci: '0000:13:00.0' }],
+        management: [{ name: 'ens192', pci: '0000:0b:00.0' }],
+        skipped: [{ name: 'ens193', pci: '0000:0c:00.0', reason: 'name-in-use' }],
+      }),
+    );
+    // next boot: nothing to add, but the unregistered NIC is still visible to the operator
+    const fresh = service(inventory, true, undefined, running);
+    expect(await fresh.svc.seedIfNeeded()).toBe('exists');
+    expect(fresh.record).toHaveBeenCalledTimes(1);
+    expect(fresh.record).toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-skipped',
+      expect.stringContaining('ens193 (0000:0c:00.0): name-in-use'),
+      { skipped: [{ name: 'ens193', pci: '0000:0c:00.0', reason: 'name-in-use' }] },
+    );
+  });
+
+  it('a commit the validators reject is recorded once as system.seed-defaults-failed and is final for this boot', async () => {
+    const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit, record } = service(nics);
+    systemCommit.mockRejectedValue(
+      new ProblemError(400, 'validation', 'Bad Request', 'tier-2 validation failed', [
+        {
+          pointer: '/dataplane/managementPci/1',
+          message: 'management NIC must never be a DPDK device',
+          rule: 'dataplane.management-not-dpdk',
+        },
+      ]),
+    );
+    svc.retryMs = 20;
+    svc.start();
+    await vi.waitFor(() => expect(record).toHaveBeenCalledTimes(1));
+    expect(record).toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-failed',
+      'default NIC registration failed: tier-2 validation failed',
+      { reason: 'tier-2 validation failed', pointers: ['/dataplane/managementPci/1'], final: true, type: 'validation' },
+    );
+    expect(svc['done']).toBe(true);
+    expect(svc['retryTimer']).toBeUndefined();
+    expect(await svc.seedIfNeeded()).toBe('skipped'); // not retried until the next boot
+    expect(systemCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('a transient commit failure is retried with exponential backoff and recorded once per reason', async () => {
+    const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit, record } = service(nics);
+    systemCommit.mockRejectedValue(new Error('database unavailable'));
+    svc.retryMs = 20;
+    svc.maxRetryMs = 80;
+    svc.start();
+    await vi.waitFor(() => expect(systemCommit.mock.calls.length).toBeGreaterThanOrEqual(4), {
+      timeout: 3000,
+    });
+    expect(svc['backoffMs']).toBe(80); // 20 → 40 → 80, capped
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-failed',
+      'default NIC registration failed: database unavailable',
+      { reason: 'database unavailable', pointers: [], final: false },
+    );
+    expect(svc['done']).toBe(false);
+    svc.stop();
   });
 
   it('pciIfName names a DPDK-bound NIC from its PCI address', () => {

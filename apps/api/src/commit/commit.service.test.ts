@@ -202,11 +202,12 @@ describe('CommitService (fake agent over gRPC)', () => {
     }
   });
 
-  it('D-249: boot NIC registration defers while an operator has candidate edits (nothing staged is lost)', async () => {
+  it('D-249: boot NIC registration defers while an operator has candidate edits or a commit awaits confirmation', async () => {
     fake.hostNicList = [
       { netdev: 'ens192', pci: '0000:0b:00.0', isManagement: true },
       { netdev: 'ens161', pci: '0000:04:00.0', isManagement: false },
     ];
+    fake.liveMissing = new Set(['ens161']);
     try {
       await ds.patchCandidate(ADMIN, '/system', { hostname: 'edge1' });
       const before = await repo.candidate();
@@ -214,10 +215,26 @@ describe('CommitService (fake agent over gRPC)', () => {
         ...env,
         NGFW_SEED_DEFAULT_NICS: true,
       });
+      // staged candidate (the setup wizard stages its whole document the same way): nothing staged is lost
       expect(await seed.seedIfNeeded()).toBe('deferred');
       expect(await repo.candidate()).toEqual(before);
       expect(repo.state.revisions).toHaveLength(0);
       expect(applies(fake)).toEqual([]);
+      // a confirmed commit awaiting confirmation (the wizard's apply step): deferred until it is confirmed
+      const r = await commits.commit(ADMIN, { confirmSec: 30 });
+      expect(r.status).toBe('pending');
+      expect(await seed.seedIfNeeded()).toBe('deferred');
+      expect(repo.state.revisions).toHaveLength(0);
+      expect((await commits.confirm(ADMIN)).status).toBe('confirmed');
+      expect(await seed.seedIfNeeded()).toBe('seeded');
+      expect(repo.state.revisions.map((rev) => [rev.id, rev.kind])).toEqual([
+        [1, 'commit'],
+        [2, 'system'],
+      ]);
+      expect((await ds.getRunning()).doc).toMatchObject({
+        system: { hostname: 'edge1' },
+        interfaces: { ens161: { physical: { pci: '0000:04:00.0', owner: 'dataplane' } } },
+      });
     } finally {
       fake.hostNicList = [];
     }

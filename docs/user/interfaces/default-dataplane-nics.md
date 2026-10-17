@@ -1,14 +1,15 @@
 # Default data-plane NICs
 
-Out of the box, **every physical NIC except the management interface belongs to the engine**. At each boot the
-appliance reads the host's NIC inventory and registers the NICs still missing from the configuration, so that each
-non-management NIC is a data-plane interface. You see these interfaces already present on the **Interfaces** screen, marked **built-in**; they can be
+Out of the box, **every physical NIC except the management interface belongs to the engine**. At every start of the
+management API (boot, service restart, package upgrade) the appliance reads the host's NIC inventory and registers the
+NICs still missing from the configuration, so that each non-management NIC is a data-plane interface. You see these interfaces already present on the **Interfaces** screen, marked **built-in**; they can be
 edited and disabled but never deleted.
 
 ## What is registered
 
-At boot the management API asks the agent for the host NIC inventory (`HostNics`) and saves the missing NICs in a
-system revision (revision 1 on a fresh appliance) with:
+At every API start the management API asks the agent for the host NIC inventory (`HostNics`) and saves the missing
+NICs in one system revision (revision 1 on a fresh appliance; on an existing installation only the missing NICs are
+appended to the lists below and the other settings stay as they are) with:
 
 - `dataplane.managementPci` — the PCI address of the management NIC(s);
 - `dataplane.pciWhitelist` — every non-management NIC's PCI address (the NICs the engine takes over);
@@ -41,7 +42,14 @@ Registration also runs on existing installations and picks up NICs installed lat
 interface settings, logical names (`dataplane.devices.<pci>.name`), device tuning and explicit releases to the host are
 preserved; a row that already exists under the NIC's name is adopted (its settings kept, the `physical` marker added).
 NICs are matched by PCI address, so a NIC that loses its kernel name after binding is not added twice. An unchanged
-inventory creates no revision. Registration is audited as the system event `system.seed-defaults`.
+inventory creates no revision. Registration is audited as the system event `system.seed-defaults`, whose payload lists
+the registered NICs, the NICs taken as management and any NIC that was **skipped**: a NIC whose name is not a valid
+logical name or is one the engine creates itself (`local0`, `loopN`, `tapN`, `bondN`, …), a NIC whose name already
+belongs to a bond, a PPPoE client or another physical row, a management NIC that the configuration still hands to the
+engine (release it to the host, then it is protected), or a fifth management address (the schema allows four). When
+nothing could be registered but NICs were skipped, the warning event `system.seed-defaults-skipped` says which and why.
+If the registration commit is rejected by the validators, it is not retried before the next API start and the warning
+event `system.seed-defaults-failed` carries the reason and pointers; other failures are retried with increasing delays.
 
 Registration is controlled by `NGFW_SEED_DEFAULT_NICS` and is **off by default** (fail-closed): only the appliance's
 own API service sets `NGFW_SEED_DEFAULT_NICS=1`. Development stacks, lab slots and tests leave it unset, so they never
@@ -60,8 +68,9 @@ before DHCP has answered) the appliance does **not** register anything: it recor
 network up, or name the management NIC with `NGFW_MGMT_IF` / `NGFW_MGMT_PCI`. Management PCI addresses saved by an
 earlier boot (`dataplane.managementPci`) stay protected even while the management route is still coming up.
 Uncommitted candidate edits and a commit awaiting confirmation (the setup wizard's included) defer registration; it
-retries once those edits are committed or discarded. Saving other settings never disables automatic registration, and
-an initially empty data inventory is retried as well.
+retries every minute and whenever the agent reconnects, so it lands once those edits are committed or discarded. Saving
+other settings never disables automatic registration, and an initially empty data inventory is retried as well (with
+increasing delays, up to an hour).
 
 ## Which NICs are inventoried
 
@@ -95,8 +104,13 @@ effect with the next start-up configuration apply. Releasing a NIC does not conf
 no netplan).
 
 A **rollback** restores an earlier revision as a whole; every revision since a NIC was registered carries its built-in
-row, so a rollback can change the owner or settings but never removes it. A rollback to a revision from before a NIC
-was registered drops its row — the next boot registers the NIC again.
+row, so a rollback can change the owner or settings but never removes it. A rollback to a revision from **before** a
+NIC was registered drops its row, and the next API start registers the NIC again — as engine-owned: a release to the
+host made after the rollback target is not restored. Release the NIC again if it must stay with the host.
+
+**HA pairs** (configuration sync) must have the same NIC layout (PCI addresses): the sync copies the interfaces from
+the primary while the data-plane device lists stay per node, so a backup with different NICs would register its own
+rows at every start and lose them at the next sync.
 
 ## Restoring a backup, replacement hardware, removed NICs
 
@@ -108,7 +122,7 @@ edit:
   pointer `/interfaces/<name>/physical`. Remove the `physical` members from the backup file (the rows then import as
   ordinary interfaces), or let the box register its own NICs first and import the rest of the configuration.
 - **Importing onto a replacement box** that registered different NICs: a row whose PCI address differs is refused
-  (`…/physical/pci`), and a seeded row the backup does not contain is refused as a removal
+  (`…/physical/pci`), and a registered row the backup does not contain is refused as a removal
   (`403 interfaces.physical-nic-not-deletable`). Keep the replacement box's own `physical` rows and `dataplane` NIC
   lists, and carry over only the other settings (addresses, VRFs, descriptions …).
 - **A NIC that was physically removed** keeps its built-in row — it cannot be deleted. Release it to the host

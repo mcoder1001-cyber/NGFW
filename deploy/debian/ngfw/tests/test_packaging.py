@@ -2,6 +2,7 @@
 """Host-independent regression checks; never execute package installation."""
 import pathlib
 import importlib.util
+import shlex
 import os
 import subprocess
 import sys
@@ -197,19 +198,32 @@ for name in ('backups','updates','support'):
             self.assertIn('ProtectHome=yes', unit)
             self.assertIn('NoNewPrivileges=yes', unit)
 
-    def test_api_unit_registers_default_nics_before_site_overrides(self):
+    def test_api_unit_enables_default_nic_registration(self):
+        # D-192/D-249: the appliance registers its data NICs at every API start. systemd applies Environment= lines in
+        # order (the last assignment wins), EnvironmentFile= overrides them whatever the line order, and
+        # UnsetEnvironment= removes a variable: check the effective value, not a line position.
         units = ROOT / 'deploy/systemd'
         if not units.is_dir():
             units = SOURCE / 'stage/usr/lib/systemd/system'
-        api = (units / 'ngfw-api.service').read_text()
-        # D-192/D-249: the appliance registers its data NICs at every API boot; a site override in api.env is read later
-        enabled = [i for i, line in enumerate(api.splitlines())
-                   if line.startswith('Environment=') and ' NGFW_SEED_DEFAULT_NICS=1' in f' {line}']
-        overrides = [i for i, line in enumerate(api.splitlines()) if line.startswith('EnvironmentFile=')]
-        self.assertEqual(len(enabled), 1, 'the appliance unit must enable automatic NIC registration exactly once')
-        self.assertTrue(overrides and overrides[0] > enabled[0],
-                        'the site environment file must be read after the default NIC registration opt-in')
-        self.assertNotIn('NGFW_SEED_DEFAULT_NICS=0', api)
+        texts = [(units / 'ngfw-api.service').read_text()]
+        for dropin in sorted((ROOT / 'deploy/hardening/systemd/ngfw-api.service.d').glob('*.conf')):
+            texts.append(dropin.read_text())
+        value = None
+        for text in texts:
+            for line in text.splitlines():
+                key, sep, rest = line.strip().partition('=')
+                if not sep:
+                    continue
+                if key == 'Environment':
+                    for assignment in shlex.split(rest):
+                        name, eq, assigned = assignment.partition('=')
+                        if eq and name == 'NGFW_SEED_DEFAULT_NICS':
+                            value = assigned
+                elif key == 'UnsetEnvironment':
+                    self.assertNotIn('NGFW_SEED_DEFAULT_NICS', shlex.split(rest),
+                                     'the appliance unit must not unset the default NIC registration opt-in')
+        self.assertIn(value, ('1', 'true'),
+                      'the appliance API unit (and its hardening drop-in) must leave NGFW_SEED_DEFAULT_NICS enabled')
 
     def test_pppoe_runtime_dependencies_belong_to_agent(self):
         # The agent renders pppd/rp-pppoe units and starts DHCPv6 helpers.

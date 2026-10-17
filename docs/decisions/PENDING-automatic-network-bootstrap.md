@@ -10,34 +10,55 @@
 On 2026-10-10 the product owner reiterated that host interfaces must be registered automatically at boot, without
 manual addition. The dev-host implemented this as local commit `76484d79f` (never published); this update is its port
 onto the current `main` with the `ngfw` naming (D-249). The appliance API unit keeps `NGFW_SEED_DEFAULT_NICS=1` and the
-registration service (`apps/api/src/features/default-vpp-nics/seed.service.ts`) now runs at **every** API boot, not
-only on a database without revisions: the data NICs missing from the running configuration are added through one
+registration service (`apps/api/src/features/default-vpp-nics/seed.service.ts`) now runs at **every** API start
+(boot, service restart, package upgrade), not only on a database without revisions: the data NICs missing from the running configuration are added through one
 system commit. Existing rows, logical names, interface settings, device tuning and host ownership (released NICs) are
 preserved; NICs are matched by PCI address, so a NIC that lost its kernel name after binding is never added twice.
 Management identity comes from the host inventory plus the management PCI addresses saved earlier. PCI-backed virtio
 NICs are resolved consistently for inventory and management detection (agent side, already on `main`). Agent
 reconnects, an unreachable inventory and an initially empty data inventory are retried; candidate edits or a pending
 confirmation defer the system commit (the commit engine's `systemCommit` rule), so the setup wizard's staged document
-is never overwritten and an unchanged inventory creates no revision. Ethernet display labels are numbered over the
-PCI-sorted host inventory, which registration does not change, so labels do not move.
+is never overwritten and an unchanged inventory creates no revision. A commit the validators reject is final for that
+boot and recorded once as the warning event `system.seed-defaults-failed` (with its pointers); other failures and an
+empty data inventory are retried with exponential backoff (1 min → 1 h). NICs that cannot be registered — a reserved
+or invalid name, a name already used by a bond, a PPPoE client or another physical row, a management NIC the
+configuration still hands to the engine, more than four management addresses — are reported in the audit event and as
+the warning event `system.seed-defaults-skipped`, never dropped silently. Ethernet display labels are numbered over
+the PCI-sorted hardware rows (configured physical rows and host-inventory rows); registration adds configuration rows
+for PCI addresses the inventory already lists, so the labels do not move.
 
-This answers question 2 for interface *registration*: it applies to new and existing installations alike, preserving
-compatible explicit configuration. It does not add automatic hardware rebinding, startup-configuration application or
-routing TAP activation; those boot operations, their validation and question 1 (persisting the management choice at
-installation) remain pending below.
+For interface *registration* this applies the owner's instruction to new and existing installations alike, preserving
+compatible explicit configuration (question 2 below asked whether existing installations get the defaults at the next
+boot; the owner's 2026-10-10 instruction, as recorded in the dev-host commit, says yes for registration — the owner's
+go-ahead for this port is recorded on PR #238 when given). It does not add automatic hardware rebinding,
+startup-configuration application or routing TAP activation; those boot operations, their validation and question 1
+(persisting the management choice at installation) remain pending below. The original commit `76484d79f` is reachable
+on GitHub by SHA only (no branch or tag references it); archiving the dev-host lineage is the owner's call.
 
-Validation (2026-10-17, port branch `claude/boot-nic-registration-port`; exact outputs in
-`docs/status/tasks/boot-nic-registration-port-wip.md`): `pnpm turbo run lint typecheck test --filter=@ngfw/api` —
-10/10 tasks successful: ESLint, `tsc` and Vitest with 113 files / 806 tests passed, among them the 19
-`seed.service.test.ts` cases (registration over an existing revision without a repeat on restart, PCI matching after
-binding or a kernel rename, released/disabled rows and device tuning preserved, bond / second-row / reserved-name
-refusal, saved management PCI protected, empty-inventory retry, shutdown during an inventory request) and the two
-`commit.service.test.ts` cases that drive the system commit through real gRPC against the fake agent (registration after
-an operator commit and after a release; deferral while a candidate has edits). `test_packaging.py`: 17 tests OK,
-including the new check that the appliance unit keeps `NGFW_SEED_DEFAULT_NICS=1` ahead of the site environment file.
-The complete `tools/ci.sh quick` result is recorded in the task status file and on the PR. **Not run:** a boot of a real
-appliance with an existing revision (deferred to `docs/status/DEFERRED-ACCEPTANCE.md`, *Active feature acceptance*);
-no appliance, lab host or VPP instance was touched.
+Behaviour the port changes for operators: a rollback to a revision from before a NIC was registered drops its row, and
+the next API start registers the NIC again as engine-owned — a release made after that revision is not restored (the
+built-in rows used to be invariant across every revision). HA pairs must have the same PCI layout: cluster sync copies
+`/interfaces` from the primary while `/dataplane` stays node-local, so a backup with different NICs would re-register
+its own rows at every start (tracked in `docs/tech-debt.md`).
+
+Validation (2026-10-17, port branch `claude/boot-nic-registration-port`; exact commands and outputs, SHAs and the
+complete `tools/ci.sh quick` results are pasted in `docs/status/tasks/boot-nic-registration-port-wip.md`, the review
+reports in `boot-nic-registration-port-review-R*.md`): `pnpm turbo run lint typecheck test --filter=@ngfw/api` (ESLint,
+`tsc`, Vitest) and the complete `tools/ci.sh quick` gate passed on the first checkpoint `814532721`; the second
+iteration (review findings R2/R7/R8) is gated the same way before the PR leaves draft. Unit coverage:
+`seed.service.test.ts` (25 cases: registration over an existing revision without a repeat on restart, PCI matching
+after binding or a kernel rename, released/disabled rows and device tuning preserved, bond / PPPoE / second-row /
+reserved-name / invalid-name skips reported, management NIC that the configuration hands to the engine never written
+into `managementPci`, the four-address limit, saved management PCI protected, empty-inventory retry with backoff, a
+validator-rejected commit final for the boot with one failure event, a transient failure backed off and recorded once,
+shutdown during an inventory request) and `commit.service.test.ts` (26 cases, two of them driving the system commit
+through real gRPC against the fake agent: registration after an operator commit and after a release; deferral while a
+candidate has edits and while a commit awaits confirmation, then registration after the confirm);
+`deploy/debian/ngfw/tests/test_packaging.py` (17 cases) checks that the appliance unit and its hardening drop-in leave
+`NGFW_SEED_DEFAULT_NICS` enabled. **Not run:** `apps/api/test/e2e/default-vpp-nics.e2e.test.ts` (PostgreSQL e2e, runs
+only under `test:integration` / `tools/ci.sh full`), `tools/ci.sh full`, and a boot of a real appliance with an existing
+revision (deferred to `docs/status/DEFERRED-ACCEPTANCE.md`, *Active feature acceptance*); no appliance, lab host or VPP
+instance was touched.
 
 ## Requested behavior
 

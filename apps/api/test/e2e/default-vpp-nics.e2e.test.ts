@@ -44,7 +44,7 @@ const NICS: HostNic[] = [
 ];
 
 /**
- * F-default-vpp-nics (D-164, D-249) e2e on the host PostgreSQL with the fake agent: boot-time registration (revision 1
+ * F-default-vpp-nics (HIST-NATIVE-D-164, D-249) e2e on the host PostgreSQL with the fake agent: boot-time registration (revision 1
  * from the HostNics inventory on a fresh database), idempotency across restarts, the physical-NIC delete guard (403 on
  * PATCH-null / DELETE / import-without-it) and release (owner → host keeps pciWhitelist consistent).
  */

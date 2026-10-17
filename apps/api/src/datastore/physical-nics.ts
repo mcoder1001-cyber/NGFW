@@ -70,7 +70,7 @@ export function assertPhysicalNicEdit(before: Doc, after: Doc): void {
       removed.map((name) => ({
         pointer: jsonPointer('interfaces', name),
         message:
-          "built-in physical NIC seeded from the host inventory; it can be edited, disabled or released (physical.owner = 'host') but not deleted",
+          "built-in physical NIC registered from the host inventory; it can be edited, disabled or released (physical.owner = 'host') but not deleted",
         rule: 'interfaces.physical-nic-not-deletable',
       })),
     );

@@ -45,9 +45,11 @@ registers the data NICs missing from the running configuration from the agent's 
 inventory, PCI-backed virtio NICs included, through one system commit. This also repairs
 existing installations whose other settings were saved before NIC discovery. Existing
 ownership, logical names and settings are preserved and management NICs are excluded;
-candidate edits or a pending confirmation defer the commit to a retry. A rejected commit
-is recorded once as the warning event `system.seed-defaults-failed`; NICs that cannot be
-registered are reported as `system.seed-defaults-skipped`. Registration only creates the
+candidate edits or a pending confirmation defer the commit to a retry. A failed commit is
+recorded once per reason as the warning event `system.seed-defaults-failed` (a validator
+rejection is not retried before the next API start; other failures are retried with
+increasing delays); NICs that cannot be registered are listed in the `system.seed-defaults`
+event or, when nothing could be registered, in the warning event `system.seed-defaults-skipped`. Registration only creates the
 interface configuration — it binds nothing. NIC takeover still requires the guarded product
 apply procedure below. A site opt-out (`NGFW_SEED_DEFAULT_NICS=0` in `/etc/ngfw/api.env`)
 is accepted only after firstboot has completed (the canonical initial file carries the three

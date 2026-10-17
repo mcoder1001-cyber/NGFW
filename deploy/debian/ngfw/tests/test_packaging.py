@@ -215,6 +215,8 @@ for name in ('backups','updates','support'):
                 if not sep:
                     continue
                 if key == 'Environment':
+                    if rest.strip() == '':
+                        value = None  # an empty assignment resets the whole environment list
                     for assignment in shlex.split(rest):
                         name, eq, assigned = assignment.partition('=')
                         if eq and name == 'NGFW_SEED_DEFAULT_NICS':

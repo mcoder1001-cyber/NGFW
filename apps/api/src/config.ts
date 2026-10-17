@@ -100,8 +100,8 @@ const Env = z
 
     // wave-BC: F-default-vpp-nics
     /**
-     * F-default-vpp-nics (D-164, D-192, D-249): register the non-management host NICs missing from the running
-     * configuration at every API boot — each becomes a dataplane interface owned by VPP; existing rows, names, settings
+     * F-default-vpp-nics (HIST-NATIVE-D-164, D-192, D-249): register the non-management host NICs missing from the
+     * running configuration at every API start — each becomes a dataplane interface owned by VPP; existing rows, names, settings
      * and host ownership are preserved. Fail-closed: the default is `0` (off), so dev stacks, lab slots and tests never
      * seed the shared host's real NICs; only the appliance API unit (P10) sets `NGFW_SEED_DEFAULT_NICS=1`.
      */

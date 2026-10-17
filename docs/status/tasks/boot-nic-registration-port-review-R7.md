@@ -61,3 +61,74 @@ The BLOCKER is an evidence gap, not a code defect. The port matches `76484d79f` 
   and in the code (skips are reported in the audit payload and as `system.seed-defaults-skipped`). #7: `upgrade.md` updated.
   #8: wording corrected (owner's go-ahead to be recorded on the PR; SHA reachable but unreferenced; archiving is the owner's
   call). #9, #10, #11: fixed.
+
+---
+
+## Verify round (head `db5042e38`, fix commit `814532721..db5042e38`) — reviewer text, saved unedited by the developer
+
+### Status of findings #1–#11
+1. **BLOCKER, evidence gap: fixed.** Iteration 1 (`wip.md:45-81`) has the command, step summary, `CI GATE PASSED`, wall time,
+   log directory, tested SHA and the hosted runs — checked independently: the log directory exists (`08-turbo.log`: Tasks 35/35,
+   7m20.453s; `09-agent.log`/`10-cli.log` name `814532721`; file times 09:15:40–09:34:02 = 18m22s); `gh run view` shows run
+   39020868049 "CI gate 814532721 completed success". Iteration 2 is described honestly (`wip.md:97`, `PENDING…md:47-48`). The
+   gate on `db5042e38` was still running (local log at the turbo step; hosted run 39022880662 in_progress). Merge condition:
+   the next checkpoint pastes the iteration-2 local and hosted results.
+2. **MAJOR, not-run lists and the confirmation claim: fixed in the repo; the PR body is still stale (N1).** "Not run" lists at
+   `wip.md:99-104` and `PENDING…md:58-61`. The deferral is now tested through the real engine (`commit.service.test.ts:205-241`:
+   `confirmSec: 30` → `pending`, `seedIfNeeded()` → `deferred` with 0 revisions, `confirm` → `confirmed`, then `seeded` with
+   revisions `[[1,'commit'],[2,'system']]`). I could not run it myself (filtered vitest denied while the gate runs); evidence is
+   the developer's paste at `wip.md:86-88` plus the api test task inside the running gate.
+3. **MAJOR, panel: fixed.** `wip.md:108-112`: R1, R2, R7 mandatory, plus R8, R6 (`docs/user/**`) and R4.
+4. **MINOR, LOG.md: fixed.** `LOG.md:286` says "Amends HIST-NATIVE-D-164". Correction to round 1: the D-249 row already sat
+   directly under D-247 at `814532721`; the table detachment is older (main breaks at `LOG.md:39`) — out of scope.
+5. **MINOR, SHAs: fixed.** `wip.md:3-6` full base and iteration-1 SHAs; iteration-2 SHA promised for the next checkpoint
+   (acceptable: a commit cannot contain its own SHA). `git ls-remote` → `db5042e38`; next command at `wip.md:120`.
+6. **MINOR, user doc vs `planRegistration`: fixed** — every API start (`:3`), missing NICs appended (`:11`), skips listed with
+   reasons matching `SkipReason` (`:45-50`), `system.seed-defaults-skipped` only when nothing registered (`:50`), 4xx final
+   (`:51-52`), retries every 60 s / on reconnect, empty-inventory backoff capped at 1 h (`:71-73`).
+7. **MINOR, upgrade.md: fixed** (`:20-30`); wording NIT N4.
+8. **MINOR, provenance: partially fixed.** `PENDING…md:30-36` corrected; `gh api …/commits/76484d79f` returns the commit. But
+   `PENDING…md:11` still says "(never published)" and the PR body "exists only in the dev-host workspace". Fix: "(on no branch
+   or tag; reachable by SHA, see below)".
+9. **NIT, label wording: fixed** (`PENDING…md:26-28` matches `display-names.ts:9-28`).
+10. **NIT, "appliance API unit": fixed** (`config.ts:106`, `seed.service.ts:51`).
+11. **NIT, leftovers: fixed** (`default-dataplane-nics.md:125` "registered row"; retry wording `:71`; envelope owned files
+    cover all 23 changed paths).
+
+### New findings
+- **N1 MINOR: PR #238 body is still the round-1 text** (old test name, "pins it ahead of the site environment file", "quick:
+  running locally", not-run list only the appliance boot, reviewers R1/R2/R7/R8, "exists only in the dev-host workspace").
+  `wip.md:116` honestly lists "PR body update" as remaining. Fix before the PR leaves draft.
+- **N2 NIT: mixed decision ids in code comments** — `config.ts:103`, `default-vpp-nics/index.ts:4`, `test/e2e/default-vpp-nics.e2e.test.ts:47`
+  still cite plain D-164 (the stats decision); `basics.md:135`, `main.ts:27` say "every boot" vs "every API start".
+- **N3 NIT: `bare-metal.md:49-50`** says skipped NICs "are reported as `system.seed-defaults-skipped`" — only when nothing was
+  registered; otherwise they appear in the `system.seed-defaults` payload.
+- **N4 NIT: `upgrade.md:22`** names only `COMMIT_APPLIED`; the engine also records `COMMIT_NOT_ENFORCED` (`commit.service.ts:1028-1035`).
+- Side notes: the running gate briefly rewrote `packages/api-client/src/generated/schema.d.ts` (clean again by 09:5x) and created
+  the untracked `tools/docs/__pycache__/…pyc` — do not commit it.
+
+### Links and review files
+All 18 relative markdown links in the 13 changed `.md` files resolve. `review-R7.md` is consistent with the round-1 tree
+(spot-checked against `814532721`). I cannot byte-compare the saved files with the chat hand-backs; R2/R8 files are internally
+consistent, carry the "saved unedited" header and end with a developer-answers section.
+
+### Commands run (abridged)
+```
+$ git rev-parse origin/main HEAD → 99a774734e2c… / db5042e38803…
+$ git ls-remote origin refs/heads/claude/boot-nic-registration-port → db5042e38803304c1f5ed6756dc3720fb4d53928
+$ cat /root/ngfw-wt/logs/ci/priceless-lewin-09c0d6-20261017-091540-1233287/08-turbo.log → Tasks: 35 successful, 35 total · Time: 7m20.453s
+$ gh run view 39020868049|39020803916|39020868110|39022880662 → CI gate 814532721 success · Packaging 814532721 success ×2 · CI gate db5042e38 in_progress
+$ gh pr view 238 → headRefOid db5042e38…, isDraft true, OPEN; body = round-1 text (N1)
+$ grep -cE "^\s*(it|test)\(" commit.service.test.ts seed.service.test.ts → 26 / 25
+$ gh api repos/mcoder1001-cyber/NGFW/commits/76484d79f → 76484d79fc99… 2026-10-10 fix(interfaces): register missing data NICs automatically at boot
+$ python3 -I <link check over changed .md> → checked 18 relative links; broken 0
+$ python3 tools/board.py --check → board valid: 212 tasks; read-only validation
+```
+
+### Verdict: APPROVE WITH CHANGES
+Conditions before the PR leaves draft: (a) next checkpoint pastes the iteration-2 `tools/ci.sh quick` result and the hosted run;
+(b) PR body updated (N1); (c) `PENDING…md:11` no longer says "never published" (#8). N2–N4 optional.
+
+### Developer answers (iteration 3)
+(a) pasted in the wip (gate 2 on `db5042e38`: CI GATE PASSED, 11m43s; hosted run 39022880662 recorded when finished);
+(b) PR body rewritten with the iteration-2/3 evidence; (c) fixed. N2, N3, N4 fixed; the stray `__pycache__` was removed, not committed.

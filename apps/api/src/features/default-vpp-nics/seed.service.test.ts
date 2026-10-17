@@ -430,8 +430,13 @@ describe('SeedService (F-default-vpp-nics)', () => {
       'warning',
       'system',
       'system.seed-defaults-failed',
-      'default NIC registration failed: tier-2 validation failed',
-      { reason: 'tier-2 validation failed', pointers: ['/dataplane/managementPci/1'], final: true, type: 'validation' },
+      'default NIC registration failed (not retried before the next API start): tier-2 validation failed',
+      {
+        reason: 'tier-2 validation failed',
+        pointers: ['/dataplane/managementPci/1'],
+        final: true,
+        type: 'validation',
+      },
     );
     expect(svc['done']).toBe(true);
     expect(svc['retryTimer']).toBeUndefined();
@@ -455,11 +460,30 @@ describe('SeedService (F-default-vpp-nics)', () => {
       'warning',
       'system',
       'system.seed-defaults-failed',
-      'default NIC registration failed: database unavailable',
+      'default NIC registration failed (will retry): database unavailable',
       { reason: 'database unavailable', pointers: [], final: false },
     );
     expect(svc['done']).toBe(false);
     svc.stop();
+  });
+
+  it('an agent refusal (4xx that a later attempt may pass) is not final: retried with backoff, recorded once', async () => {
+    const nics = [nic('ens161', '0000:04:00.0', false), nic('ens192', '0000:0b:00.0', true)];
+    const { svc, systemCommit, record } = service(nics);
+    systemCommit.mockRejectedValue(
+      new ProblemError(409, 'agent-precondition', 'Conflict', 'the agent holds a pending transaction'),
+    );
+    expect(await svc.seedIfNeeded()).toBe('failed');
+    expect(svc['done']).toBe(false);
+    expect(await svc.seedIfNeeded()).toBe('failed');
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      'warning',
+      'system',
+      'system.seed-defaults-failed',
+      'default NIC registration failed (will retry): the agent holds a pending transaction',
+      { reason: 'the agent holds a pending transaction', pointers: [], final: false, type: 'agent-precondition' },
+    );
   });
 
   it('pciIfName names a DPDK-bound NIC from its PCI address', () => {

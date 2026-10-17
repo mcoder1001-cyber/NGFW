@@ -8,7 +8,8 @@
 ## Update: automatic interface registration (owner instruction 2026-10-10, ported to main 2026-10-17)
 
 On 2026-10-10 the product owner reiterated that host interfaces must be registered automatically at boot, without
-manual addition. The dev-host implemented this as local commit `76484d79f` (never published); this update is its port
+manual addition. The dev-host implemented this as commit `76484d79f` (on no branch or tag; reachable by SHA, see below);
+this update is its port
 onto the current `main` with the `ngfw` naming (D-249). The appliance API unit keeps `NGFW_SEED_DEFAULT_NICS=1` and the
 registration service (`apps/api/src/features/default-vpp-nics/seed.service.ts`) now runs at **every** API start
 (boot, service restart, package upgrade), not only on a database without revisions: the data NICs missing from the running configuration are added through one
@@ -38,8 +39,9 @@ on GitHub by SHA only (no branch or tag references it); archiving the dev-host l
 Behaviour the port changes for operators: a rollback to a revision from before a NIC was registered drops its row, and
 the next API start registers the NIC again as engine-owned — a release made after that revision is not restored (the
 built-in rows used to be invariant across every revision). HA pairs must have the same PCI layout: cluster sync copies
-`/interfaces` from the primary while `/dataplane` stays node-local, so a backup with different NICs would re-register
-its own rows at every start (tracked in `docs/tech-debt.md`).
+`/interfaces` from the primary while `/dataplane` stays node-local, so a primary NIC the backup lacks makes the sync
+fail on the backup (`dataplane.owner-consistent`) and a backup with extra NICs re-registers them at every start and
+loses them at the next sync (tracked in `docs/tech-debt.md`).
 
 Validation (2026-10-17, port branch `claude/boot-nic-registration-port`; exact commands and outputs, SHAs and the
 complete `tools/ci.sh quick` results are pasted in `docs/status/tasks/boot-nic-registration-port-wip.md`, the review

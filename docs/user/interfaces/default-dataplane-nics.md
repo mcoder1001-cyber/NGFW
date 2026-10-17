@@ -2,8 +2,14 @@
 
 Out of the box, **every physical NIC except the management interface belongs to the engine**. At every start of the
 management API (boot, service restart, package upgrade) the appliance reads the host's NIC inventory and registers the
-NICs still missing from the configuration, so that each non-management NIC is a data-plane interface. You see these interfaces already present on the **Interfaces** screen, marked **built-in**; they can be
-edited and disabled but never deleted.
+NICs still missing from the configuration, so that each non-management NIC is a data-plane interface. You see these
+interfaces already present on the **Interfaces** screen, marked **built-in**; they can be edited and disabled but never
+deleted.
+
+The screen labels physical ports **Ethernet1 … EthernetN**, numbered by PCI address with the management NIC included
+(see [Interface names](basics.md#interface-names)); the configuration, the events and the CLI configuration commands
+use the logical name (`ens161`), and the row's drawer shows the PCI address. A NIC that is not registered yet (or was
+skipped, below) is listed as a read-only **host interface** row.
 
 ## What is registered
 
@@ -38,18 +44,37 @@ Worked example — the reference host (management NIC `ens192`, six data NICs); 
 }
 ```
 
-Registration also runs on existing installations and picks up NICs installed later on a subsequent boot. Existing
+Registration also runs on existing installations and picks up NICs installed later at the next API start. Existing
 interface settings, logical names (`dataplane.devices.<pci>.name`), device tuning and explicit releases to the host are
-preserved; a row that already exists under the NIC's name is adopted (its settings kept, the `physical` marker added).
-NICs are matched by PCI address, so a NIC that loses its kernel name after binding is not added twice. An unchanged
-inventory creates no revision. Registration is audited as the system event `system.seed-defaults`, whose payload lists
-the registered NICs, the NICs taken as management and any NIC that was **skipped**: a NIC whose name is not a valid
-logical name or is one the engine creates itself (`local0`, `loopN`, `tapN`, `bondN`, …), a NIC whose name already
-belongs to a bond, a PPPoE client or another physical row, a management NIC that the configuration still hands to the
-engine (release it to the host, then it is protected), or a fifth management address (the schema allows four). When
-nothing could be registered but NICs were skipped, the warning event `system.seed-defaults-skipped` says which and why.
-If the registration commit is rejected by the validators, it is not retried before the next API start and the warning
-event `system.seed-defaults-failed` carries the reason and pointers; other failures are retried with increasing delays.
+preserved; a row that already exists under the NIC's name is adopted (its settings kept, the `physical` marker added);
+it then is a built-in row: no longer deletable, only releasable. NICs are matched by PCI address, so a NIC that loses its
+kernel name after binding is not added twice. An unchanged inventory creates no revision.
+
+Registration is audited as the system event `system.seed-defaults`, whose payload lists the registered NICs
+(`dataplane`), the NICs taken as management (`management`) and any NIC that was **skipped** with a reason code. When
+nothing could be registered but NICs were skipped, the warning event `system.seed-defaults-skipped` names them instead,
+and does so again at every API start until the cause is resolved. System events appear on the **Dashboard** under
+*Recent events* (message only); the event code and payload are available from `GET /api/v1/state/events`.
+
+| skip reason | meaning | what to do |
+|---|---|---|
+| `invalid-name` | the kernel name (or the saved `dataplane.devices.<pci>.name`) is not a valid logical name (1–15 characters `a-z0-9_-`, starting with a letter) | give the NIC a logical name: `set dataplane devices <pci> name <name>`, commit, restart the management API |
+| `reserved-name` | the name is one the engine creates itself (`local0`, `loopN`, `tapN`, `bondN`, `pppoeN`, …) | same: give the NIC another logical name |
+| `name-in-use` | an interface of that name already is a bond, a PPPoE client or another physical NIC | rename the conflicting row, or give the NIC another logical name |
+| `management-engine-owned` | the host now reaches the box through a NIC the configuration hands to the engine | **Release to host**: the engine then does not take it over at the next start-up configuration apply, and a later registration saves it in `dataplane.managementPci` |
+| `management-limit` | `dataplane.managementPci` already holds four addresses (the maximum) | remove a stale management address |
+
+If the registration commit fails, the warning event `system.seed-defaults-failed` is recorded once per distinct reason;
+its message says whether it is retried. A rejection by the validators or a missing licence (`data.final: true`) is not
+retried before the next API start: fix the configuration the listed pointers name, then restart the management API
+(`ngfw-api.service`) or reboot. Any other failure (`data.final: false`, for example the agent or the database not
+answering yet) is retried with increasing delays, up to an hour, and whenever the agent reconnects.
+
+After an **upgrade of an existing installation**, review the Interfaces screen before the next start-up configuration
+apply: every non-management NIC the saved configuration did not carry is now an engine-owned row, including NICs the
+host still uses for other traffic (a storage link, an HA heartbeat without the default route). **Release to host** the
+ones that must stay with the host. A site can switch registration off after firstboot with `NGFW_SEED_DEFAULT_NICS=0`
+in `/etc/ngfw/api.env` (see [Package installation](../../install/bare-metal.md)).
 
 Registration is controlled by `NGFW_SEED_DEFAULT_NICS` and is **off by default** (fail-closed): only the appliance's
 own API service sets `NGFW_SEED_DEFAULT_NICS=1`. Development stacks, lab slots and tests leave it unset, so they never
@@ -70,19 +95,22 @@ earlier boot (`dataplane.managementPci`) stay protected even while the managemen
 Uncommitted candidate edits and a commit awaiting confirmation (the setup wizard's included) defer registration; it
 retries every minute and whenever the agent reconnects, so it lands once those edits are committed or discarded. Saving
 other settings never disables automatic registration, and an initially empty data inventory is retried as well (with
-increasing delays, up to an hour).
+increasing delays, up to an hour). Whatever was left undone is tried again at the next API start — a restart of the
+management API service (`ngfw-api.service`) or a reboot.
 
 ## Which NICs are inventoried
 
 Every network NIC with a **PCI address**, PCI-backed virtio devices included: NICs the host kernel drives (with their
-kernel name, driver, MAC and link state) and NICs already bound to a user-space driver (`vfio-pci`, `uio_pci_generic`, `igb_uio` — reported as bound).
+kernel name, driver, MAC and link state) and NICs already bound to a user-space driver (`vfio-pci`, `uio_pci_generic`,
+`igb_uio` — reported as bound).
 NICs **without a PCI address** — virtio-mmio devices, USB network adapters — are never inventoried and never become
 data-plane interfaces.
 
 ## "Awaiting engine"
 
 A registered NIC is only really taken over once the engine's start-up configuration is regenerated from the data-plane
-settings and the engine restarts (a first-boot / maintenance step; registration itself binds nothing). Until then the NIC is still a host interface: the
+settings and the engine restarts (a first-boot / maintenance step; registration itself binds nothing). Until then the
+NIC is still a host interface: the
 Interfaces screen shows the row as **awaiting engine**, and the agent reports a warning (`agent.nic-not-bound`), not an
 error — the commit succeeds and nothing is taken over early.
 
@@ -105,12 +133,13 @@ no netplan).
 
 A **rollback** restores an earlier revision as a whole; every revision since a NIC was registered carries its built-in
 row, so a rollback can change the owner or settings but never removes it. A rollback to a revision from **before** a
-NIC was registered drops its row, and the next API start registers the NIC again — as engine-owned: a release to the
-host made after the rollback target is not restored. Release the NIC again if it must stay with the host.
+NIC was registered drops its row, and the next API start registers the NIC again as engine-owned; if it had been
+released to the host, release it again.
 
 **HA pairs** (configuration sync) must have the same NIC layout (PCI addresses): the sync copies the interfaces from
-the primary while the data-plane device lists stay per node, so a backup with different NICs would register its own
-rows at every start and lose them at the next sync.
+the primary while the data-plane device lists stay per node. A primary NIC the backup does not have makes the sync
+fail on the backup (`dataplane.owner-consistent`: an engine-owned row missing from the backup's whitelist); a backup
+with extra NICs registers them at every API start and loses them at the next sync.
 
 ## Restoring a backup, replacement hardware, removed NICs
 

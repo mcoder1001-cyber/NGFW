@@ -19,15 +19,19 @@ Restart/maintenance-window coordination belongs to the manager/operator. Check
 service health, API login, configuration revision, agent reconciliation and rollback
 before closing the window. The first API start after an upgrade to a release with
 boot-time NIC registration (D-249) adds one `system` revision ("register missing
-dataplane NICs from the host inventory", events `COMMIT_APPLIED` and
-`system.seed-defaults`) when the host has data NICs the saved configuration does not
-carry; an unchanged inventory adds nothing. It is deferred while a candidate has edits
-or a commit awaits confirmation, and a rejected commit is recorded once as
-`system.seed-defaults-failed` instead of being retried. The pre-upgrade backup imports
-only if the box's physical rows are kept (see the user guide on restoring a backup), and a
-rollback to a pre-upgrade revision drops the registered rows until the next API start. A
-site opt-out (`NGFW_SEED_DEFAULT_NICS=0` in `/etc/ngfw/api.env`) is accepted only after
-firstboot has completed and must be in place before that first API start. Database migrations require compatibility review; a
+dataplane NICs from the host inventory (F-default-vpp-nics)", events `COMMIT_APPLIED` (or
+`COMMIT_NOT_ENFORCED`) and `system.seed-defaults`) when the host has data NICs the saved
+configuration does not carry; an unchanged inventory adds nothing. It is deferred while a
+candidate has edits or a commit awaits confirmation. A failed commit is recorded once per
+reason as `system.seed-defaults-failed`; a validator rejection is not retried before the
+next API start, other failures are retried with increasing delays. Before the next
+start-up configuration apply, review the Interfaces screen and release to the host every
+newly registered NIC the host still needs (storage, HA heartbeat): registration marks them
+engine-owned. The pre-upgrade backup imports only if the box's physical rows are kept (see
+[restoring a backup](../user/interfaces/default-dataplane-nics.md#restoring-a-backup-replacement-hardware-removed-nics)),
+and a rollback to a pre-upgrade revision drops the registered rows until the next API
+start. A site opt-out (`NGFW_SEED_DEFAULT_NICS=0` in `/etc/ngfw/api.env`) is accepted only
+after firstboot has completed and must be in place before that first API start. Database migrations require compatibility review; a
 package downgrade alone is not a database rollback. If a migration is incompatible,
 restore the tested backup through the approved recovery process.
 

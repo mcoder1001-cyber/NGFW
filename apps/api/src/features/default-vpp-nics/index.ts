@@ -1,7 +1,7 @@
 import { SeedService } from './seed.service.js';
 
 /**
- * F-default-vpp-nics (D-164, D-249): boot-time registration of missing data NICs. No controller — the delete guard
+ * F-default-vpp-nics (HIST-NATIVE-D-164, D-249): registration of missing data NICs at every API start. No controller — the delete guard
  * lives in `DatastoreService.edit()`, the `/state/interfaces` flags in the existing StateController, and the schema's
  * `dataplane.owner-consistent` rule keeps release/reclaim consistent. `SeedService.start()` is called from main.ts.
  */

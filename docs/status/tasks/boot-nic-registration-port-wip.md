@@ -2,9 +2,10 @@
 
 Branch: `claude/boot-nic-registration-port`; base `origin/main` `99a774734e2cf455f71563ff0dba5afb58051685`.
 Remote: `origin/claude/boot-nic-registration-port`. Checkpoints: iteration 1 = `814532721a1e5728ff24f9419ca48e0332243c24`
-(published; quick gate PASSED on it, below); iteration 2 = the commit that carries this file (review findings R2/R7/R8;
-its SHA and gate result are recorded in the next checkpoint of this file). PR: https://github.com/mcoder1001-cyber/NGFW/pull/238
-(draft until the second gate is green and the review rounds are combined).
+(quick gate PASSED locally and hosted, below); iteration 2 = `db5042e38803304c1f5ed6756dc3720fb4d53928` (review findings
+R2/R7/R8; quick gate PASSED locally, below; hosted run 39022880662); iteration 3 = the commit that carries this file
+(R7/R8 verify-round and R6 findings; its SHA and gate result are recorded in the next checkpoint).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/238 (draft until the final gate is green and the review rounds are combined).
 Owned files: see `boot-nic-registration-port-envelope.md`.
 
 ## Completed code
@@ -94,7 +95,33 @@ Ran 1 test in 0.001s
 OK
 ```
 
-`tools/ci.sh quick` on iteration 2: started right after this checkpoint's commit; result pasted in the next checkpoint.
+Iteration 2 (`db5042e38`) complete quick gate:
+
+```
+$ tools/ci.sh quick          (branch claude/boot-nic-registration-port @ db5042e38)
+  tools (golangci-lint, gitleaks)                    0m01s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   1m20s
+  forbidden patterns (+ gitleaks)                    0m15s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  ip classify reset after every shell interface create (D-185)   0m02s
+  slot resource scheme (1..32, no collisions)        0m04s
+  lint · typecheck · unit tests · build (turbo)   7m19s
+  apps/agent: make lint test build                   1m19s
+  apps/cli: make lint test build                     0m08s
+  test/ Go modules, unit mode (27 modules)           1m05s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m07s
+  mode quick · wall time 11m43s · logs /root/ngfw-wt/logs/ci/priceless-lewin-09c0d6-20261017-094745-1427436
+CI GATE PASSED
+exit=0
+```
+
+Hosted checks on `db5042e38` (`gh pr checks 238` at 10:05 UTC): Mandatory quick gate run 39022880662 pending (result on the
+PR); "Offline packaging and temporary-key signing fixtures" pass (49s, 1m8s).
+
+Iteration 3 (this tree, before the gate): `pnpm --filter @ngfw/api exec vitest run src/features/default-vpp-nics` →
+`✓ seed.service.test.ts (26 tests)`, `Tests 27 passed (27)`; `python3 -m unittest … -k enables_default_nic` → OK (1 test).
+`tools/ci.sh quick` on iteration 3: run after this checkpoint's commit; result pasted in the next checkpoint.
 
 ## Not run
 
@@ -108,12 +135,16 @@ OK
 Panel: R1, R2, R7 (mandatory), R8 (systemd unit / packaging test), R6 (`docs/user/**` changed), R4 (dataplane ownership
 of NICs). Round 1 on `814532721`: R2 APPROVE WITH CHANGES, R7 BLOCK (evidence gap + not-run list + panel), R8 BLOCK (MAJOR
 #1: unbounded retry of a failing commit without an operator-visible event) — reports and developer answers in
-`boot-nic-registration-port-review-R{2,7,8}.md`. Iteration 2 addresses every finding except the three follow-ups
-recorded in `docs/tech-debt.md`. Round 2 (R1, R4, R6 full; R7/R8 verify) runs on iteration 2.
+`boot-nic-registration-port-review-R{2,7,8}.md`. Iteration 2 addressed every finding except the follow-ups recorded in
+`docs/tech-debt.md`. Round 2 on `db5042e38`: R7 verify APPROVE WITH CHANGES (conditions: gate-2 evidence pasted, PR body
+updated, PENDING wording — all done in iteration 3), R8 verify APPROVE (new MINOR N1: finality limited to deterministic
+problems — done), R6 APPROVE WITH CHANGES (docs precision — done); R1 and R4 full reviews on `db5042e38` in progress,
+their reports and answers follow in `boot-nic-registration-port-review-R{1,4}.md`. Pre-existing, not touched here:
+`tools/docs/generate-reference.py --check` reports `docs/user/README.md` drift on `origin/main` (four pages missing).
 
 ## Remaining
 
-Second `tools/ci.sh quick` + hosted gate on iteration 2, round-2 reviews, combined verdict
+R1/R4 reports, `tools/ci.sh quick` + hosted gate on the final head, combined verdict
 (`boot-nic-registration-port-review.md`), PR body update, PR out of draft. No merge without the owner's go-ahead.
 
 Current failure: none observed.

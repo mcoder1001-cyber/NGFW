@@ -30,6 +30,8 @@ const RETRIED: ReadonlySet<SeedOutcome> = new Set<SeedOutcome>([
 ]);
 /** Outcomes with no operator in the loop, retried with exponential backoff instead of the fixed `retryMs`. */
 const BACKED_OFF: ReadonlySet<SeedOutcome> = new Set<SeedOutcome>(['no-nics', 'failed']);
+/** Problem slugs of a system commit that a retry cannot pass without an operator's change: final for this API start. */
+const FINAL_PROBLEMS: ReadonlySet<string> = new Set(['validation', 'license-required']);
 
 /**
  * F-default-vpp-nics (HIST-NATIVE-D-164; owner instruction 2026-10-10, D-249): at every API start the non-management
@@ -81,7 +83,7 @@ export class SeedService implements OnModuleDestroy {
   start(): void {
     if (this.started || this.done) return;
     if (!this.env.NGFW_SEED_DEFAULT_NICS) {
-      this.log.log('default NIC seeding disabled (NGFW_SEED_DEFAULT_NICS is not 1)');
+      this.log.log('default NIC registration disabled (NGFW_SEED_DEFAULT_NICS is not 1)');
       return;
     }
     this.started = true;
@@ -184,7 +186,7 @@ export class SeedService implements OnModuleDestroy {
             'warning',
             'system',
             'system.seed-defaults-deferred',
-            'default NIC seeding deferred: no management NIC could be identified (no default route or control connection); set NGFW_MGMT_IF / NGFW_MGMT_PCI or bring up the management network',
+            'default NIC registration deferred (will retry): no management NIC could be identified (no default route or control connection); set NGFW_MGMT_IF / NGFW_MGMT_PCI or bring up the management network',
             { nics: nics.length },
           );
         return 'no-management';
@@ -221,7 +223,7 @@ export class SeedService implements OnModuleDestroy {
             'warning',
             'system',
             'system.seed-defaults-skipped',
-            `default NIC registration left ${skipped.length} host NIC(s) unregistered: ${describeSkipped(skipped)}`,
+            `default NIC registration left ${skipped.length} host NIC(s) unregistered (checked again at the next API start): ${describeSkipped(skipped)}`,
             { skipped },
           );
         } else this.log.log('every non-management host NIC is already registered; nothing to add');
@@ -253,31 +255,36 @@ export class SeedService implements OnModuleDestroy {
   }
 
   /**
-   * The system commit threw. A problem the validators reject (4xx) is deterministic: recorded once as a warning event
-   * with its pointers and final for this boot (the next boot retries; the operator can fix the configuration meanwhile).
-   * Anything else (agent or database unavailable, 5xx) is retried with backoff and recorded once per distinct reason.
+   * The system commit threw. A deterministic rejection — the validators (schema, semantic, renderer dry-run → problem
+   * `validation`) or a missing licence — is final for this API start: recorded once as a warning event with its
+   * pointers; the next start retries and the operator can fix the configuration meanwhile. Anything else (agent or
+   * database unavailable, an agent refusal or a failed apply that a later attempt may pass) is retried with backoff and
+   * recorded once per distinct reason. The event message says which, as the operator sees only the message.
    */
   private async failed(e: unknown): Promise<SeedOutcome> {
     const problem = e instanceof ProblemError ? e : undefined;
-    const final = problem !== undefined && problem.getStatus() < 500;
+    const final =
+      problem !== undefined && problem.getStatus() < 500 && FINAL_PROBLEMS.has(problem.slug);
     const reason = reasonOnly((e as Error).message);
     const pointers = problem?.errors?.map((issue) => issue.pointer) ?? [];
+    const retry = final ? 'not retried before the next API start' : 'will retry';
+    if (final) {
+      // final before the event is recorded: a failing event store must not turn a final problem into a retry loop
+      this.done = true;
+      this.stop();
+    }
     const first = this.retryLog(
       'failed',
-      `default NIC registration commit failed${final ? ' (not retried until the next boot)' : ', will retry'}: ${reason}${pointers.length > 0 ? ` (${pointers.join(', ')})` : ''}`,
+      `default NIC registration commit failed (${retry}): ${reason}${pointers.length > 0 ? ` (${pointers.join(', ')})` : ''}`,
     );
     if (first)
       await this.events.record(
         'warning',
         'system',
         'system.seed-defaults-failed',
-        `default NIC registration failed: ${reason}`,
+        `default NIC registration failed (${retry}): ${reason}`,
         { reason, pointers, final, ...(problem ? { type: problem.slug } : {}) },
       );
-    if (final) {
-      this.done = true;
-      this.stop();
-    }
     return 'failed';
   }
 }
@@ -405,7 +412,8 @@ export function planRegistration(doc: Doc, nics: HostNic[]): RegistrationPlan {
   const deviceKeys = new Map(Object.keys(devices).map((pci) => [pci.toLowerCase(), pci]));
   const whitelist = new Set(pciWhitelist.map((pci) => pci.toLowerCase()));
   // A management NIC the configuration hands to the engine is a conflict the operator must resolve (release it):
-  // reported whether or not anything is registered, and never written into managementPci.
+  // reported whenever a plan is computed (the inventory has a data NIC), whether or not anything is registered, and
+  // never written into managementPci.
   const engineOwnedMgmt = mgmt.filter((m) => {
     const pci = m.pci.toLowerCase();
     return whitelist.has(pci) || deviceKeys.has(pci);

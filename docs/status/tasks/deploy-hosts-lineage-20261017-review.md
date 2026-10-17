@@ -53,4 +53,14 @@ pinning `prepare.sh`'s version format · R8-11 option messages.
 - R7-other / R8-12: hosted packaging job duration to be confirmed from the PR's CI run.
 - The originating review's 2-الف.4 minor items remain out of scope (see the WIP file).
 
-Verify round: R1 and R2 re-check their MAJORs on checkpoint 2; R7 and R8 confirm their MAJORs.
+## Verify rounds
+
+| reviewer | tree | result | notes |
+|---|---|---|---|
+| R2 | `f1679314c` | APPROVE | MAJOR 1 and MINORs 2-7 fixed; new NIT (merge-base exit > 1 read as divergence) fixed in `ce7c2ead5` |
+| R7 | `f1679314c` | APPROVE | MAJORs 1-2 fixed; new MINORs (stale WIP text, crash-loop docs sentence) and NITs (pull ref, `die` paths leaving the staging dir, PR body, 4th SC2029) fixed in `ce7c2ead5`/`0df76f417` |
+| R8 | `f1679314c` | APPROVE | MAJOR 1 and MINORs 2-8 fixed; new NITs (fake-fetch assertion, SSH command override, cosmetic log text, `die` paths) fixed in `ce7c2ead5`/`4f1cba348` except the cosmetic empty reason on a 124 timeout exit |
+| R1 | `4f1cba348` | pending | requested after the developer's full run (28/28 OK); result appended here when it lands |
+
+Combined verdict after the verify rounds: pending R1 (R2, R7, R8 APPROVE). Merge also needs the
+hosted quick gate and the packaging fixture gate green on PR #240.

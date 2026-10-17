@@ -234,9 +234,9 @@ func TestParseGlobalBlockingACLName(t *testing.T) {
 // PR #238 review R4 #1 (PR #241): a list that selects all interfaces targets the rows the projection keeps — not a
 // physical NIC that is still a kernel interface (unbound) or released to the host — so no acl.interface-binding/<row>
 // is emitted for an interface the data plane does not have (its alias is never projected; the binding would fail the
-// plan with a missing dependency and with it every interfaces/security commit). The skipped NICs are named in one
-// warning per list (an acl-only transaction has no agent.nic-not-bound note). An explicit interface list stays as
-// written.
+// plan with a missing dependency and with it every interfaces/security commit). The NIC awaiting the engine is named
+// in one warning per list (an acl-only transaction has no agent.nic-not-bound note); the released NIC only through the
+// interfaces projection's agent.nic-released note. An explicit interface list stays as written.
 func TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
 	physical := func(pci, owner string) *ngfwv1.Interface {
@@ -286,14 +286,16 @@ func TestGlobalBlockingAllInterfacesSkipsUnboundAndReleasedNICs(t *testing.T) {
 	}
 }
 
-// Review R1 #5: on a box whose physical NICs are all unbound or released (a fresh appliance before any data NIC is
-// bound), an all-interfaces list — the auto-block overlay included — binds nothing: the skipped NICs are named, the
-// list is reported as not enforced in the data plane, there is no error and no binding.
+// Review R1 #5 / N5: on a box whose physical NICs are all unbound or released (a fresh appliance before any data NIC
+// is bound), an all-interfaces list — the auto-block overlay included — binds nothing: the NIC awaiting the engine is
+// named, the list is reported at its field as having no interface the engine has yet (with the Protect-the-box
+// clause only when that setting is on), an explicit list with no interfaces keeps its own wording, there is no error
+// and no binding.
 func TestGlobalBlockingAllInterfacesNothingBound(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
-	all := gbList("both", nil, "203.0.113.9/32")
-	all.AllInterfaces = proto.Bool(true)
-	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{"all": all})
+	all, np := gbList("both", nil, "203.0.113.9/32"), gbList("both", nil, "203.0.113.10/32")
+	all.AllInterfaces, np.AllInterfaces, np.ProtectHost = proto.Bool(true), proto.Bool(true), proto.Bool(false)
+	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{"all": all, "np": np, "ex": gbList("both", nil, "203.0.113.11/32")})
 	ds.Interfaces = map[string]*ngfwv1.Interface{
 		"ens192": {Enabled: proto.Bool(true), Physical: &ngfwv1.InterfacePhysical{Pci: proto.String("0000:0b:00.0"), Owner: proto.String("dataplane")}},
 		"ens161": {Enabled: proto.Bool(true), Physical: &ngfwv1.InterfacePhysical{Pci: proto.String("0000:13:00.0"), Owner: proto.String("host")}},
@@ -301,9 +303,15 @@ func TestGlobalBlockingAllInterfacesNothingBound(t *testing.T) {
 	kept, _, _ := SplitUnboundPhysical(ds.Interfaces, func(string) (string, bool, error) { return "", true, nil })
 	s := newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true}, kept)
-	if len(s.issues) != 2 || !strings.Contains(s.issues[0], "not bound to the data plane yet and are skipped: ens192") || strings.Contains(s.issues[0], "ens161") ||
-		s.issues[1] != `W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking block list "all" has no interface the engine has yet: it is not enforced in the data plane (traffic to the appliance itself is still dropped)` {
-		t.Fatalf("want the unbound-NIC warning and the not-enforced warning at the field the operator set, got %v", s.issues)
+	want := []string{
+		`W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking block list "all" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192`,
+		`W /acl/globalBlocking/lists/all/allInterfaces acl.global-blocking block list "all" has no interface the engine has yet: it is not enforced in the data plane (traffic to the appliance itself is still dropped)`,
+		`W /acl/globalBlocking/lists/ex/interfaces acl.global-blocking block list "ex" selects no interface: it is not enforced in the data plane`,
+		`W /acl/globalBlocking/lists/np/allInterfaces acl.global-blocking block list "np" selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192`,
+		`W /acl/globalBlocking/lists/np/allInterfaces acl.global-blocking block list "np" has no interface the engine has yet: it is not enforced in the data plane`,
+	}
+	if strings.Join(s.issues, "|") != strings.Join(want, "|") {
+		t.Fatalf("issues:\n%s\nwant\n%s", strings.Join(s.issues, "\n"), strings.Join(want, "\n"))
 	}
 	for _, kv := range s.kvs {
 		if strings.HasPrefix(string(kv.Key), descacl.NameInterfaceBinding+"/") || strings.HasPrefix(string(kv.Key), string(descacl.KeyACL(GlobalBlockingPrefix))) {

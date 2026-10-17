@@ -126,7 +126,8 @@ func (s *Service) reconcileAutoBlockLocked(ctx context.Context) (int, error) {
 // the engine has — once per change of their text: the reconcile returns no report (AutoBlockSetResponse carries the
 // entry count only) and the expiry ticker repeats it, so without this line a binding dropped in an acl-only
 // transaction would leave no trace until the next commit. The all-clear line is true whether the NICs were bound or
-// the lists are gone (an empty snapshot removes Auto-block's list) — PR #241 reviews R1 V1/N1, R2 #1, R4 N1, R6.
+// the lists are gone (an empty snapshot removes Auto-block's list); released NICs are never warned about, so it
+// speaks of NICs awaiting the engine only — PR #241 reviews R1 V1/N1/N4, R2 #1, R4 N1, R6.
 func (s *Service) logSkippedNICsLocked(resp *ngfwv1.ApplyResponse) {
 	var msgs []string
 	for _, is := range resp.GetValidation().GetErrors() {
@@ -143,7 +144,7 @@ func (s *Service) logSkippedNICsLocked(resp *ngfwv1.ApplyResponse) {
 		s.log.Warn("block lists: " + m)
 	}
 	if len(msgs) == 0 {
-		s.log.Info("block lists: no list on all interfaces skips a physical NIC any more")
+		s.log.Info("block lists: no list on all interfaces skips a NIC awaiting the engine any more")
 	}
 }
 

@@ -90,8 +90,9 @@ func boundTo(t *testing.T, v *coretest.VPP, name string, acl uint32) bool {
 }
 
 // The projection: the overlay's all-interfaces list binds the bound NIC only; the unbound and the released row get no
-// acl.interface-binding (nothing to depend on), keep their nic-not-bound / nic-released notes and are named at the
-// list, so the drop is visible in an acl-only transaction too.
+// acl.interface-binding (nothing to depend on) and keep their nic-not-bound / nic-released notes; the unbound row is
+// also named at /security/autoBlock, so the drop is visible in an acl-only transaction too (the released row only
+// through agent.nic-released).
 func TestProjectAutoBlockOverlaySkipsUnboundAndReleasedNICs(t *testing.T) {
 	now := time.Now()
 	view, err := autoblock.Overlay(doc(t, nicsAutoBlockDoc), []*ngfwv1.AutoBlockRuntimeEntry{autoBlockEntry(now)}, now)
@@ -179,7 +180,7 @@ func TestAutoBlockWithUnboundAndReleasedNICsOnFake(t *testing.T) {
 	// V1/N1/N2): one WARN line, none for a repeated snapshot, a true all-clear line when the lists are gone (an empty
 	// snapshot removes Auto-block's list) and the WARN again when entries return
 	warnLine := `level=WARN msg="block lists: /security/autoBlock — Auto-block selects all interfaces, but these physical NICs are not bound to the data plane yet and are skipped: ens192"`
-	clearLine := `level=INFO msg="block lists: no list on all interfaces skips a physical NIC any more"`
+	clearLine := `level=INFO msg="block lists: no list on all interfaces skips a NIC awaiting the engine any more"`
 	if n := strings.Count(logs.String(), warnLine); n != 1 || strings.Contains(logs.String(), "ens161") {
 		t.Fatalf("want one WARN line for the NIC awaiting the engine (none for the released one), got %d:\n%s", n, logs.String())
 	}

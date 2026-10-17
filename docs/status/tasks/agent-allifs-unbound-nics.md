@@ -46,7 +46,39 @@ NGFW_TIMING END agent.race-test 2026-10-17T11:22:47.232680868Z
 AGENT_GATE_EXIT=0
 ```
 
-Complete `tools/ci.sh quick` on the head: **running at the time of writing** — the result is appended to `agent-allifs-unbound-nics-wip.md` and the PR description when it ends.
+Complete `tools/ci.sh quick` (unchanged, from the worktree root, `env -u NGFW_INTEGRATION`) on `8d34740d4` — the product tree is identical to the head `552b9bcce` (docs/status commit only); started 2026-10-17 11:23:50Z, log `ci-quick.log` in the session scratchpad and `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-112350-1815599`:
+
+```
+branch    claude/agent-allifs-unbound-nics @ 8d34740d4
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    54.892s   (lint · typecheck · unit tests · build, turbo)
+== summary (quick) ==
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m07s
+  generate + generated-output gate                   0m59s
+  forbidden patterns (+ gitleaks)                    0m16s
+  packet-trace ban on the shared VPP (D-128)         0m00s
+  ip classify reset after every shell interface create (D-185)   0m02s
+  slot resource scheme (1..32, no collisions)        0m04s
+  lint · typecheck · unit tests · build (turbo)   0m56s
+  apps/agent: make lint test build                   1m32s
+  apps/cli: make lint test build                     0m16s
+  test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/ab-upgrade test/topology/acl test/topology/backup-restore test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/ha-state-sync test/topology/hardening-lite test/topology/host-acl-nftables test/topology/images test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/qos-flat test/topology/system-identity test/topology/traffic-a/globals test/topology/traffic-c/globals test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp)   1m30s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   4m41s
+  warnings:
+    - control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+      apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+      apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+      apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+      apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+      apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+  mode quick · wall time 10m26s · logs /root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-112350-1815599
+
+CI GATE PASSED
+CI_QUICK_EXIT=0
+```
 
 ## Out of scope / left undone
 

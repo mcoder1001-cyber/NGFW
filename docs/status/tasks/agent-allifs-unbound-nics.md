@@ -1,6 +1,6 @@
 # agent-allifs-unbound-nics — status
 
-PR: https://github.com/mcoder1001-cyber/NGFW/pull/241 · branch `claude/agent-allifs-unbound-nics` · base `origin/main` `99a774734` · fixes finding #1 of review R4 of [PR #238](https://github.com/mcoder1001-cyber/NGFW/pull/238) ([review file](https://github.com/mcoder1001-cyber/NGFW/blob/c2f898d2b/docs/status/tasks/boot-nic-registration-port-review-R4.md), [tech-debt row dated 2026-10-17 "PR #238 review R4, MAJOR"](https://github.com/mcoder1001-cyber/NGFW/blob/c2f898d2b/docs/tech-debt.md), both on the #238 branch only; `main` carries neither).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/241 · branch `claude/agent-allifs-unbound-nics` · developed on `origin/main` `99a774734`, rebased onto `efd114863` (#242) on 2026-10-17 — the SHAs below are the pre-rebase ones, archived at `refs/heads/archive/agent-allifs-unbound-nics-pre-rebase`; the map to the rebased commits is in the rebase section · fixes finding #1 of review R4 of [PR #238](https://github.com/mcoder1001-cyber/NGFW/pull/238) ([review file](https://github.com/mcoder1001-cyber/NGFW/blob/c2f898d2b/docs/status/tasks/boot-nic-registration-port-review-R4.md), [tech-debt row dated 2026-10-17 "PR #238 review R4, MAJOR"](https://github.com/mcoder1001-cyber/NGFW/blob/c2f898d2b/docs/tech-debt.md), both on the #238 branch only; `main` carries neither).
 Product commits: `9a63c09ce` (the fix), `856bf743a` (review round 1), `1377ae788` (verify round), `b11a29700` (verify round 2) and `f53747c65` (R1's last NITs); the other commits are docs/status. Agent only; no schema/proto/API change; no VPP, lab slot or host service touched.
 
 ## What was built
@@ -105,6 +105,94 @@ CI_QUICK_EXIT=0
 Earlier gates on the previous product versions (`9a63c09ce`, `0b57dc070`, `0e96796ae`) passed as well; their pasted outputs are in this file's history (`git log -p -- docs/status/tasks/agent-allifs-unbound-nics.md`).
 
 Docs on `main` checked: `docs/user/interfaces/default-dataplane-nics.md` ("the commit succeeds", "does not make commits fail") describes the fixed behaviour and needs no change; `docs/user/security/global-blocking.md` got the one sentence below.
+
+## Rebase onto `main` (2026-10-17, after #242)
+
+The manager's order #240 → #242 → #241 → #238: once #242 merged (`efd114863`), the branch was rebased onto `origin/main` with one conflict, `docs/decisions/LOG.md` (both sides append after D-247; resolved by keeping D-249 from #240, D-250 from #242 and this branch's D-251, in that order). `git diff 5ff3f0d69 a4e22efa8 -- apps` is empty: the product tree is the one the gates and the panel verified. The reviewed history is archived unchanged at `refs/heads/archive/agent-allifs-unbound-nics-pre-rebase` (tip `5ff3f0d69`), so every SHA cited in this report and in the review files stays reachable; the rebased commits are:
+
+| before the rebase | after the rebase | commit |
+|---|---|---|
+| `9a63c09ce` | `44ec3ddb9` | fix(agent): all-interfaces block lists target only the rows the projection keeps |
+| `8d34740d4` | `32591226f` | docs(status): envelope, WIP and decision D-250 for agent-allifs-unbound-nics |
+| `552b9bcce` | `af339671f` | docs(status): task report for agent-allifs-unbound-nics (PR #241) |
+| `7afee7aef` | `b88954d1b` | docs(status): quick gate PASSED for agent-allifs-unbound-nics |
+| `736c45aa9` | `68a5e1c95` | docs(status): save review R7 hand-back for agent-allifs-unbound-nics (BLOCK: D-250 clash, merge order) |
+| `c8f3a608a` | `343a17858` | docs(status): save review R1 and R2 hand-backs for agent-allifs-unbound-nics (both APPROVE) |
+| `20c3303fd` | `ac7578555` | docs(status): save review R4 hand-back for agent-allifs-unbound-nics (APPROVE WITH CHANGES) |
+| `856bf743a` | `96e229cd9` | fix(agent): acl block lists reuse the projection's kept rows and name the NICs they skip |
+| `0b57dc070` | `4ee26e841` | docs: D-251, deferred acceptance, tech-debt rows and the user-doc sentence for PR #241 |
+| `873f1d946` | `a00434199` | docs(status): report and WIP after the review fixes and the gates on 0b57dc070 (PR #241) |
+| `1377ae788` | `21959c08d` | fix(agent): report the NICs an all-interfaces list skips at the operator's field; log them in the auto-block reconcile |
+| `0e96796ae` | `0ed4c7ac2` | docs: All interfaces scope per R6, tech-debt rows extended, verify-round hand-backs saved (PR #241) |
+| `b74ad2b1b` | `e286dffc7` | docs(status): report and WIP after the verify round and the gates on 0e96796ae (PR #241) |
+| `7abad346b` | `7e4a65e54` | docs(status): save review R6 verify-round hand-back for agent-allifs-unbound-nics (APPROVE) |
+| `b11a29700` | `67f4fdab9` | fix(agent): block-list warnings at one field per list; truthful auto-block log lines |
+| `6ba91e042` | `347a75981` | docs(status): save review R1 second verify-round hand-back for agent-allifs-unbound-nics (APPROVE) |
+| `f53747c65` | `097806bd3` | fix(agent): all-clear log line speaks of NICs awaiting the engine; test the three no-interface wordings |
+| `f6d7056ea` | `51371039c` | docs(status): report and WIP after the gates on 6ba91e042 and R1's verify rounds 2 and 3 (PR #241) |
+| `5ff3f0d69` | `a4e22efa8` | docs(status): gates on f6d7056ea recorded for agent-allifs-unbound-nics (PR #241) |
+
+The gates were run again on the rebased head (below) and the hosted *Mandatory quick gate* runs on it now that the PR no longer conflicts with `main`.
+
+`env -u NGFW_INTEGRATION make -C apps/agent lint test` on the rebased head `a4e22efa8`, log `agent-gate-6.log` — unedited except the marked elisions:
+
+```
+make: Entering directory '/root/NGFW/.claude/worktrees/funny-meninsky-c9ef19/apps/agent'
+NGFW_TIMING BEGIN agent.vet 2026-10-17T13:19:02.942193493Z
+go vet ./...
+NGFW_TIMING END agent.vet 2026-10-17T13:19:06.345181597Z
+NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-17T13:19:06.369240951Z
+0 issues.
+NGFW_TIMING END agent.lint-dispatch 2026-10-17T13:19:11.517605601Z
+NGFW_TIMING BEGIN agent.race-test 2026-10-17T13:19:11.542378597Z
+go test -race -count=1 ./...
+ok  	ngfw/agent/internal/agent	60.579s
+ok  	ngfw/agent/internal/desired	28.370s
+# 141 further "ok" lines, 166 "?  … [no test files]" lines and the final "make: Leaving directory" line elided — grep -c '^ok' agent-gate-6.log → 143; grep -c -E '^(FAIL|--- FAIL)' → 0
+NGFW_TIMING END agent.race-test 2026-10-17T13:20:20.576145367Z
+AGENT_GATE_EXIT=0
+```
+
+Complete `tools/ci.sh quick` (unchanged) on the rebased head `a4e22efa8` — the integration tree with #240 and #242 — nothing committed while it ran; log `ci-quick-6.log` and `/root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-132100-2170899`:
+
+```
+branch    claude/agent-allifs-unbound-nics @ a4e22efa8
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    56.343s  
+== summary (quick) ==
+  tools (golangci-lint, gitleaks)                    0m01s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   0m58s
+  forbidden patterns (+ gitleaks)                    0m16s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  ip classify reset after every shell interface create (D-185)   0m01s
+  slot resource scheme (1..32, no collisions)        0m05s
+  lint · typecheck · unit tests · build (turbo)   0m57s
+  apps/agent: make lint test build                   1m22s
+  apps/cli: make lint test build                     0m09s
+  test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/ab-upgrade test/topology/acl test/topology/backup-restore test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/ha-state-sync test/topology/hardening-lite test/topology/host-acl-nftables test/topology/images test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/qos-flat test/topology/system-identity test/topology/traffic-a/globals test/topology/traffic-c/globals test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp)   1m10s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m08s
+  warnings:
+    - control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+      apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+      apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+      apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+      apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+      apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+  mode quick · wall time 5m10s · logs /root/ngfw-wt/logs/ci/funny-meninsky-c9ef19-20261017-132100-2170899
+
+CI GATE PASSED
+CI_QUICK_EXIT=0
+```
+
+Hosted checks on the rebased head `a4e22efa8` (GitHub Actions, `gh pr view 241 --json statusCheckRollup`):
+
+- Mandatory quick gate: COMPLETED SUCCESS — https://github.com/mcoder1001-cyber/NGFW/actions/runs/39036472190/job/117407259654
+- Offline packaging and temporary-key signing fixtures: COMPLETED SUCCESS — https://github.com/mcoder1001-cyber/NGFW/actions/runs/39036469336/job/117407251638
+
+This status commit sits on top of `a4e22efa8` (docs only; the product tree is unchanged); the hosted checks run again on it and the manager confirms them green before merging.
 
 ## Out of scope / left undone
 

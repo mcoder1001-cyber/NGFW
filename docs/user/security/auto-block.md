@@ -9,7 +9,8 @@ time-to-live and removed automatically when the block expires — no configurati
 
 ## Turn it on
 
-**Config › Security › Auto-block**
+**Firewall › Security › Auto-block policy** — the policy below is part of the configuration: save it to the candidate,
+then commit. (The same fields are also reachable through the advanced editor at `/config/security/autoBlock`.)
 
 | Field | Meaning |
 | --- | --- |
@@ -39,11 +40,12 @@ allow list is checked before anything is counted, an allow-listed client never e
 
 ## Watching and clearing blocks
 
-**Firewall › Auto-block** lists everything blocked right now: the source, which detector caught it, how many hits and
-how many repeat offences, when it was blocked and when it expires.
+**Firewall › Security › Blocked sources** (the **Auto-block** entry in the Firewall menu opens this tab; the old
+`/firewall/auto-block` address redirects there) lists everything blocked right now: the source, which detector caught
+it, how many hits and how many repeat offences, when it was blocked and when it expires.
 
 - **Unblock** removes a source now. This is temporary — a source that keeps offending is blocked again. To stop a
-  source from ever being blocked, add it to the allow list in **Config › Security**.
+  source from ever being blocked, add it to the allow list on the **Auto-block policy** tab.
 - **Block by hand** lets you block an address yourself (for an hour by default). An allow-listed address is refused.
 
 Every block and unblock is recorded as a system event (subsystem `security`) and published on the `security.events`

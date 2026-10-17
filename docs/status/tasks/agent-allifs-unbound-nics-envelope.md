@@ -1,0 +1,9 @@
+Task: agent-allifs-unbound-nics
+Request: fix the agent defect recorded in `docs/tech-debt.md` (2026-10-17 row "PR #238 review R4, MAJOR, pre-existing on main and widened by D-249") and `docs/status/tasks/boot-nic-registration-port-review-R4.md` finding #1 (both on the PR #238 branch `claude/boot-nic-registration-port`): `desired.globalBlocking` built the all-interfaces target set of the block lists from every interface row, including the unbound and released physical NICs the projection drops, so the ACL binding it emitted for such a row depended on an interface alias that is never projected (plan: dependency missing); every interfaces/security commit was refused and auto-block enforced nothing while an all-interfaces list or live auto-block entries existed.
+Branch: claude/agent-allifs-unbound-nics
+Worktree: /root/NGFW/.claude/worktrees/funny-meninsky-c9ef19
+Base: origin/main 99a774734 (fix(deploy): complete package upgrades and audit unfinished branches)
+Owned: apps/agent/internal/desired/{acl.go,global_blocking.go,global_blocking_test.go,acl_test.go,rule_expiry_test.go}, apps/agent/internal/agent/{projection.go,physical_nics_acl_test.go}, apps/agent/internal/subsystems/acl_pbr_test.go, docs/status/tasks/agent-allifs-unbound-nics*
+Scope: agent only (apps/agent). No schema/proto/API change, no host services, no VPP or lab slot touched; unit tests on the fake VPP only. Explicit interface lists keep their behaviour.
+Out of scope: the tech-debt row and the user-doc exception sentences live on the PR #238 branch, not on main; they are updated there by the PR #238 developer once this PR has a number (replacement text in the PR description).
+Reviews: independent R1, R2, R4, R7 per prompts/REVIEW-PROMPT.md (read-only reviewer agents; hand-backs saved by the developer as docs/status/tasks/agent-allifs-unbound-nics-review-R<n>.md). No merge without the owner's go-ahead.

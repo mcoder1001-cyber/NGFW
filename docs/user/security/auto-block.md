@@ -9,7 +9,8 @@ time-to-live and removed automatically when the block expires — no configurati
 
 ## Turn it on
 
-**Config › Security › Auto-block**
+**Firewall › Security › Auto-block policy** — the policy below is part of the configuration: save it to the candidate,
+then commit. (The same fields are also reachable through the advanced editor at `/config/security/autoBlock`.)
 
 | Field | Meaning |
 | --- | --- |
@@ -22,12 +23,12 @@ time-to-live and removed automatically when the block expires — no configurati
 
 | Field | Meaning |
 | --- | --- |
-| **Detector** | `webLogin` (web / API sign-in), `ssh`, `vpnAuth` (IKE/EAP), or `portScan` (probes to the box). |
-| **Threshold** | Failures (for `portScan`, distinct ports) from one source within the window before it is blocked. |
-| **Window** | The sliding window the threshold is counted over. |
-| **Block** | How long a first offence is blocked. |
-| **Escalate on repeat** | Double the block time on each repeat offence, up to the cap. |
-| **Maximum block** | The escalation cap — a single block never lasts longer than this. |
+| **Detector** | **Web login** (web / API sign-in), **SSH**, **VPN auth** (IKE/EAP), or **Port scan** (probes to the box). In the configuration document these are `webLogin`, `ssh`, `vpnAuth`, `portScan`. |
+| **Threshold** | Failures (for Port scan, distinct ports) from one source within the window before it is blocked. |
+| **Window (seconds)** | The sliding window the threshold is counted over. |
+| **Block (seconds)** | How long a first offence is blocked. |
+| **Escalate on repeat** | Double the block time on each repeat offence, up to the maximum block. |
+| **Maximum block (seconds)** | The escalation cap — a single block never lasts longer than this. |
 
 A sensible start for the web UI: threshold 5, window 60 s, block 900 s, escalate on, cap 24 h.
 
@@ -39,11 +40,12 @@ allow list is checked before anything is counted, an allow-listed client never e
 
 ## Watching and clearing blocks
 
-**Firewall › Auto-block** lists everything blocked right now: the source, which detector caught it, how many hits and
-how many repeat offences, when it was blocked and when it expires.
+**Firewall › Security › Blocked sources** (the **Auto-block** entry in the Firewall menu opens this tab; the old
+`/firewall/auto-block` address redirects there) lists everything blocked right now: the source, which detector caught
+it, how many hits and how many repeat offences, when it was blocked and when it expires.
 
 - **Unblock** removes a source now. This is temporary — a source that keeps offending is blocked again. To stop a
-  source from ever being blocked, add it to the allow list in **Config › Security**.
+  source from ever being blocked, add it to the allow list on the **Auto-block policy** tab.
 - **Block by hand** lets you block an address yourself (for an hour by default). An allow-listed address is refused.
 
 Every block and unblock is recorded as a system event (subsystem `security`) and published on the `security.events`

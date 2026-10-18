@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEV_ROUTES } from './build-flags';
 import i18n from './i18n';
 import { App } from './App';
-import { buildNav, domainPath, isCollapsible } from './nav/nav';
+import { buildNav, BUILT_DOMAINS, domainPath, isCollapsible } from './nav/nav';
 import { buildRoutes, createTestRouter, type RouteOptions } from './router';
 import { domains } from './schema/registry';
 import { installFakeApi, resetSession, signIn } from './test-api';
@@ -62,12 +62,15 @@ describe('App frame', () => {
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main');
   });
 
-  it('shows "not yet available" for unbuilt domain screens, with the schema title and no data', async () => {
-    render(app('/firewall/security')); // F-vrrp-config-sync built /system/ha; the security domain has no screen yet
+  it('every schema domain has a built screen: no domain route falls through to "not yet available" (F-security-page)', async () => {
+    // F-security-page built the last one, /firewall/security; the placeholder route list is empty until a new root key
+    // lands without its screen (then this test names it)
+    expect(ROOT_KEYS.filter((key) => !BUILT_DOMAINS.has(key))).toEqual([]);
+    render(app('/firewall/security'));
     expect(await screen.findByRole('heading', { level: 2, name: 'Security' })).toBeInTheDocument();
-    expect(screen.getByText('Not yet available')).toBeInTheDocument();
-    expect(screen.getByText('Configuration domain: Security')).toBeInTheDocument();
-    expect(screen.queryByRole('grid')).toBeNull();
+    expect(screen.getByRole('tablist', { name: 'Security sections' })).toBeInTheDocument();
+    expect(screen.queryByText('Not yet available')).toBeNull();
+    expect(screen.queryByText('Configuration domain: Security')).toBeNull();
   });
 
   it('switches to Persian: RTL direction, lang attribute and translated labels', async () => {

@@ -75,6 +75,37 @@ describe('Firewall → Security (F-security-page)', () => {
     expect(await screen.findByTestId('security-policy-saved')).toHaveTextContent('Saved to the candidate');
   });
 
+  it('policy: an empty security candidate seeds the form from the schema defaults, which the save sends (R1)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi('admin');
+    let patched: unknown;
+    api.on('PATCH /api/v1/config/security', (_req, body) => {
+      patched = body;
+      return { body: { pointer: '/security', before: null, after: null } };
+    });
+    const save = await openPolicy(api, {});
+    expect(screen.getByLabelText('Maximum blocked entries', { exact: false })).toHaveValue(10_000);
+    fireEvent.click(save);
+    await waitFor(() => expect(patched).toBeDefined());
+    // no description key at all: it was never there, so nothing is sent for it (R2: never wipe a concurrent edit)
+    expect(patched).toEqual({ autoBlock: { enabled: false, rules: [], allowlist: [], maxEntries: 10_000 } });
+  });
+
+  it('policy: a description the form cleared is sent as null only when the candidate had one (R1/R2)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi('admin');
+    let patched: unknown;
+    api.on('PATCH /api/v1/config/security', (_req, body) => {
+      patched = body;
+      return { body: { pointer: '/security', before: null, after: null } };
+    });
+    const save = await openPolicy(api);
+    fireEvent.change(screen.getByDisplayValue('mgmt nets stay open'), { target: { value: '' } });
+    fireEvent.click(save);
+    await waitFor(() => expect(patched).toBeDefined());
+    const { description, ...rest } = CANDIDATE.autoBlock;
+    void description;
+    expect(patched).toEqual({ autoBlock: { ...rest, description: null } });
+  });
+
   it('policy: a validation problem from the API lands on its field and is listed as the server sent it', { timeout: 60_000 }, async () => {
     const api = installFakeApi('admin');
     api.on('PATCH /api/v1/config/security', () => ({
@@ -120,9 +151,13 @@ describe('Firewall → Security (F-security-page)', () => {
     api.on('GET /api/v1/config/candidate/security', () => ({ body: CANDIDATE }));
     api.on('GET /api/v1/state/auto-block', { body: { items: [] } });
     await signIn();
-    render(app('/firewall/auto-block'));
+    const router = createTestRouter(['/firewall/auto-block?tab=policy&source=203.0.113.7#row-1'], { devRoutes: false });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
+    render(<App router={router} streamUrl={STREAM} queryClient={queryClient} />);
     expect(await screen.findByRole('heading', { level: 2, name: 'Security' }, { timeout: 15_000 })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Blocked sources' })).toHaveAttribute('aria-selected', 'true');
+    // the old address's query and hash survive (R1); only tab is forced
+    expect(router.state.location).toMatchObject({ pathname: '/firewall/security', search: '?tab=blocked&source=203.0.113.7', hash: '#row-1' });
     expect(await screen.findByText('No sources are blocked right now.')).toBeInTheDocument();
     // exactly one nav entry is current: the Auto-block tab link, not the Security page itself
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });

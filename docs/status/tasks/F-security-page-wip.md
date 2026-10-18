@@ -46,17 +46,28 @@ Owned files: see `F-security-page-envelope.md`.
   `Tests 692 passed (692)`; `tools/ci.sh quick` → `CI GATE PASSED` (turbo 35/35 tasks, agent + cli make lint test
   build, 27 Go test modules in unit mode, deploy/vpp fake-host harness; wall 18m43s, logs
   `/root/ngfw-wt/logs/ci/wizardly-turing-057676-20261018-061121-2342193`).
+- Final tree (panel fixes, 2026-10-18): `pnpm --filter @ngfw/web lint` exit 0 (check-logical-css OK, 481 files);
+  `typecheck` exit 0; `test` `Test Files 117 passed (117)`, `Tests 694 passed (694)`; `tools/ci.sh quick` →
+  `CI GATE PASSED` (turbo 35/35, wall 11m51s, logs `/root/ngfw-wt/logs/ci/wizardly-turing-057676-20261018-063349-2455378`).
 - Not run here: the hosted gate on the PR (manager) and `tools/ci.sh --base main` (contract guard ran via `check`).
 
 ## PR
 - https://github.com/mcoder1001-cyber/NGFW/pull/239 (`claude/F-security-page` → `main`), opened 2026-10-17 with the
   verification output above in its description.
 
+## Independent review (panel on 80bf2477e, forwarded by the manager 2026-10-18)
+
+| Reviewer | Verdict | Findings → disposition (fixed in the single commit after 7dff61830) |
+| --- | --- | --- |
+| R1 correctness/tests | APPROVE WITH CHANGES (0 MAJOR, 3 MINOR, 1 NIT) | MINOR router redirect dropped query/hash → `AutoBlockRedirect` keeps `search`/`hash`, forces `tab=blocked` (test asserts the location). MINOR `value` undefined for a candidate without `autoBlock` → confirmed real (number field stayed empty); form now seeded from `autoBlockDefaults(schema)`, test asserts the defaults land in the PATCH body. MINOR only `description` nulled → documented as the only optional key; `null` sent only when the loaded value had one and the form cleared it, key left out otherwise (test). NIT nav id/label "Auto-block" points at a tab → docs state the new location (R6 confirmed); no change. |
+| R2 security | APPROVE (0 MAJOR) | Note: unconditional `description: null` could wipe a concurrent edit → fixed as above (key omitted when never present). Write gating client+server, PATCH to candidate only, no XSS, no secrets, gitleaks clean: sound. |
+| R6 UX/i18n/docs | APPROVE (3 minor) | Docs detector table used raw enum values and "Window"/"Block" → UI labels (Web login, SSH, VPN auth, Port scan), "(seconds)" added, enum names kept as a note. fa intro Latin gloss "(brute-force)" → dropped ("جستجوی فراگیر گذرواژه"). fa `rules.help` منبع vs مبدأ → "برای هر آشکارساز یک قاعده؛ آشکارسازی که قاعده ندارد پایش نمی‌شود." |
+
+Nothing blocks the merge per the panel. Verification of the final tree: see "Actual test results" (final tree).
+
 ## Remaining
-- Independent panel (R1 correctness/tests, R2 security, R6 UX/i18n/docs) is reviewing; the manager forwards the
-  findings. Any MAJOR is fixed in one more commit, the verdict table is recorded here and in the PR body, then the
-  branch is frozen. Merge by the manager after the hosted gate is green on the final head. Live appliance/browser
-  acceptance of the new screen is not claimed here.
+- Manager merges the exact final head once the hosted quick gate is green. The branch is frozen after the final
+  push. Live appliance/browser acceptance of the new screen is not claimed here.
 
 ## Current failure
 - none in this task's scope. `python3 tools/docs/generate-reference.py --check` reports drift in
@@ -66,6 +77,6 @@ Owned files: see `F-security-page-envelope.md`.
 
 ## Exact next command
 ```
-# after the panel findings arrive: fix, then
-cd apps/web && pnpm exec vitest run src/domains/security src/App.test.tsx src/nav/nav.test.ts && cd ../.. && tools/ci.sh check --base origin/main
+# branch frozen; manager: merge the exact head once the hosted quick gate is green
+gh pr view --repo mcoder1001-cyber/NGFW 239 --json headRefOid,statusCheckRollup
 ```

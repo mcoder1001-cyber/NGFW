@@ -28,6 +28,19 @@ export function autoBlockSchema(): JsonSchema {
   return autoBlock;
 }
 
+/**
+ * The node as the schema defaults it (`enabled: false`, empty rules/allow-list, the default cap) — what a candidate
+ * without `security.autoBlock` yet means. Read from the schema, never written by hand (R1: the form left a number
+ * field empty when seeded with `undefined`).
+ */
+export function autoBlockDefaults(schema: JsonSchema): AutoBlockConfig {
+  const out: Record<string, unknown> = {};
+  for (const [key, prop] of Object.entries(schema.properties ?? {})) {
+    if (prop.default !== undefined) out[key] = prop.default;
+  }
+  return out as AutoBlockConfig;
+}
+
 /** Server problem with pointers made relative to the form (`/security/autoBlock/rules/0/maxBlockSec` → `/rules/0/maxBlockSec`). */
 export function problemUnder(error: unknown): ProblemDetails | null {
   if (!(error instanceof ApiError)) return null;
@@ -60,7 +73,7 @@ export default function PolicyTab() {
   const save = async (value: unknown) => {
     setSaved(false);
     try {
-      await patch.mutateAsync(value as AutoBlockConfig);
+      await patch.mutateAsync({ autoBlock: value as AutoBlockConfig, loaded: candidate.data?.autoBlock });
       setSaved(true);
     } catch {
       // shown through `patch.error` (ProblemAlert + field pointers); nothing else to do here
@@ -91,7 +104,7 @@ export default function PolicyTab() {
           <SchemaForm
             id="security-policy-form"
             schema={schema}
-            value={candidate.data.autoBlock}
+            value={candidate.data.autoBlock ?? autoBlockDefaults(schema)}
             readOnly={readOnly}
             i18nPrefix={`${NS}:field.autoBlock`}
             problem={problemUnder(patch.error)}

@@ -21,21 +21,28 @@ export function useCandidateSecurity() {
   });
 }
 
+/** What the tab saves: the form's value plus the value it was loaded from (to tell "cleared" from "never there"). */
+export interface SaveAutoBlock {
+  autoBlock: AutoBlockConfig;
+  loaded: AutoBlockConfig | undefined;
+}
+
 /**
  * Replaces `security.autoBlock` in the candidate as a merge patch (RFC 7396): the arrays (rules, allow-list) are sent
- * whole, and a description the form dropped is sent as `null` so it is really removed. `invalidateConfig` refreshes
- * the pending-change bar and every candidate query, including this tab's own.
+ * whole. `description` is the only optional key of the node (every other key has a schema default and is always in
+ * the form's value); when the loaded value had one and the form dropped it, it is sent as `null` so it is really
+ * removed — when it was never there the key is left out, so a concurrent edit by another session is not wiped
+ * (R2). `invalidateConfig` refreshes the pending-change bar and every candidate query, including this tab's own.
  */
 export function usePatchAutoBlock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (autoBlock: AutoBlockConfig) =>
-      call(
-        api.PATCH('/api/v1/config/{path}', {
-          params: { path: { path: PATH } },
-          body: { autoBlock: { ...autoBlock, description: autoBlock.description ?? null } },
-        }),
-      ),
+    mutationFn: async ({ autoBlock, loaded }: SaveAutoBlock) => {
+      const { description, ...rest } = autoBlock;
+      const cleared = description === undefined && loaded?.description !== undefined;
+      const body = { autoBlock: { ...rest, ...(description !== undefined ? { description } : cleared ? { description: null } : {}) } };
+      return call(api.PATCH('/api/v1/config/{path}', { params: { path: { path: PATH } }, body }));
+    },
     onSettled: () => invalidateConfig(qc),
   });
 }

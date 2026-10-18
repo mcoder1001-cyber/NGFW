@@ -23,12 +23,12 @@ then commit. (The same fields are also reachable through the advanced editor at 
 
 | Field | Meaning |
 | --- | --- |
-| **Detector** | `webLogin` (web / API sign-in), `ssh`, `vpnAuth` (IKE/EAP), or `portScan` (probes to the box). |
-| **Threshold** | Failures (for `portScan`, distinct ports) from one source within the window before it is blocked. |
-| **Window** | The sliding window the threshold is counted over. |
-| **Block** | How long a first offence is blocked. |
-| **Escalate on repeat** | Double the block time on each repeat offence, up to the cap. |
-| **Maximum block** | The escalation cap — a single block never lasts longer than this. |
+| **Detector** | **Web login** (web / API sign-in), **SSH**, **VPN auth** (IKE/EAP), or **Port scan** (probes to the box). In the configuration document these are `webLogin`, `ssh`, `vpnAuth`, `portScan`. |
+| **Threshold** | Failures (for Port scan, distinct ports) from one source within the window before it is blocked. |
+| **Window (seconds)** | The sliding window the threshold is counted over. |
+| **Block (seconds)** | How long a first offence is blocked. |
+| **Escalate on repeat** | Double the block time on each repeat offence, up to the maximum block. |
+| **Maximum block (seconds)** | The escalation cap — a single block never lasts longer than this. |
 
 A sensible start for the web UI: threshold 5, window 60 s, block 900 s, escalate on, cap 24 h.
 

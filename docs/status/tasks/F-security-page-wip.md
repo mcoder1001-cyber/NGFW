@@ -1,10 +1,14 @@
 # F-security-page — WIP status
 
 Branch: `claude/F-security-page` (worktree `/root/NGFW/.claude/worktrees/wizardly-turing-057676`).
-Base: `origin/main` 99a774734.
-Checkpoints (local = remote, pushed to `origin/claude/F-security-page`):
-- 51e10036a feat(web): build the Security domain page with the auto-block policy tab — pushed.
-- feb6ef0da docs(security): point the auto-block guide at the Security page; F-security-page status — pushed.
+Base: `origin/main` db7b3b536 (rebased 2026-10-18 from 99a774734 on the manager's request; no conflict — main's
+`auto-block.md` addition about enforcement interfaces sits in another hunk and is kept).
+Pre-rebase reviewed head 80bf2477e is archived as `refs/heads/archive/F-security-page-80bf2477e` on origin.
+Checkpoints after the rebase (local = remote, pushed to `origin/claude/F-security-page`):
+- b0c6937eb feat(web): build the Security domain page with the auto-block policy tab (was 51e10036a).
+- ca91ce0af docs(security): point the auto-block guide at the Security page; F-security-page status (was feb6ef0da).
+- 24a96fab5 docs(status): full web test, build and check results (was 3d1c64d03).
+- e442d2bd2 docs(status): PR #239 opened (was 80bf2477e) — pushed with --force-with-lease, reported to the manager.
 Owned files: see `F-security-page-envelope.md`.
 
 ## Completed code
@@ -37,15 +41,22 @@ Owned files: see `F-security-page-envelope.md`.
 - `pnpm run build` (repo root, turbo `build` for all 14 tasks incl. `@ngfw/web` vite build, bundle-budget OK,
   check-no-dev-routes OK): exit 0, 2m13s.
 - `tools/ci.sh check --base origin/main`: `check PASSED` (forbidden patterns, gitleaks, contract guard).
-- Not run here: the hosted quick gate (`tools/ci.sh --base main`) in full — the manager runs it on the PR; the Go
-  agent/API trees are untouched by this task.
+- On the rebased tree e442d2bd2 (2026-10-18): `pnpm --filter @ngfw/web lint` exit 0 (check-logical-css OK, 480
+  files); `pnpm --filter @ngfw/web typecheck` exit 0; `pnpm --filter @ngfw/web test` `Test Files 117 passed (117)`,
+  `Tests 692 passed (692)`; `tools/ci.sh quick` → `CI GATE PASSED` (turbo 35/35 tasks, agent + cli make lint test
+  build, 27 Go test modules in unit mode, deploy/vpp fake-host harness; wall 18m43s, logs
+  `/root/ngfw-wt/logs/ci/wizardly-turing-057676-20261018-061121-2342193`).
+- Not run here: the hosted gate on the PR (manager) and `tools/ci.sh --base main` (contract guard ran via `check`).
 
 ## PR
 - https://github.com/mcoder1001-cyber/NGFW/pull/239 (`claude/F-security-page` → `main`), opened 2026-10-17 with the
   verification output above in its description.
 
 ## Remaining
-- PR review and merge (manager). Live appliance/browser acceptance of the new screen is not claimed here.
+- Independent panel (R1 correctness/tests, R2 security, R6 UX/i18n/docs) is reviewing; the manager forwards the
+  findings. Any MAJOR is fixed in one more commit, the verdict table is recorded here and in the PR body, then the
+  branch is frozen. Merge by the manager after the hosted gate is green on the final head. Live appliance/browser
+  acceptance of the new screen is not claimed here.
 
 ## Current failure
 - none in this task's scope. `python3 tools/docs/generate-reference.py --check` reports drift in
@@ -55,5 +66,6 @@ Owned files: see `F-security-page-envelope.md`.
 
 ## Exact next command
 ```
-gh pr view --repo mcoder1001-cyber/NGFW claude/F-security-page --json url,statusCheckRollup
+# after the panel findings arrive: fix, then
+cd apps/web && pnpm exec vitest run src/domains/security src/App.test.tsx src/nav/nav.test.ts && cd ../.. && tools/ci.sh check --base origin/main
 ```

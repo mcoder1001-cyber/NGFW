@@ -77,6 +77,14 @@ export function SetupWizardPage() {
     queryFn: ({ signal }) => fetchInterfacesState(signal),
     enabled: step === 3 && configureWan,
   });
+  const routes = useQuery({
+    queryKey: ['state', 'setup-wan-routes'],
+    queryFn: ({ signal }) =>
+      fetchRoutes({ vrf: 'default', family: 'ipv4', pageSize: 1000 }, signal),
+    enabled: step === 3 && configureWan,
+  });
+  const wanEdited = useRef(false);
+  const wanLoading = interfaces.isPending || routes.isPending;
   const interfacesUnavailable =
     interfaces.isError || (interfaces.data?.observationErrors?.length ?? 0) > 0;
   const interfaceNames = [

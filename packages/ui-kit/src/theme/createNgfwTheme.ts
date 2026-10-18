@@ -1,3 +1,4 @@
+import { GlobalTheme } from '@amnafzar/common-ui-lib/theme';
 import { createTheme, type Direction, type PaletteMode, type Theme } from '@mui/material/styles';
 
 /** Network status vocabulary used by every interface / tunnel / neighbour indicator in the product. */
@@ -59,18 +60,10 @@ export function createNgfwTheme(
 ): Theme {
   const size = dense ? 'small' : 'medium';
   const denseRowHeight = dense ? 36 : 52;
-  return createTheme({
+  const sharedTheme = mode === 'dark' ? GlobalTheme.darkTheme : GlobalTheme.theme;
+  return createTheme(sharedTheme, {
     direction,
     cssVariables: false,
-    palette: {
-      mode,
-      primary: { main: mode === 'light' ? '#1f3864' : '#8ab4f8' },
-      secondary: { main: mode === 'light' ? '#0b6e7f' : '#7fd1de' },
-      background:
-        mode === 'light'
-          ? { default: '#f4f6f8', paper: '#ffffff' }
-          : { default: '#0f1216', paper: '#171b21' },
-    },
     spacing: 8,
     shape: { borderRadius: 6 },
     typography: {

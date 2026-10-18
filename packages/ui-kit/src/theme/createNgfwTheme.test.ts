@@ -13,6 +13,14 @@ describe('createNgfwTheme', () => {
     expect(contrastRatio(theme.palette.text.primary.length === 7 ? theme.palette.text.primary : '#000000', theme.palette.background.paper)).toBeGreaterThan(1);
   });
 
+  it.each(['light', 'dark'] as const)('%s includes the shared component theme', (mode) => {
+    const theme = createNgfwTheme(mode);
+    expect(theme.palette.gradient.canvas).toContain('gradient');
+    expect(theme.palette.gradient.primary).toContain('gradient');
+    expect(theme.palette.neutral.surface).toBeTruthy();
+    expect(theme.ngfw.status.up).toBe(NGFW_STATUS_COLOURS[mode].up);
+  });
+
   it('follows direction and density', () => {
     expect(createNgfwTheme('light', 'rtl').direction).toBe('rtl');
     expect(createNgfwTheme('light').ngfw.denseRowHeight).toBe(36);

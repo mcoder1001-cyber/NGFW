@@ -171,6 +171,9 @@ overrides:
   '@amnafzar/common-ui-lib>react-dom': 19.3.0
   '@mui/x-data-grid>@mui/x-internals': 9.14.0
   '@mui/x-virtualizer>@mui/x-internals': 9.14.0
+  react: 19.3.0
+  react-dom: 19.3.0
+  '@mui/x-data-grid': 9.14.0
 
 importers:
 
@@ -311,7 +314,7 @@ importers:
     dependencies:
       '@amnafzar/common-ui-lib':
         specifier: file:../../.yalc/@amnafzar/common-ui-lib
-        version: file:.yalc/@amnafzar/common-ui-lib(c9e0f4bbd6d4fe9ec0fd10d895286c0b)
+        version: file:.yalc/@amnafzar/common-ui-lib(c282b819d7fd2444154527ce5d5e9b06)
       '@emotion/react':
         specifier: ^11
         version: 11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
@@ -340,10 +343,10 @@ importers:
         specifier: ^25
         version: 25.10.10(typescript@5.9.3)
       react:
-        specifier: ^19
+        specifier: 19.3.0
         version: 19.3.0
       react-dom:
-        specifier: ^19
+        specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
       react-i18next:
         specifier: ^15
@@ -453,7 +456,7 @@ importers:
     dependencies:
       '@amnafzar/common-ui-lib':
         specifier: file:../../.yalc/@amnafzar/common-ui-lib
-        version: file:.yalc/@amnafzar/common-ui-lib(c9e0f4bbd6d4fe9ec0fd10d895286c0b)
+        version: file:.yalc/@amnafzar/common-ui-lib(c282b819d7fd2444154527ce5d5e9b06)
       '@emotion/cache':
         specifier: ^11
         version: 11.14.0
@@ -461,7 +464,7 @@ importers:
         specifier: ^5
         version: 5.9.1(ajv@8.20.0)(react-hook-form@7.88.0(react@19.3.0))(zod@4.6.5)
       '@mui/x-data-grid':
-        specifier: ^9
+        specifier: 9.14.0
         version: 9.14.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@mui/material@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mui/system@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react-hook-form:
         specifier: ^7.55
@@ -519,10 +522,10 @@ importers:
         specifier: ^26
         version: 26.1.0(supports-color@10.2.2)
       react:
-        specifier: ^19
+        specifier: 19.3.0
         version: 19.3.0
       react-dom:
-        specifier: ^19
+        specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
       react-i18next:
         specifier: ^15
@@ -563,11 +566,6 @@ packages:
 
   '@amnafzar/common-ui-lib@file:.yalc/@amnafzar/common-ui-lib':
     resolution: {directory: .yalc/@amnafzar/common-ui-lib, type: directory}
-    peerDependencies:
-      '@mui/x-data-grid': ^9
-    peerDependenciesMeta:
-      '@mui/x-data-grid':
-        optional: true
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -667,8 +665,8 @@ packages:
     resolution: {integrity: sha512-oWy1aq/I2GmYjpl4PhEAhzflF8VPGKgZeq0xAWTbfD5KBWyxcN0ZP2+WHSUm/5Z6lVMBDLReLcoXwSYoRc/zNQ==}
     peerDependencies:
       '@types/react': ^17 || ^18 || ^19
-      react: ^17 || ^18 || ^19
-      react-dom: ^17 || ^18 || ^19
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -677,8 +675,8 @@ packages:
     resolution: {integrity: sha512-bO9fz25kKtPf+aZVyfQrC0PDmJdmVni31W2hCS5/Owb+inwdIL3XU26pCPRPlt4LSxZrBgLwubXQXQlKaFEZzw==}
     peerDependencies:
       '@types/react': ^17 || ^18 || ^19
-      react: ^17 || ^18 || ^19
-      react-dom: ^17 || ^18 || ^19
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -743,7 +741,7 @@ packages:
     resolution: {integrity: sha512-O000MLDBDdk/EohJPFUqvnp4qnHeYkVP5B0xEG0D/L7cOKP9kefu2DXn8dj74cQfsEzUqh+sr1RzFqiL1o+PpA==}
     peerDependencies:
       '@types/react': '*'
-      react: '>=16.8.0'
+      react: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -759,7 +757,7 @@ packages:
     peerDependencies:
       '@emotion/react': ^11.0.0-rc.0
       '@types/react': '*'
-      react: '>=16.8.0'
+      react: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -770,7 +768,7 @@ packages:
   '@emotion/use-insertion-effect-with-fallbacks@1.2.0':
     resolution: {integrity: sha512-yJMtVdH59sxi/aVJBpk9FQq+OR8ll5GT8oWd57UpeaKEVGab41JWaCFA7FRLoMLloOZF/c/wsPoe+bfGmRKgDg==}
     peerDependencies:
-      react: '>=16.8.0'
+      react: 19.3.0
 
   '@emotion/utils@1.4.2':
     resolution: {integrity: sha512-3vLclRofFziIa3J2wDh9jjbkUz9qk5Vi3IZ/FSTKViB0k+ef0fPV7dYrUIugbgupYDx7v9ud/SjrtEP8Y4xLoA==}
@@ -1481,16 +1479,16 @@ packages:
   '@hello-pangea/dnd@18.0.1':
     resolution: {integrity: sha512-xojVWG8s/TGrKT1fC8K2tIWeejJYTAeJuj36zM//yEm/ZrnZUSFGS15BpO+jGZT1ybWvyXmeDJwPYb4dhWlbZQ==}
     peerDependencies:
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@highcharts/react@5.3.0':
     resolution: {integrity: sha512-gpMB04bE9GcbmaKK3xYLooOqhJMOoewaRwkrl6QxwOfKRMZbiI5xXOlAJv8ewSaF7HywNVOIWzDh4vHlnmxRHw==}
     peerDependencies:
       '@types/react': '>=18'
       highcharts: '>=13.0.0'
-      react: '>=18'
-      react-dom: '>=18'
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -1641,8 +1639,8 @@ packages:
     resolution: {integrity: sha512-cyzXQCtO47ydzxpQtCGSQGOC8Gk3ZUeBXFAxD+CWXYFo5OqZyZUonFl0DwUlTyAfRHntBfw2p3w4s9R6oe1eCA==}
     peerDependencies:
       monaco-editor: '>= 0.25.0 < 1'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@mui/core-downloads-tracker@7.3.11':
     resolution: {integrity: sha512-a7I/b/nBTdXYz2cOSlEmkQ9WWE1x8FHpqMhFPp+Y1VPFxcOw91G5ELOHARQAGSPy5V+UCgJua6K/1x70bAtQPw==}
@@ -1653,7 +1651,7 @@ packages:
     peerDependencies:
       '@mui/material': ^7.3.11
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -1666,8 +1664,8 @@ packages:
       '@emotion/styled': ^11.3.0
       '@mui/material-pigment-css': ^7.3.11
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       '@emotion/react':
         optional: true
@@ -1683,7 +1681,7 @@ packages:
     engines: {node: '>=14.0.0'}
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -1694,7 +1692,7 @@ packages:
     peerDependencies:
       '@emotion/react': ^11.4.1
       '@emotion/styled': ^11.3.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@emotion/react':
         optional: true
@@ -1708,7 +1706,7 @@ packages:
       '@emotion/react': ^11.5.0
       '@emotion/styled': ^11.3.0
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@emotion/react':
         optional: true
@@ -1738,7 +1736,7 @@ packages:
     engines: {node: '>=14.0.0'}
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -1748,7 +1746,7 @@ packages:
     engines: {node: '>=14.0.0'}
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -1761,8 +1759,8 @@ packages:
       '@emotion/styled': ^11.8.1
       '@mui/material': ^7.3.0 || ^9.0.0
       '@mui/system': ^7.3.0 || ^9.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       '@emotion/react':
         optional: true
@@ -1784,8 +1782,8 @@ packages:
       moment: ^2.29.4
       moment-hijri: ^2.1.2 || ^3.0.0
       moment-jalaali: ^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       '@emotion/react':
         optional: true
@@ -1810,22 +1808,22 @@ packages:
     resolution: {integrity: sha512-m4XkKIihP+uWvz18BgSOHtwxCBWtE3Qi2X9hZUdEGW5mk50umziYaCLn9B/3cT9qBU7LirEC8agqpWxDSYjaNw==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@mui/x-internals@9.15.0':
     resolution: {integrity: sha512-1ELNplhYtGt+54f6o3CHcP7Oz7tyLSgYt20D7WItCyD8ssui3fah7gzZdPGGPggSE/it0UbNwQNOHlqJfLAVgQ==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@mui/x-virtualizer@0.7.2':
     resolution: {integrity: sha512-8JYK1KZe7rVMzBRxvEZYt0BYS5zXRDV0HPXqTSwe4TPPuldCjTII7IvlzkSC8yS24+2iDlYo5kBKdTJ8uzfMjg==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -2041,16 +2039,16 @@ packages:
       '@progress/kendo-smartpaste-common': 1.0.0
       '@progress/kendo-svg-icons': ^4.8.0
       '@progress/kendo-webspeech-common': ^1.0.1
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@progress/kendo-react-common@14.4.1':
     resolution: {integrity: sha512-+qNizbBYw9JEVU2JXM4D5sH1tY0CzInyqb1/NKARFmWQIXZ6JN6TJY84/9wgqDhHgxAcf6cOMkcFaJfVUtc6Aw==}
     peerDependencies:
       '@progress/kendo-licensing': ^1.7.2
       '@progress/kendo-svg-icons': ^4.0.0
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@progress/kendo-react-dialogs@14.4.1':
     resolution: {integrity: sha512-ZBcS160Z2yY2DrVSUTF9mF8KHJVErzK/YnZa6Y/BC6qtgvMBGOM/skh1yq8DLBgzUaOtL8fdt/hhRyOK5n2HKg==}
@@ -2060,8 +2058,8 @@ packages:
       '@progress/kendo-react-common': 14.4.1
       '@progress/kendo-react-intl': 14.4.1
       '@progress/kendo-svg-icons': ^4.0.0
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@progress/kendo-react-intl@14.4.1':
     resolution: {integrity: sha512-Ijy71c++GFi4h4iMuI18s9imG0G84VDO9hF2Y55XblWikduCrSlWDEN7Ff1oWFNOpD+cMaVqpcN4FfRMJ5rItw==}
@@ -2069,8 +2067,8 @@ packages:
       '@progress/kendo-intl': ^3.2.1
       '@progress/kendo-licensing': ^1.7.2
       '@progress/kendo-react-common': 14.4.1
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@progress/kendo-react-popup@14.4.1':
     resolution: {integrity: sha512-BLrzn2+pCc629gCrFKOM5983HT/lodoG3eop2CgRRNYavP9RSor/4/m12PoXkAxx3dJSGpRNZP5hipjETGe59w==}
@@ -2078,8 +2076,8 @@ packages:
       '@progress/kendo-licensing': ^1.7.2
       '@progress/kendo-popup-common': ^1.9.5
       '@progress/kendo-react-common': 14.4.1
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   '@progress/kendo-smartpaste-common@1.0.0':
     resolution: {integrity: sha512-XH27wyfkQ7ez/h8bUt1GGgBEA8iMICvqsvch8+pEwZR2SaWUkV0PjeLFXT1ZNSVolEfmzQCKZJbFeYTPkKLBWA==}
@@ -2393,7 +2391,7 @@ packages:
   '@tabler/icons-react@3.49.0':
     resolution: {integrity: sha512-Um59pm5RVNUaQjFUtG0r4oYJbZuBS3tGugAA2tgBg0WufMk34Eio3nsO30RUkLuL2giYPQUNdY9HvqltLLYyNA==}
     peerDependencies:
-      react: '>= 16'
+      react: 19.3.0
 
   '@tabler/icons@3.49.0':
     resolution: {integrity: sha512-l+GnSkFETx0U26icxv1VUFnxxiTqXfCcVRiRAnyMwibupM2S2L/hSaZ9gmSgz01rkrsH/93NvLsxykqdanc6lw==}
@@ -2404,7 +2402,7 @@ packages:
   '@tanstack/react-query@5.103.2':
     resolution: {integrity: sha512-B+fWiYZBc+0uUD5zDZAeLw9dKj7XEsdnuu6zRZ+no6LNKpeE3P3bJ+N6HINjcIlWR6fW3vUoTneEaGa2V6ehqw==}
     peerDependencies:
-      react: ^18 || ^19
+      react: 19.3.0
 
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
@@ -2424,8 +2422,8 @@ packages:
       '@testing-library/dom': ^10.0.0
       '@types/react': ^18.0.0 || ^19.0.0
       '@types/react-dom': ^18.0.0 || ^19.0.0
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3944,19 +3942,19 @@ packages:
   react-dom@19.3.0:
     resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
     peerDependencies:
-      react: ^19.3.0
+      react: 19.3.0
 
   react-dropzone@15.0.0:
     resolution: {integrity: sha512-lGjYV/EoqEjEWPnmiSvH4v5IoIAwQM2W4Z1C0Q/Pw2xD0eVzKPS359BQTUMum+1fa0kH2nrKjuavmTPOGhpLPg==}
     engines: {node: '>= 10.13'}
     peerDependencies:
-      react: '>= 16.8 || 18.0.0'
+      react: 19.3.0
 
   react-error-boundary@6.1.6:
     resolution: {integrity: sha512-CDXPnXDGyFIbkwaaJ6u+xgsRmJhSi6YdgUDW1vnyKHfXp1a9pfAlM+ZET2CDu80/A+8iRcmXN0NSY9BCCoWP5A==}
     peerDependencies:
       '@types/react': ^18.0.0 || ^19.0.0
-      react: ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3965,13 +3963,13 @@ packages:
     resolution: {integrity: sha512-QRaLOWhX93YCnMiRfnOFRSwWXZNt8qhm2JTZwypoDvKpSffTJHmpzMXt8U6PV5UThvL3IiiLDUWe2nHMtz6Mmw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      react: ^16.8.0 || ^17 || ^18 || ^19
+      react: 19.3.0
 
   react-i18next@15.7.4:
     resolution: {integrity: sha512-nyU8iKNrI5uDJch0z9+Y5XEr34b0wkyYj3Rp+tfbahxtlswxSCjcUL9H0nqXo9IR3/t5Y5PKIA3fx3MfUyR9Xw==}
     peerDependencies:
       i18next: '>= 23.4.0'
-      react: '>= 16.8.0'
+      react: 19.3.0
       react-dom: '*'
       react-native: '*'
       typescript: ^5
@@ -3996,7 +3994,7 @@ packages:
     resolution: {integrity: sha512-KQopgqFo/p/fgmAs5qz6p5RWaNAzq40WAu7fJIXnQpYxFPbJYtsJPWvGeF2rOBaY/kEuV77AVsX8TsQzKm+A/g==}
     peerDependencies:
       '@types/react': ^18.2.25 || ^19
-      react: ^18.0 || ^19
+      react: 19.3.0
       redux: ^5.0.0
     peerDependenciesMeta:
       '@types/react':
@@ -4012,8 +4010,8 @@ packages:
     resolution: {integrity: sha512-PUPQcMhMGRAslLcvtlPz/kmzBEWPhLdgLFrL7pLNepBL6dX0lWj4WD2cUYVgYCuT3jxvghYFg81cDTj44DhetQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
-      react: '>=18'
-      react-dom: '>=18'
+      react: 19.3.0
+      react-dom: 19.3.0
     peerDependenciesMeta:
       react-dom:
         optional: true
@@ -4021,27 +4019,27 @@ packages:
   react-toastify@11.1.0:
     resolution: {integrity: sha512-e9h23x3phN0wbFeB6yovmWp7lobzV4CaCH0LO8nVP6H7Y+3GbcLpIzMm9dJhcp1RXbpyfvjgpfXqO80QAmn7sg==}
     peerDependencies:
-      react: ^18 || ^19
-      react-dom: ^18 || ^19
+      react: 19.3.0
+      react-dom: 19.3.0
 
   react-transition-group@4.4.5:
     resolution: {integrity: sha512-pZcd1MCJoiKiBR2NRxeCRg13uCXbydPnmB4EOeRrY7480qNWO8IIgQG6zlDkm6uRMsURXPuKq0GWtiM59a5Q6g==}
     peerDependencies:
-      react: '>=16.6.0'
-      react-dom: '>=16.6.0'
+      react: 19.3.0
+      react-dom: 19.3.0
 
   react-virtuoso@4.18.16:
     resolution: {integrity: sha512-BumVOhd0mNKlBkqeHojlLP8IRlJ2oYU7haU92GvBSlSzcdlWUAxIu1gphKm5gLQm07gMzmoQRXdVQeiG4TKSeQ==}
     peerDependencies:
-      react: '>=16 || >=17 || >= 18 || >= 19'
-      react-dom: '>=16 || >=17 || >= 18 || >=19'
+      react: 19.3.0
+      react-dom: 19.3.0
 
   react-window@1.8.11:
     resolution: {integrity: sha512-+SRbUVT2scadgFSWx+R1P754xHPEqvcfSfVX10QYg6POOz+WNgkN48pS+BtZNIMGiL1HYrSEiCkwsMS15QogEQ==}
     engines: {node: '>8.0.0'}
     peerDependencies:
-      react: ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
+      react-dom: 19.3.0
 
   react@19.3.0:
     resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
@@ -4407,7 +4405,7 @@ packages:
       '@emotion/server': ^11.4.0
       '@mui/material': ^5.0.0 || ^6.0.0 || ^7.0.0 || ^9.0.0
       '@types/react': ^16.8.0 || ^17.0.2 || ^18.0.0 || ^19.0.0
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
     peerDependenciesMeta:
       '@emotion/server':
         optional: true
@@ -4538,7 +4536,7 @@ packages:
   use-sync-external-store@1.7.0:
     resolution: {integrity: sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A==}
     peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.0
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -4725,19 +4723,17 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@amnafzar/common-ui-lib@file:.yalc/@amnafzar/common-ui-lib(c9e0f4bbd6d4fe9ec0fd10d895286c0b)':
+  '@amnafzar/common-ui-lib@file:.yalc/@amnafzar/common-ui-lib(c282b819d7fd2444154527ce5d5e9b06)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
       '@emotion/styled': 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
       '@hello-pangea/dnd': 18.0.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@highcharts/react': 5.3.0(@types/react@19.3.0)(highcharts@13.1.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@monaco-editor/react': 4.7.0(monaco-editor@0.54.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@mui/icons-material': 7.3.11(@mui/material@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@mui/material': 7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@mui/x-date-pickers': 9.15.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@mui/material@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mui/system@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(date-fns@2.30.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@progress/kendo-react-dialogs': 14.4.1(5e39c3761ac9025a918b39f3ffdb4ef8)
+      '@progress/kendo-react-dialogs': 14.4.1(c7f4f437865bc20725d3bdf49e992137)
       '@progress/kendo-theme-default': 13.1.1
-      '@tabler/icons': 3.49.0
       '@tabler/icons-react': 3.49.0(react@19.3.0)
       '@tanstack/react-query': 5.103.2(react@19.3.0)
       '@types/react-window': 1.8.8
@@ -4759,8 +4755,6 @@ snapshots:
       react-window: 1.8.11(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       tss-react: 4.9.21(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@mui/material@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       tsup: 8.5.1(@swc/core@1.16.2)(postcss@8.5.28)(supports-color@10.2.2)(tsx@4.23.15)(typescript@5.9.3)
-    optionalDependencies:
-      '@mui/x-data-grid': 9.14.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@mui/material@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mui/system@7.3.11(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     transitivePeerDependencies:
       - '@emotion/server'
       - '@microsoft/api-extractor'
@@ -5910,7 +5904,7 @@ snapshots:
 
   '@progress/kendo-popup-common@1.9.5': {}
 
-  '@progress/kendo-react-buttons@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-intl@14.4.1(@progress/kendo-intl@3.2.1)(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-popup@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-popup-common@1.9.5)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-smartpaste-common@1.0.0)(@progress/kendo-svg-icons@4.12.0)(@progress/kendo-webspeech-common@1.0.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@progress/kendo-react-buttons@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-intl@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-popup@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-smartpaste-common@1.0.0)(@progress/kendo-svg-icons@4.12.0)(@progress/kendo-webspeech-common@1.0.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@progress/kendo-licensing': 1.11.3
       '@progress/kendo-react-common': 14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -5932,10 +5926,10 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@progress/kendo-react-dialogs@14.4.1(5e39c3761ac9025a918b39f3ffdb4ef8)':
+  '@progress/kendo-react-dialogs@14.4.1(c7f4f437865bc20725d3bdf49e992137)':
     dependencies:
       '@progress/kendo-licensing': 1.11.3
-      '@progress/kendo-react-buttons': 14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-intl@14.4.1(@progress/kendo-intl@3.2.1)(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-popup@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-popup-common@1.9.5)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-smartpaste-common@1.0.0)(@progress/kendo-svg-icons@4.12.0)(@progress/kendo-webspeech-common@1.0.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@progress/kendo-react-buttons': 14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-intl@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-react-popup@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@progress/kendo-smartpaste-common@1.0.0)(@progress/kendo-svg-icons@4.12.0)(@progress/kendo-webspeech-common@1.0.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@progress/kendo-react-common': 14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@progress/kendo-react-intl': 14.4.1(@progress/kendo-intl@3.2.1)(@progress/kendo-licensing@1.11.3)(@progress/kendo-react-common@14.4.1(@progress/kendo-licensing@1.11.3)(@progress/kendo-svg-icons@4.12.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@progress/kendo-svg-icons': 4.12.0

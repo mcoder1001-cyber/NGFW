@@ -23,3 +23,7 @@ overrides:
   "@amnafzar/common-ui-lib>react-dom": 19.3.0
   "@mui/x-data-grid>@mui/x-internals": 9.14.0
   "@mui/x-virtualizer>@mui/x-internals": 9.14.0
+
+  react: 19.3.0
+  react-dom: 19.3.0
+  "@mui/x-data-grid": 9.14.0

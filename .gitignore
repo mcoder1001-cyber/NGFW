@@ -20,3 +20,6 @@ deploy/vpp/.build/
 *.tfstate.*
 .terraform/
 /.scratch/
+
+# Locally packaged shared UI build
+/.yalc/

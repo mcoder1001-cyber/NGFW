@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-10-11'
+updated: '2026-10-18'
 tasks:
   - id: P01
     title: Monorepo scaffold
@@ -5900,3 +5900,108 @@ tasks:
     notes: Only obsolete blanket IPsec and PKI warnings removed; intrinsic guards preserved. R1/R2/R4/R7 APPROVE and complete independent quick PASS; PR192 exact hosted and actual main quick SUCCESS.
     worker_status: completed; all owned commands stopped
     completion_evidence: PR192 head dada9d03c6da4a0fc0b4814827506b5bbeb9263b; merge 4788c90f4adaf57737b0cb8394452eadd58d53a1; hosted quick37362476115 SUCCESS; actual main quick37365022569 SUCCESS
+  - id: deploy-hosts-lineage-20261017
+    title: 'Deploy helper: verify source lineage, stable route comparison, agent stability window'
+    prompt: docs/status/2026-10-17-unmerged-audit-product-review.md
+    template: ''
+    stage: S5
+    deps: [P10]
+    priority: 1
+    est_hours: 4
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up from the 2026-10-17 independent product review; owner-approved merge chain
+    files_owned: deploy/deploy-hosts.sh deploy/debian/ngfw/prepare.sh deploy/debian/ngfw/tests/test_deploy_hosts.py docs/install/deploy-hosts.md docs/status/tasks/deploy-hosts-lineage-20261017*
+    branch: fix/deploy-hosts-lineage-routes-20261017
+    worktree: ''
+    owner: root manager
+    started: '2026-10-17'
+    finished: '2026-10-18'
+    notes: Fixes from the 2026-10-17 independent review (D-249 amends D-248). Panel R1/R2/R7/R8 APPROVE after verify rounds; fixtures 28/28 and 4/4.
+    worker_status: completed; session finished
+    completion_evidence: PR240 head d50d4fd2cda6aa8158876454f3dd6d408cc6ad4d; merge 3f099b53087b08401e0c916ca39af5ee1dba8828; hosted quick and packaging PASS; main CI gate and packaging SUCCESS on 3f099b530
+  - id: deploy-hosts-minors-20261017
+    title: 'Deploy helper: close the five minor review items'
+    prompt: docs/status/2026-10-17-unmerged-audit-product-review.md
+    template: ''
+    stage: S5
+    deps: [deploy-hosts-lineage-20261017]
+    priority: 1
+    est_hours: 2
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up from the 2026-10-17 independent product review; owner-approved merge chain
+    files_owned: deploy/deploy-hosts.sh deploy/debian/ngfw/tests/test_deploy_hosts.py docs/install/deploy-hosts.md docs/status/tasks/deploy-hosts-minors-20261017*
+    branch: fix/deploy-hosts-minors-20261017
+    worktree: ''
+    owner: root manager
+    started: '2026-10-17'
+    finished: '2026-10-18'
+    notes: D-250. Panel R1/R7/R8 APPROVE in verify rounds, R2 APPROVE WITH CHANGES (no MAJOR); fixtures 33/33. Real appliance upgrade remains NOT RUN (DEFERRED-ACCEPTANCE).
+    worker_status: completed; session finished
+    completion_evidence: PR242 head 99c552b1d2b8c0b43585f02ccb633a66f5dffe58; merge efd114863; hosted quick PASS run 39034821086; main CI gate and packaging SUCCESS on efd114863
+  - id: agent-allifs-unbound-nics
+    title: 'Agent: all-interfaces block lists skip unbound and released NICs'
+    prompt: docs/status/2026-10-17-unmerged-audit-product-review.md
+    template: ''
+    stage: S4
+    deps: [F-global-blocking, F-default-vpp-nics]
+    priority: 1
+    est_hours: 3
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up from the 2026-10-17 independent product review; owner-approved merge chain
+    files_owned: apps/agent/internal/desired/global_blocking.go apps/agent/internal/desired/acl*.go apps/agent/internal/agent/autoblock* docs/status/tasks/agent-allifs-unbound-nics*
+    branch: claude/agent-allifs-unbound-nics
+    worktree: ''
+    owner: root manager
+    started: '2026-10-17'
+    finished: '2026-10-18'
+    notes: D-251. Fixes the pre-existing agent defect found by R4 of PR238. Panel R1/R2/R4/R6/R7 APPROVE after verify rounds; agent gate 143 ok.
+    worker_status: completed; session finished
+    completion_evidence: PR241 head 84a17d8b2; merge c3ef9bf369baddb8c29d70684e3d3643fa4e6d80; hosted quick PASS on a4e22efa8 and 84a17d8b2; main CI gate SUCCESS on c3ef9bf36
+  - id: boot-nic-registration-port
+    title: Register missing data NICs at every API boot (port of dev-host 76484d79f)
+    prompt: docs/status/2026-10-17-unmerged-audit-product-review.md
+    template: ''
+    stage: S4
+    deps: [F-default-vpp-nics, agent-allifs-unbound-nics]
+    priority: 1
+    est_hours: 6
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up from the 2026-10-17 independent product review; owner-approved merge chain
+    files_owned: apps/api/src/features/default-vpp-nics/* deploy/systemd/ngfw-api.service docs/decisions/PENDING-automatic-network-bootstrap.md docs/user/interfaces/default-dataplane-nics.md docs/status/tasks/boot-nic-registration-port*
+    branch: claude/boot-nic-registration-port
+    worktree: ''
+    owner: root manager
+    started: '2026-10-17'
+    finished: '2026-10-18'
+    notes: D-252 amends D-164 on the owner's 2026-10-10 instruction. Panel R1/R2/R4/R6/R7/R8 APPROVE after verify rounds; R4 condition closed by PR241. Appliance acceptance NOT RUN.
+    worker_status: completed; session finished
+    completion_evidence: PR238 head a5a1990fd2df224d47eb212cdcedd2bc70ed82fe; merge db7b3b536263cc7f83c1874419d500e5b78f92a1; hosted quick and packaging PASS; main CI gate and packaging SUCCESS on db7b3b536
+  - id: F-security-page
+    title: 'Web: Security domain page with auto-block policy and blocked sources tabs'
+    prompt: docs/status/2026-10-17-unmerged-audit-product-review.md
+    template: ''
+    stage: S4
+    deps: [F-bruteforce-block]
+    priority: 1
+    est_hours: 4
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up from the 2026-10-17 independent product review; owner-approved merge chain
+    files_owned: apps/web/src/domains/security/* apps/web/src/router.tsx apps/web/src/nav/nav.ts apps/web/src/locales/*/security.json docs/user/security/auto-block.md docs/status/tasks/F-security-page*
+    branch: claude/F-security-page
+    worktree: ''
+    owner: root manager
+    started: '2026-10-17'
+    finished: '2026-10-18'
+    notes: Panel R1 APPROVE WITH CHANGES (0 MAJOR), R2 APPROVE, R6 APPROVE; seven minor findings fixed; web tests 694 pass; local and hosted quick PASS.
+    worker_status: completed; session finished
+    completion_evidence: PR239 head 5ede38427b09f5c9ed28b24c96578722a378031e; merge 9598807d169137b9b423e56c09ef5bbcc0150ae8; hosted quick PASS; main CI gate SUCCESS on 9598807d1

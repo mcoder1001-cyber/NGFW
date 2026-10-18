@@ -1,12 +1,12 @@
 # Progress
 
-Updated 2026-10-11 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
+Updated 2026-10-18 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 100.0% by hours (1578.5/1578.5 h), 100.0% by tasks (212/212)**
+**Overall: 100.0% by hours (1597.5/1597.5 h), 100.0% by tasks (217/217)**
 
 | state | tasks |
 |---|---|
-| merged | 212 |
+| merged | 217 |
 | review | 0 |
 | running | 0 |
 | ready | 0 |
@@ -20,8 +20,8 @@ Updated 2026-10-11 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 274 / 274 | 100.0% | 29/29 | 0 | 0 | 0 |
 | S3 | 19 / 19 | 100.0% | 2/2 | 0 | 0 | 0 |
-| S4 | 1003.0 / 1003.0 | 100.0% | 151/151 | 0 | 0 | 0 |
-| S5 | 155.5 / 155.5 | 100.0% | 16/16 | 0 | 0 | 0 |
+| S4 | 1016.0 / 1016.0 | 100.0% | 154/154 | 0 | 0 | 0 |
+| S5 | 161.5 / 161.5 | 100.0% | 18/18 | 0 | 0 | 0 |
 | S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
 Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.

@@ -1,5 +1,5 @@
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlertTitle as AlertTitle } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 
 /**

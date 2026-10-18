@@ -1,24 +1,23 @@
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { StatusChip } from '@ngfw/ui-kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { useWanState, type WanGroupState } from './queries';
 
@@ -88,49 +87,139 @@ function WanGroup({ g }: { g: WanGroupState }) {
         )}
       </Stack>
       <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label={t('membersOf', { name: g.name })}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.interface')}</TableCell>
-              <TableCell>{t('col.health')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.loss')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.latency')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.weight')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.priority')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {g.members.map((m) => (
-              <TableRow key={m.interface}>
-                <TableCell dir="ltr">
-                  <bdi>{interfaceLabel(m.interface)}</bdi>
-                  {g.mode === 'failover' && m.interface === g.active && (
-                    <Chip
-                      size="small"
-                      color="success"
-                      variant="outlined"
-                      label={t('active')}
-                      sx={{ marginInlineStart: 1 }}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <StatusChip
-                    size="small"
-                    status={m.up ? UP : DOWN}
-                    label={m.up ? t('up') : t('down')}
-                  />
-                </TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{m.lossPct}%</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>
-                  {m.latencyMs ? `${m.latencyMs} ms` : '—'}
-                </TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{m.weight}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{m.priority}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        {(() => {
+          const gridItems = g.members;
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              items={gridItems}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.interface')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return (
+                      <>
+                        <bdi>{m.interface}</bdi>
+                        {g.mode === 'failover' && m.interface === g.active && (
+                          <Chip
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            label={t('active')}
+                            sx={{ marginInlineStart: 1 }}
+                          />
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.health')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return (
+                      <>
+                        <StatusChip
+                          size="small"
+                          status={m.up ? UP : DOWN}
+                          label={m.up ? t('up') : t('down')}
+                        />
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '2',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.loss')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return <>{m.lossPct}%</>;
+                  },
+                },
+                {
+                  key: '3',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.latency')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return <>{m.latencyMs ? `${m.latencyMs} ms` : '—'}</>;
+                  },
+                },
+                {
+                  key: '4',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.weight')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return <>{m.weight}</>;
+                  },
+                },
+                {
+                  key: '5',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.priority')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return <>{m.priority}</>;
+                  },
+                },
+              ]}
+              tableProps={{
+                size: 'small',
+                'aria-label': t('membersOf', { name: g.name }),
+              }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const m = gridRow;
+                return m.interface;
+              }}
+              rowProps={(_nativeRow, _gridIndex) => {
+                return {};
+              }}
+              cellProps={(_nativeRow, column, _gridIndex) => {
+                switch (column.key) {
+                  case '0':
+                    return { dir: 'ltr' };
+                  case '1':
+                    return {};
+                  case '2':
+                    return { sx: { textAlign: 'end' } };
+                  case '3':
+                    return { sx: { textAlign: 'end' } };
+                  case '4':
+                    return { sx: { textAlign: 'end' } };
+                  case '5':
+                    return { sx: { textAlign: 'end' } };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={null}
+            />
+          );
+        })()}
       </TableContainer>
     </Box>
   );

@@ -1,4 +1,4 @@
-import Box from '@mui/material/Box';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
 import { Fragment } from 'react';
 import { Mono } from './common';
 import type { PathPart } from './model';

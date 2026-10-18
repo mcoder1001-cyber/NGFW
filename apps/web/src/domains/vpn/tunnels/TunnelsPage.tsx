@@ -1,10 +1,10 @@
-import Alert from '@mui/material/Alert';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
-import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgFormControlLabel as FormControlLabel } from '@amnafzar/common-ui-lib/primitives';
+import { PgSwitch as Switch } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgTab as Tab } from '@amnafzar/common-ui-lib/primitives';
+import { PgTabs as Tabs } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

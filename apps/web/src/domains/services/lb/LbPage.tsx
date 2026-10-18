@@ -1,28 +1,26 @@
-import AddIcon from '@mui/icons-material/Add';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Collapse from '@mui/material/Collapse';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgKeyboardArrowDownIcon as KeyboardArrowDownIcon,
+  PgKeyboardArrowUpIcon as KeyboardArrowUpIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -186,36 +184,26 @@ export function LbPage() {
           </Button>
         </Stack>
         <TableContainer>
-          <Table size="small" aria-label={t('vips.title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell />
-                <TableCell>{t('col.name')}</TableCell>
-                <TableCell>{t('col.prefix')}</TableCell>
-                <TableCell>{t('col.protocol')}</TableCell>
-                <TableCell>{t('col.encap')}</TableCell>
-                <TableCell>{t('col.servers')}</TableCell>
-                <TableCell>{t('col.state')}</TableCell>
-                <TableCell>{t('col.removed')}</TableCell>
-                <TableCell align={RIGHT}>{t('col.actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {names.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9}>
-                    <Typography color="text.secondary">{t('vips.empty')}</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {names.map((name) => {
-                const v = vips[name] ?? {};
-                const it: LbVipItem | undefined = live.get(name);
-                const inUse = it?.servers.filter((s) => s.inUse).length ?? 0;
-                return (
-                  <Fragment key={name}>
-                    <TableRow hover>
-                      <TableCell padding={CHECKBOX}>
+          {(() => {
+            const nativeRows = names.map((name) => {
+              const v = vips[name] ?? {};
+              const it: LbVipItem | undefined = live.get(name);
+              const inUse = it?.servers.filter((s) => s.inUse).length ?? 0;
+              return { name, v, it, inUse };
+            });
+            return (
+              <ReactGeereedMaterial
+                footer={false}
+                hideFilterBuilderComponent
+                items={nativeRows}
+                columns={[
+                  {
+                    key: 'details',
+                    headerRenderer: () => <></>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { name }: (typeof nativeRows)[number]) => (
+                      <>
                         <IconButton
                           size="small"
                           aria-label={t('vips.expand', { name })}
@@ -223,15 +211,61 @@ export function LbPage() {
                         >
                           {open[name] ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                         </IconButton>
-                      </TableCell>
-                      <TableCell>{name}</TableCell>
-                      <TableCell dir="ltr">{v.prefix}</TableCell>
-                      <TableCell>{protoPort(v)}</TableCell>
-                      <TableCell>{v.encap}</TableCell>
-                      <TableCell>
-                        {t('servers.count', { inUse, configured: (v.servers ?? []).length })}
-                      </TableCell>
-                      <TableCell>
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'name',
+                    headerRenderer: () => <>{t('col.name')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { name }: (typeof nativeRows)[number]) => (
+                      <>{name}</>
+                    ),
+                  },
+                  {
+                    key: 'prefix',
+                    headerRenderer: () => <>{t('col.prefix')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { v }: (typeof nativeRows)[number]) => (
+                      <>{v.prefix}</>
+                    ),
+                  },
+                  {
+                    key: 'protocol',
+                    headerRenderer: () => <>{t('col.protocol')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { v }: (typeof nativeRows)[number]) => (
+                      <>{protoPort(v)}</>
+                    ),
+                  },
+                  {
+                    key: 'encap',
+                    headerRenderer: () => <>{t('col.encap')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { v }: (typeof nativeRows)[number]) => (
+                      <>{v.encap}</>
+                    ),
+                  },
+                  {
+                    key: 'servers',
+                    headerRenderer: () => <>{t('col.servers')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { v, inUse }: (typeof nativeRows)[number]) => (
+                      <>{t('servers.count', { inUse, configured: (v.servers ?? []).length })}</>
+                    ),
+                  },
+                  {
+                    key: 'state',
+                    headerRenderer: () => <>{t('col.state')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { it }: (typeof nativeRows)[number]) => (
+                      <>
                         {it ? (
                           <StatusChip
                             size="small"
@@ -243,9 +277,25 @@ export function LbPage() {
                             {t('status.pending')}
                           </Typography>
                         )}
-                      </TableCell>
-                      <TableCell>{it ? removedCopies(it) : ''}</TableCell>
-                      <TableCell align={RIGHT}>
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'removed',
+                    headerRenderer: () => <>{t('col.removed')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { it }: (typeof nativeRows)[number]) => (
+                      <>{it ? removedCopies(it) : ''}</>
+                    ),
+                  },
+                  {
+                    key: 'actions',
+                    headerRenderer: () => <>{t('col.actions')}</>,
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value: unknown, { name, v, it }: (typeof nativeRows)[number]) => (
+                      <>
                         <Stack direction="row" gap={0.5} justifyContent="flex-end">
                           <Button
                             size="small"
@@ -275,60 +325,38 @@ export function LbPage() {
                             {t('delete')}
                           </Button>
                         </Stack>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell
-                        colSpan={9}
-                        sx={{ py: 0, borderBottom: open[name] ? undefined : 'none' }}
-                      >
-                        <Collapse in={open[name] ?? false} unmountOnExit>
-                          <Table
-                            size="small"
-                            aria-label={t('servers.title', { name })}
-                            sx={{ mb: 1 }}
-                          >
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>{t('servers.address')}</TableCell>
-                                <TableCell>{t('servers.state')}</TableCell>
-                                <TableCell>{t('servers.configured')}</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {(it?.servers ?? []).map((s, i) => (
-                                <TableRow key={`${s.address}-${i}`}>
-                                  <TableCell dir="ltr">{s.address}</TableCell>
-                                  <TableCell>
-                                    <StatusChip
-                                      size="small"
-                                      status={serverStatus(s.inUse)}
-                                      label={t(s.inUse ? 'servers.inUse' : 'servers.removed')}
-                                    />
-                                  </TableCell>
-                                  <TableCell>{s.configured ? t('yes') : t('no')}</TableCell>
-                                </TableRow>
-                              ))}
-                              {(v.servers ?? [])
-                                .filter(
-                                  (c) =>
-                                    !(it?.servers ?? []).some(
-                                      (s) => s.inUse && s.address === c.address,
-                                    ),
-                                )
-                                .map((c) => (
-                                  <TableRow key={`cfg-${c.address}`}>
-                                    <TableCell dir="ltr">{c.address}</TableCell>
-                                    <TableCell>
-                                      <Typography variant="body2" color="text.secondary">
-                                        {t('servers.notInVpp')}
-                                      </Typography>
-                                    </TableCell>
-                                    <TableCell>{t('yes')}</TableCell>
-                                  </TableRow>
-                                ))}
-                            </TableBody>
-                          </Table>
+                      </>
+                    ),
+                  },
+                ]}
+                rowKey={(item) => {
+                  const { name } = item as (typeof nativeRows)[number];
+                  return name;
+                }}
+                rowProps={() => {
+                  return { hover: true };
+                }}
+                cellProps={(_item, column) => {
+                  switch (column.key) {
+                    case 'details':
+                      return { padding: CHECKBOX };
+                    case 'prefix':
+                      return { dir: 'ltr' };
+                    case 'actions':
+                      return { align: RIGHT };
+                    default:
+                      return {};
+                  }
+                }}
+                moreDetailTable={{
+                  hideToggle: true,
+                  isExpanded: (item) => Boolean(open[(item as (typeof nativeRows)[number]).name]),
+                  customComponent: {
+                    customRowComponent: (item) => {
+                      const { name, it, v } = item as (typeof nativeRows)[number];
+                      return (
+                        <>
+                          <VipServers name={name} vip={v} item={it} />
                           {it && (
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                               {t('vips.detail', {
@@ -339,14 +367,28 @@ export function LbPage() {
                               })}
                             </Typography>
                           )}
-                        </Collapse>
-                      </TableCell>
-                    </TableRow>
-                  </Fragment>
-                );
-              })}
-            </TableBody>
-          </Table>
+                        </>
+                      );
+                    },
+                  },
+                }}
+                tableProps={{ size: 'small', 'aria-label': t('vips.title') }}
+                emptyContent={
+                  <>
+                    <Typography color="text.secondary">{t('vips.empty')}</Typography>
+                  </>
+                }
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+              />
+            );
+          })()}
         </TableContainer>
       </Paper>
 
@@ -410,5 +452,92 @@ export function LbPage() {
         </DialogContent>
       </Dialog>
     </Stack>
+  );
+}
+
+/** Native grid for applied servers and configured addresses awaiting VPP. */
+function VipServers({
+  name,
+  vip,
+  item,
+}: {
+  name: string;
+  vip: Partial<LbVipConfig>;
+  item: LbVipItem | undefined;
+}) {
+  const { t } = useTranslation(NS);
+  const rows = [
+    ...(item?.servers ?? []).map((server, index) => ({
+      key: `${server.address}-${index}`,
+      address: server.address,
+      inUse: server.inUse as boolean | undefined,
+      configured: server.configured,
+    })),
+    ...(vip.servers ?? [])
+      .filter(
+        (server) =>
+          !(item?.servers ?? []).some((live) => live.inUse && live.address === server.address),
+      )
+      .map((server) => ({
+        key: `cfg-${server.address}`,
+        address: server.address,
+        inUse: undefined,
+        configured: true,
+      })),
+  ];
+  return (
+    <ReactGeereedMaterial
+      footer={false}
+      hideFilterBuilderComponent
+      items={rows}
+      columns={[
+        {
+          key: 'address',
+          headerRenderer: () => <>{t('servers.address')}</>,
+          sortable: false,
+          filterable: false,
+          renderer: (_value: unknown, row: (typeof rows)[number]) => <>{row.address}</>,
+        },
+        {
+          key: 'state',
+          headerRenderer: () => <>{t('servers.state')}</>,
+          sortable: false,
+          filterable: false,
+          renderer: (_value: unknown, row: (typeof rows)[number]) =>
+            row.inUse === undefined ? (
+              <Typography variant="body2" color="text.secondary">
+                {t('servers.notInVpp')}
+              </Typography>
+            ) : (
+              <StatusChip
+                size="small"
+                status={serverStatus(row.inUse)}
+                label={t(row.inUse ? 'servers.inUse' : 'servers.removed')}
+              />
+            ),
+        },
+        {
+          key: 'configured',
+          headerRenderer: () => <>{t('servers.configured')}</>,
+          sortable: false,
+          filterable: false,
+          renderer: (_value: unknown, row: (typeof rows)[number]) => (
+            <>{row.configured ? t('yes') : t('no')}</>
+          ),
+        },
+      ]}
+      rowKey={(item) => (item as (typeof rows)[number]).key}
+      cellProps={(_item, column) => (column.key === 'address' ? { dir: 'ltr' } : {})}
+      tableProps={{ size: 'small', 'aria-label': t('servers.title', { name }), sx: { mb: 1 } }}
+      emptyContent={null}
+      noFormWrapper
+      embedded
+      memoEnable={false}
+      hidePagination
+      hideToolbar
+      search={false}
+      exportToCSV={false}
+      sortable={false}
+    />
   );
 }

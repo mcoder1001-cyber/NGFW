@@ -1,30 +1,28 @@
-import { serviceText as productText } from '../../../product-text';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import LinearProgress from '@mui/material/LinearProgress';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgUploadFileIcon as UploadFileIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogContentText as DialogContentText,
+  PgDialogTitle as DialogTitle,
+  PgFormControlLabel as FormControlLabel,
+  PgLinearProgress as LinearProgress,
+  PgRadio as Radio,
+  PgRadioGroup as RadioGroup,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import type { AddressMatch, ServiceMatch } from '@ngfw/schema';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText as productText } from '../../../product-text';
 import { addressText, serviceText, type ImportResult } from './model';
 import { Mono } from './parts';
 import { importCsv, invalidateAcl } from './queries';
@@ -194,26 +192,55 @@ function CheckResult({ result }: { result: ImportResult }) {
       </Alert>
       {result.errors.length > 0 && (
         <Box sx={{ maxBlockSize: 220, overflow: 'auto' }}>
-          <Table size="small" aria-label={t('import.errors')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('import.line')}</TableCell>
-                <TableCell>{t('import.column')}</TableCell>
-                <TableCell>{t('import.message')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {result.errors.map((e, i) => (
-                <TableRow key={i}>
-                  <TableCell>{e.line !== undefined ? n(e.line) : ''}</TableCell>
-                  <TableCell>{e.column ? <Mono>{e.column}</Mono> : null}</TableCell>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('import.errors') }}
+            columns={[
+              {
+                key: 'column0',
+                headerRenderer: () => t('import.line'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column1',
+                headerRenderer: () => t('import.column'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column2',
+                headerRenderer: () => t('import.message'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(result.errors.map((e, i) => ({
+                id: i,
+                column0: e.line !== undefined ? n(e.line) : '',
+                column1: e.column ? <Mono>{e.column}</Mono> : null,
+                column2: (
+                  <>
                     <bdi>{productText(e.message)}</bdi>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
           {result.errorCount > result.errors.length && (
             <Typography variant="caption" color="text.secondary">
               {t('import.moreErrors', {
@@ -236,53 +263,96 @@ function CheckResult({ result }: { result: ImportResult }) {
             {t('import.preview', { count: result.preview.length, n: n(result.preview.length) })}
           </Typography>
           <Box sx={{ maxBlockSize: 260, overflow: 'auto' }}>
-            <Table size="small" aria-label={t('import.previewLabel')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('col.sequence')}</TableCell>
-                  <TableCell>{t('col.action')}</TableCell>
-                  <TableCell>{t('col.source')}</TableCell>
-                  <TableCell>{t('col.destination')}</TableCell>
-                  <TableCell>{t('col.service')}</TableCell>
-                  <TableCell>{t('col.description')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {result.preview.map((r, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      {typeof r['sequence'] === 'number'
-                        ? fmt.number(r['sequence'], { useGrouping: false })
-                        : ''}
-                    </TableCell>
-                    <TableCell>
-                      {t(`enum.action.${String(r['action'])}`, {
-                        defaultValue: String(r['action'] ?? ''),
-                      })}
-                    </TableCell>
-                    <TableCell>
+            <ReactGeereedMaterial
+              tableProps={{ size: 'small', 'aria-label': t('import.previewLabel') }}
+              columns={[
+                {
+                  key: 'sequence',
+                  headerRenderer: () => t('col.sequence'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'action',
+                  headerRenderer: () => t('col.action'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'source',
+                  headerRenderer: () => t('col.source'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'destination',
+                  headerRenderer: () => t('col.destination'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'service',
+                  headerRenderer: () => t('col.service'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'description',
+                  headerRenderer: () => t('col.description'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+              ]}
+              items={[
+                ...(result.preview.map((r, i) => ({
+                  id: i,
+                  sequence:
+                    typeof r['sequence'] === 'number'
+                      ? fmt.number(r['sequence'], { useGrouping: false })
+                      : '',
+                  action: t(`enum.action.${String(r['action'])}`, {
+                    defaultValue: String(r['action'] ?? ''),
+                  }),
+                  source: (
+                    <>
                       <Mono>
                         {addressText(r['source'] as AddressMatch | undefined) ?? t('match.any')}
                       </Mono>
-                    </TableCell>
-                    <TableCell>
+                    </>
+                  ),
+                  destination: (
+                    <>
                       <Mono>
                         {addressText(r['destination'] as AddressMatch | undefined) ??
                           t('match.any')}
                       </Mono>
-                    </TableCell>
-                    <TableCell>
+                    </>
+                  ),
+                  service: (
+                    <>
                       <Mono>
                         {serviceText(r['service'] as ServiceMatch | undefined) ?? t('match.any')}
                       </Mono>
-                    </TableCell>
-                    <TableCell>
-                      {typeof r['description'] === 'string' ? r['description'] : ''}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </>
+                  ),
+                  description: typeof r['description'] === 'string' ? r['description'] : '',
+                })) ?? []),
+              ]}
+              rowKey={(item) => item.id}
+              rowProps={(item) => item.rowProps ?? {}}
+              cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+              emptyContent={null}
+              noFormWrapper
+              embedded
+              hideToolbar
+              hidePagination
+              hideFilterBuilderComponent
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+              footer={false}
+              memoEnable={false}
+            />
           </Box>
         </>
       )}

@@ -1,21 +1,20 @@
+import {
+  PgAutocomplete as Autocomplete,
+  PgButton as Button,
+  PgText as TextField,
+} from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgAddIcon as AddIcon, PgDeleteIcon as DeleteIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgChip as Chip,
+  PgFormControlLabel as FormControlLabel,
+  PgIconButton as IconButton,
+  PgMenuItem as MenuItem,
+  PgStack as Stack,
+  PgSwitch as Switch,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import Autocomplete from '@mui/material/Autocomplete';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NS, type PanelProps } from './FlowExportTab';
@@ -115,82 +114,137 @@ export function FlowprobePanel({ cfg, state, interfaces, readOnly, pending, save
           label={t('flowprobe.recordL4')}
         />
       </Stack>
-      <Table size="small" aria-label={t('flowprobe.interfaces')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('interface')}</TableCell>
-            <TableCell>{t('flowprobe.variant')}</TableCell>
-            <TableCell>{t('flowprobe.direction')}</TableCell>
-            <TableCell>{t('exporters.status')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {list.map((f, i) => (
-            <TableRow key={f.interface}>
-              <TableCell>{interfaceLabel(f.interface)}</TableCell>
-              <TableCell>
-                <TextField
-                  select
-                  size="small"
-                  value={variantOf(f)}
-                  disabled={readOnly}
-                  aria-label={t('flowprobe.variant')}
-                  onChange={(e) =>
-                    setList(
-                      list.map((x, k) => (k === i ? withVariant(x, e.target.value as Variant) : x)),
-                    )
-                  }
-                >
-                  {VARIANTS.map((v) => (
-                    <MenuItem key={v} value={v}>
-                      {t(`flowprobe.which.${v}`)}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </TableCell>
-              <TableCell>
-                <TextField
-                  select
-                  size="small"
-                  value={f.direction ?? BOTH}
-                  disabled={readOnly}
-                  aria-label={t('flowprobe.direction')}
-                  onChange={(e) =>
-                    setList(
-                      list.map((x, k) =>
-                        k === i ? { ...x, direction: e.target.value as 'rx' | 'tx' | 'both' } : x,
-                      ),
-                    )
-                  }
-                >
-                  {DIRECTIONS.map((d) => (
-                    <MenuItem key={d} value={d}>
-                      {t(`direction.${d}`)}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </TableCell>
-              <TableCell>
-                {live.has(f.interface) ? (
-                  <Chip size="small" color="success" label={t('exporters.active')} />
-                ) : (
-                  <Chip size="small" color="warning" label={t('exporters.notApplied')} />
-                )}
-              </TableCell>
-              <TableCell>
-                <IconButton
-                  aria-label={t('remove', { name: interfaceLabel(f.interface) })}
-                  disabled={readOnly}
-                  onClick={() => setList(list.filter((_, k) => k !== i))}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = list.map((f, i) => {
+          return { f, i };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'interface',
+                headerRenderer: () => <>{t('interface')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { f }: (typeof nativeRows)[number]) => (
+                  <>{f.interface}</>
+                ),
+              },
+              {
+                key: 'variant',
+                headerRenderer: () => <>{t('flowprobe.variant')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { f, i }: (typeof nativeRows)[number]) => (
+                  <>
+                    <TextField
+                      select
+                      size="small"
+                      value={variantOf(f)}
+                      disabled={readOnly}
+                      aria-label={t('flowprobe.variant')}
+                      onChange={(e) =>
+                        setList(
+                          list.map((x, k) =>
+                            k === i ? withVariant(x, e.target.value as Variant) : x,
+                          ),
+                        )
+                      }
+                    >
+                      {VARIANTS.map((v) => (
+                        <MenuItem key={v} value={v}>
+                          {t(`flowprobe.which.${v}`)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </>
+                ),
+              },
+              {
+                key: 'direction',
+                headerRenderer: () => <>{t('flowprobe.direction')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { f, i }: (typeof nativeRows)[number]) => (
+                  <>
+                    <TextField
+                      select
+                      size="small"
+                      value={f.direction ?? BOTH}
+                      disabled={readOnly}
+                      aria-label={t('flowprobe.direction')}
+                      onChange={(e) =>
+                        setList(
+                          list.map((x, k) =>
+                            k === i
+                              ? { ...x, direction: e.target.value as 'rx' | 'tx' | 'both' }
+                              : x,
+                          ),
+                        )
+                      }
+                    >
+                      {DIRECTIONS.map((d) => (
+                        <MenuItem key={d} value={d}>
+                          {t(`direction.${d}`)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </>
+                ),
+              },
+              {
+                key: 'status',
+                headerRenderer: () => <>{t('exporters.status')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { f }: (typeof nativeRows)[number]) => (
+                  <>
+                    {live.has(f.interface) ? (
+                      <Chip size="small" color="success" label={t('exporters.active')} />
+                    ) : (
+                      <Chip size="small" color="warning" label={t('exporters.notApplied')} />
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <></>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { f, i }: (typeof nativeRows)[number]) => (
+                  <>
+                    <IconButton
+                      aria-label={t('remove', { name: f.interface })}
+                      disabled={readOnly}
+                      onClick={() => setList(list.filter((_, k) => k !== i))}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { f } = item as (typeof nativeRows)[number];
+              return f.interface;
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('flowprobe.interfaces') }}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <Stack direction="row" spacing={2}>
         <Autocomplete
           options={interfaces.filter((n) => !list.some((f) => f.interface === n))}

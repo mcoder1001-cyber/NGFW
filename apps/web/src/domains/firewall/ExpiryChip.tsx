@@ -1,5 +1,5 @@
-import Chip from '@mui/material/Chip';
-import Tooltip from '@mui/material/Tooltip';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgTooltip as Tooltip } from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useTranslation } from 'react-i18next';
 import { expiryState } from './acl/model';

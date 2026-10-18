@@ -1,16 +1,14 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
-import type { Theme } from '@mui/material/styles';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgAddIcon as AddIcon, PgDeleteIcon as DeleteIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgBox as Box,
+  PgIconButton as IconButton,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
+import type { Theme } from '@amnafzar/common-ui-lib/styles';
+import { StatusChip } from '@ngfw/ui-kit';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -38,7 +36,10 @@ export interface SubinterfaceTableProps {
 }
 
 const CELLS = { '& .MuiTableCell-root': { px: 0.75 } } as const;
-const MONO = { fontFamily: (th: Theme) => th.ngfw.monoFontFamily, fontSize: 12 } as const;
+const MONO = {
+  fontFamily: (th: Theme) => th.ngfw.monoFontFamily,
+  fontSize: 12,
+} as const;
 
 /**
  * The sub-interfaces of one parent in the interface drawer (F-vlan-qinq; extracted from P08's drawer). One row per
@@ -66,7 +67,9 @@ export function SubinterfaceTable({
     return shared !== value ? shared : (displayNames.get(value) ?? value);
   };
   const protoTitle = (stack: ReturnType<typeof tagStack>) =>
-    t('encapTitle', { stack: stack.map((tag) => t(`proto.${tag.proto}`)).join(' · ') });
+    t('encapTitle', {
+      stack: stack.map((tag) => t(`proto.${tag.proto}`)).join(' · '),
+    });
   return (
     <Box>
       <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
@@ -80,89 +83,199 @@ export function SubinterfaceTable({
       {error !== null && error !== undefined && <ProblemAlert error={error} sx={{ mb: 1 }} />}
       {/* seven columns in the 640 px drawer: tight cells, and a horizontal scroll rather than clipping */}
       <Box sx={{ overflowX: 'auto' }}>
-        <Table size="small" aria-label={t('tableLabel', { parent: label(parent) })} sx={CELLS}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.name')}</TableCell>
-              <TableCell>{t('col.encapsulation')}</TableCell>
-              <TableCell>{t('col.innerVlan')}</TableCell>
-              <TableCell>{t('col.admin')}</TableCell>
-              <TableCell>{t('col.link')}</TableCell>
-              <TableCell>{t('col.addresses')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('interfaces:sub.actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {subs.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7}>
+        {(() => {
+          const gridItems = subs;
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              items={[...gridItems]}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.name')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 0: id } = gridRow;
+                    const name = `${parent}.${id}`;
+                    return <>{name}</>;
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.encapsulation')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 0: id, 1: sub } = gridRow;
+                    const name = `${parent}.${id}`;
+                    const row = items?.find((i) => i.name === name);
+                    const configured = tagStack(sub);
+                    const inVpp = liveTagStack(row);
+                    const drift = inVpp !== undefined && !sameTagStack(configured, inVpp);
+                    return (
+                      <>
+                        <Box component="span" dir="ltr" title={protoTitle(configured)} sx={MONO}>
+                          {formatTagStack(configured)}
+                        </Box>
+                        {drift && (
+                          <Typography
+                            variant="caption"
+                            color="warning.main"
+                            sx={{ display: 'block' }}
+                          >
+                            {t('inVpp')} <bdi dir="ltr">{formatTagStack(inVpp)}</bdi>
+                          </Typography>
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '2',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.innerVlan')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 1: sub } = gridRow;
+                    return <>{sub.innerVlanId ?? '—'}</>;
+                  },
+                },
+                {
+                  key: '3',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.admin')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 0: id } = gridRow;
+                    const name = `${parent}.${id}`;
+                    const row = items?.find((i) => i.name === name);
+                    const live = row?.state ?? null;
+                    return (
+                      <>
+                        {live ? (
+                          <StatusChip size="small" status={adminStatus(live)!} />
+                        ) : (
+                          t('interfaces:notInVpp')
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '4',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.link')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 0: id } = gridRow;
+                    const name = `${parent}.${id}`;
+                    const row = items?.find((i) => i.name === name);
+                    const live = row?.state ?? null;
+                    return (
+                      <>{live ? <StatusChip size="small" status={linkStatus(live)!} /> : '—'}</>
+                    );
+                  },
+                },
+                {
+                  key: '5',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.addresses')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 1: sub } = gridRow;
+                    return <>{[...(sub.ipv4 ?? []), ...(sub.ipv6 ?? [])].join(' ')}</>;
+                  },
+                },
+                {
+                  key: '6',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('interfaces:sub.actions')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 0: id } = gridRow;
+                    return (
+                      <>
+                        <IconButton
+                          size="small"
+                          aria-label={t('interfaces:sub.remove', { id })}
+                          disabled={readOnly || busy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemove(id);
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </>
+                    );
+                  },
+                },
+              ]}
+              tableProps={{
+                size: 'small',
+                'aria-label': t('tableLabel', { parent }),
+                sx: CELLS,
+              }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const { 0: id } = gridRow;
+                return id;
+              }}
+              rowProps={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const { 0: id, 1: sub } = gridRow;
+                return {
+                  hover: true,
+                  sx: { cursor: readOnly ? 'default' : 'pointer' },
+                  onClick: () => !readOnly && onEdit(id, sub),
+                };
+              }}
+              cellProps={(nativeRow, column, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const { 1: sub } = gridRow;
+                switch (column.key) {
+                  case '0':
+                    return {
+                      dir: 'ltr',
+                      sx: { textAlign: 'start', whiteSpace: 'nowrap' },
+                    };
+                  case '1':
+                    return { sx: { whiteSpace: 'nowrap' } };
+                  case '2':
+                    return {
+                      title: sub.innerVlanId === undefined ? t('noInner') : t('proto.dot1q'),
+                    };
+                  case '3':
+                    return {};
+                  case '4':
+                    return {};
+                  case '5':
+                    return { dir: 'ltr', sx: { ...MONO, textAlign: 'start' } };
+                  case '6':
+                    return { sx: { textAlign: 'end' } };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={
+                <>
                   <Typography color="text.secondary">{t('interfaces:sub.none')}</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {subs.map(([id, sub]) => {
-              const name = `${parent}.${id}`;
-              const row = items?.find((i) => i.name === name);
-              const live = row?.state ?? null;
-              const configured = tagStack(sub);
-              const inVpp = liveTagStack(row);
-              const drift = inVpp !== undefined && !sameTagStack(configured, inVpp);
-              return (
-                <TableRow
-                  key={id}
-                  hover
-                  sx={{ cursor: readOnly ? 'default' : 'pointer' }}
-                  onClick={() => !readOnly && onEdit(id, sub)}
-                >
-                  <TableCell dir="ltr" sx={{ textAlign: 'start', whiteSpace: 'nowrap' }}>
-                    {`${label(parent)}.${id}`}
-                  </TableCell>
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                    <Box component="span" dir="ltr" title={protoTitle(configured)} sx={MONO}>
-                      {formatTagStack(configured)}
-                    </Box>
-                    {drift && (
-                      <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
-                        {t('inVpp')} <bdi dir="ltr">{formatTagStack(inVpp)}</bdi>
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell
-                    title={sub.innerVlanId === undefined ? t('noInner') : t('proto.dot1q')}
-                  >
-                    {sub.innerVlanId ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    {live ? (
-                      <StatusChip size="small" status={adminStatus(live)!} />
-                    ) : (
-                      t('interfaces:notInVpp')
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {live ? <StatusChip size="small" status={linkStatus(live)!} /> : '—'}
-                  </TableCell>
-                  <TableCell dir="ltr" sx={{ ...MONO, textAlign: 'start' }}>
-                    {[...(sub.ipv4 ?? []), ...(sub.ipv6 ?? [])].join(' ')}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>
-                    <IconButton
-                      size="small"
-                      aria-label={t('interfaces:sub.remove', { id })}
-                      disabled={readOnly || busy}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemove(id);
-                      }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                </>
+              }
+            />
+          );
+        })()}
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
         {t('exactMatch')}

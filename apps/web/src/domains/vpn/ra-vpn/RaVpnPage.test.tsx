@@ -247,7 +247,7 @@ describe('RA real UI transport consumers (scripted unit API)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ویرایش پروفایل' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('switch', { name: 'فعال' })).not.toBeChecked();
-    expect(within(dialog).getByText('EAP-TLS (گواهی کلاینت)')).toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue('EAP-TLS (گواهی کلاینت)')).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'بعدی' }));
     await screen.findByText('آدرس‌های ترانزیت و سیاست‌های ACL موجود');
     expect(screen.getByText('ارجاع ACL ترانزیت عمومی')).toBeInTheDocument();

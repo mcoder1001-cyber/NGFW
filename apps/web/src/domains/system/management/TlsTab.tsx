@@ -1,14 +1,15 @@
-import { serviceText } from '../../../product-text';
-import Alert from '@mui/material/Alert';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo } from 'react';
@@ -16,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { domainSchemas } from '../../../schema/registry';
 import {
   useCandidateTls,
@@ -142,18 +144,46 @@ export default function TlsTab() {
         )}
         {st && !st.configured && !st.active && <Typography>{t('tls.none')}</Typography>}
         {st?.active && (
-          <Table size="small" aria-label={t('tls.activeTitle')}>
-            <TableBody>
-              {certRows(st, fmt).map(([k, v]) => (
-                <TableRow key={k} data-testid={`tls-${k}`}>
-                  <TableCell component="th">{t(`tls.${k}`)}</TableCell>
-                  <TableCell dir="ltr" sx={{ wordBreak: 'break-all' }}>
-                    {v}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('tls.activeTitle') }}
+            columns={[
+              { key: 'label', filterable: false, renderer: (value) => <>{value}</> },
+              { key: 'value', filterable: false, renderer: (value) => <>{value}</> },
+            ]}
+            items={[
+              ...(certRows(st, fmt).map(([k, v]) => ({
+                id: k,
+                label: t(`tls.${k}`),
+                value: v,
+                rowProps: { 'data-testid': `tls-${k}` } satisfies ReturnType<
+                  NonNullable<GeereedTablePassthrough['rowProps']>
+                > &
+                  Record<`data-${string}`, unknown>,
+                cellProps: {
+                  label: { component: 'th' },
+                  value: { dir: 'ltr', sx: { wordBreak: 'break-all' } },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            headerRows={<></>}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         )}
       </Paper>
     </Stack>

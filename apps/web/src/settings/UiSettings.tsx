@@ -1,5 +1,5 @@
 import { directionFor, FormatterSettingsProvider, NgfwThemeProvider } from '@ngfw/ui-kit';
-import useMediaQuery from '@mui/material/useMediaQuery';
+import { useMediaQuery as useMediaQuery } from '@amnafzar/common-ui-lib/styles';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { loadSettings, saveSettings, type UiSettings } from './storage';

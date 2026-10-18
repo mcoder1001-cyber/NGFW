@@ -1,14 +1,12 @@
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Grid from '@mui/material/Grid';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgGrid as Grid,
+  PgPaper as Paper,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -96,47 +94,103 @@ export default function NtpTab() {
             )}
           </Paper>
           <TableContainer component={Paper} variant="outlined">
-            <Table size="small" aria-label={t('ntp.sources')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('col.source')}</TableCell>
-                  <TableCell>{t('col.state')}</TableCell>
-                  <TableCell>{t('col.stratum')}</TableCell>
-                  <TableCell>{t('col.reach')}</TableCell>
-                  <TableCell>{t('col.offset')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(st?.sources ?? []).length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5}>{t('ntp.noSources')}</TableCell>
-                  </TableRow>
-                )}
-                {(st?.sources ?? []).map((s) => (
-                  <TableRow key={s.name}>
-                    <TableCell sx={{ fontFamily: 'monospace' }}>{s.name}</TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        color={
-                          s.state === '*'
-                            ? 'success'
-                            : s.state === '+'
-                              ? 'info'
-                              : s.state === 'x' || s.state === '?'
-                                ? 'warning'
-                                : 'default'
-                        }
-                        label={t(`ntp.sourceState.${SOURCE_STATES[s.state] ?? 'unknown'}`)}
-                      />
-                    </TableCell>
-                    <TableCell>{s.stratum}</TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace' }}>{s.reach}</TableCell>
-                    <TableCell>{seconds(s.offset)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {(() => {
+              const nativeRows = (st?.sources ?? []).map((s) => {
+                return { s };
+              });
+              return (
+                <ReactGeereedMaterial
+                  footer={false}
+                  hideFilterBuilderComponent
+                  items={nativeRows}
+                  columns={[
+                    {
+                      key: 'source',
+                      headerRenderer: () => <>{t('col.source')}</>,
+                      sortable: false,
+                      filterable: false,
+                      renderer: (_value: unknown, { s }: (typeof nativeRows)[number]) => (
+                        <>{s.name}</>
+                      ),
+                    },
+                    {
+                      key: 'state',
+                      headerRenderer: () => <>{t('col.state')}</>,
+                      sortable: false,
+                      filterable: false,
+                      renderer: (_value: unknown, { s }: (typeof nativeRows)[number]) => (
+                        <>
+                          <Chip
+                            size="small"
+                            color={
+                              s.state === '*'
+                                ? 'success'
+                                : s.state === '+'
+                                  ? 'info'
+                                  : s.state === 'x' || s.state === '?'
+                                    ? 'warning'
+                                    : 'default'
+                            }
+                            label={t(`ntp.sourceState.${SOURCE_STATES[s.state] ?? 'unknown'}`)}
+                          />
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'stratum',
+                      headerRenderer: () => <>{t('col.stratum')}</>,
+                      sortable: false,
+                      filterable: false,
+                      renderer: (_value: unknown, { s }: (typeof nativeRows)[number]) => (
+                        <>{s.stratum}</>
+                      ),
+                    },
+                    {
+                      key: 'reach',
+                      headerRenderer: () => <>{t('col.reach')}</>,
+                      sortable: false,
+                      filterable: false,
+                      renderer: (_value: unknown, { s }: (typeof nativeRows)[number]) => (
+                        <>{s.reach}</>
+                      ),
+                    },
+                    {
+                      key: 'offset',
+                      headerRenderer: () => <>{t('col.offset')}</>,
+                      sortable: false,
+                      filterable: false,
+                      renderer: (_value: unknown, { s }: (typeof nativeRows)[number]) => (
+                        <>{seconds(s.offset)}</>
+                      ),
+                    },
+                  ]}
+                  rowKey={(item) => {
+                    const { s } = item as (typeof nativeRows)[number];
+                    return s.name;
+                  }}
+                  cellProps={(_item, column) => {
+                    switch (column.key) {
+                      case 'source':
+                        return { sx: { fontFamily: 'monospace' } };
+                      case 'reach':
+                        return { sx: { fontFamily: 'monospace' } };
+                      default:
+                        return {};
+                    }
+                  }}
+                  tableProps={{ size: 'small', 'aria-label': t('ntp.sources') }}
+                  emptyContent={<>{t('ntp.noSources')}</>}
+                  noFormWrapper
+                  embedded
+                  memoEnable={false}
+                  hidePagination
+                  hideToolbar
+                  search={false}
+                  exportToCSV={false}
+                  sortable={false}
+                />
+              );
+            })()}
           </TableContainer>
         </Grid>
       </Grid>

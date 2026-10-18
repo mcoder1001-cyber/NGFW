@@ -1,8 +1,8 @@
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import LinearProgress from '@mui/material/LinearProgress';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlertTitle as AlertTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';

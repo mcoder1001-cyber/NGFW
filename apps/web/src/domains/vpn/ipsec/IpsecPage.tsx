@@ -1,33 +1,31 @@
-import { NativeActions } from '../ikev2-native/NativeActions';
-import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import InfoIcon from '@mui/icons-material/Info';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Divider from '@mui/material/Divider';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgCloseIcon as CloseIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgInfoIcon as InfoIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogContentText as DialogContentText,
+  PgDialogTitle as DialogTitle,
+  PgDivider as Divider,
+  PgDrawer as Drawer,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { ipsecObjectName, objectName } from '@ngfw/schema';
 import { StatusChip, useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
@@ -39,6 +37,7 @@ import { ApiError } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { createMergePatch } from '../../interfaces/model';
+import { NativeActions } from '../ikev2-native/NativeActions';
 import {
   localizeIpsecSchema,
   proposalFormSchema,
@@ -86,8 +85,15 @@ export function IpsecPage() {
   const state = useIpsecTunnels();
   const candidate = useCandidateIpsec();
   const patch = usePatchIpsec();
-  const [edit, setEdit] = useState<{ section: Section; name: string; isNew: boolean } | null>(null);
-  const [confirm, setConfirm] = useState<{ section: Section; name: string } | null>(null);
+  const [edit, setEdit] = useState<{
+    section: Section;
+    name: string;
+    isNew: boolean;
+  } | null>(null);
+  const [confirm, setConfirm] = useState<{
+    section: Section;
+    name: string;
+  } | null>(null);
   const [inspect, setInspect] = useState<string | null>(null);
   // SA changes (EVENT_KIND_IPSEC_SA_CHANGED) refresh the state at once instead of waiting for the poll.
   useTopic('ipsec.events', {
@@ -178,34 +184,75 @@ export function IpsecPage() {
           <Alert severity="info">{t('emptyTunnels')}</Alert>
         )}
         {tunnelNames.length > 0 && (
-          <Table size="small" aria-label={t('tunnels')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.name')}</TableCell>
-                <TableCell>{t('col.status')}</TableCell>
-                <TableCell>{t('col.peer')}</TableCell>
-                <TableCell>{t('col.proposal')}</TableCell>
-                <TableCell>{t('col.ikeVersion')}</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tunnelNames.map((name) => {
-                const cfg = tunnels[name] as Record<string, unknown>;
-                const chip = tunnelChipState(state.isSuccess, liveByTunnel.get(name));
-                return (
-                  <TableRow key={name} data-testid={`ipsec-tunnel-${name}`}>
-                    <TableCell {...LTR}>{name}</TableCell>
-                    <TableCell>
+          <ReactGeereedMaterial
+            hideFilterBuilderComponent
+            items={tunnelNames.map((name) => ({ name }))}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => t('col.name'),
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  return <>{name}</>;
+                },
+              },
+              {
+                key: 'status',
+                headerRenderer: () => t('col.status'),
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  const cfg = tunnels[name] as Record<string, unknown>;
+                  const chip = tunnelChipState(state.isSuccess, liveByTunnel.get(name));
+                  return (
+                    <>
                       <StatusChip status={tunnelChip(chip)} label={t(`status.${chip}`)} />
                       {state.data?.daemonVersion === 'vpp-ikev2' &&
                         chip === 'down' &&
                         cfg['enabled'] !== false && <NativeActions tunnel={name} />}
-                    </TableCell>
-                    <TableCell {...LTR}>{String(cfg['remoteAddr'] ?? '')}</TableCell>
-                    <TableCell {...LTR}>{String(cfg['proposal'] ?? '')}</TableCell>
-                    <TableCell>{t('ikeV', { v: Number(cfg['ikeVersion'] ?? 2) })}</TableCell>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    </>
+                  );
+                },
+              },
+              {
+                key: 'peer',
+                headerRenderer: () => t('col.peer'),
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  const cfg = tunnels[name] as Record<string, unknown>;
+                  return <>{String(cfg['remoteAddr'] ?? '')}</>;
+                },
+              },
+              {
+                key: 'proposal',
+                headerRenderer: () => t('col.proposal'),
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  const cfg = tunnels[name] as Record<string, unknown>;
+                  return <>{String(cfg['proposal'] ?? '')}</>;
+                },
+              },
+              {
+                key: 'ikeVersion',
+                headerRenderer: () => t('col.ikeVersion'),
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  const cfg = tunnels[name] as Record<string, unknown>;
+                  return <>{t('ikeV', { v: Number(cfg['ikeVersion'] ?? 2) })}</>;
+                },
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => null,
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  return (
+                    <>
                       <Tooltip title={t('inspect')}>
                         <IconButton
                           size="small"
@@ -233,12 +280,36 @@ export function IpsecPage() {
                           </IconButton>
                         </>
                       )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    </>
+                  );
+                },
+              },
+            ]}
+            rowKey={({ name }) => name}
+            rowProps={({ name }) => ({
+              role: 'row',
+              'data-testid': `ipsec-tunnel-${name}`,
+            })}
+            cellProps={(_item, column) => {
+              if (column.key === 'name') return { ...LTR };
+              if (column.key === 'peer') return { ...LTR };
+              if (column.key === 'proposal') return { ...LTR };
+              if (column.key === 'actions') return { sx: { whiteSpace: 'nowrap' } };
+              return {};
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('tunnels') }}
+
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            footer={false}
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+          />
         )}
       </Paper>
 
@@ -261,35 +332,80 @@ export function IpsecPage() {
           <Alert severity="info">{t('emptyProposals')}</Alert>
         )}
         {proposalNames.length > 0 && (
-          <Table size="small" aria-label={t('proposals')}>
-            <TableBody>
-              {proposalNames.map((name) => (
-                <TableRow key={name} data-testid={`ipsec-proposal-${name}`}>
-                  <TableCell {...LTR}>{name}</TableCell>
-                  <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'end' }}>
-                    {perms.editConfig && (
-                      <>
-                        <IconButton
-                          size="small"
-                          aria-label={t('edit')}
-                          onClick={() => setEdit({ section: PROPOSALS, name, isNew: false })}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          aria-label={t('delete')}
-                          onClick={() => setConfirm({ section: PROPOSALS, name })}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            hideFilterBuilderComponent
+            items={proposalNames.map((name) => ({ name }))}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => null,
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  return <>{name}</>;
+                },
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => null,
+                sortable: false,
+                filterable: false,
+                renderer: (_value, { name }: { name: string }) => {
+                  return (
+                    <>
+                      {perms.editConfig && (
+                        <>
+                          <IconButton
+                            size="small"
+                            aria-label={t('edit')}
+                            onClick={() =>
+                              setEdit({
+                                section: PROPOSALS,
+                                name,
+                                isNew: false,
+                              })
+                            }
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            aria-label={t('delete')}
+                            onClick={() => setConfirm({ section: PROPOSALS, name })}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      )}
+                    </>
+                  );
+                },
+              },
+            ]}
+            rowKey={({ name }) => name}
+            rowProps={({ name }) => ({
+              role: 'row',
+              'data-testid': `ipsec-proposal-${name}`,
+            })}
+            cellProps={(_item, column) => {
+              if (column.key === 'name') return { ...LTR };
+              if (column.key === 'actions')
+                return { sx: { whiteSpace: 'nowrap', textAlign: 'end' } };
+              return {};
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('proposals') }}
+            headerRows={null}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            footer={false}
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+          />
         )}
       </Paper>
 
@@ -476,7 +592,10 @@ function SaDrawer({ tunnel, onClose }: { tunnel: string; onClose: () => void }) 
                     {`${(ch.localTs ?? []).join(' ')} ↔ ${(ch.remoteTs ?? []).join(' ')}`}
                   </Typography>
                   <Typography variant="body2">
-                    {t('sa.traffic', { rx: fmt.integer(ch.bytesIn), tx: fmt.integer(ch.bytesOut) })}
+                    {t('sa.traffic', {
+                      rx: fmt.integer(ch.bytesIn),
+                      tx: fmt.integer(ch.bytesOut),
+                    })}
                   </Typography>
                   {sas.data?.daemonVersion === 'vpp-ikev2' && (
                     <NativeActions

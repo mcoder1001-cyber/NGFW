@@ -1,14 +1,12 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip } from '@ngfw/ui-kit';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -52,7 +50,12 @@ export function PingTab() {
         alignItems={{ md: 'flex-start' }}
         onSubmit={(e) => {
           e.preventDefault();
-          if (ok) ping.mutate({ target: target.trim(), count: Number(count), intervalMs: Number(interval) });
+          if (ok)
+            ping.mutate({
+              target: target.trim(),
+              count: Number(count),
+              intervalMs: Number(interval),
+            });
         }}
         sx={{ mb: 2 }}
       >
@@ -62,11 +65,22 @@ export function PingTab() {
           value={target}
           onChange={(e) => setTarget(e.target.value)}
           error={target !== '' && !ADDR_RE.test(target.trim())}
-          helperText={target !== '' && !ADDR_RE.test(target.trim()) ? t('ping.badTarget') : t('ping.targetHelp')}
+          helperText={
+            target !== '' && !ADDR_RE.test(target.trim())
+              ? t('ping.badTarget')
+              : t('ping.targetHelp')
+          }
           slotProps={{ htmlInput: LTR }}
           sx={{ minInlineSize: 240 }}
         />
-        <TextField size="small" label={t('ping.count')} value={count} onChange={(e) => setCount(e.target.value)} slotProps={{ htmlInput: NUM }} sx={{ inlineSize: 110 }} />
+        <TextField
+          size="small"
+          label={t('ping.count')}
+          value={count}
+          onChange={(e) => setCount(e.target.value)}
+          slotProps={{ htmlInput: NUM }}
+          sx={{ inlineSize: 110 }}
+        />
         <TextField
           size="small"
           label={t('ping.interval')}
@@ -75,7 +89,11 @@ export function PingTab() {
           slotProps={{ htmlInput: NUM }}
           sx={{ inlineSize: 150 }}
         />
-        <Button type="submit" variant="contained" disabled={!ok || !perms.editConfig || ping.isPending}>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={!ok || !perms.editConfig || ping.isPending}
+        >
           {ping.isPending ? t('ping.running') : t('ping.run')}
         </Button>
       </Stack>
@@ -96,18 +114,71 @@ export function PingTab() {
               <Mono>{l}</Mono>
             </Box>
           ))}
-          <Table size="small" sx={{ mt: 1, maxInlineSize: 420 }}>
-            <TableBody>
-              {STATS.map((k) => (
-                <TableRow key={k}>
-                  <TableCell component="th">{t(`ping.stats.${k}`)}</TableCell>
-                  <TableCell dir="ltr" sx={{ textAlign: 'start' }}>
-                    {res.done.stats[k] ?? '—'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const gridItems = STATS.map((key) => ({ key }));
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                headerRows={<></>}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <></>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const k = gridRow.key;
+                      return <>{t(`ping.stats.${k}`)}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <></>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const k = gridRow.key;
+                      return <>{res.done.stats[k] ?? '—'}</>;
+                    },
+                  },
+                ]}
+                tableProps={{
+                  size: 'small',
+                  sx: { mt: 1, maxInlineSize: 420 },
+                }}
+                rowKey={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const k = gridRow.key;
+                  return k;
+                }}
+                rowProps={(_nativeRow, _gridIndex) => {
+                  return {};
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return { component: 'th' };
+                    case '1':
+                      return { dir: 'ltr', sx: { textAlign: 'start' } };
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
         </Paper>
       )}
     </Box>

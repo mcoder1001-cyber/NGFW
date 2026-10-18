@@ -1,4 +1,4 @@
-import { useTheme } from '@mui/material/styles';
+import { useTheme } from '@amnafzar/common-ui-lib/styles';
 
 /** Tiny inline SVG trend line (no chart dependency); time runs in the reading direction. P08's sparkline, shared. */
 export function Sparkline({ values, width = 72, height = 18, label }: { values: readonly number[]; width?: number; height?: number; label: string }) {

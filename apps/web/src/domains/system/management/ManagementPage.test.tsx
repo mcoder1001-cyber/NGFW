@@ -231,9 +231,9 @@ describe('System → Management (F-management-ui)', () => {
     expect(await screen.findByText('هنوز اعلانی ارسال نشده است.')).toBeInTheDocument();
     expect(screen.getAllByText('نام').length).toBeGreaterThan(0);
     expect(screen.getAllByText('حداقل شدت').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('هشدار').length).toBeGreaterThan(0);
+    expect(screen.getAllByDisplayValue('هشدار').length).toBeGreaterThan(0);
     expect(screen.getAllByText('میزبان SMTP').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('ارتقا به اتصال امن (STARTTLS)').length).toBeGreaterThan(0);
+    expect(screen.getAllByDisplayValue('ارتقا به اتصال امن (STARTTLS)').length).toBeGreaterThan(0);
   });
 
   it('Notifications: maps server pointers while another management consumer caches users', async () => {

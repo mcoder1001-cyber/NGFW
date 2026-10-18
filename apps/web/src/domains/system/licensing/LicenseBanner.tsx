@@ -1,5 +1,5 @@
-import Alert from '@mui/material/Alert';
-import Link from '@mui/material/Link';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgLink as Link } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router';
 import { useLicenseState } from './queries';

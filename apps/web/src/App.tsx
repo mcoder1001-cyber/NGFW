@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WsProvider, defaultStreamUrl } from '@ngfw/ui-kit/ws';
+import { WsProvider, defaultStreamUrl, type NgfwWsClient } from '@ngfw/ui-kit/ws';
 import { useMemo } from 'react';
 import { RouterProvider } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
@@ -14,6 +14,7 @@ const defaultQueryClient = new QueryClient({
 
 export interface AppProps {
   /** Injected by tests (memory router); the browser router is created otherwise. */
+  wsClient?: NgfwWsClient;
   router?: ReturnType<typeof createAppRouter>;
   /** Injected by tests; defaults to `wss://<host>/api/v1/stream`. */
   streamUrl?: string;
@@ -24,7 +25,7 @@ export interface AppProps {
 }
 
 /** Providers in dependency order: server state → UI settings/theme/i18n → the single WebSocket → session → routes. */
-export function App({ router, streamUrl, queryClient, session = appSession }: AppProps) {
+export function App({ router, streamUrl, queryClient, wsClient, session = appSession }: AppProps) {
   const appRouter = useMemo(() => router ?? createAppRouter(), [router]);
   // The stream authenticates with subprotocols (ngfw.v1 + bearer.<access token>), read on every (re)connect.
   const wsOptions = useMemo(
@@ -34,7 +35,7 @@ export function App({ router, streamUrl, queryClient, session = appSession }: Ap
   return (
     <QueryClientProvider client={queryClient ?? defaultQueryClient}>
       <UiSettingsProvider>
-        <WsProvider options={wsOptions}>
+        <WsProvider options={wsOptions} {...(wsClient ? { client: wsClient } : {})}>
           <AuthProvider session={session}>
             <InterfaceDisplayNamesProvider>
               <RouterProvider router={appRouter} />

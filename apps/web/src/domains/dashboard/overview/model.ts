@@ -1,4 +1,4 @@
-import type { PaletteMode } from '@mui/material/styles';
+import type { PaletteMode } from '@amnafzar/common-ui-lib/styles';
 import type { Rate } from '../../interfaces/rates';
 
 /**

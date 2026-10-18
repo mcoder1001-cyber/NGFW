@@ -1,8 +1,8 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
+import { PgTab as Tab } from '@amnafzar/common-ui-lib/primitives';
+import { PgTabs as Tabs } from '@amnafzar/common-ui-lib/primitives';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';

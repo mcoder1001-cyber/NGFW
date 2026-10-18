@@ -1,7 +1,7 @@
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LTR_INPUT, NS, det44Plan } from './model';

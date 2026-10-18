@@ -1,20 +1,20 @@
-import { ApplyDataplane } from './ApplyDataplane';
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useProductWording } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useState } from 'react';
@@ -24,6 +24,7 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { domainSchemas } from '../../../schema/registry';
 import { PageHeader } from '../../../shell/PageHeader';
+import { ApplyDataplane } from './ApplyDataplane';
 import {
   useCandidateDataplane,
   useDataplaneState,
@@ -206,36 +207,74 @@ export function DataplanePage() {
             <Typography component="h3" variant="h6" gutterBottom>
               {t('live.title')}
             </Typography>
-            <Table size="small" aria-label={t('live.title')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('live.setting')}</TableCell>
-                  <TableCell>{t('live.candidate')}</TableCell>
-                  <TableCell>{t('live.running')}</TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows(
+            <ReactGeereedMaterial
+              tableProps={{ size: 'small', 'aria-label': t('live.title') }}
+              columns={[
+                {
+                  key: 'column0',
+                  headerRenderer: () => t('live.setting'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column1',
+                  headerRenderer: () => t('live.candidate'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column2',
+                  headerRenderer: () => t('live.running'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column3',
+                  headerRenderer: () => null,
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+              ]}
+              items={[
+                ...(rows(
                   cand.data ?? {},
                   running.data ?? {},
                   none,
                   t('switch.on'),
                   t('switch.off'),
-                ).map((r) => (
-                  <TableRow key={r.key} data-testid={`dp-${r.key}`}>
-                    <TableCell>{t(`live.${r.key}`)}</TableCell>
-                    <TableCell dir="ltr">{r.candidate}</TableCell>
-                    <TableCell dir="ltr">{r.running}</TableCell>
-                    <TableCell>
-                      {running.isSuccess && r.candidate !== r.running && (
-                        <Chip size="small" color="warning" label={t('live.pending')} />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                ).map((r) => ({
+                  id: r.key,
+                  column0: t(`live.${r.key}`),
+                  column1: r.candidate,
+                  column2: r.running,
+                  column3: running.isSuccess && r.candidate !== r.running && (
+                    <Chip size="small" color="warning" label={t('live.pending')} />
+                  ),
+                  rowProps: { 'data-testid': `dp-${r.key}` } satisfies ReturnType<
+                    NonNullable<GeereedTablePassthrough['rowProps']>
+                  > &
+                    Record<`data-${string}`, unknown>,
+                  cellProps: { column1: { dir: 'ltr' }, column2: { dir: 'ltr' } } satisfies Record<
+                    string,
+                    NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                  >,
+                })) ?? []),
+              ]}
+              rowKey={(item) => item.id}
+              rowProps={(item) => item.rowProps ?? {}}
+              cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+              emptyContent={null}
+              noFormWrapper
+              embedded
+              hideToolbar
+              hidePagination
+              hideFilterBuilderComponent
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+              footer={false}
+              memoEnable={false}
+            />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {t('live.note')}
             </Typography>
@@ -246,44 +285,97 @@ export function DataplanePage() {
             </Typography>
             {state.isError && <ProblemAlert error={state.error} />}
             {st && (
-              <Table size="small" aria-label={t('installed.title')}>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>{t('installed.file')}</TableCell>
-                    <TableCell dir="ltr">
-                      {t(st.startupPresent ? 'installed.present' : 'installed.missing')}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>{t('live.workers')}</TableCell>
-                    <TableCell dir="ltr">{st.workers ?? none}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>{t('live.corelist')}</TableCell>
-                    <TableCell dir="ltr">{st.corelistWorkers || none}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>{t('live.mainCore')}</TableCell>
-                    <TableCell dir="ltr">{st.mainCore ?? none}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>{t('installed.cpus')}</TableCell>
-                    <TableCell dir="ltr">{st.onlineCpus || none}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>{t('installed.hugepages')}</TableCell>
-                    <TableCell dir="ltr">
-                      {gib(st.hugepagesFreeBytes)} / {gib(st.hugepagesTotalBytes)}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>{t('live.plugins')}</TableCell>
-                    <TableCell dir="ltr">
-                      {switches(st.plugins, t('switch.on'), t('switch.off')) || none}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+              <ReactGeereedMaterial
+                tableProps={{ size: 'small', 'aria-label': t('installed.title') }}
+                columns={[
+                  { key: 'label', filterable: false, renderer: (value) => <>{value}</> },
+                  { key: 'value', filterable: false, renderer: (value) => <>{value}</> },
+                ]}
+                items={[
+                  {
+                    id: 0,
+                    label: t('installed.file'),
+                    value: t(st.startupPresent ? 'installed.present' : 'installed.missing'),
+                    cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                      string,
+                      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                    >,
+                  },
+                  {
+                    id: 1,
+                    label: t('live.workers'),
+                    value: st.workers ?? none,
+                    cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                      string,
+                      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                    >,
+                  },
+                  {
+                    id: 2,
+                    label: t('live.corelist'),
+                    value: st.corelistWorkers || none,
+                    cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                      string,
+                      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                    >,
+                  },
+                  {
+                    id: 3,
+                    label: t('live.mainCore'),
+                    value: st.mainCore ?? none,
+                    cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                      string,
+                      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                    >,
+                  },
+                  {
+                    id: 4,
+                    label: t('installed.cpus'),
+                    value: st.onlineCpus || none,
+                    cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                      string,
+                      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                    >,
+                  },
+                  {
+                    id: 5,
+                    label: t('installed.hugepages'),
+                    value: (
+                      <>
+                        {gib(st.hugepagesFreeBytes)}/{gib(st.hugepagesTotalBytes)}
+                      </>
+                    ),
+                    cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                      string,
+                      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                    >,
+                  },
+                  {
+                    id: 6,
+                    label: t('live.plugins'),
+                    value: switches(st.plugins, t('switch.on'), t('switch.off')) || none,
+                    cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                      string,
+                      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                    >,
+                  },
+                ]}
+                rowKey={(item) => item.id}
+                rowProps={(item) => item.rowProps ?? {}}
+                cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+                headerRows={<></>}
+                emptyContent={null}
+                noFormWrapper
+                embedded
+                hideToolbar
+                hidePagination
+                hideFilterBuilderComponent
+                search={false}
+                sortable={false}
+                exportToCSV={false}
+                footer={false}
+                memoEnable={false}
+              />
             )}
             {st?.error && (
               <Alert severity="info" sx={{ mt: 1 }}>

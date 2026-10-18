@@ -1,17 +1,18 @@
-import DownloadIcon from '@mui/icons-material/Download';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import { PgDownloadIcon as DownloadIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
@@ -69,7 +70,11 @@ export function RestconfYangPage() {
         <Typography component="h3" variant="subtitle1" sx={{ flex: 1 }}>
           {t('modulesTitle')}
         </Typography>
-        <Button startIcon={<DownloadIcon />} onClick={() => void downloadAll()} disabled={modules.length === 0}>
+        <Button
+          startIcon={<DownloadIcon />}
+          onClick={() => void downloadAll()}
+          disabled={modules.length === 0}
+        >
           {t('downloadAll')}
         </Button>
       </Stack>
@@ -80,30 +85,78 @@ export function RestconfYangPage() {
 
       {modules.length > 0 && (
         <TableContainer component={Paper} variant="outlined" sx={{ maxInlineSize: 900 }}>
-          <Table size="small" aria-label={t('modulesTitle')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.name')}</TableCell>
-                <TableCell>{t('col.namespace')}</TableCell>
-                <TableCell>{t('col.revision')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }} />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {modules.map((m) => (
-                <TableRow key={m.name}>
-                  <TableCell dir="ltr">{m.name}</TableCell>
-                  <TableCell dir="ltr">{m.namespace}</TableCell>
-                  <TableCell dir="ltr">{m.revision}</TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>
-                    <Button size="small" startIcon={<DownloadIcon />} onClick={() => void download(m.name)}>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('modulesTitle') }}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => t('col.name'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'namespace',
+                headerRenderer: () => t('col.namespace'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'revision',
+                headerRenderer: () => t('col.revision'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column3',
+                headerRenderer: () => null,
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(modules.map((m) => ({
+                id: m.name,
+                name: m.name,
+                namespace: m.namespace,
+                revision: m.revision,
+                column3: (
+                  <>
+                    <Button
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => void download(m.name)}
+                    >
                       {t('download')}
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+                cellProps: {
+                  name: { dir: 'ltr' },
+                  namespace: { dir: 'ltr' },
+                  revision: { dir: 'ltr' },
+                  column3: { sx: { textAlign: 'end' } },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       )}
     </Box>

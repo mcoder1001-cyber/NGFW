@@ -1,5 +1,5 @@
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../api';

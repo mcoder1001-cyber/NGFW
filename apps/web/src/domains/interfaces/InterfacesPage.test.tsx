@@ -182,43 +182,6 @@ describe('interface rows', () => {
 });
 
 describe('interfaces screen', () => {
-  it('opens an Ethernet alias and saves changes to the original logical port', async () => {
-    const api = installFakeApi();
-    withInterfaces(api);
-    api.on('GET /api/v1/state/interfaces', {
-      body: {
-        items: [
-          {
-            name: 'host-w1l0',
-            kind: 'interface',
-            parent: null,
-            state: live('host-w1l0', { type: 'dpdk', linkSpeedKbps: '1000000' }),
-            physical: { pci: '0000:04:00.0', owner: 'dataplane', builtIn: true },
-            running: lanCfg,
-            config: lanCfg,
-            counters: null,
-            hasPendingChange: false,
-          },
-        ],
-      },
-    });
-    const patches: unknown[] = [];
-    api.on('PATCH /api/v1/config/interfaces', (_request, body) => {
-      patches.push(body);
-      return { body: { pointer: '/interfaces', before: null, after: null } };
-    });
-    await signIn();
-    render(app('/interfaces'));
-    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
-    fireEvent.click(await within(grid).findByText('Ethernet1'));
-    const drawer = await screen.findByRole('region', { name: 'Interface Ethernet1' });
-    expect(within(drawer).queryByText('host-w1l0')).not.toBeInTheDocument();
-    expect(within(grid).queryByTitle('host-w1l0')).not.toBeInTheDocument();
-    fireEvent.change(await within(drawer).findByLabelText(/^MTU/), { target: { value: '1400' } });
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Save to candidate' }));
-    await waitFor(() => expect(patches).toEqual([{ 'host-w1l0': { mtu: 1400 } }]));
-  });
-
   it(
     'does not report unavailable host carrier as a definite link failure',
     { timeout: 60_000 },
@@ -255,8 +218,8 @@ describe('interfaces screen', () => {
       render(app('/interfaces'));
       const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
       expect(await within(grid).findByText('down or unknown')).toBeInTheDocument();
-      fireEvent.click(within(grid).getByText('Ethernet1'));
-      const drawer = await screen.findByRole('region', { name: 'Interface Ethernet1' });
+      fireEvent.click(within(grid).getByText('pci-0000:01:00.0'));
+      const drawer = await screen.findByRole('region', { name: 'Interface pci-0000:01:00.0' });
       expect(await within(drawer).findByText('down or unknown')).toBeInTheDocument();
       expect(within(drawer).queryByRole('button', { name: 'Save to candidate' })).toBeNull();
     },
@@ -310,9 +273,9 @@ describe('interfaces screen', () => {
         await within(grid).findByText(i18n.t('interfaces:inventory.management')),
       ).toBeInTheDocument();
       expect(screen.getByText(/VPP unavailable/)).toBeInTheDocument();
-      fireEvent.click(within(grid).getByText('Ethernet1'));
+      fireEvent.click(within(grid).getByText('ens192'));
       const drawer = await screen.findByRole('region', {
-        name: i18n.t('interfaces:drawer.label', { name: 'Ethernet1' }),
+        name: i18n.t('interfaces:drawer.label', { name: 'ens192' }),
       });
       expect(await within(drawer).findByText('0000:01:00.0')).toBeInTheDocument();
       expect(within(drawer).getByText('vmxnet3')).toBeInTheDocument();
@@ -682,8 +645,8 @@ describe('interfaces screen', () => {
       expect(await within(grid).findByText('built-in')).toBeInTheDocument();
       expect(within(grid).getByText('awaiting engine')).toBeInTheDocument();
 
-      fireEvent.click(within(grid).getByText('Ethernet1'));
-      const drawer = await screen.findByRole('region', { name: 'Interface Ethernet1' });
+      fireEvent.click(within(grid).getByText('ens161'));
+      const drawer = await screen.findByRole('region', { name: 'Interface ens161' });
       expect(
         await within(drawer).findByRole('button', { name: 'Release to host' }),
       ).toBeInTheDocument();

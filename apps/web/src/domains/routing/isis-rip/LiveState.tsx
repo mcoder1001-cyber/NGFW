@@ -1,13 +1,11 @@
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import Alert from '@mui/material/Alert';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../api';
@@ -42,7 +40,12 @@ export function LiveState({ proto }: { proto: TabKey }) {
               '/api/v1/state/routing/rip/peers' as never,
               {
                 signal,
-                params: { query: { version: proto === 'ripng' ? 'ng' : '2', limit: 100 } },
+                params: {
+                  query: {
+                    version: proto === 'ripng' ? 'ng' : '2',
+                    limit: 100,
+                  },
+                },
               } as never,
             );
       return (await call(request)).data as unknown as Observed;
@@ -65,28 +68,35 @@ export function LiveState({ proto }: { proto: TabKey }) {
       )}
       {query.isSuccess && !query.data.unavailable && (
         <>
-          <Table size="small" aria-label={t('isisRip.live.title')}>
-            <TableHead>
-              <TableRow>
-                {columns.map((c) => (
-                  <TableCell key={c}>{t(`isisRip.live.${c}`)}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {query.data.rows.map((row, i) => (
-                <TableRow key={`${String(row['systemId'] ?? row['address'])}-${i}`}>
-                  {columns.map((c) => (
-                    <TableCell key={c} dir="ltr">
-                      {c === 'interface'
-                        ? interfaceLabel(String(row[c] ?? t('none')))
-                        : String(row[c] ?? t('none'))}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            hideFilterBuilderComponent
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+            footer={false}
+            items={query.data.rows}
+            tableProps={{
+              size: 'small',
+              'aria-label': t('isisRip.live.title'),
+            }}
+            rowKey={(row, i) => `${String(row['systemId'] ?? row['address'])}-${i}`}
+            columns={columns.map((c) => ({
+              key: c,
+              sortable: false,
+              filterable: false,
+              headerRenderer: () => <>{t(`isisRip.live.${c}`)}</>,
+              renderer: (_value: unknown, row: Observed['rows'][number]) => (
+                <>{String(row[c] ?? t('none'))}</>
+              ),
+            }))}
+            cellProps={() => ({ dir: 'ltr' })}
+            emptyContent={null}
+          />
           {query.data.rows.length === 0 && <Typography>{t('isisRip.live.empty')}</Typography>}
           {query.data.total > query.data.rows.length && (
             <Alert severity="info">

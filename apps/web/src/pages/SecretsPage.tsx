@@ -1,26 +1,29 @@
-import AddIcon from '@mui/icons-material/Add';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
-import DeleteIcon from '@mui/icons-material/Delete';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgAutorenewIcon as AutorenewIcon,
+  PgDeleteIcon as DeleteIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogContentText as DialogContentText,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgMenuItem as MenuItem,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import type { paths } from '@ngfw/api-client';
 import { SECRET_KINDS, secretRef, type SecretKind } from '@ngfw/schema';
 import { useFormatters } from '@ngfw/ui-kit';
@@ -38,7 +41,9 @@ import { KeyButton } from '../config/widgets/KeyButton';
 import { LocalDataGrid } from '../config/widgets/LocalDataGrid';
 import { PageHeader } from '../shell/PageHeader';
 
-type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } } ? T : never;
+type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } }
+  ? T
+  : never;
 
 /** One entry of `GET /api/v1/secrets` as generated from the OpenAPI document: a reference, never a value. */
 export type SecretMeta = Ok<NonNullable<paths['/api/v1/secrets']['get']>>[number];
@@ -115,7 +120,12 @@ export function SecretsPage() {
   const blocked = perms.role === 'admin' ? undefined : t('kit.secrets.adminOnly');
 
   const remove = useMutation({
-    mutationFn: async (s: SecretMeta) => call(api.DELETE('/api/v1/secrets/{kind}/{name}', { params: { path: { kind: s.kind, name: s.name } } })),
+    mutationFn: async (s: SecretMeta) =>
+      call(
+        api.DELETE('/api/v1/secrets/{kind}/{name}', {
+          params: { path: { kind: s.kind, name: s.name } },
+        }),
+      ),
     onSuccess: (_r, s) => {
       setDeleting(null);
       if (selected === s.ref) setSelected(null);
@@ -136,14 +146,37 @@ export function SecretsPage() {
         minWidth: 200,
         flex: 1,
         renderCell: (p) => (
-          <KeyButton tabIndex={p.tabIndex} hasFocus={p.hasFocus} aria-label={t('kit.open', { key: p.row.ref })} onClick={() => setSelected(p.row.ref)}>
+          <KeyButton
+            tabIndex={p.tabIndex}
+            hasFocus={p.hasFocus}
+            aria-label={t('kit.open', { key: p.row.ref })}
+            onClick={() => setSelected(p.row.ref)}
+          >
             {p.row.ref}
           </KeyButton>
         ),
       },
-      { field: 'kind', headerName: t('kit.secrets.col.kind'), width: 150, renderCell: (p) => <Chip size="small" variant="outlined" label={t(`kit.secrets.kind.${p.row.kind}`)} /> },
-      { field: 'name', headerName: t('kit.secrets.col.name'), minWidth: 160, flex: 1, renderCell: (p) => <IdText>{p.row.name}</IdText> },
-      { field: 'createdAt', headerName: t('kit.secrets.col.created'), width: 190, valueFormatter: (v: string) => fmt.dateTime(v) },
+      {
+        field: 'kind',
+        headerName: t('kit.secrets.col.kind'),
+        width: 150,
+        renderCell: (p) => (
+          <Chip size="small" variant="outlined" label={t(`kit.secrets.kind.${p.row.kind}`)} />
+        ),
+      },
+      {
+        field: 'name',
+        headerName: t('kit.secrets.col.name'),
+        minWidth: 160,
+        flex: 1,
+        renderCell: (p) => <IdText>{p.row.name}</IdText>,
+      },
+      {
+        field: 'createdAt',
+        headerName: t('kit.secrets.col.created'),
+        width: 190,
+        valueFormatter: (v: string) => fmt.dateTime(v),
+      },
       {
         field: 'actions',
         headerName: t('kit.col.actions'),
@@ -153,12 +186,31 @@ export function SecretsPage() {
         renderCell: (p) => (
           <Stack direction="row" sx={{ blockSize: '100%' }} alignItems="center">
             <Why reason={blocked}>
-              <IconButton size="small" tabIndex={p.tabIndex} aria-label={t('kit.secrets.rotateRef', { ref: p.row.ref })} disabled={blocked !== undefined} onClick={(e) => { e.stopPropagation(); setTarget(rotate(p.row)); }}>
+              <IconButton
+                size="small"
+                tabIndex={p.tabIndex}
+                aria-label={t('kit.secrets.rotateRef', { ref: p.row.ref })}
+                disabled={blocked !== undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTarget(rotate(p.row));
+                }}
+              >
                 <AutorenewIcon fontSize="small" />
               </IconButton>
             </Why>
             <Why reason={blocked}>
-              <IconButton size="small" tabIndex={p.tabIndex} aria-label={t('kit.secrets.deleteRef', { ref: p.row.ref })} disabled={blocked !== undefined} onClick={(e) => { e.stopPropagation(); resetRemove(); setDeleting(p.row); }}>
+              <IconButton
+                size="small"
+                tabIndex={p.tabIndex}
+                aria-label={t('kit.secrets.deleteRef', { ref: p.row.ref })}
+                disabled={blocked !== undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  resetRemove();
+                  setDeleting(p.row);
+                }}
+              >
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Why>
@@ -176,13 +228,23 @@ export function SecretsPage() {
       </Typography>
       <Stack direction="row" sx={{ mb: 1 }}>
         <Why reason={blocked}>
-          <Button variant="contained" startIcon={<AddIcon />} disabled={blocked !== undefined} onClick={() => setTarget(CREATE)}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            disabled={blocked !== undefined}
+            onClick={() => setTarget(CREATE)}
+          >
             {t('kit.secrets.add')}
           </Button>
         </Why>
       </Stack>
       {notice && (
-        <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice(null)} data-testid="secret-notice">
+        <Alert
+          severity="success"
+          sx={{ mb: 1 }}
+          onClose={() => setNotice(null)}
+          data-testid="secret-notice"
+        >
           {notice}
         </Alert>
       )}
@@ -198,36 +260,96 @@ export function SecretsPage() {
         />
       </Paper>
 
-      <CollectionDrawer open={current !== undefined} onClose={() => setSelected(null)} title={current?.ref ?? ''} label={t('kit.secrets.drawerLabel', { ref: current?.ref ?? '' })}>
+      <CollectionDrawer
+        open={current !== undefined}
+        onClose={() => setSelected(null)}
+        title={current?.ref ?? ''}
+        label={t('kit.secrets.drawerLabel', { ref: current?.ref ?? '' })}
+      >
         {current && (
           <>
-            <Table size="small" aria-label={t('kit.secrets.details')} sx={{ mb: 2 }}>
-              <TableBody>
-                <TableRow>
-                  <TableCell component="th" sx={{ inlineSize: 180 }}>{t('kit.secrets.col.ref')}</TableCell>
-                  <TableCell><IdText>{current.ref}</IdText></TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell component="th">{t('kit.secrets.col.kind')}</TableCell>
-                  <TableCell>{t(`kit.secrets.kind.${current.kind}`)}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell component="th">{t('kit.secrets.col.created')}</TableCell>
-                  <TableCell>{fmt.dateTime(current.createdAt)}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+            <ReactGeereedMaterial
+              tableProps={{ size: 'small', 'aria-label': t('kit.secrets.details'), sx: { mb: 2 } }}
+              columns={[
+                { key: 'label', filterable: false, renderer: (value) => <>{value}</> },
+                { key: 'value', filterable: false, renderer: (value) => <>{value}</> },
+              ]}
+              items={[
+                {
+                  id: 0,
+                  label: t('kit.secrets.col.ref'),
+                  value: (
+                    <>
+                      <IdText>{current.ref}</IdText>
+                    </>
+                  ),
+                  cellProps: {
+                    label: { component: 'th', sx: { inlineSize: 180 } },
+                  } satisfies Record<
+                    string,
+                    NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                  >,
+                },
+                {
+                  id: 1,
+                  label: t('kit.secrets.col.kind'),
+                  value: t(`kit.secrets.kind.${current.kind}`),
+                  cellProps: { label: { component: 'th' } } satisfies Record<
+                    string,
+                    NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                  >,
+                },
+                {
+                  id: 2,
+                  label: t('kit.secrets.col.created'),
+                  value: fmt.dateTime(current.createdAt),
+                  cellProps: { label: { component: 'th' } } satisfies Record<
+                    string,
+                    NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                  >,
+                },
+              ]}
+              rowKey={(item) => item.id}
+              rowProps={(item) => item.rowProps ?? {}}
+              cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+              headerRows={<></>}
+              emptyContent={null}
+              noFormWrapper
+              embedded
+              hideToolbar
+              hidePagination
+              hideFilterBuilderComponent
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+              footer={false}
+              memoEnable={false}
+            />
             <Alert severity="info" sx={{ mb: 2 }}>
               {t('kit.secrets.usage', { ref: current.ref })}
             </Alert>
             <Stack direction="row" gap={1}>
               <Why reason={blocked}>
-                <Button variant="outlined" startIcon={<AutorenewIcon />} disabled={blocked !== undefined} onClick={() => setTarget(rotate(current))}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AutorenewIcon />}
+                  disabled={blocked !== undefined}
+                  onClick={() => setTarget(rotate(current))}
+                >
                   {t('kit.secrets.rotate')}
                 </Button>
               </Why>
               <Why reason={blocked}>
-                <Button color="error" variant="outlined" startIcon={<DeleteIcon />} disabled={blocked !== undefined} onClick={() => { remove.reset(); setDeleting(current); }}>
+                <Button
+                  color="error"
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  disabled={blocked !== undefined}
+                  onClick={() => {
+                    remove.reset();
+                    setDeleting(current);
+                  }}
+                >
                   {t('kit.secrets.delete')}
                 </Button>
               </Why>
@@ -242,20 +364,38 @@ export function SecretsPage() {
           onClose={() => setTarget(null)}
           onStored={(r) => {
             setTarget(null);
-            setNotice(t(r.created ? 'kit.secrets.created' : 'kit.secrets.rotated', { ref: r.ref, version: fmt.integer(r.version) }));
+            setNotice(
+              t(r.created ? 'kit.secrets.created' : 'kit.secrets.rotated', {
+                ref: r.ref,
+                version: fmt.integer(r.version),
+              }),
+            );
           }}
         />
       )}
 
-      <Dialog open={deleting !== null} onClose={() => setDeleting(null)} aria-labelledby="secret-del-title" maxWidth="sm" fullWidth>
-        <DialogTitle id="secret-del-title">{t('kit.secrets.deleteTitle', { ref: deleting?.ref ?? '' })}</DialogTitle>
+      <Dialog
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        aria-labelledby="secret-del-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle id="secret-del-title">
+          {t('kit.secrets.deleteTitle', { ref: deleting?.ref ?? '' })}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>{t('kit.secrets.deleteBody')}</DialogContentText>
           {remove.isError && <ProblemAlert error={remove.error} sx={{ mt: 1 }} />}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleting(null)}>{t('cancel')}</Button>
-          <Button color="error" variant="contained" disabled={remove.isPending || deleting === null} onClick={() => deleting && remove.mutate(deleting)}>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={remove.isPending || deleting === null}
+            onClick={() => deleting && remove.mutate(deleting)}
+          >
             {t('kit.secrets.deleteConfirm')}
           </Button>
         </DialogActions>
@@ -271,7 +411,15 @@ interface PutArgs {
   replace: boolean;
 }
 
-function SecretValueDialog({ target, onClose, onStored }: { target: Target; onClose: () => void; onStored: (r: SecretPutResult) => void }) {
+function SecretValueDialog({
+  target,
+  onClose,
+  onStored,
+}: {
+  target: Target;
+  onClose: () => void;
+  onStored: (r: SecretPutResult) => void;
+}) {
   const { t } = useTranslation('config');
   const qc = useQueryClient();
   const rotating = target.mode === 'rotate';
@@ -285,7 +433,12 @@ function SecretValueDialog({ target, onClose, onStored }: { target: Target; onCl
   const put = useMutation({
     mutationFn: async ({ kind: k, name: n, replace }: PutArgs): Promise<SecretPutResult> => {
       const value = valueInput.current?.value ?? '';
-      const { data } = await call(api.POST('/api/v1/secrets', { params: { query: replace ? { replace: 'true' } : {} }, body: { kind: k, name: n, value } }));
+      const { data } = await call(
+        api.POST('/api/v1/secrets', {
+          params: { query: replace ? { replace: 'true' } : {} },
+          body: { kind: k, name: n, value },
+        }),
+      );
       return data;
     },
     onSuccess: (r) => {
@@ -297,7 +450,8 @@ function SecretValueDialog({ target, onClose, onStored }: { target: Target; onCl
   });
 
   // server pointers: `/value` → the value field, `/name` → the name field; 409 secret-exists → the name field
-  const pointers = put.error instanceof ApiError ? (put.error.body.errors ?? []).map((e) => e.pointer) : [];
+  const pointers =
+    put.error instanceof ApiError ? (put.error.body.errors ?? []).map((e) => e.pointer) : [];
   const exists = put.error instanceof ApiError && put.error.slug === 'secret-exists';
   const nameError = (name !== '' && !nameOk) || pointers.includes('/name') || exists;
   const valueError = pointers.includes('/value');
@@ -316,13 +470,30 @@ function SecretValueDialog({ target, onClose, onStored }: { target: Target; onCl
   };
 
   return (
-    <Dialog open onClose={put.isPending ? undefined : onClose} maxWidth="sm" fullWidth aria-labelledby="secret-value-title">
+    <Dialog
+      open
+      onClose={put.isPending ? undefined : onClose}
+      maxWidth="sm"
+      fullWidth
+      aria-labelledby="secret-value-title"
+    >
       <Box>
-        <DialogTitle id="secret-value-title">{rotating ? t('kit.secrets.rotateTitle', { ref: target.secret.ref }) : t('kit.secrets.addTitle')}</DialogTitle>
+        <DialogTitle id="secret-value-title">
+          {rotating
+            ? t('kit.secrets.rotateTitle', { ref: target.secret.ref })
+            : t('kit.secrets.addTitle')}
+        </DialogTitle>
         <DialogContent>
           <Stack gap={2} sx={{ pt: 1 }}>
-            <Alert severity="info">{rotating ? t('kit.secrets.rotateNote') : t('kit.secrets.valueNote')}</Alert>
-            <TextField select label={t('kit.secrets.col.kind')} value={kind} disabled={rotating} onChange={(e) => {
+            <Alert severity="info">
+              {rotating ? t('kit.secrets.rotateNote') : t('kit.secrets.valueNote')}
+            </Alert>
+            <TextField
+              select
+              label={t('kit.secrets.col.kind')}
+              value={kind}
+              disabled={rotating}
+              onChange={(e) => {
                 const next = e.target.value as SecretKind;
                 if (MULTILINE.has(next) !== multiline) setHasValue(false); // the value input is replaced (and empty)
                 setKind(next);
@@ -342,7 +513,11 @@ function SecretValueDialog({ target, onClose, onStored }: { target: Target; onCl
               onChange={(e) => setName(e.target.value.trim())}
               onKeyDown={submitOnEnter}
               error={nameError}
-              helperText={exists ? t('kit.secrets.exists', { ref: `${kind}/${name}` }) : t('kit.secrets.nameHelp', { ref: `${kind}/${name || '…'}` })}
+              helperText={
+                exists
+                  ? t('kit.secrets.exists', { ref: `${kind}/${name}` })
+                  : t('kit.secrets.nameHelp', { ref: `${kind}/${name || '…'}` })
+              }
               slotProps={{ htmlInput: LTR_INPUT }}
             />
             <TextField
@@ -355,7 +530,9 @@ function SecretValueDialog({ target, onClose, onStored }: { target: Target; onCl
               helperText={t(multiline ? 'kit.secrets.valueHelpPem' : 'kit.secrets.valueHelp')}
               onChange={(e) => setHasValue(e.target.value !== '')}
               onKeyDown={multiline ? undefined : submitOnEnter}
-              slotProps={{ htmlInput: multiline ? VALUE_INPUT : { ...VALUE_INPUT, style: MASK_STYLE } }}
+              slotProps={{
+                htmlInput: multiline ? VALUE_INPUT : { ...VALUE_INPUT, style: MASK_STYLE },
+              }}
             />
             {put.isError && !exists && <ProblemAlert error={put.error} />}
           </Stack>
@@ -364,7 +541,11 @@ function SecretValueDialog({ target, onClose, onStored }: { target: Target; onCl
           <Button onClick={onClose} disabled={put.isPending}>
             {t('cancel')}
           </Button>
-          <Button onClick={submit} variant="contained" disabled={!nameOk || !hasValue || put.isPending}>
+          <Button
+            onClick={submit}
+            variant="contained"
+            disabled={!nameOk || !hasValue || put.isPending}
+          >
             {rotating ? t('kit.secrets.rotateSubmit') : t('kit.secrets.addSubmit')}
           </Button>
         </DialogActions>

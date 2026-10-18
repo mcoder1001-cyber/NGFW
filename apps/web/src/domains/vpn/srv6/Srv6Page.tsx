@@ -1,31 +1,30 @@
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgArrowDownwardIcon as ArrowDownwardIcon,
+  PgArrowUpwardIcon as ArrowUpwardIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgMenuItem as MenuItem,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import AddIcon from '@mui/icons-material/Add';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import { canonicalPrefix, DEFAULT_VRF, jsonPointer } from '@ngfw/schema';
 import { StatusChip, useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
@@ -201,65 +200,112 @@ function LocalSidsPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | unde
         )}
       </Stack>
       {patch.error !== null && <ProblemAlert error={patch.error} sx={{ mb: 2 }} />}
-      <Table size="small" aria-label={t('sids.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.sid')}</TableCell>
-            <TableCell>{t('col.behavior')}</TableCell>
-            <TableCell>{t('col.vrf')}</TableCell>
-            <TableCell>{t('col.target')}</TableCell>
-            <TableCell>{t('col.status')}</TableCell>
-            <TableCell>{t('col.good')}</TableCell>
-            <TableCell>{t('col.bad')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={8}>{t('sids.empty')}</TableCell>
-            </TableRow>
-          )}
-          {rows.map((r) => {
-            const behavior = r.config?.behavior ?? r.state?.behavior ?? '';
-            const vrf = r.config?.vrf ?? r.state?.vrf ?? '';
-            const iface = r.config?.interface ?? r.state?.interface ?? null;
-            const nh = r.config?.nextHop ?? r.state?.nextHop ?? null;
-            const lookup = r.config?.lookupVrf ?? r.state?.lookupVrf ?? null;
-            const target = [
-              iface ? interfaceLabel(iface) : iface,
-              nh ? `via ${nh}` : null,
-              lookup ? `→ ${lookup}` : null,
-            ]
-              .filter((x) => x !== null)
-              .join(' ');
-            const psp = r.config?.psp ?? r.state?.psp ?? false;
-            return (
-              <TableRow key={r.sid} data-testid={`srv6-sid-${r.sid}`}>
-                <TableCell dir="ltr">{r.sid}</TableCell>
-                <TableCell dir="ltr">{psp ? t('behaviorPsp', { behavior }) : behavior}</TableCell>
-                <TableCell>{vrf}</TableCell>
-                <TableCell dir="ltr">{target || '—'}</TableCell>
-                <TableCell>
+      <ReactGeereedMaterial
+        hideFilterBuilderComponent
+        items={rows}
+        columns={[
+          {
+            key: 'sid',
+            headerRenderer: () => t('col.sid'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return <>{r.sid}</>;
+            },
+          },
+          {
+            key: 'behavior',
+            headerRenderer: () => t('col.behavior'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const behavior = r.config?.behavior ?? r.state?.behavior ?? '';
+              const psp = r.config?.psp ?? r.state?.psp ?? false;
+              return <>{psp ? t('behaviorPsp', { behavior }) : behavior}</>;
+            },
+          },
+          {
+            key: 'vrf',
+            headerRenderer: () => t('col.vrf'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const vrf = r.config?.vrf ?? r.state?.vrf ?? '';
+              return <>{vrf}</>;
+            },
+          },
+          {
+            key: 'target',
+            headerRenderer: () => t('col.target'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const iface = r.config?.interface ?? r.state?.interface ?? null;
+              const nh = r.config?.nextHop ?? r.state?.nextHop ?? null;
+              const lookup = r.config?.lookupVrf ?? r.state?.lookupVrf ?? null;
+              const target = [iface, nh ? `via ${nh}` : null, lookup ? `→ ${lookup}` : null]
+                .filter((x) => x !== null)
+                .join(' ');
+              return <>{target || '—'}</>;
+            },
+          },
+          {
+            key: 'status',
+            headerRenderer: () => t('col.status'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return (
+                <>
                   <StatusCell status={r.status} />
-                </TableCell>
-                <TableCell>
+                </>
+              );
+            },
+          },
+          {
+            key: 'good',
+            headerRenderer: () => t('col.good'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return (
+                <>
                   {r.state
                     ? t('counters', {
                         packets: fmt.integer(r.state.goodPackets),
                         bytes: fmt.integer(r.state.goodBytes),
                       })
                     : '—'}
-                </TableCell>
-                <TableCell>
+                </>
+              );
+            },
+          },
+          {
+            key: 'bad',
+            headerRenderer: () => t('col.bad'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return (
+                <>
                   {r.state
                     ? t('counters', {
                         packets: fmt.integer(r.state.badPackets),
                         bytes: fmt.integer(r.state.badBytes),
                       })
                     : '—'}
-                </TableCell>
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                </>
+              );
+            },
+          },
+          {
+            key: 'actions',
+            headerRenderer: () => null,
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return (
+                <>
                   {perms.editConfig && r.config && (
                     <>
                       <IconButton
@@ -278,12 +324,33 @@ function LocalSidsPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | unde
                       </IconButton>
                     </>
                   )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                </>
+              );
+            },
+          },
+        ]}
+        rowKey={(r) => r.sid}
+        rowProps={(r) => ({ role: 'row', 'data-testid': `srv6-sid-${r.sid}` })}
+        cellProps={(_item, column) => {
+          if (column.key === 'sid') return { dir: 'ltr' };
+          if (column.key === 'behavior') return { dir: 'ltr' };
+          if (column.key === 'target') return { dir: 'ltr' };
+          if (column.key === 'actions') return { sx: { whiteSpace: 'nowrap' } };
+          return {};
+        }}
+        tableProps={{ size: 'small', 'aria-label': t('sids.title') }}
+
+        emptyContent={t('sids.empty')}
+        noFormWrapper
+        embedded
+        memoEnable={false}
+        hidePagination
+        hideToolbar
+        footer={false}
+        search={false}
+        sortable={false}
+        exportToCSV={false}
+      />
       {edit && (
         <LocalSidDialog
           key={edit.sid || 'new'}
@@ -406,56 +473,105 @@ function PoliciesPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undef
         )}
       </Stack>
       {patch.error !== null && <ProblemAlert error={patch.error} sx={{ mb: 2 }} />}
-      <Table size="small" aria-label={t('policies.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.bsid')}</TableCell>
-            <TableCell>{t('col.type')}</TableCell>
-            <TableCell>{t('col.mode')}</TableCell>
-            <TableCell>{t('col.vrf')}</TableCell>
-            <TableCell>{t('col.source')}</TableCell>
-            <TableCell>{t('col.sidLists')}</TableCell>
-            <TableCell>{t('col.status')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={8}>{t('policies.empty')}</TableCell>
-            </TableRow>
-          )}
-          {rows.map((r) => {
-            const encap = r.config?.encap ?? r.state?.encap ?? false;
-            const source = r.config
-              ? effectiveEncapSource(r.config, cfg)
-              : (r.state?.encapSource ?? undefined);
-            const inherited = r.config?.encap === true && r.config.encapSource === undefined;
-            const lists = r.config?.sidLists ?? r.state?.sidLists ?? [];
-            const inUse = steered.has(canon(r.bsid));
-            return (
-              <TableRow key={r.bsid} data-testid={`srv6-policy-${r.bsid}`}>
-                <TableCell dir="ltr">{r.bsid}</TableCell>
-                <TableCell>
-                  {t(`policyType.${r.config?.type ?? r.state?.type ?? 'default'}`)}
-                </TableCell>
-                <TableCell>{encap ? t('mode.encap') : t('mode.insert')}</TableCell>
-                <TableCell>{r.config?.vrf ?? r.state?.vrf ?? ''}</TableCell>
-                <TableCell>
+      <ReactGeereedMaterial
+        hideFilterBuilderComponent
+        items={rows}
+        columns={[
+          {
+            key: 'bsid',
+            headerRenderer: () => t('col.bsid'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return <>{r.bsid}</>;
+            },
+          },
+          {
+            key: 'type',
+            headerRenderer: () => t('col.type'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return <>{t(`policyType.${r.config?.type ?? r.state?.type ?? 'default'}`)}</>;
+            },
+          },
+          {
+            key: 'mode',
+            headerRenderer: () => t('col.mode'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const encap = r.config?.encap ?? r.state?.encap ?? false;
+              return <>{encap ? t('mode.encap') : t('mode.insert')}</>;
+            },
+          },
+          {
+            key: 'vrf',
+            headerRenderer: () => t('col.vrf'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return <>{r.config?.vrf ?? r.state?.vrf ?? ''}</>;
+            },
+          },
+          {
+            key: 'source',
+            headerRenderer: () => t('col.source'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const source = r.config
+                ? effectiveEncapSource(r.config, cfg)
+                : (r.state?.encapSource ?? undefined);
+              const inherited = r.config?.encap === true && r.config.encapSource === undefined;
+              return (
+                <>
                   {source ? <span dir="ltr">{source}</span> : '—'}
                   {source && inherited ? ` ${t('policies.inherited')}` : ''}
-                </TableCell>
-                <TableCell>
+                </>
+              );
+            },
+          },
+          {
+            key: 'sidLists',
+            headerRenderer: () => t('col.sidLists'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const lists = r.config?.sidLists ?? r.state?.sidLists ?? [];
+              return (
+                <>
                   {lists.map((l, i) => (
                     <div key={i} dir="ltr">
                       {`${sidListText(l.sids)} (w ${l.weight ?? 1})`}
                     </div>
                   ))}
-                </TableCell>
-                <TableCell>
+                </>
+              );
+            },
+          },
+          {
+            key: 'status',
+            headerRenderer: () => t('col.status'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return (
+                <>
                   <StatusCell status={r.status} />
-                </TableCell>
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                </>
+              );
+            },
+          },
+          {
+            key: 'actions',
+            headerRenderer: () => null,
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const inUse = steered.has(canon(r.bsid));
+              return (
+                <>
                   {perms.editConfig && r.config && (
                     <>
                       <IconButton
@@ -479,12 +595,34 @@ function PoliciesPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undef
                       </Tooltip>
                     </>
                   )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                </>
+              );
+            },
+          },
+        ]}
+        rowKey={(r) => r.bsid}
+        rowProps={(r) => ({
+          role: 'row',
+          'data-testid': `srv6-policy-${r.bsid}`,
+        })}
+        cellProps={(_item, column) => {
+          if (column.key === 'bsid') return { dir: 'ltr' };
+          if (column.key === 'actions') return { sx: { whiteSpace: 'nowrap' } };
+          return {};
+        }}
+        tableProps={{ size: 'small', 'aria-label': t('policies.title') }}
+
+        emptyContent={t('policies.empty')}
+        noFormWrapper
+        embedded
+        memoEnable={false}
+        hidePagination
+        hideToolbar
+        footer={false}
+        search={false}
+        sortable={false}
+        exportToCSV={false}
+      />
       {edit && (
         <PolicyDialog
           key={edit.bsid || 'new'}
@@ -573,9 +711,10 @@ function PolicyDialog({
   }, [existing]);
   const [bsidText, setBsidText] = useState(target.bsid);
   const [lists, setLists] = useState<SidListDraft[]>(
-    existing?.sidLists.map((l) => ({ sids: [...l.sids], weight: l.weight })) ?? [
-      { sids: [''], weight: 1 },
-    ],
+    existing?.sidLists.map((l) => ({
+      sids: [...l.sids],
+      weight: l.weight,
+    })) ?? [{ sids: [''], weight: 1 }],
   );
   const bsid = canon(bsidText);
   const taken =
@@ -721,16 +860,25 @@ export function SidListEditor({
                   disabled={readOnly}
                   error={s !== '' && !isIpv6(s)}
                   onChange={(e) =>
-                    set(i, { ...l, sids: l.sids.map((x, m) => (m === k ? e.target.value : x)) })
+                    set(i, {
+                      ...l,
+                      sids: l.sids.map((x, m) => (m === k ? e.target.value : x)),
+                    })
                   }
                   onBlur={() =>
                     isIpv6(s) &&
-                    set(i, { ...l, sids: l.sids.map((x, m) => (m === k ? canon(x) : x)) })
+                    set(i, {
+                      ...l,
+                      sids: l.sids.map((x, m) => (m === k ? canon(x) : x)),
+                    })
                   }
                   slotProps={{
                     htmlInput: {
                       ...LTR,
-                      'aria-label': t('sidLists.segment', { n: k + 1, list: i + 1 }),
+                      'aria-label': t('sidLists.segment', {
+                        n: k + 1,
+                        list: i + 1,
+                      }),
                     },
                   }}
                 />
@@ -823,45 +971,83 @@ function SteeringPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undef
         )}
       </Stack>
       {patch.error !== null && <ProblemAlert error={patch.error} sx={{ mb: 2 }} />}
-      <Table size="small" aria-label={t('steering.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.match')}</TableCell>
-            <TableCell>{t('col.vrf')}</TableCell>
-            <TableCell>{t('col.traffic')}</TableCell>
-            <TableCell>{t('col.bsid')}</TableCell>
-            <TableCell>{t('col.status')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={6}>{t('steering.empty')}</TableCell>
-            </TableRow>
-          )}
-          {rows.map((r) => {
-            const c = r.config;
-            const s = r.state;
-            const what = c
-              ? c.type === 'l2'
-                ? interfaceLabel(c.interface)
-                : c.prefix
-              : s?.interface
-                ? interfaceLabel(s.interface)
-                : (s?.prefix ?? '');
-            const vrf = c ? (c.type === 'l3' ? c.vrf : null) : (s?.vrf ?? null);
-            const traffic = s?.trafficType ?? trafficOf(c);
-            return (
-              <TableRow key={r.key} data-testid={`srv6-steer-${r.key}`}>
-                <TableCell dir="ltr">{what}</TableCell>
-                <TableCell>{vrf ?? '—'}</TableCell>
-                <TableCell>{t(`traffic.${traffic}`)}</TableCell>
-                <TableCell dir="ltr">{c?.bsid ?? s?.bsid ?? ''}</TableCell>
-                <TableCell>
+      <ReactGeereedMaterial
+        hideFilterBuilderComponent
+        items={rows}
+        columns={[
+          {
+            key: 'match',
+            headerRenderer: () => t('col.match'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const c = r.config;
+              const s = r.state;
+              const what = c
+                ? c.type === 'l2'
+                  ? c.interface
+                  : c.prefix
+                : (s?.interface ?? s?.prefix ?? '');
+              return <>{what}</>;
+            },
+          },
+          {
+            key: 'vrf',
+            headerRenderer: () => t('col.vrf'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const c = r.config;
+              const s = r.state;
+              const vrf = c ? (c.type === 'l3' ? c.vrf : null) : (s?.vrf ?? null);
+              return <>{vrf ?? '—'}</>;
+            },
+          },
+          {
+            key: 'traffic',
+            headerRenderer: () => t('col.traffic'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const c = r.config;
+              const s = r.state;
+              const traffic = s?.trafficType ?? trafficOf(c);
+              return <>{t(`traffic.${traffic}`)}</>;
+            },
+          },
+          {
+            key: 'bsid',
+            headerRenderer: () => t('col.bsid'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const c = r.config;
+              const s = r.state;
+              return <>{c?.bsid ?? s?.bsid ?? ''}</>;
+            },
+          },
+          {
+            key: 'status',
+            headerRenderer: () => t('col.status'),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              return (
+                <>
                   <StatusCell status={r.status} />
-                </TableCell>
-                <TableCell>
+                </>
+              );
+            },
+          },
+          {
+            key: 'actions',
+            headerRenderer: () => null,
+            sortable: false,
+            filterable: false,
+            renderer: (_value, r: (typeof rows)[number]) => {
+              const c = r.config;
+              return (
+                <>
                   {perms.editConfig && c && (
                     <IconButton
                       size="small"
@@ -871,12 +1057,34 @@ function SteeringPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undef
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                </>
+              );
+            },
+          },
+        ]}
+        rowKey={(r) => r.key}
+        rowProps={(r) => ({
+          role: 'row',
+          'data-testid': `srv6-steer-${r.key}`,
+        })}
+        cellProps={(_item, column) => {
+          if (column.key === 'match') return { dir: 'ltr' };
+          if (column.key === 'bsid') return { dir: 'ltr' };
+          return {};
+        }}
+        tableProps={{ size: 'small', 'aria-label': t('steering.title') }}
+
+        emptyContent={t('steering.empty')}
+        noFormWrapper
+        embedded
+        memoEnable={false}
+        hidePagination
+        hideToolbar
+        footer={false}
+        search={false}
+        sortable={false}
+        exportToCSV={false}
+      />
       {adding && <SteeringDialog cfg={cfg} onClose={() => setAdding(false)} />}
     </Box>
   );
@@ -911,7 +1119,9 @@ function SteeringDialog({ cfg, onClose }: { cfg: Srv6View; onClose: () => void }
     if (!entry) return;
     const cur = await fresh();
     try {
-      await patch.mutateAsync({ steering: sortSteering([...cur.steering, entry]) });
+      await patch.mutateAsync({
+        steering: sortSteering([...cur.steering, entry]),
+      });
       onClose();
     } catch {
       // rendered from patch.error

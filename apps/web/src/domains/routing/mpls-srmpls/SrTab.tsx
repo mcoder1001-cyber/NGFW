@@ -1,5 +1,5 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { useCallback, useMemo } from 'react';

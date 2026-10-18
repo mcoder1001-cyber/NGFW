@@ -1,23 +1,22 @@
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgCircularProgress as CircularProgress,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import { StatusChip } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { problemFor } from '../../interfaces/InterfaceDrawer';
 import {
   LISP_POINTER,
@@ -46,8 +45,8 @@ export function LispTab() {
   const schema = useMemo(() => sectionSchema(section), [section]);
   const value = useMemo(() => sectionValue(section, candidate.data), [section, candidate.data]);
   const rows = useMemo(
-    () => statusRows(section, candidate.data, state.data ?? null, interfaceLabel),
-    [section, candidate.data, state.data, interfaceLabel],
+    () => statusRows(section, candidate.data, state.data ?? null),
+    [section, candidate.data, state.data],
   );
 
   return (
@@ -74,37 +73,82 @@ export function LispTab() {
         <Typography component="h3" variant="subtitle1" sx={{ mb: 1 }}>
           {t('status.title')}
         </Typography>
-        <Table size="small" aria-label={t('status.title')} sx={{ mb: 3 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.kind')}</TableCell>
-              <TableCell>{t('col.id')}</TableCell>
-              <TableCell>{t('col.detail')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4}>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('empty')}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map((r) => (
-              <TableRow key={`${r.kind}:${r.id}`}>
-                <TableCell>{t(`kind.${r.kind}`)}</TableCell>
-                <TableCell dir="ltr">{r.id}</TableCell>
-                <TableCell dir="ltr">{serviceText(r.detail)}</TableCell>
-                <TableCell>
-                  <StatusChip size="small" status={r.status} label={t(r.labelKey)} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ReactGeereedMaterial
+          hideFilterBuilderComponent
+          items={rows}
+          columns={[
+            {
+              key: 'kind',
+              headerRenderer: () => t('col.kind'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return <>{t(`kind.${r.kind}`)}</>;
+              },
+            },
+            {
+              key: 'id',
+              headerRenderer: () => t('col.id'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return <>{r.id}</>;
+              },
+            },
+            {
+              key: 'detail',
+              headerRenderer: () => t('col.detail'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return <>{serviceText(r.detail)}</>;
+              },
+            },
+            {
+              key: 'status',
+              headerRenderer: () => t('col.status'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return (
+                  <>
+                    <StatusChip size="small" status={r.status} label={t(r.labelKey)} />
+                  </>
+                );
+              },
+            },
+          ]}
+          rowKey={(r) => `${r.kind}:${r.id}`}
+
+          cellProps={(_item, column) => {
+            if (column.key === 'id') return { dir: 'ltr' };
+            if (column.key === 'detail') return { dir: 'ltr' };
+            return {};
+          }}
+          tableProps={{
+            size: 'small',
+            'aria-label': t('status.title'),
+            sx: { mb: 3 },
+          }}
+
+          emptyContent={
+            <>
+              {' '}
+              <Typography variant="body2" color="text.secondary">
+                {t('empty')}
+              </Typography>{' '}
+            </>
+          }
+          noFormWrapper
+          embedded
+          memoEnable={false}
+          hidePagination
+          hideToolbar
+          footer={false}
+          search={false}
+          sortable={false}
+          exportToCSV={false}
+        />
         {candidate.isPending && <CircularProgress aria-label={t('loading')} />}
         {candidate.isError && <ProblemAlert error={candidate.error} />}
         {candidate.isSuccess && (

@@ -1,23 +1,22 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgFormControlLabel as FormControlLabel,
+  PgIconButton as IconButton,
+  PgStack as Stack,
+  PgSwitch as Switch,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NS, type PanelProps } from './FlowExportTab';
@@ -92,36 +91,62 @@ export function ExportersPanel({ cfg, state, readOnly, pending, save }: PanelPro
       <Typography variant="body2" color="text.secondary">
         {t('exporters.help')}
       </Typography>
-      <Table size="small" aria-label={t('section.exporters')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('exporters.name')}</TableCell>
-            <TableCell>{t('exporters.collector')}</TableCell>
-            <TableCell>{t('exporters.source')}</TableCell>
-            <TableCell>{t('exporters.vrf')}</TableCell>
-            <TableCell>{t('exporters.status')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {Object.keys(exporters).length === 0 && (
-            <TableRow>
-              <TableCell colSpan={6}>{t('exporters.empty')}</TableCell>
-            </TableRow>
-          )}
-          {Object.entries(exporters)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([name, e]) => {
-              const l = live.get(name);
-              return (
-                <TableRow key={name}>
-                  <TableCell>{name}</TableCell>
-                  <TableCell dir="ltr">
+      {(() => {
+        const nativeRows = Object.entries(exporters)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([name, e]) => {
+            const l = live.get(name);
+            return { name, e, l };
+          });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('exporters.name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { name }: (typeof nativeRows)[number]) => <>{name}</>,
+              },
+              {
+                key: 'collector',
+                headerRenderer: () => <>{t('exporters.collector')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { e }: (typeof nativeRows)[number]) => (
+                  <>
                     {e.collector.address}:{e.collector.port ?? 4739}
-                  </TableCell>
-                  <TableCell dir="ltr">{e.sourceAddress}</TableCell>
-                  <TableCell>{e.vrf ?? DEFAULT_VRF}</TableCell>
-                  <TableCell>
+                  </>
+                ),
+              },
+              {
+                key: 'source',
+                headerRenderer: () => <>{t('exporters.source')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { e }: (typeof nativeRows)[number]) => (
+                  <>{e.sourceAddress}</>
+                ),
+              },
+              {
+                key: 'vrf',
+                headerRenderer: () => <>{t('exporters.vrf')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { e }: (typeof nativeRows)[number]) => (
+                  <>{e.vrf ?? DEFAULT_VRF}</>
+                ),
+              },
+              {
+                key: 'status',
+                headerRenderer: () => <>{t('exporters.status')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { e, l }: (typeof nativeRows)[number]) => (
+                  <>
                     {e.enabled === false ? (
                       <Chip size="small" label={t('exporters.disabled')} />
                     ) : l === undefined ? (
@@ -141,8 +166,16 @@ export function ExportersPanel({ cfg, state, readOnly, pending, save }: PanelPro
                         )}
                       </Stack>
                     )}
-                  </TableCell>
-                  <TableCell>
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <></>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { name, e }: (typeof nativeRows)[number]) => (
+                  <>
                     <IconButton
                       aria-label={t('edit', { name })}
                       disabled={readOnly || pending}
@@ -160,12 +193,37 @@ export function ExportersPanel({ cfg, state, readOnly, pending, save }: PanelPro
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-        </TableBody>
-      </Table>
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { name } = item as (typeof nativeRows)[number];
+              return name;
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'collector':
+                  return { dir: 'ltr' };
+                case 'source':
+                  return { dir: 'ltr' };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('section.exporters') }}
+            emptyContent={<>{t('exporters.empty')}</>}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <div>
         <Button
           startIcon={<AddIcon />}

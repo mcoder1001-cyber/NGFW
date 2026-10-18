@@ -1,31 +1,28 @@
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTopic } from '@ngfw/ui-kit/ws';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import {
-  Alert,
-  Box,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
 import { api } from '../../../api';
 import { call } from '../../../api-problem';
+import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { PageHeader } from '../../../shell/PageHeader';
 import { BfdPage } from '../bfd/BfdPage';
-import { ProtocolForm } from '../ospf/ProtocolForm';
 import { PrefixListsTab, RouteMapsTab } from '../bgp/PolicyTab';
 import { useCandidate, usePatch } from '../bgp/api';
-import { usePermissions } from '../../../auth/AuthProvider';
-import { PageHeader } from '../../../shell/PageHeader';
+import { ProtocolForm } from '../ospf/ProtocolForm';
 
-const sessionColumns = ['engine', 'interface', 'peer', 'state', 'timers'];
+const sessionColumns = ['engine', 'interface', 'peer', 'state', 'timers'] as const;
 const policyKinds = ['routeMaps', 'prefixLists'] as const;
 const policyFields = { routeMaps: 'entries', prefixLists: 'rules' } as const;
 const policyTargets = ['bgp', 'ospf', 'isis', 'rip'];
@@ -80,32 +77,117 @@ export function BfdRedistributionPage() {
       <Button onClick={() => void live.refetch()} disabled={live.isFetching}>
         {t('refresh')}
       </Button>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            {sessionColumns.map((k) => (
-              <TableCell key={k}>{t(k)}</TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {live.data?.sessions.map((s) => (
-            <TableRow key={`${s.engine}/${s.interface}/${s.peerAddress}`}>
-              <TableCell>{s.engine}</TableCell>
-              <TableCell>{interfaceLabel(s.interface)}</TableCell>
-              <TableCell dir="ltr">{s.peerAddress}</TableCell>
-              <TableCell>{t(`states.${s.state}`, { defaultValue: t('states.unknown') })}</TableCell>
-              <TableCell dir="ltr">
-                {t('timerValue', {
-                  tx: s.desiredMinTxUs,
-                  rx: s.requiredMinRxUs,
-                  multiplier: s.detectMultiplier,
-                })}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const gridItems = live.data?.sessions ?? [];
+        type GridRow = (typeof gridItems)[number];
+        return (
+          <ReactGeereedMaterial
+            hideFilterBuilderComponent
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+            footer={false}
+            items={gridItems}
+            columns={[
+              {
+                key: '0',
+                sortable: false,
+                filterable: false,
+                headerRenderer: () => <>{t(sessionColumns[0])}</>,
+                renderer: (_value: unknown, gridRow: GridRow) => {
+                  const s = gridRow;
+                  return <>{s.engine}</>;
+                },
+              },
+              {
+                key: '1',
+                sortable: false,
+                filterable: false,
+                headerRenderer: () => <>{t(sessionColumns[1])}</>,
+                renderer: (_value: unknown, gridRow: GridRow) => {
+                  const s = gridRow;
+                  return <>{s.interface}</>;
+                },
+              },
+              {
+                key: '2',
+                sortable: false,
+                filterable: false,
+                headerRenderer: () => <>{t(sessionColumns[2])}</>,
+                renderer: (_value: unknown, gridRow: GridRow) => {
+                  const s = gridRow;
+                  return <>{s.peerAddress}</>;
+                },
+              },
+              {
+                key: '3',
+                sortable: false,
+                filterable: false,
+                headerRenderer: () => <>{t(sessionColumns[3])}</>,
+                renderer: (_value: unknown, gridRow: GridRow) => {
+                  const s = gridRow;
+                  return (
+                    <>
+                      {t(`states.${s.state}`, {
+                        defaultValue: t('states.unknown'),
+                      })}
+                    </>
+                  );
+                },
+              },
+              {
+                key: '4',
+                sortable: false,
+                filterable: false,
+                headerRenderer: () => <>{t(sessionColumns[4])}</>,
+                renderer: (_value: unknown, gridRow: GridRow) => {
+                  const s = gridRow;
+                  return (
+                    <>
+                      {t('timerValue', {
+                        tx: s.desiredMinTxUs,
+                        rx: s.requiredMinRxUs,
+                        multiplier: s.detectMultiplier,
+                      })}
+                    </>
+                  );
+                },
+              },
+            ]}
+            tableProps={{ size: 'small' }}
+            rowKey={(nativeRow, _gridIndex) => {
+              const gridRow = nativeRow as unknown as GridRow;
+              const s = gridRow;
+              return `${s.engine}/${s.interface}/${s.peerAddress}`;
+            }}
+            rowProps={(_nativeRow, _gridIndex) => {
+              return {};
+            }}
+            cellProps={(_nativeRow, column, _gridIndex) => {
+              switch (column.key) {
+                case '0':
+                  return {};
+                case '1':
+                  return {};
+                case '2':
+                  return { dir: 'ltr' };
+                case '3':
+                  return {};
+                case '4':
+                  return { dir: 'ltr' };
+                default:
+                  return {};
+              }
+            }}
+            emptyContent={null}
+          />
+        );
+      })()}
       <Button component={Link} to="/routing/redistribution">
         {t('matrix')}
       </Button>
@@ -135,46 +217,59 @@ export function RedistributionPage() {
         live.data?.edges.length === 0 && <Typography>{t('emptyMatrix')}</Typography>}
       {live.isError && <ProblemAlert error={live.error} />}
       {live.data?.agentError && <Alert severity="warning">{live.data.agentError}</Alert>}
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('target')}</TableCell>
-            {sources.map((s) => (
-              <TableCell key={s}>{s}</TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {targets.map((target) => (
-            <TableRow key={target}>
-              <TableCell>{target}</TableCell>
-              {sources.map((source) => {
-                const edge = live.data?.edges.find(
-                  (e) => e.source === source && e.target === target,
-                );
-                return (
-                  <TableCell key={source}>
-                    {target === source ? (
-                      '—'
-                    ) : (
-                      <Button
-                        disabled={target === 'ospf6' || target === 'ripng'}
-                        onClick={() => target !== 'bgp' && setEdit(target)}
-                        component={target === 'bgp' ? Link : 'button'}
-                        to={target === 'bgp' ? '/routing/bgp' : undefined}
-                      >
-                        {edge
-                          ? `${edge.routeMap || t('enabled')} (${edge.routeCount ?? '?'}) · ${t('vrf')}: ${edge.vrf || t('defaultVrf')}`
-                          : '—'}
-                      </Button>
-                    )}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ReactGeereedMaterial
+        hideFilterBuilderComponent
+        noFormWrapper
+        embedded
+        memoEnable={false}
+        hidePagination
+        hideToolbar
+        search={false}
+        exportToCSV={false}
+        sortable={false}
+        footer={false}
+        items={targets.map((target) => ({ target }))}
+        rowKey={(row) => row.target}
+        columns={[
+          {
+            key: 'target',
+            sortable: false,
+            filterable: false,
+            headerRenderer: () => <>{t('target')}</>,
+            renderer: (_value: unknown, row: { target: (typeof targets)[number] }) => (
+              <>{row.target}</>
+            ),
+          },
+          ...sources.map((source) => ({
+            key: source,
+            sortable: false,
+            filterable: false,
+            headerRenderer: () => <>{source}</>,
+            renderer: (_value: unknown, { target }: { target: (typeof targets)[number] }) => {
+              const edge = live.data?.edges.find((e) => e.source === source && e.target === target);
+              return (
+                <>
+                  {target === source ? (
+                    '—'
+                  ) : (
+                    <Button
+                      disabled={target === 'ospf6' || target === 'ripng'}
+                      onClick={() => target !== 'bgp' && setEdit(target)}
+                      component={target === 'bgp' ? Link : 'button'}
+                      to={target === 'bgp' ? '/routing/bgp' : undefined}
+                    >
+                      {edge
+                        ? `${edge.routeMap || t('enabled')} (${edge.routeCount ?? '?'}) · ${t('vrf')}: ${edge.vrf || t('defaultVrf')}`
+                        : '—'}
+                    </Button>
+                  )}
+                </>
+              );
+            },
+          })),
+        ]}
+        emptyContent={null}
+      />
       {edit && <ProtocolForm proto={edit} label={edit.toUpperCase()} />}
     </PageHeader>
   );
@@ -225,7 +320,11 @@ export function PolicyUsagePage() {
                         key: ROUTING,
                         patch: {
                           policy: {
-                            [kind]: { [name]: { [field]: copy.sort((a, b) => a.seq - b.seq) } },
+                            [kind]: {
+                              [name]: {
+                                [field]: copy.sort((a, b) => a.seq - b.seq),
+                              },
+                            },
                           },
                         },
                       });

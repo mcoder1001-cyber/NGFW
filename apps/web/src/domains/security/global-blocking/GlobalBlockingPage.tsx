@@ -1,34 +1,36 @@
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgCloudDownloadIcon as CloudDownloadIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgDownloadIcon as DownloadIcon,
+  PgEditIcon as EditIcon,
+  PgRefreshIcon as RefreshIcon,
+  PgUploadFileIcon as UploadFileIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogContentText as DialogContentText,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import AddIcon from '@mui/icons-material/Add';
-import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-import DeleteIcon from '@mui/icons-material/Delete';
-import DownloadIcon from '@mui/icons-material/Download';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,6 +40,7 @@ import { api } from '../../../api';
 import { ApiError, call } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { readText } from '../../firewall/acl/ImportDialog';
 import { localizeSchema } from '../../firewall/host-acl-nftables/model';
@@ -156,33 +159,85 @@ export function GlobalBlockingPage() {
       {s && s.lists.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {s && s.lists.length > 0 && (
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('tableLabel')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.name')}</TableCell>
-                <TableCell>{t('col.source')}</TableCell>
-                <TableCell>{t('col.enforced')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.entries')}</TableCell>
-                <TableCell>{t('col.lastFetch')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.hits')}</TableCell>
-                <TableCell>{t('col.actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {s.lists.map((l) => (
-                <ListRow
-                  key={l.name}
-                  l={l}
-                  readOnly={readOnly}
-                  onEdit={() => setDlg(dialogFor(EDIT, l.name))}
-                  onImport={() => setDlg(dialogFor(IMPORT, l.name))}
-                  onFetch={() => setDlg(dialogFor(FETCH, l.name))}
-                  onExport={() => void doExport(l.name)}
-                  onDelete={() => void remove(l.name)}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('tableLabel') }}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => t('col.name'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'source',
+                headerRenderer: () => t('col.source'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'enforced',
+                headerRenderer: () => t('col.enforced'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'entries',
+                headerRenderer: () => t('col.entries'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'lastFetch',
+                headerRenderer: () => t('col.lastFetch'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'hits',
+                headerRenderer: () => t('col.hits'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => t('col.actions'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(s.lists.map((l) =>
+                renderListRow({
+                  key: l.name,
+                  l: l,
+                  readOnly: readOnly,
+                  onEdit: () => setDlg(dialogFor(EDIT, l.name)),
+                  onImport: () => setDlg(dialogFor(IMPORT, l.name)),
+                  onFetch: () => setDlg(dialogFor(FETCH, l.name)),
+                  onExport: () => void doExport(l.name),
+                  onDelete: () => void remove(l.name),
+                  t,
+                  fmt,
+                }),
+              ) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       )}
       <Dialog open={edit !== null} onClose={() => setDlg(null)} fullWidth maxWidth="md">
@@ -212,7 +267,10 @@ export function GlobalBlockingPage() {
   );
 }
 
-function ListRow({
+function renderListRow({
+  key,
+  t,
+  fmt,
   l,
   readOnly,
   onEdit,
@@ -221,6 +279,9 @@ function ListRow({
   onExport,
   onDelete,
 }: {
+  key: string;
+  t: ReturnType<typeof useTranslation>['t'];
+  fmt: ReturnType<typeof useFormatters>;
   l: GbListStatus;
   readOnly: boolean;
   onEdit: () => void;
@@ -229,14 +290,12 @@ function ListRow({
   onExport: () => void;
   onDelete: () => void;
 }) {
-  const interfaceLabel = useInterfaceLabel();
-  const { t } = useTranslation(NS);
-  const fmt = useFormatters();
   const n = (v: number) => fmt.integer(v);
   const f = l.fetch;
-  return (
-    <TableRow>
-      <TableCell>
+  return {
+    id: key,
+    name: (
+      <>
         <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
           <bdi>{l.name}</bdi>
           {!l.enabled && <Chip size="small" label={t('disabled')} />}
@@ -254,28 +313,29 @@ function ListRow({
             {l.description}
           </Typography>
         )}
-      </TableCell>
-      <TableCell>
-        {l.source.kind === 'url' ? (
-          <>
-            <Typography
-              variant="body2"
-              dir="ltr"
-              sx={{ wordBreak: 'break-all', fontFamily: 'monospace' }}
-            >
-              {l.source.url}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {l.source.refreshSec
-                ? t('refreshEvery', { interval: intervalText(l.source.refreshSec) })
-                : t('refreshManual')}
-            </Typography>
-          </>
-        ) : (
-          t('source.upload')
-        )}
-      </TableCell>
-      <TableCell>
+      </>
+    ),
+    source:
+      l.source.kind === 'url' ? (
+        <>
+          <Typography
+            variant="body2"
+            dir="ltr"
+            sx={{ wordBreak: 'break-all', fontFamily: 'monospace' }}
+          >
+            {l.source.url}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {l.source.refreshSec
+              ? t('refreshEvery', { interval: intervalText(l.source.refreshSec) })
+              : t('refreshManual')}
+          </Typography>
+        </>
+      ) : (
+        t('source.upload')
+      ),
+    enforced: (
+      <>
         <Typography variant="body2">
           {l.allInterfaces ? (
             t('allInterfaces')
@@ -287,16 +347,20 @@ function ListRow({
           {t(`direction.${l.direction}`)}
           {l.protectHost ? ` · ${t('protectHost')}` : ''}
         </Typography>
-      </TableCell>
-      <TableCell sx={{ textAlign: 'end' }}>
+      </>
+    ),
+    entries: (
+      <>
         {n(l.entries)}
         {l.entries !== l.runningEntries && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
             {t('runningEntries', { n: n(l.runningEntries) })}
           </Typography>
         )}
-      </TableCell>
-      <TableCell>
+      </>
+    ),
+    lastFetch: (
+      <>
         {f ? (
           <Tooltip title={serviceText(f.lastError ?? '')}>
             <Stack gap={0.5} alignItems="flex-start">
@@ -324,20 +388,20 @@ function ListRow({
             {t('nextRefresh', { at: fmt.dateTime(new Date(l.nextRefreshAt)) })}
           </Typography>
         )}
-      </TableCell>
-      <TableCell sx={{ textAlign: 'end' }}>
-        {l.hits ? (
-          <>
-            {t('hits.dataplane', { n: n(l.hits.dataplanePackets) })}
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-              {t('hits.host', { n: n(l.hits.hostPackets) })}
-            </Typography>
-          </>
-        ) : (
-          '—'
-        )}
-      </TableCell>
-      <TableCell>
+      </>
+    ),
+    hits: l.hits ? (
+      <>
+        {t('hits.dataplane', { n: n(l.hits.dataplanePackets) })}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          {t('hits.host', { n: n(l.hits.hostPackets) })}
+        </Typography>
+      </>
+    ) : (
+      '—'
+    ),
+    actions: (
+      <>
         <Stack direction="row">
           <Tooltip title={t('actions.edit')}>
             <span>
@@ -397,9 +461,16 @@ function ListRow({
             </span>
           </Tooltip>
         </Stack>
-      </TableCell>
-    </TableRow>
-  );
+      </>
+    ),
+    cellProps: {
+      entries: { sx: { textAlign: 'end' } },
+      hits: { sx: { textAlign: 'end' } },
+    } satisfies Record<
+      string,
+      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+    >,
+  };
 }
 
 /** Form problems relative to the list (the API answers with document pointers). */
@@ -626,26 +697,57 @@ function PreviewView({ p }: { p: GbPreview }) {
       </Alert>
       {p.invalid.length > 0 && (
         <Box sx={{ maxBlockSize: 220, overflow: 'auto' }}>
-          <Table size="small" aria-label={t('preview.invalid')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('preview.line')}</TableCell>
-                <TableCell>{t('preview.text')}</TableCell>
-                <TableCell>{t('preview.reason')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {p.invalid.map((i) => (
-                <TableRow key={i.line}>
-                  <TableCell>{n(i.line)}</TableCell>
-                  <TableCell dir="ltr" sx={{ fontFamily: 'monospace' }}>
-                    {i.text}
-                  </TableCell>
-                  <TableCell>{i.reason}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('preview.invalid') }}
+            columns={[
+              {
+                key: 'column0',
+                headerRenderer: () => t('preview.line'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column1',
+                headerRenderer: () => t('preview.text'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column2',
+                headerRenderer: () => t('preview.reason'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(p.invalid.map((i) => ({
+                id: i.line,
+                column0: n(i.line),
+                column1: i.text,
+                column2: i.reason,
+                cellProps: {
+                  column1: { dir: 'ltr', sx: { fontFamily: 'monospace' } },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </Box>
       )}
       {(p.addedSample.length > 0 || p.removedSample.length > 0) && (

@@ -1,34 +1,36 @@
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
-import { qk } from '../../../config/queries';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { qk } from '../../../config/queries';
 import { useCandidateInterfaces } from '../../interfaces/queries';
 import { objectModelWidgets } from '../object-model';
 import { EntryDialog, useArrayEdit } from './EntryDialog';
@@ -161,82 +163,106 @@ export function MacipTab() {
         {lists.isPending && <LinearProgress aria-label={t('loading')} />}
         {lists.isError && <ProblemAlert error={lists.error} />}
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('macip.listsLabel')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.name')}</TableCell>
-                <TableCell>{t('col.description')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.rules')}</TableCell>
-                <TableCell>{t('col.interfaces')}</TableCell>
-                <TableCell>{t('col.live')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data && data.macip.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6}>
-                    <Typography color="text.secondary">{t('macip.empty')}</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {data?.macip.map((l) => (
-                <TableRow key={l.name} hover>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('macip.listsLabel') }}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => t('col.name'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'description',
+                headerRenderer: () => t('col.description'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'rules',
+                headerRenderer: () => t('col.rules'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'interfaces',
+                headerRenderer: () => t('col.interfaces'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'live',
+                headerRenderer: () => t('col.live'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => t('col.actions'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(data?.macip.map((l) => ({
+                id: l.name,
+                name: (
+                  <>
                     <Stack direction="row" gap={0.5} alignItems="center">
                       <Mono>{l.name}</Mono>
                       <PendingChip pending={l.pending} />
                     </Stack>
-                  </TableCell>
-                  <TableCell>{l.description}</TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>{fmt.integer(l.rules)}</TableCell>
-                  <TableCell>
-                    {l.interfaces.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {t('lists.notAttached')}
-                      </Typography>
-                    ) : (
-                      <Stack direction="row" gap={0.5} flexWrap="wrap">
-                        {l.interfaces.map((i) => (
-                          <Chip
-                            key={i}
-                            size="small"
-                            variant="outlined"
-                            label={<bdi dir="ltr">{interfaceLabel(i)}</bdi>}
-                          />
-                        ))}
-                      </Stack>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {l.live ? (
-                      <Stack direction="row" gap={0.5} alignItems="center" flexWrap="wrap">
+                  </>
+                ),
+                description: l.description,
+                rules: fmt.integer(l.rules),
+                interfaces:
+                  l.interfaces.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {t('lists.notAttached')}
+                    </Typography>
+                  ) : (
+                    <Stack direction="row" gap={0.5} flexWrap="wrap">
+                      {l.interfaces.map((i) => (
                         <Chip
+                          key={i}
                           size="small"
-                          color="success"
                           variant="outlined"
-                          label={t('live.aclIndex', {
-                            index: fmt.number(l.live.aclIndex, { useGrouping: false }),
-                          })}
+                          label={<bdi dir="ltr">{i}</bdi>}
                         />
-                        <Typography variant="body2">
-                          {t('live.vppRules', {
-                            count: l.live.vppRules,
-                            n: fmt.integer(l.live.vppRules),
-                          })}
-                        </Typography>
-                      </Stack>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        {data.agentError
-                          ? t('live.unknown')
-                          : l.pending === 'added'
-                            ? t('live.notCommitted')
-                            : t('live.notApplied')}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+                      ))}
+                    </Stack>
+                  ),
+                live: l.live ? (
+                  <Stack direction="row" gap={0.5} alignItems="center" flexWrap="wrap">
+                    <Chip
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                      label={t('live.aclIndex', {
+                        index: fmt.number(l.live.aclIndex, { useGrouping: false }),
+                      })}
+                    />
+                    <Typography variant="body2">
+                      {t('live.vppRules', {
+                        count: l.live.vppRules,
+                        n: fmt.integer(l.live.vppRules),
+                      })}
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    {data.agentError
+                      ? t('live.unknown')
+                      : l.pending === 'added'
+                        ? t('live.notCommitted')
+                        : t('live.notApplied')}
+                  </Typography>
+                ),
+                actions: (
+                  <>
                     <IconButton
                       size="small"
                       aria-label={t('macip.editNamed', { name: l.name })}
@@ -256,11 +282,42 @@ export function MacipTab() {
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+                rowProps: { hover: true } satisfies ReturnType<
+                  NonNullable<GeereedTablePassthrough['rowProps']>
+                > &
+                  Record<`data-${string}`, unknown>,
+                cellProps: {
+                  rules: { sx: { textAlign: 'end' } },
+                  actions: { sx: { textAlign: 'end', whiteSpace: 'nowrap' } },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={
+              data && data.macip.length === 0 ? (
+                <>
+                  <Typography color="text.secondary">{t('macip.empty')}</Typography>
+                </>
+              ) : null
+            }
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       </Box>
 
@@ -288,46 +345,73 @@ export function MacipTab() {
         </Typography>
         {candidate.isError && <ProblemAlert error={candidate.error} />}
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('macip.attachmentsLabel')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.list')}</TableCell>
-                <TableCell>{t('col.interface')}</TableCell>
-                <TableCell>{t('col.vrf')}</TableCell>
-                <TableCell>{t('col.enabled')}</TableCell>
-                <TableCell>{t('col.description')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {candidate.isSuccess && rows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6}>
-                    <Typography color="text.secondary">{t('macip.attachmentsEmpty')}</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {rows.map((a, i) => (
-                <TableRow key={i} hover>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('macip.attachmentsLabel') }}
+            columns={[
+              {
+                key: 'list',
+                headerRenderer: () => t('col.list'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'interface',
+                headerRenderer: () => t('col.interface'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'vrf',
+                headerRenderer: () => t('col.vrf'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'enabled',
+                headerRenderer: () => t('col.enabled'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'description',
+                headerRenderer: () => t('col.description'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => t('col.actions'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(rows.map((a, i) => ({
+                id: i,
+                list: (
+                  <>
                     <Stack direction="row" gap={0.5} alignItems="center">
                       <Mono>{a.list}</Mono>
                       {isPending(a) && <PendingChip pending={PENDING} />}
                     </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Mono>{interfaceLabel(a.interface)}</Mono>
-                  </TableCell>
-                  <TableCell>{a.vrf ? <Mono>{a.vrf}</Mono> : null}</TableCell>
-                  <TableCell>
-                    {a.enabled === false ? (
-                      <Chip size="small" label={t('rules.off')} />
-                    ) : (
-                      t('rules.on')
-                    )}
-                  </TableCell>
-                  <TableCell>{a.description}</TableCell>
-                  <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+                  </>
+                ),
+                interface: (
+                  <>
+                    <Mono>{a.interface}</Mono>
+                  </>
+                ),
+                vrf: a.vrf ? <Mono>{a.vrf}</Mono> : null,
+                enabled:
+                  a.enabled === false ? (
+                    <Chip size="small" label={t('rules.off')} />
+                  ) : (
+                    t('rules.on')
+                  ),
+                description: a.description,
+                actions: (
+                  <>
                     <IconButton
                       size="small"
                       aria-label={t('macip.editAttachment', {
@@ -353,11 +437,41 @@ export function MacipTab() {
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+                rowProps: { hover: true } satisfies ReturnType<
+                  NonNullable<GeereedTablePassthrough['rowProps']>
+                > &
+                  Record<`data-${string}`, unknown>,
+                cellProps: {
+                  actions: { sx: { textAlign: 'end', whiteSpace: 'nowrap' } },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={
+              candidate.isSuccess && rows.length === 0 ? (
+                <>
+                  <Typography color="text.secondary">{t('macip.attachmentsEmpty')}</Typography>
+                </>
+              ) : null
+            }
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       </Box>
 

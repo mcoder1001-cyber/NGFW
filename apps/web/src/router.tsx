@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react';
 import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } from 'react-router';
 import { DEV_ROUTES } from './build-flags';
 import { BUILT_DOMAINS, domainPath } from './nav/nav';
@@ -9,15 +10,20 @@ import { AppShell } from './shell/AppShell';
 import { NotFoundPage } from './shell/NotFoundPage';
 import { RouteErrorPage } from './shell/RouteErrorPage';
 
+/** Keep the route loaders shared while retaining statically analyzable, lazy imports. */
+function lazyPage<Name extends string>(load: () => Promise<Record<Name, ComponentType>>, name: Name) {
+  return async () => ({ Component: (await load())[name] });
+}
+
 /**
  * Developer demos (code-split). `DEV_ROUTES` is a build-time literal: in a production build this list is empty and the
  * demo chunks are not emitted at all (scripts/check-no-dev-routes.mjs).
  */
 const DEV_ROUTE_OBJECTS: RouteObject[] = DEV_ROUTES
   ? [
-      { path: 'dev/schema-form', lazy: async () => ({ Component: (await import('./pages/dev/SchemaFormDemoPage')).SchemaFormDemoPage }) },
-      { path: 'dev/data-grid', lazy: async () => ({ Component: (await import('./pages/dev/DataGridDemoPage')).DataGridDemoPage }) },
-      { path: 'dev/stream', lazy: async () => ({ Component: (await import('./pages/dev/StreamDemoPage')).StreamDemoPage }) },
+      { path: 'dev/schema-form', lazy: lazyPage(() => import('./pages/dev/SchemaFormDemoPage'), 'SchemaFormDemoPage') },
+      { path: 'dev/data-grid', lazy: lazyPage(() => import('./pages/dev/DataGridDemoPage'), 'DataGridDemoPage') },
+      { path: 'dev/stream', lazy: lazyPage(() => import('./pages/dev/StreamDemoPage'), 'StreamDemoPage') },
     ]
   : [];
 
@@ -31,8 +37,8 @@ export interface RouteOptions {
  * a tab in `domains/<key>/tabs.ts`, so these routes change nothing a user can see.
  */
 const SHELL_ROUTES: RouteObject[] = [
-  { path: domainPath('vpn').slice(1), lazy: async () => ({ Component: (await import('./domains/vpn/VpnPage')).VpnPage }) },
-  { path: domainPath('services').slice(1), lazy: async () => ({ Component: (await import('./domains/services/ServicesPage')).ServicesPage }) },
+  { path: domainPath('vpn').slice(1), lazy: lazyPage(() => import('./domains/vpn/VpnPage'), 'VpnPage') },
+  { path: domainPath('services').slice(1), lazy: lazyPage(() => import('./domains/services/ServicesPage'), 'ServicesPage') },
 ];
 const SHELL_DOMAINS: ReadonlySet<string> = new Set(['vpn', 'services']);
 
@@ -50,9 +56,9 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
       errorElement: <RouteErrorPage />,
       children: [
         // Screens are code-split per route; feature screens (P08+) plug in the same way.
-        { index: true, lazy: async () => ({ Component: (await import('./pages/DashboardPage')).DashboardPage }) },
+        { index: true, lazy: lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage') },
         // P08: the first built domain screen; the others keep their placeholder until their feature task lands
-        { path: domainPath('interfaces').slice(1), lazy: async () => ({ Component: (await import('./domains/interfaces/InterfacesPage')).InterfacesPage }) },
+        { path: domainPath('interfaces').slice(1), lazy: lazyPage(() => import('./domains/interfaces/InterfacesPage'), 'InterfacesPage') },
         ...SHELL_ROUTES,
         ...domains.filter((d) => !BUILT_DOMAINS.has(d.key) && !SHELL_DOMAINS.has(d.key)).map((d) => ({
           path: domainPath(d.key).slice(1),
@@ -65,65 +71,65 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // UI-domain-editor-questions.md); the generic advanced editor for any domain path (D-125), reached from
         // each `DomainPlaceholderPage` and usable for a built domain too (`/interfaces` and `/config/interfaces`
         // both work). A splat route ranks below every static path above, so it never shadows them.
-        { path: 'config/*', lazy: async () => ({ Component: (await import('./domains/advanced/AdvancedEditorPage')).AdvancedEditorPage }) },
+        { path: 'config/*', lazy: lazyPage(() => import('./domains/advanced/AdvancedEditorPage'), 'AdvancedEditorPage') },
         // Feature screens: one lazy route line under the feature's anchor (wave-A-hotspots W1).
-        { path: 'system/setup', lazy: async () => ({ Component: (await import('./domains/system/setup/SetupWizardPage')).SetupWizardPage }) },
+        { path: 'system/setup', lazy: lazyPage(() => import('./domains/system/setup/SetupWizardPage'), 'SetupWizardPage') },
         // wave-BC: F-tunnels
-        { path: 'vpn/tunnels', lazy: async () => ({ Component: (await import('./domains/vpn/tunnels/TunnelsPage')).TunnelsPage }) },
+        { path: 'vpn/tunnels', lazy: lazyPage(() => import('./domains/vpn/tunnels/TunnelsPage'), 'TunnelsPage') },
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
-        { path: 'system/ha', lazy: async () => ({ Component: (await import('./domains/system/ha/HaPage')).HaPage }) },
+        { path: 'system/ha', lazy: lazyPage(() => import('./domains/system/ha/HaPage'), 'HaPage') },
         // wave-BC: F-ospf
-        { path: 'routing/ospf', lazy: async () => ({ Component: (await import('./domains/routing/ospf/OspfPage')).OspfPage }) },
+        { path: 'routing/ospf', lazy: lazyPage(() => import('./domains/routing/ospf/OspfPage'), 'OspfPage') },
         // wave-BC: F-isis-rip
-        { path: 'routing/isis-rip', lazy: async () => ({ Component: (await import('./domains/routing/isis-rip/IsisRipPage')).IsisRipPage }) },
+        { path: 'routing/isis-rip', lazy: lazyPage(() => import('./domains/routing/isis-rip/IsisRipPage'), 'IsisRipPage') },
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
-        { path: 'routing/mpls', lazy: async () => ({ Component: (await import('./domains/routing/mpls-srmpls/MplsPage')).MplsPage }) },
+        { path: 'routing/mpls', lazy: lazyPage(() => import('./domains/routing/mpls-srmpls/MplsPage'), 'MplsPage') },
         // wave-BC: F-capture-trace
-        { path: 'tools/capture', lazy: async () => ({ Component: (await import('./domains/tools/capture-trace/CapturePage')).CapturePage }) },
+        { path: 'tools/capture', lazy: lazyPage(() => import('./domains/tools/capture-trace/CapturePage'), 'CapturePage') },
         // wave-BC: F-bfd-redistribution
-        { path: 'routing/bfd', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).BfdRedistributionPage }) },
-        { path: 'routing/redistribution', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).RedistributionPage }) },
-        { path: 'routing/policy', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).PolicyUsagePage }) },
+        { path: 'routing/bfd', lazy: lazyPage(() => import('./domains/routing/bfd-redistribution/BfdRedistributionPage'), 'BfdRedistributionPage') },
+        { path: 'routing/redistribution', lazy: lazyPage(() => import('./domains/routing/bfd-redistribution/BfdRedistributionPage'), 'RedistributionPage') },
+        { path: 'routing/policy', lazy: lazyPage(() => import('./domains/routing/bfd-redistribution/BfdRedistributionPage'), 'PolicyUsagePage') },
         // wave-BC: F-igmp-mfib
-        { path: 'routing/multicast', lazy: async () => ({ Component: (await import('./domains/routing/igmp-mfib/MulticastPage')).MulticastPage }) },
+        { path: 'routing/multicast', lazy: lazyPage(() => import('./domains/routing/igmp-mfib/MulticastPage'), 'MulticastPage') },
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
-        { path: 'system/aaa', lazy: async () => ({ Component: (await import('./domains/system/aaa/AaaPage')).AaaPage }) },
+        { path: 'system/aaa', lazy: lazyPage(() => import('./domains/system/aaa/AaaPage'), 'AaaPage') },
         // wave-BC: F-restconf-yang
-        { path: 'system/restconf', lazy: async () => ({ Component: (await import('./domains/system/restconf-yang/RestconfYangPage')).RestconfYangPage }) },
+        { path: 'system/restconf', lazy: lazyPage(() => import('./domains/system/restconf-yang/RestconfYangPage'), 'RestconfYangPage') },
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
-        { path: 'system/backup-restore', lazy: async () => ({ Component: (await import('./domains/system/backup-restore/BackupRestorePage')).BackupRestorePage }) },
-        { path: 'system/upgrade', lazy: async () => ({ Component: (await import('./domains/system/backup-restore/UpgradePage')).UpgradePage }) },
+        { path: 'system/backup-restore', lazy: lazyPage(() => import('./domains/system/backup-restore/BackupRestorePage'), 'BackupRestorePage') },
+        { path: 'system/upgrade', lazy: lazyPage(() => import('./domains/system/backup-restore/UpgradePage'), 'UpgradePage') },
         // web: WEB-2
         // wave-A: UI-domain-editor
         // wave-A: F-bonding
-        { path: 'interfaces/bonds', lazy: async () => ({ Component: (await import('./domains/interfaces/bonding/BondsPage')).BondsPage }) },
+        { path: 'interfaces/bonds', lazy: lazyPage(() => import('./domains/interfaces/bonding/BondsPage'), 'BondsPage') },
         // wave-A: F-bridge-l2
-        { path: 'interfaces/bridging', lazy: async () => ({ Component: (await import('./domains/interfaces/bridge-l2/BridgingPage')).BridgingPage }) },
+        { path: 'interfaces/bridging', lazy: lazyPage(() => import('./domains/interfaces/bridge-l2/BridgingPage'), 'BridgingPage') },
         // wave-A: F-loopback-bvi-gso-lldp-span
-        { path: 'interfaces/lldp', lazy: async () => ({ Component: (await import('./domains/interfaces/loopback-bvi-gso-lldp-span/LldpPage')).LldpPage }) },
-        { path: 'interfaces/mirroring', lazy: async () => ({ Component: (await import('./domains/interfaces/loopback-bvi-gso-lldp-span/MirroringPage')).MirroringPage }) },
-        { path: 'tools/nsim', lazy: async () => ({ Component: (await import('./domains/interfaces/loopback-bvi-gso-lldp-span/NsimPage')).NsimPage }) },
+        { path: 'interfaces/lldp', lazy: lazyPage(() => import('./domains/interfaces/loopback-bvi-gso-lldp-span/LldpPage'), 'LldpPage') },
+        { path: 'interfaces/mirroring', lazy: lazyPage(() => import('./domains/interfaces/loopback-bvi-gso-lldp-span/MirroringPage'), 'MirroringPage') },
+        { path: 'tools/nsim', lazy: lazyPage(() => import('./domains/interfaces/loopback-bvi-gso-lldp-span/NsimPage'), 'NsimPage') },
         // wave-A: F-vrf-static-ecmp
-        { path: domainPath('vrfs').slice(1), lazy: async () => ({ Component: (await import('./domains/routing/vrf-static-ecmp/VrfsPage')).VrfsPage }) },
-        { path: domainPath('routing').slice(1), lazy: async () => ({ Component: (await import('./domains/routing/vrf-static-ecmp/RoutingPage')).RoutingPage }) },
+        { path: domainPath('vrfs').slice(1), lazy: lazyPage(() => import('./domains/routing/vrf-static-ecmp/VrfsPage'), 'VrfsPage') },
+        { path: domainPath('routing').slice(1), lazy: lazyPage(() => import('./domains/routing/vrf-static-ecmp/RoutingPage'), 'RoutingPage') },
         // wave-A: F-neighbors-ra
-        { path: 'routing/neighbors', lazy: async () => ({ Component: (await import('./domains/routing/neighbors-ra/NeighborsPage')).NeighborsPage }) },
+        { path: 'routing/neighbors', lazy: lazyPage(() => import('./domains/routing/neighbors-ra/NeighborsPage'), 'NeighborsPage') },
         // wave-A: F-rpf-adl-pbr
-        { path: 'routing/pbr', lazy: async () => ({ Component: (await import('./domains/routing/rpf-adl-pbr/PbrPage')).PbrPage }) },
-        { path: 'firewall/adl', lazy: async () => ({ Component: (await import('./domains/routing/rpf-adl-pbr/AdlPage')).AdlPage }) },
+        { path: 'routing/pbr', lazy: lazyPage(() => import('./domains/routing/rpf-adl-pbr/PbrPage'), 'PbrPage') },
+        { path: 'firewall/adl', lazy: lazyPage(() => import('./domains/routing/rpf-adl-pbr/AdlPage'), 'AdlPage') },
         // wave-A: F-object-model
-        { path: domainPath('objects').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/object-model/ObjectsPage')).ObjectsPage }) },
+        { path: domainPath('objects').slice(1), lazy: lazyPage(() => import('./domains/firewall/object-model/ObjectsPage'), 'ObjectsPage') },
         // wave-A: F-acl
         { path: domainPath('acl').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/acl/AclPage')).AclPage }) },
         { path: 'firewall/acl', lazy: async () => ({ Component: (await import('./domains/firewall/acl/AclPage')).AclPage }) },
         { path: 'routing/objects', lazy: async () => ({ Component: (await import('./domains/routing/RoutingObjectsPage')).RoutingObjectsPage }) },
         // wave-A: F-host-acl-nftables
-        { path: 'firewall/host-acl', lazy: async () => ({ Component: (await import('./domains/firewall/host-acl-nftables/HostAclPage')).HostAclPage }) },
+        { path: 'firewall/host-acl', lazy: lazyPage(() => import('./domains/firewall/host-acl-nftables/HostAclPage'), 'HostAclPage') },
         // F-global-blocking (unanchored)
         { path: 'firewall/global-blocking', lazy: async () => ({ Component: (await import('./domains/security/global-blocking/GlobalBlockingPage')).GlobalBlockingPage }) },
         // F-bruteforce-block (unanchored); F-security-page: the blocked set lives in the Security page's Blocked sources tab, the old address redirects there
@@ -131,27 +137,27 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // F-security-page (unanchored)
         { path: domainPath('security').slice(1), lazy: async () => ({ Component: (await import('./domains/security/SecurityPage')).SecurityPage }) },
         // wave-BC: F-dashboard-prom-alarms
-        { path: 'system/alarms', lazy: async () => ({ Component: (await import('./domains/dashboard/dashboard-prom-alarms/AlarmsPage')).AlarmsPage }) },
+        { path: 'system/alarms', lazy: lazyPage(() => import('./domains/dashboard/dashboard-prom-alarms/AlarmsPage'), 'AlarmsPage') },
         // F-multiwan (unanchored)
-        { path: 'routing/wan', lazy: async () => ({ Component: (await import('./domains/routing/multiwan/WanGroupsPage')).WanGroupsPage }) },
+        { path: 'routing/wan', lazy: lazyPage(() => import('./domains/routing/multiwan/WanGroupsPage'), 'WanGroupsPage') },
         // wave-A: F-nat44-ed-sessions
-        { path: domainPath('nat').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/nat44-ed-sessions/NatPage')).NatPage }) },
+        { path: domainPath('nat').slice(1), lazy: lazyPage(() => import('./domains/firewall/nat44-ed-sessions/NatPage'), 'NatPage') },
         // wave-A: P11
         // wave-A: F-wireguard
         // wave-A: P12
-        { path: 'routing/bgp', lazy: async () => ({ Component: (await import('./domains/routing/bgp/BgpPage')).BgpPage }) },
+        { path: 'routing/bgp', lazy: lazyPage(() => import('./domains/routing/bgp/BgpPage'), 'BgpPage') },
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
         // F-management-ui (unanchored): users live in the Management page's Users tab; the old address redirects there
         { path: 'system/users', element: <Navigate to={`${domainPath('management')}?tab=users`} replace /> },
-        { path: domainPath('management').slice(1), lazy: async () => ({ Component: (await import('./domains/system/management/ManagementPage')).ManagementPage }) },
+        { path: domainPath('management').slice(1), lazy: lazyPage(() => import('./domains/system/management/ManagementPage'), 'ManagementPage') },
         // F-dataplane-ui (unanchored)
-        { path: domainPath('dataplane').slice(1), lazy: async () => ({ Component: (await import('./domains/system/dataplane/DataplanePage')).DataplanePage }) },
+        { path: domainPath('dataplane').slice(1), lazy: lazyPage(() => import('./domains/system/dataplane/DataplanePage'), 'DataplanePage') },
         // F-system-identity (unanchored)
-        { path: domainPath('system').slice(1), lazy: async () => ({ Component: (await import('./domains/system/identity/SystemIdentityPage')).SystemIdentityPage }) },
+        { path: domainPath('system').slice(1), lazy: lazyPage(() => import('./domains/system/identity/SystemIdentityPage'), 'SystemIdentityPage') },
         // wave-BC: F-licensing (unanchored)
-        { path: 'system/licensing', lazy: async () => ({ Component: (await import('./domains/system/licensing/LicensingPage')).LicensingPage }) },
-        { path: 'system/revisions', lazy: async () => ({ Component: (await import('./pages/RevisionsPage')).RevisionsPage }) },
+        { path: 'system/licensing', lazy: lazyPage(() => import('./domains/system/licensing/LicensingPage'), 'LicensingPage') },
+        { path: 'system/revisions', lazy: lazyPage(() => import('./pages/RevisionsPage'), 'RevisionsPage') },
         { path: 'tools', element: <Navigate to="/tools/capture" replace /> }, // F-capture-trace
         ...(devRoutes ? DEV_ROUTE_OBJECTS : []),
         { path: '*', element: <NotFoundPage /> },

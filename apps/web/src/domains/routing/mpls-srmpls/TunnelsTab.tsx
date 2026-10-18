@@ -1,7 +1,7 @@
+import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import { StatusChip } from '@ngfw/ui-kit';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';

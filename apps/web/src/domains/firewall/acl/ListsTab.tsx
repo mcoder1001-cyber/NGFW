@@ -1,28 +1,30 @@
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgListAltIcon as ListAltIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import ListAltIcon from '@mui/icons-material/ListAlt';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,7 +32,8 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { TagChips, objectModelWidgets, useCandidateObjects } from '../object-model';
+import { serviceText } from '../../../product-text';
+import { objectModelWidgets, TagChips, useCandidateObjects } from '../object-model';
 import {
   esc,
   formatBytes,
@@ -106,52 +109,99 @@ export function ListsTab({ onOpenRules }: { onOpenRules: (name: string) => void 
       {lists.isPending && <LinearProgress aria-label={t('loading')} />}
       {lists.isError && <ProblemAlert error={lists.error} />}
       <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label={t('lists.tableLabel')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.name')}</TableCell>
-              <TableCell>{t('col.description')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.rules')}</TableCell>
-              <TableCell>{t('col.attachments')}</TableCell>
-              <TableCell>{t('col.tags')}</TableCell>
-              <TableCell>{t('col.live')}</TableCell>
-              <TableCell>{t('col.hits')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data && data.lists.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8}>
-                  <Typography color="text.secondary">{t('lists.empty')}</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {data?.lists.map((l) => (
-              <TableRow key={l.name} hover>
-                <TableCell>
+        <ReactGeereedMaterial
+          tableProps={{ size: 'small', 'aria-label': t('lists.tableLabel') }}
+          columns={[
+            {
+              key: 'name',
+              headerRenderer: () => t('col.name'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'description',
+              headerRenderer: () => t('col.description'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'rules',
+              headerRenderer: () => t('col.rules'),
+              headerCellProps: { sx: { textAlign: 'end' } },
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'attachments',
+              headerRenderer: () => t('col.attachments'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'tags',
+              headerRenderer: () => t('col.tags'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'live',
+              headerRenderer: () => t('col.live'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'hits',
+              headerRenderer: () => t('col.hits'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'actions',
+              headerRenderer: () => t('col.actions'),
+              headerCellProps: { sx: { textAlign: 'end' } },
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+          ]}
+          items={[
+            ...(data?.lists.map((l) => ({
+              id: l.name,
+              name: (
+                <>
                   <Stack direction="row" gap={0.5} alignItems="center">
                     <Mono>{l.name}</Mono>
                     <PendingChip pending={l.pending} />
                   </Stack>
-                </TableCell>
-                <TableCell>{l.description}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>
+                </>
+              ),
+              description: l.description,
+              rules: (
+                <>
                   <Count value={l.rules} />
-                </TableCell>
-                <TableCell>
+                </>
+              ),
+              attachments: (
+                <>
                   <AttachmentChips item={l} />
-                </TableCell>
-                <TableCell>
+                </>
+              ),
+              tags: (
+                <>
                   <TagChips tags={l.tags} objects={objects.data} />
-                </TableCell>
-                <TableCell>
+                </>
+              ),
+              live: (
+                <>
                   <LiveCell item={l} state={data} />
-                </TableCell>
-                <TableCell>
+                </>
+              ),
+              hits: (
+                <>
                   <HitsCell item={l} state={data} />
-                </TableCell>
-                <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+                </>
+              ),
+              actions: (
+                <>
                   <Tooltip title={t('lists.openRules')}>
                     <IconButton
                       size="small"
@@ -180,11 +230,42 @@ export function ListsTab({ onOpenRules }: { onOpenRules: (name: string) => void 
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </>
+              ),
+              rowProps: { hover: true } satisfies ReturnType<
+                NonNullable<GeereedTablePassthrough['rowProps']>
+              > &
+                Record<`data-${string}`, unknown>,
+              cellProps: {
+                rules: { sx: { textAlign: 'end' } },
+                actions: { sx: { textAlign: 'end', whiteSpace: 'nowrap' } },
+              } satisfies Record<
+                string,
+                NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+              >,
+            })) ?? []),
+          ]}
+          rowKey={(item) => item.id}
+          rowProps={(item) => item.rowProps ?? {}}
+          cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+          emptyContent={
+            data && data.lists.length === 0 ? (
+              <>
+                <Typography color="text.secondary">{t('lists.empty')}</Typography>
+              </>
+            ) : null
+          }
+          noFormWrapper
+          embedded
+          hideToolbar
+          hidePagination
+          hideFilterBuilderComponent
+          search={false}
+          sortable={false}
+          exportToCSV={false}
+          footer={false}
+          memoEnable={false}
+        />
       </TableContainer>
       <Dialog open={dialog !== null} onClose={() => setDialog(null)} fullWidth maxWidth="sm">
         <DialogTitle>

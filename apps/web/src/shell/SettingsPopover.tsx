@@ -1,9 +1,9 @@
-import FormControlLabel from '@mui/material/FormControlLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Popover from '@mui/material/Popover';
-import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
-import TextField from '@mui/material/TextField';
+import { PgFormControlLabel as FormControlLabel } from '@amnafzar/common-ui-lib/primitives';
+import { PgMenuItem as MenuItem } from '@amnafzar/common-ui-lib/primitives';
+import { PgPopover as Popover } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgSwitch as Switch } from '@amnafzar/common-ui-lib/primitives';
+import { PgText as TextField } from '@amnafzar/common-ui-lib/forms';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, isLanguage } from '../i18n-config';
 import { useUiSettings } from '../settings/UiSettings';

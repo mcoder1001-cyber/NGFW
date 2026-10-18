@@ -1,22 +1,19 @@
-import DeleteIcon from '@mui/icons-material/Delete';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgDeleteIcon as DeleteIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgCard as Card,
+  PgCardContent as CardContent,
+  PgFormControlLabel as FormControlLabel,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgMenuItem as MenuItem,
+  PgStack as Stack,
+  PgSwitch as Switch,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
@@ -75,7 +72,9 @@ export default function SnmpTab() {
 
   return (
     <Box>
-      {(cand.isPending || state.isPending) && <LinearProgress aria-label={t('loading')} sx={{ mb: 2 }} />}
+      {(cand.isPending || state.isPending) && (
+        <LinearProgress aria-label={t('loading')} sx={{ mb: 2 }} />
+      )}
       {cand.isError && <ProblemAlert error={cand.error} sx={{ mb: 2 }} />}
       {state.isError && <ProblemAlert error={state.error} sx={{ mb: 2 }} />}
       {error !== null && <ProblemAlert error={error} sx={{ mb: 2 }} />}
@@ -228,35 +227,86 @@ function Communities({ cfg, readOnly, canWriteSecrets, onSave, onError }: Secret
   };
   return (
     <Section title={t('communities.title')}>
-      <Table size="small" aria-label={t('communities.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('name')}</TableCell>
-            <TableCell>{t('communities.secret')}</TableCell>
-            <TableCell>{t('communities.sources')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {entries.length === 0 && <EmptyRow text={t('communities.empty')} />}
-          {entries.map(([n, c]) => (
-            <TableRow key={n}>
-              <TableCell>{n}</TableCell>
-              <TableCell dir="ltr">{c.secretRef}</TableCell>
-              <TableCell dir="ltr">{(c.sources ?? []).join(', ') || t('any')}</TableCell>
-              <TableCell>
-                <IconButton
-                  aria-label={t('remove', { name: n })}
-                  disabled={readOnly}
-                  onClick={() => void onSave({ communities: { [n]: null } })}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = entries.map(([n, c]) => {
+          return { n, c };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { n }: (typeof nativeRows)[number]) => <>{n}</>,
+              },
+              {
+                key: 'secret',
+                headerRenderer: () => <>{t('communities.secret')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { c }: (typeof nativeRows)[number]) => (
+                  <>{c.secretRef}</>
+                ),
+              },
+              {
+                key: 'sources',
+                headerRenderer: () => <>{t('communities.sources')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { c }: (typeof nativeRows)[number]) => (
+                  <>{(c.sources ?? []).join(', ') || t('any')}</>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <></>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { n }: (typeof nativeRows)[number]) => (
+                  <>
+                    <IconButton
+                      aria-label={t('remove', { name: n })}
+                      disabled={readOnly}
+                      onClick={() => void onSave({ communities: { [n]: null } })}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { n } = item as (typeof nativeRows)[number];
+              return n;
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'secret':
+                  return { dir: 'ltr' };
+                case 'sources':
+                  return { dir: 'ltr' };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('communities.title') }}
+            emptyContent={renderEmptyContent({ text: t('communities.empty') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       {!canWriteSecrets && <Typography variant="body2">{t('adminOnly')}</Typography>}
       <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
         <TextField
@@ -330,35 +380,84 @@ function Users({ cfg, readOnly, canWriteSecrets, onSave, onError }: SecretEditPr
   const off = readOnly || !canWriteSecrets;
   return (
     <Section title={t('users.title')}>
-      <Table size="small" aria-label={t('users.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('name')}</TableCell>
-            <TableCell>{t('users.level')}</TableCell>
-            <TableCell>{t('users.protocols')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {entries.length === 0 && <EmptyRow text={t('users.empty')} />}
-          {entries.map(([n, u]) => (
-            <TableRow key={n}>
-              <TableCell>{n}</TableCell>
-              <TableCell>{u.securityLevel ?? DEFAULTS.level}</TableCell>
-              <TableCell dir="ltr">{`${u.authProtocol ?? DEFAULTS.auth} / ${u.privProtocol ?? DEFAULTS.priv}`}</TableCell>
-              <TableCell>
-                <IconButton
-                  aria-label={t('remove', { name: n })}
-                  disabled={readOnly}
-                  onClick={() => void onSave({ v3Users: { [n]: null } })}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = entries.map(([n, u]) => {
+          return { n, u };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { n }: (typeof nativeRows)[number]) => <>{n}</>,
+              },
+              {
+                key: 'level',
+                headerRenderer: () => <>{t('users.level')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { u }: (typeof nativeRows)[number]) => (
+                  <>{u.securityLevel ?? DEFAULTS.level}</>
+                ),
+              },
+              {
+                key: 'protocols',
+                headerRenderer: () => <>{t('users.protocols')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { u }: (typeof nativeRows)[number]) => (
+                  <>{`${u.authProtocol ?? DEFAULTS.auth} / ${u.privProtocol ?? DEFAULTS.priv}`}</>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <></>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { n }: (typeof nativeRows)[number]) => (
+                  <>
+                    <IconButton
+                      aria-label={t('remove', { name: n })}
+                      disabled={readOnly}
+                      onClick={() => void onSave({ v3Users: { [n]: null } })}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { n } = item as (typeof nativeRows)[number];
+              return n;
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'protocols':
+                  return { dir: 'ltr' };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('users.title') }}
+            emptyContent={renderEmptyContent({ text: t('users.empty') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
         <TextField
           size="small"
@@ -433,35 +532,86 @@ function Traps({ cfg, readOnly, onSave }: EditProps) {
   };
   return (
     <Section title={t('traps.title')}>
-      <Table size="small" aria-label={t('traps.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('traps.address')}</TableCell>
-            <TableCell>{t('traps.version')}</TableCell>
-            <TableCell>{t('traps.credential')}</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {list.length === 0 && <EmptyRow text={t('traps.empty')} />}
-          {list.map((r, i) => (
-            <TableRow key={`${r.address}:${r.port ?? 162}:${r.version ?? 'v2c'}`}>
-              <TableCell dir="ltr">{`${r.address}:${r.port ?? 162}`}</TableCell>
-              <TableCell>{r.version ?? DEFAULTS.version}</TableCell>
-              <TableCell>{r.community ?? r.user}</TableCell>
-              <TableCell>
-                <IconButton
-                  aria-label={t('remove', { name: r.address })}
-                  disabled={readOnly}
-                  onClick={() => void onSave({ trapReceivers: list.filter((_, j) => j !== i) })}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = list.map((r, i) => {
+          return { r, i };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'address',
+                headerRenderer: () => <>{t('traps.address')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{`${r.address}:${r.port ?? 162}`}</>
+                ),
+              },
+              {
+                key: 'version',
+                headerRenderer: () => <>{t('traps.version')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.version ?? DEFAULTS.version}</>
+                ),
+              },
+              {
+                key: 'credential',
+                headerRenderer: () => <>{t('traps.credential')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.community ?? r.user}</>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <></>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r, i }: (typeof nativeRows)[number]) => (
+                  <>
+                    <IconButton
+                      aria-label={t('remove', { name: r.address })}
+                      disabled={readOnly}
+                      onClick={() => void onSave({ trapReceivers: list.filter((_, j) => j !== i) })}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return `${r.address}:${r.port ?? 162}:${r.version ?? 'v2c'}`;
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'address':
+                  return { dir: 'ltr' };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('traps.title') }}
+            emptyContent={renderEmptyContent({ text: t('traps.empty') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
         <TextField
           size="small"
@@ -513,14 +663,14 @@ function Traps({ cfg, readOnly, onSave }: EditProps) {
 }
 
 /** Guidance row for an empty list (screen readers get it as a normal table cell). */
-function EmptyRow({ text }: { text: string }) {
+function renderEmptyContent({ text }: { text: string }) {
   return (
-    <TableRow>
-      <TableCell colSpan={8}>
+    <>
+      <>
         <Typography variant="body2" color="text.secondary">
           {text}
         </Typography>
-      </TableCell>
-    </TableRow>
+      </>
+    </>
   );
 }

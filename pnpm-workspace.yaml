@@ -8,6 +8,7 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   '@scarf/scarf': false
+  '@progress/kendo-licensing': false
   cpu-features: false
   ssh2: false
 
@@ -15,3 +16,10 @@ allowBuilds:
 overrides:
   fastify: 5.12.5
   js-yaml@>=5.0.0 <5.4.1: 5.4.1
+
+  "@amnafzar/common-ui-lib>@mui/material": 7.3.11
+  "@amnafzar/common-ui-lib>@mui/icons-material": 7.3.11
+  "@amnafzar/common-ui-lib>react": 19.3.0
+  "@amnafzar/common-ui-lib>react-dom": 19.3.0
+  "@mui/x-data-grid>@mui/x-internals": 9.14.0
+  "@mui/x-virtualizer>@mui/x-internals": 9.14.0

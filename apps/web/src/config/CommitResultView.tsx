@@ -1,8 +1,8 @@
 import { diffPointerLabel } from './diff-presentation';
 import { resultKeyText, serviceText } from '../product-text';
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
-import Box from '@mui/material/Box';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlertTitle as AlertTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useTranslation } from 'react-i18next';
 import type { CommitResult } from './queries';

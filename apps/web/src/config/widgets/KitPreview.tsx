@@ -1,7 +1,7 @@
-import Alert from '@mui/material/Alert';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { NGFW_STATUSES, type NgfwStatus } from '@ngfw/ui-kit';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import { useMemo, useState } from 'react';

@@ -1,7 +1,7 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgCircularProgress as CircularProgress } from '@amnafzar/common-ui-lib/primitives';
+import { PgTab as Tab } from '@amnafzar/common-ui-lib/primitives';
+import { PgTabs as Tabs } from '@amnafzar/common-ui-lib/primitives';
 import { Suspense, type ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';

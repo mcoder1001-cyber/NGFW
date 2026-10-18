@@ -5,10 +5,14 @@ import { defineConfig } from 'vitest/config';
 const apiPort = process.env.NGFW_HTTP_PORT ?? '3000';
 const webPort = Number(process.env.NGFW_WEB_PORT ?? '5173');
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => ({
   plugins: [react()],
+  resolve: { dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled'] },
   // Developer demo routes (/dev/*) never ship in a production build unless explicitly requested (review P07a M1).
-  define: { __NGFW_DEV_ROUTES__: JSON.stringify(mode !== 'production' || process.env.VITE_NGFW_DEV_ROUTES === '1') },
+  define: {
+    __NGFW_DEV_ROUTES__: JSON.stringify(mode !== 'production' || process.env.VITE_NGFW_DEV_ROUTES === '1'),
+    __NGFW_UI_PREVIEW__: JSON.stringify(command === 'serve' && mode === 'development' && process.env.NGFW_UI_PREVIEW === '1'),
+  },
   server: {
     host: '127.0.0.1',
     port: webPort,

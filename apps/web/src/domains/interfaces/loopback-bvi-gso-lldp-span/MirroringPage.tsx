@@ -1,25 +1,25 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogContent as DialogContent,
+  PgDialogContentText as DialogContentText,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgMenuItem as MenuItem,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
+import { StatusChip } from '@ngfw/ui-kit';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
@@ -30,7 +30,6 @@ import { PageHeader } from '../../../shell/PageHeader';
 import { problemFor } from '../InterfaceDrawer';
 import { localizeSchema } from '../model';
 import { useCandidateInterfaces, usePatchInterfaces } from '../queries';
-import { useInterfacesStateSlow } from './queries';
 import {
   allNames,
   END_CELL,
@@ -45,6 +44,7 @@ import {
   type MirrorSessionConfig,
   type SessionRow,
 } from './model';
+import { useInterfacesStateSlow } from './queries';
 
 const NS = 'loopback-bvi-gso-lldp-span';
 const LTR = { dir: 'ltr' } as const;
@@ -100,67 +100,152 @@ export function MirroringPage() {
         <Typography color="text.secondary">{t('mirror.none')}</Typography>
       ) : (
         <Paper variant="outlined">
-          <Table size="small" aria-label={t('mirror.title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('mirror.col.source')}</TableCell>
-                <TableCell>{t('mirror.col.destination')}</TableCell>
-                <TableCell>{t('mirror.col.direction')}</TableCell>
-                <TableCell>{t('mirror.col.level')}</TableCell>
-                <TableCell>{t('mirror.col.status')}</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell dir="ltr" sx={MONO}>
-                    {interfaceLabel(r.source)}
-                  </TableCell>
-                  <TableCell dir="ltr" sx={MONO}>
-                    {interfaceLabel(r.destination)}
-                  </TableCell>
-                  <TableCell>{t(`direction.${r.direction}`)}</TableCell>
-                  <TableCell>{t(`level.${r.level}`)}</TableCell>
-                  <TableCell>
-                    <Stack direction="row" gap={0.5}>
-                      <StatusChip
-                        size="small"
-                        status={presence(r.active)}
-                        label={r.active ? t('mirror.active') : t('mirror.missing')}
-                      />
-                      {r.pending && (
-                        <Chip
-                          size="small"
-                          color="warning"
-                          variant="outlined"
-                          label={t('pending')}
-                        />
-                      )}
-                    </Stack>
-                  </TableCell>
-                  <TableCell sx={END_CELL}>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('edit')} ${interfaceLabel(r.source)} → ${interfaceLabel(r.destination)}`}
-                      disabled={!perms.editConfig}
-                      onClick={() => setEditing({ source: r.source, index: r.index })}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('remove')} ${interfaceLabel(r.source)} → ${interfaceLabel(r.destination)}`}
-                      disabled={!perms.editConfig || patch.isPending}
-                      onClick={() => remove(r)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const gridItems = rows;
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('mirror.col.source')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return <>{r.source}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('mirror.col.destination')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return <>{r.destination}</>;
+                    },
+                  },
+                  {
+                    key: '2',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('mirror.col.direction')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return <>{t(`direction.${r.direction}`)}</>;
+                    },
+                  },
+                  {
+                    key: '3',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('mirror.col.level')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return <>{t(`level.${r.level}`)}</>;
+                    },
+                  },
+                  {
+                    key: '4',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('mirror.col.status')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return (
+                        <>
+                          <Stack direction="row" gap={0.5}>
+                            <StatusChip
+                              size="small"
+                              status={presence(r.active)}
+                              label={r.active ? t('mirror.active') : t('mirror.missing')}
+                            />
+                            {r.pending && (
+                              <Chip
+                                size="small"
+                                color="warning"
+                                variant="outlined"
+                                label={t('pending')}
+                              />
+                            )}
+                          </Stack>
+                        </>
+                      );
+                    },
+                  },
+                  {
+                    key: '5',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <></>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return (
+                        <>
+                          <IconButton
+                            size="small"
+                            aria-label={`${t('edit')} ${r.source} → ${r.destination}`}
+                            disabled={!perms.editConfig}
+                            onClick={() => setEditing({ source: r.source, index: r.index })}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            aria-label={`${t('remove')} ${r.source} → ${r.destination}`}
+                            disabled={!perms.editConfig || patch.isPending}
+                            onClick={() => remove(r)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      );
+                    },
+                  },
+                ]}
+                tableProps={{ size: 'small', 'aria-label': t('mirror.title') }}
+                rowKey={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const r = gridRow;
+                  return r.id;
+                }}
+                rowProps={(_nativeRow, _gridIndex) => {
+                  return {};
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return { dir: 'ltr', sx: MONO };
+                    case '1':
+                      return { dir: 'ltr', sx: MONO };
+                    case '2':
+                      return {};
+                    case '3':
+                      return {};
+                    case '4':
+                      return {};
+                    case '5':
+                      return { sx: END_CELL };
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
         </Paper>
       )}
       {editing !== null && (

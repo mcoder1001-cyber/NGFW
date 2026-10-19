@@ -1,47 +1,58 @@
-# Appliance 211 initial Layer 2 test — agent validation repair required
+# Appliance 211 — Layer 2 pairs active, initial traffic verification underway
 
-Branch: `codex/route-ethernet9-11-211-20261019`.
-Base local and observed GitHub main: `cb148aafb288301f9fe18eb064a4fc9610ad1698`.
-Local task SHA: obtain with `git rev-parse HEAD`; this initial record is part of its own checkpoint.
-Remote task SHA/publication: not yet published at initial record creation; publish immediately after the static check and commit, then verify with `git ls-remote`.
-Owned files: this status and its adjacent task envelope. No product code modified.
+Branch: `codex/route-ethernet9-11-211-20261019`; worktree `/root/.codex/worktrees/b538/NGFW`.
+Owned files: this status and its adjacent task envelope; no product code changed in this worktree.
+Base: `cb148aafb288301f9fe18eb064a4fc9610ad1698`.
+Initial local/remote operational checkpoint: `cb83f65014dc9d1e7c544d34a6563d84f78abc6e`, successful GitHub push verified with `git ls-remote`.
+Current source checkpoint: `git rev-parse HEAD`; publish every subsequent documentation checkpoint and verify the remote SHA.
 
-## Observed on 2026-10-19
+## Current requested scope and result
 
-- HTTPS `/interfaces` returns HTTP 200. Existing SSH key authenticates as root.
-- ngfw-api, ngfw-agent and vpp are active.
-- Management enp4s0 remains `172.30.110.211/24`.
-- Port 9: enp3s0f0np0, VPP index 9, PCI 0000:03:00.0, MAC 28:b1:33:20:94:bb; admin/link up at 10 Gbps.
-- Port 11: enp3s0f2np2, VPP index 11, PCI 0000:03:00.2, MAC 28:b1:33:20:94:bd; admin/link up at 10 Gbps.
-- VPP has no IP addresses on either port, no bridge-domain, and only default IPv4 drop entries. Physical MTU is 9000.
-- Read-only PostgreSQL inspection of network sections: latest revision 3 has 17 enabled physical dataplane ports in default VRF, all with empty IPv4/IPv6 lists. Static routes and ACL attachments are empty; NAT is not configured on these ports.
-- Candidate is empty and unlocked (owner/base/payload null). No pending user changes were discarded.
-- `ngfw -json show interfaces` exits 3 with not-logged-in; no conventional root CLI session or connected document/browser session was available. No login guesses, credential reads, auth changes or bypass attempted.
-- Independent reviewer reproduced the port/link/routing observations. `show l3xc` and IP neighbors are empty; ip4-not-enabled/ip6-not-enabled are present. Although interface-only L3 cross-connect is schema-supported, it does not itself establish IP/ARP readiness, so it is not treated as proven routing.
-- GitHub startup inspection: main CI successful for the base SHA; six open PRs (#244–249) belong to other work. Board inspected; no unrelated work adopted or modified. The reviewer is the only observed worker for this task; no claim is made about other workers' liveness.
+The user first requested routing Ethernet9↔Ethernet11, then explicitly requested Layer 2 first for an initial test, later Layer 3, and added a separate Ethernet5↔Ethernet6 pair. The user supplied normal web administrator credentials; no credentials are recorded in Git. HTTPS authentication succeeded without auth changes or bypass.
 
-## User steering and validation result
+Both reciprocal Layer 2 cross-connect pairs are now applied and persistently confirmed as running revision **4**, parent revision3, transaction `9bec043f-d1a9-4808-8b24-ac0bfd15e04f`. Four operations returned `ok`, no requested changes were unapplied, and sync is in-sync. Final candidate diff is empty and there is no pending confirmation.
 
-The user requested Layer 2 first for an initial test, followed by Layer 3, and supplied a normal administrator login. HTTPS authentication succeeded. Full authenticated interface inventory confirms PCI-based Ethernet9 and Ethernet11 labels match enp3s0f0np0 and enp3s0f2np2. Before staging, authenticated diff was empty at revision 3 and lock was unowned.
+| Display port | Actual interface | PCI | Peer |
+|---|---|---|---|
+| Ethernet5 | enp2s0f0np0 | 0000:02:00.0 | Ethernet6 |
+| Ethernet6 | enp2s0f1np1 | 0000:02:00.1 | Ethernet5 |
+| Ethernet9 | enp3s0f0np0 | 0000:03:00.0 | Ethernet11 |
+| Ethernet11 | enp3s0f2np2 | 0000:03:00.2 | Ethernet9 |
 
-Staged only reciprocal `routing.l2.xconnects` through HTTPS PATCH. Independent review approves the two-entry patch and confirms VPP automatically enables promiscuous acceptance for L2. No interface, management, IP, NAT or ACL leaves were changed.
+Full authenticated physical inventory verified these PCI-based UI labels. All four ports are admin/link up at10Gbps, MTU9000. Independent reviewer verified exact reciprocal `show mode` entries and automatic hardware promiscuous/unicast acceptance on all four. There is no shared bridge-domain and no traffic configuration crossing the two pairs.
 
-POST `/config/validate` failed HTTP400, tier agent, `/interfaces`, rule `basepolicy.namespace`: `cannot establish effective LCP namespace` because binary readback contains control characters while read-only `show lcp` explicitly says `<unset>`. No commit attempted and no traffic-path change applied. API observation separately reports `retrieve pppoe.carrier.namespace: PPPoE kernel helper operation failed`.
+The only configuration change is `routing.l2.xconnects` with those four mappings (other L2 maps default empty). No IP, VRF, NAT, ACL, management, physical identity or unrelated interface values changed. enp4s0 remains172.30.110.211/24. VPP PID167929 and NRestarts0 were preserved throughout.
 
-PR249 (`44714075332aa75408924c524ae4a5d0f9e90aa5`) contains a reviewed strict read-only namespace corroboration fix, deployed successfully on a different appliance (172.30.126.250) from an older source base. It cannot be blindly copied here. Appliance211 installed package/source is `0.1.0~dev+git695.cb148aafb288`, matching this task's main base. Preserve that provenance when porting the correction. No VPP source/startup, privilege or sandbox changes are authorized/needed.
+## Prerequisite repair and recovery
 
-## Remaining work and next action
+Before staging, revision3 had17 enabled physical dataplane ports in default VRF without IP addresses, empty static routes and ACL attachments, and an empty/unlocked candidate. Initial L2 validation failed with HTTP400 tier agent, `/interfaces`, `basepolicy.namespace`: malformed namespace binary readback despite `show lcp` explicitly reporting `<unset>`. No failed validation was committed or bypassed.
 
-Only the candidate has changed; running revision 3 and VPP forwarding are unchanged. Initial Layer 2 and later Layer 3 packet acceptance remain incomplete.
+Reused the strict reviewed PR249 approach on the installed source base cb148aafb in a separate developer branch `codex/repair-211-lcp-20261019`. Product source SHA `98e5525c0b183586984557e673c95de2649f0f58`; documentation checkpoint `b02d077af414fe703cddbee41d3ee335f02980cb`. PR250: https://github.com/mcoder1001-cyber/NGFW/pull/250 (draft, not merged).
 
-Layer 3 addressing remains unspecified. Proposed lab prefixes were not accepted; the user chose Layer 2 first. Authentication is resolved through the ordinary HTTPS login. A short-lived session and read-only configuration backups are held root-private under `/root/.cache/ngfw-route9-11-211`; never publish their contents.
+Independent source review APPROVE. Focused subsystem tests PASS (0.113s), subsystem vet PASS, all19 strict corroboration cases PASS with race (1.099s). Go1.26.0 static stripped build succeeded. Generated sources/modules checked unchanged. An initial race command overlapped generation and failed on a missing generated file; author is rerunning after generation, without changing tests or checks. The complete unchanged local and hosted quick gates are still running; no full-gate pass or merge is claimed.
 
-Next: port the exact reviewed namespace correction to an isolated branch based on installed main; test/review before any surgical agent deployment. Investigate the PPPoE retrieval error read-only. Then repeat ordinary candidate validation, confirmed commit, runtime reciprocal `show mode`, promiscuity, counters and endpoint packet tests. Remove both L2 cross-connects before later L3 configuration.
+Installed only the corrected agent binary, SHA256 `86a65b51dfbd5da268533ebbaae3c5b2b2143549547a7ce9f1176c083b499f5c`. Original SHA256 `4ca376e628686eb0b51ad480461f4fcd5150b00a62cf0ed270ac4f8384a5d6d1`. Root-private rollback material on211: `/root/ngfw-route9-11-repair-20261019/ngfw-agent.before` and `agent-state.before.tar.gz`; receipt hashes and before/after VPP process evidence are beside them. Staging is `/root/ngfw-route9-11-staging`.
 
-Exact next read-only command with the current root-private API helper (session may need normal renewal):
+Agent restart stopped dependent ngfw-api via its existing systemd Requires relationship; starting ngfw-api restored it. All three services are active. No service definition, environment, privilege, policy boundary, VPP source/startup or package was changed. Post-repair ordinary validate passed with exactly four xconnect creates; confirmed commit persisted revision4. Initial PPPoE inventory error was not a persistent permission/package defect; subsequent authenticated interface observations have no errors. No PPPoE repair was performed.
+
+## Actual packet evidence and outstanding work
+
+User tester is ready; root announced activation and requested traffic start. At11:24:17 UTC, deltas relative to precommit were:
+
+- Ethernet5 RX0/TX1; Ethernet6 RX1/TX0.
+- Ethernet9 RX1/TX1; Ethernet11 RX1/TX1.
+- New drops, errors and RX misses: zero on all four ports.
+
+These few frames show initial forwarding evidence, not a sustained tester run or complete endpoint reception proof. Observe actual tester traffic in both directions before claiming complete packet acceptance. Do not reset existing counters; historic drops predate activation. Root-private API snapshots, short-lived session, and command helpers are in `/root/.cache/ngfw-route9-11-211`; never publish the session or full protected snapshots.
+
+Layer3 addressing remains unspecified. Proposed lab addresses were not accepted. Keep both L2 pairs active for the user test; remove the relevant reciprocal cross-connects before applying later requested L3 addresses/routes.
+
+Exact next read-only command:
 
 ```sh
-python3 /root/.cache/ngfw-route9-11-211/api.py GET /config/diff
+python3 /root/.cache/ngfw-route9-11-211/apply-l2.py status
 ```
 
-Initial `tools/ci.sh check --base origin/main`: PASS (14 seconds). No product changes are included in this operational checkpoint. Product repair tests will be recorded separately. No merge is requested or performed.
+For counters use authenticated `/api/v1/state/interfaces` or read-only VPP show commands and compare against `interfaces-precommit.json`. Renew the short-lived session only through normal authenticated login if expired.
+
+Initial operational `tools/ci.sh check --base origin/main` PASS (14seconds). GitHub main CI was green at startup; unrelated PRs244–249 and board were inspected without adopting their work. This task's observed workers: root operational agent, lcp_repair developer and routing_review independent reviewer. Other workers' liveness is unverifiable.

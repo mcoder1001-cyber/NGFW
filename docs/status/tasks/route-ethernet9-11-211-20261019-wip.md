@@ -1,4 +1,4 @@
-# Appliance 211 — Layer 2 pairs active, initial traffic verification underway
+# Appliance 211 — Layer 2 pairs active; tester interval has no ingress and links 9/11 down
 
 Branch: `codex/route-ethernet9-11-211-20261019`; worktree `/root/.codex/worktrees/b538/NGFW`.
 Owned files: this status and its adjacent task envelope; no product code changed in this worktree.
@@ -34,6 +34,18 @@ Independent source review APPROVE. Focused subsystem tests PASS (0.113s), subsys
 Installed only the corrected agent binary, SHA256 `86a65b51dfbd5da268533ebbaae3c5b2b2143549547a7ce9f1176c083b499f5c`. Original SHA256 `4ca376e628686eb0b51ad480461f4fcd5150b00a62cf0ed270ac4f8384a5d6d1`. Root-private rollback material on211: `/root/ngfw-route9-11-repair-20261019/ngfw-agent.before` and `agent-state.before.tar.gz`; receipt hashes and before/after VPP process evidence are beside them. Staging is `/root/ngfw-route9-11-staging`.
 
 Agent restart stopped dependent ngfw-api via its existing systemd Requires relationship; starting ngfw-api restored it. All three services are active. No service definition, environment, privilege, policy boundary, VPP source/startup or package was changed. Post-repair ordinary validate passed with exactly four xconnect creates; confirmed commit persisted revision4. Initial PPPoE inventory error was not a persistent permission/package defect; subsequent authenticated interface observations have no errors. No PPPoE repair was performed.
+
+## Tester follow-up on 2026-10-19
+
+User said they would now start tester transmission. Root and independent reviewer took fresh read-only snapshots. At11:45:25→11:46:04 UTC (39seconds), no RX packets, TX packets, drops, transmit errors or bytes increased on any of the four ports. Independent44-second observation agrees. VPP `show interface` state is administrative state; use `show hardware-interfaces` to determine actual carrier.
+
+At11:45:26 UTC, ports5/6/9 had10Gbps carrier; port11 carrier was down. At11:46:10 UTC, both9 and11 were physically down;5/6 remained up. All four administrative states remained up and all four reciprocal xconnect mappings remained installed. Port9 hardware local/remote fault counts rose by4 during the link transition. Exact cause (tester settings, cable or optics) is unknown; do not infer a specific physical fault from counters alone.
+
+Accumulated errors since the earlier initial-frame test are no longer zero: VPP reports port5 output `interface is down`4 times and port11 output `interface is down`3 times. Total drop counters at the new baseline are5=11,6=14,9=28,11=14. These totals did not change in the measured interval. They indicate intervening link outages, not a new packet-loss measurement during the idle interval.
+
+The user was asked whether tester cables/link settings are being changed and to check tester TX/link. Keep configured L2 pairs unchanged while awaiting external tester/link recovery. No counters were cleared and no capture/trace/host configuration changes were made. Counter snapshots and parser are private at `/root/.cache/ngfw-route9-11-211/{tester-start,tester-interval1}.json` and `sample-counters.py`.
+
+PR250 remains unmerged. Current observed published repair checkpoint is `cc1656787d3c9a8b6d851ced2dca8501209e1aff`; local full Turbo35tasks passed including API823 and web694tests. Full agent vet, lint and race suites passed; the developer continues the remaining complete quick gate and hosted run39246565687. Do not claim the final complete gate until it actually passes. GitHub main remainscb148aafb with green last mainCI.
 
 ## Actual packet evidence and outstanding work
 

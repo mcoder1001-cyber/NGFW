@@ -24,3 +24,5 @@ pnpm --filter @ngfw/web dev
 ```
 
 The proxy forwards API requests and WebSockets while retaining TLS certificate verification. The certificate must cover the target IP or DNS name. Use a trusted DNS name instead of the IP when required by the certificate. Without a private CA, omit `NODE_EXTRA_CA_CERTS`. Keep this development server bound to loopback.
+
+If the administrator-approved appliance certificate covers a different TLS name than its connection IP, set `NGFW_API_TLS_SERVERNAME` to that certificate name. For the appliance at `172.30.126.250`, its current certificate covers `localhost`; use `NGFW_API_TLS_SERVERNAME=localhost` together with the trusted certificate file. This sets TLS SNI/hostname verification without disabling certificate validation. Trust is scoped to this Node process, not installed system-wide.

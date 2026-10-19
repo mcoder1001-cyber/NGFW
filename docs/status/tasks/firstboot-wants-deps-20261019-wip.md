@@ -6,7 +6,8 @@ cut from PR #246's head `9cabd7f47` (`claude/musing-ramanujan-bd8fe0`, D-253), i
 Envelope: [firstboot-wants-deps-20261019-envelope.md](firstboot-wants-deps-20261019-envelope.md).
 Decision: D-254 in `docs/decisions/LOG.md`. Origin: follow-up 1 of
 [pkg-no-stop-on-upgrade-20261019-wip.md](pkg-no-stop-on-upgrade-20261019-wip.md) (D-253, PR #246).
-PR: pending (see the checkpoint table).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/248 (open against `main`, stacked on #246; hosted gates and
+independent review pending; not to be merged by this task).
 
 ## Checkpoints
 
@@ -14,7 +15,9 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 
 | checkpoint | SHA | content |
 |---|---|---|
-| 1 | the commit carrying this version of this file | units, script gate, fixture helpers, tests, lab script, docs, D-254, envelope, this file |
+| 1 | `935ee0e29` | units, script gate, fixture helpers, tests, lab script, docs, D-254, envelope, this file |
+| 1b | `072128365` | lab script fixes (per-line states, invocation count), both user-manager observations recorded; the commit the package set was built from |
+| 2 | the commit carrying this version of this file | whole-suite result, built package set and `dpkg-deb` inspection, PR #248 link |
 
 ## Investigation (2026-10-19)
 
@@ -103,7 +106,11 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 - `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_firstboot.py`: `Ran 16 tests in 22.069s — OK`
   (16 = 9 on PR #246 + 2 gate tests + 5 dependency tests).
 - `… -p test_packaging.py`: `Ran 22 tests in 2.803s — OK`. `… -p test_base_policy.py`: `Ran 3 tests — OK`.
-- Whole suite and package build: pending (checkpoint 2).
+- `python3 -m unittest discover -s deploy/debian/ngfw/tests -v` (whole suite, tree of `935ee0e29` plus the
+  lab-script and docs edits of `072128365`, no test input changed): `Ran 139 tests in 675.392s — OK`, no
+  skips (139 = 132 on PR #246 + 7 new: 2 gate tests + 5 dependency tests).
+- Inside the package build (`dh_auto_test`, see below): test_packaging 22 OK, test_system_identity 12 OK,
+  test_firstboot 16 OK, test_base_policy 3 OK, test_pppoe_assets 4 OK.
 - `firstboot-propagation.sh --render-only`: the rendered `ngfwlab-ngfw-firstboot.service` carries
   `Wants=`/`After=`/`Before=` from the working tree and `Requires=` when given
   `origin/main:deploy/systemd/ngfw-firstboot.service`; `systemd-analyze --user verify` of the rendered
@@ -175,14 +182,38 @@ against the D-254 shape (`failed`: the script refused). Full logs: `lab-d254.log
 `lab-previous.log` in the session scratchpad (not committed); rerun the two commands to reproduce.
 Laboratory acceptance on an appliance stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
+## Built package set (checkpoint 2)
+
+- Source `072128365` (this branch, full history, count 702); verified VPP output
+  `/root/Documents/Codex/2026-10-04/debian-latest/outputs/NGFW-Debian-latest-development/VPP-26.06-release+ngfw3-amd64`
+  (`deploy/vpp/verify.sh --require-files … --install-gate` passed inside `prepare.sh`).
+- Commands: `pnpm install --frozen-lockfile --prefer-offline` (exit 0), then `GOMAXPROCS=4 tools/heavy.sh
+  deploy/debian/ngfw/prepare.sh <VPP> /var/tmp/ngfw-build-firstboot-wants-deps-20261019/pkgsrc` (exit 0) and
+  `dpkg-buildpackage -us -uc -b` in `pkgsrc` (exit 0); packages `0.1.0~dev+git702.07212836559c` (agent/api
+  `amd64`, meta/web `all`) in `/var/tmp/ngfw-build-firstboot-wants-deps-20261019/` (retained for review; not
+  deployed anywhere).
+- `dpkg-deb -x`/`-e` of `ngfw-meta` and `ngfw-agent`:
+  - `usr/lib/systemd/system/ngfw-firstboot.service`: `Wants=postgresql.service valkey-server.service
+    nftables.service`, `After=` the same, `Before=vpp.service ngfw-agent.service ngfw-api.service nginx.service`,
+    no `Requires=`; `[Service]`/`[Install]` unchanged;
+  - `usr/lib/ngfw/firstboot.sh`: the per-unit `systemctl --quiet is-active` loop with `first boot requires an
+    active $UNIT`;
+  - `usr/lib/systemd/system/vpp.service.d/vpp-firstboot.conf`: `Requires=ngfw-firstboot.service` +
+    `After=` (unchanged);
+  - `ngfw-agent`: `usr/lib/systemd/system/ngfw-upgrade-prepare.service` with `Wants=postgresql.service`,
+    `After=postgresql.service`;
+  - maintainer scripts as D-253 left them: no `preinst`; `ngfw-meta` `prerm` carries one
+    `deb-systemd-invoke stop 'ngfw-firewall-bootstrap.service' 'ngfw-firstboot.service'` on `remove` only;
+    `postinst` without `deb-systemd-invoke`.
+
 ## Remaining
 
-- Checkpoint 2: whole suite (`python3 -m unittest discover -s deploy/debian/ngfw/tests -v`, no skips),
-  package build with `prepare.sh` + `dpkg-buildpackage -us -uc -b`, `dpkg-deb` inspection of the unit
-  text in `ngfw-meta` and `ngfw-agent`, PR against `main`.
+- Nothing in code. PR #248 is open (link at the top); hosted gates, independent review and the merge belong
+  to the manager; after #246 merges, rebase with `git rebase --onto origin/main 9cabd7f47`. No host is upgraded
+  by this task. Laboratory acceptance on real units stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
 ## Exact next command
 
 ```sh
-python3 -m unittest discover -s deploy/debian/ngfw/tests -v 2>&1 | tail -5
+gh pr checks 248   # then: independent review per prompts/REVIEW-PROMPT.md; merge only after #246 and the complete hosted quick gate
 ```

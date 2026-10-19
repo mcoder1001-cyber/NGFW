@@ -4,7 +4,7 @@ import { useMediaQuery as useMediaQuery, useTheme } from '@amnafzar/common-ui-li
 import { PgGlobalAppBar, PgBreadcrumb, PgIconButton, Sidenav } from '@amnafzar/common-ui-lib/shell';
 import { UI_KIT_NS } from '@ngfw/ui-kit';
 import { useWsStatus } from '@ngfw/ui-kit/ws';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation } from 'react-router';
 import { DEV_ROUTES } from '../build-flags';
@@ -20,19 +20,27 @@ import '../common-ui.css';
 const SettingsPopover = lazy(() => import('./SettingsPopover').then(({ SettingsPopover }) => ({ default: SettingsPopover })));
 
 
+// Common UI keeps the navigation rail dark in both themes. These category colors
+// stay readable there; selection is still indicated by the shared row highlight.
+function navigationIcon(Icon: typeof DashboardIcon, color: string) {
+  return function NavigationIcon(props: ComponentProps<typeof DashboardIcon>) {
+    return <Icon {...props} style={{ ...props.style, color }} />;
+  };
+}
+
 const icons = {
-  dashboard: DashboardIcon,
-  interfaces: RouterIcon,
-  routing: LanIcon,
-  objects: ShieldIcon,
-  "dynamic-routing": LanIcon,
-  "routing-objects": LanIcon,
-  firewall: ShieldIcon,
-  vpn: VpnKeyIcon,
-  services: RouterIcon,
-  system: SettingsIcon,
-  tools: BuildIcon,
-  dev: BuildIcon,
+  dashboard: navigationIcon(DashboardIcon, '#60A5FA'),
+  interfaces: navigationIcon(RouterIcon, '#22D3EE'),
+  routing: navigationIcon(LanIcon, '#60A5FA'),
+  objects: navigationIcon(ShieldIcon, '#94A3B8'),
+  'dynamic-routing': navigationIcon(LanIcon, '#60A5FA'),
+  'routing-objects': navigationIcon(LanIcon, '#94A3B8'),
+  firewall: navigationIcon(ShieldIcon, '#FBBF24'),
+  vpn: navigationIcon(VpnKeyIcon, '#A78BFA'),
+  services: navigationIcon(RouterIcon, '#34D399'),
+  system: navigationIcon(SettingsIcon, '#94A3B8'),
+  tools: navigationIcon(BuildIcon, '#FB923C'),
+  dev: navigationIcon(BuildIcon, '#FB923C'),
 };
 
 /** Common UI frame; route inventory and transactional configuration remain NGFW-owned. */

@@ -1,28 +1,26 @@
-import { serviceText } from '../../../product-text';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgMenuItem as MenuItem,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { ServerDataGrid, type GridColDef } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,6 +28,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { DaemonStatus, PendingActions, StateProblem } from './common';
 import {
   FACILITIES,
@@ -43,11 +42,11 @@ import {
 } from './model';
 import {
   fetchLogs,
+  ucsKeys,
   useCandidateNode,
   useFreshNode,
   usePatchDomain,
   useSyslogState,
-  ucsKeys,
   type LogEntry,
   type SyslogTarget,
 } from './queries';
@@ -116,90 +115,149 @@ export default function LoggingTab() {
       </Stack>
       {put.error && !editing && <ProblemAlert error={put.error} sx={{ mb: 2 }} />}
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-        <Table size="small" aria-label={t('syslog.targets')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.collector')}</TableCell>
-              <TableCell>{t('col.transport')}</TableCell>
-              <TableCell>{t('col.filter')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-              <TableCell>{t('col.counters')}</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {targets.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6}>{t('syslog.none')}</TableCell>
-              </TableRow>
-            )}
-            {targets.map((tg, i) => {
-              const live = st?.targets.find((x) => x.index === i);
-              return (
-                <TableRow key={`${tg.address}-${tg.port}-${tg.protocol}`}>
-                  <TableCell
-                    sx={{ fontFamily: 'monospace' }}
-                  >{`${tg.address}:${tg.port}`}</TableCell>
-                  <TableCell>{`${tg.protocol}${tg.format ? ` · ${tg.format}` : ''}`}</TableCell>
-                  <TableCell>{`${(tg.facilities ?? []).length ? tg.facilities!.join(',') : '*'}.${tg.severity}`}</TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      color={
-                        !live
-                          ? 'default'
-                          : !live.reported
-                            ? 'warning'
-                            : live.failed > 0 || live.suspended > 0
-                              ? 'error'
+        {(() => {
+          const nativeRows = targets.map((tg, i) => {
+            const live = st?.targets.find((x) => x.index === i);
+            return { tg, i, live };
+          });
+          return (
+            <ReactGeereedMaterial
+              footer={false}
+              hideFilterBuilderComponent
+              items={nativeRows}
+              columns={[
+                {
+                  key: 'collector',
+                  headerRenderer: () => <>{t('col.collector')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { tg }: (typeof nativeRows)[number]) => (
+                    <>{`${tg.address}:${tg.port}`}</>
+                  ),
+                },
+                {
+                  key: 'transport',
+                  headerRenderer: () => <>{t('col.transport')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { tg }: (typeof nativeRows)[number]) => (
+                    <>{`${tg.protocol}${tg.format ? ` · ${tg.format}` : ''}`}</>
+                  ),
+                },
+                {
+                  key: 'filter',
+                  headerRenderer: () => <>{t('col.filter')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { tg }: (typeof nativeRows)[number]) => (
+                    <>{`${(tg.facilities ?? []).length ? tg.facilities!.join(',') : '*'}.${tg.severity}`}</>
+                  ),
+                },
+                {
+                  key: 'status',
+                  headerRenderer: () => <>{t('col.status')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { live }: (typeof nativeRows)[number]) => (
+                    <>
+                      <Chip
+                        size="small"
+                        color={
+                          !live
+                            ? 'default'
+                            : !live.reported
+                              ? 'warning'
+                              : live.failed > 0 || live.suspended > 0
+                                ? 'error'
+                                : live.queueSize > 0
+                                  ? 'warning'
+                                  : 'success'
+                        }
+                        label={t(
+                          !live
+                            ? 'syslog.notRendered'
+                            : !live.reported
+                              ? 'syslog.notReported'
                               : live.queueSize > 0
-                                ? 'warning'
-                                : 'success'
-                      }
-                      label={t(
-                        !live
-                          ? 'syslog.notRendered'
-                          : !live.reported
-                            ? 'syslog.notReported'
-                            : live.queueSize > 0
-                              ? 'syslog.backlog'
-                              : 'syslog.forwarding',
-                      )}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {live
-                      ? t('syslog.counters', {
-                          processed: live.processed,
-                          failed: live.failed,
-                          queued: live.queueSize,
-                        })
-                      : '—'}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>
-                    <IconButton
-                      aria-label={t('edit', { name: tg.address })}
-                      disabled={!perms.editConfig}
-                      onClick={() => {
-                        put.reset();
-                        setEditing({ index: i, value: tg });
-                      }}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      aria-label={t('delete', { name: tg.address })}
-                      disabled={!perms.editConfig}
-                      onClick={() => void remove(i)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                                ? 'syslog.backlog'
+                                : 'syslog.forwarding',
+                        )}
+                      />
+                    </>
+                  ),
+                },
+                {
+                  key: 'counters',
+                  headerRenderer: () => <>{t('col.counters')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { live }: (typeof nativeRows)[number]) => (
+                    <>
+                      {live
+                        ? t('syslog.counters', {
+                            processed: live.processed,
+                            failed: live.failed,
+                            queued: live.queueSize,
+                          })
+                        : '—'}
+                    </>
+                  ),
+                },
+                {
+                  key: 'actions',
+                  headerRenderer: () => <></>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { tg, i }: (typeof nativeRows)[number]) => (
+                    <>
+                      <IconButton
+                        aria-label={t('edit', { name: tg.address })}
+                        disabled={!perms.editConfig}
+                        onClick={() => {
+                          put.reset();
+                          setEditing({ index: i, value: tg });
+                        }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        aria-label={t('delete', { name: tg.address })}
+                        disabled={!perms.editConfig}
+                        onClick={() => void remove(i)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </>
+                  ),
+                },
+              ]}
+              rowKey={(item) => {
+                const { tg } = item as (typeof nativeRows)[number];
+                return `${tg.address}-${tg.port}-${tg.protocol}`;
+              }}
+              cellProps={(_item, column) => {
+                switch (column.key) {
+                  case 'collector':
+                    return { sx: { fontFamily: 'monospace' } };
+                  case 'actions':
+                    return { sx: { textAlign: 'end' } };
+                  default:
+                    return {};
+                }
+              }}
+              tableProps={{ size: 'small', 'aria-label': t('syslog.targets') }}
+              emptyContent={<>{t('syslog.none')}</>}
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+            />
+          );
+        })()}
       </TableContainer>
 
       {perms.manageUsers ? <LogExplorer /> : <Alert severity="info">{t('logs.adminOnly')}</Alert>}

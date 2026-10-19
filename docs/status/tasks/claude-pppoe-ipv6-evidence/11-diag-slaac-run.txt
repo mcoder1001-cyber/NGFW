@@ -1,0 +1,1047 @@
+SLOT_LOCK=/run/lock/ngfw-slot-9.lock held
+SOURCE_SHA=192ae7fe6a445d280a6f691bca05ed75ddf113ef
+MODE=diag IPV6=slaac
+PPP_VERSIONS=ppp	2.5.2-1+1.2 pppoe	4.0-1ubuntu2 
+DRIVER_DIGEST=7c2d0577316b286c66c6780fc24ef9237d8bbcddc3d4115ba681d646671a3f9e
+TOOL_DIGEST ra.py=b13e17085be5790c5b74d9c818f9cbc626e600969d6efb31e1520a2affe5cda7
+TOOL_DIGEST dhcp6s.py=bc8a19e72cd6a6f0ced97c577bba8c92569d60539681183c57a786c9a86a854f
+PRIVATE_NETNS=net:[4026532607]
+DISPOSABLE_VPP pid=2083275 runtime=/root/ngfw-wt/claude-pppoe-ipv6/.scratch/isolated-vpp-2083272
+=== RUN   TestPppoeClientLive
+2026/10/07 06:05:36 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    zz_pppoe_live_overlay_test.go:502: VPP pppoe plugin: Plugin path is: /usr/lib/x86_64-linux-gnu/vpp_plugins, plugins shown in load order
+        
+             Plugin                                   Version                          Description
+          1. abf_plugin.so                            26.06-release                    Access Control List (ACL) Based Forwarding
+          2. acl_plugin.so                            26.06-release                    Access Control Lists (ACL)
+          3. adl_plugin.so                            26.06-release                    Allow/deny list plugin
+          4. af_packet_plugin.so                      26.06-release                    af-packet
+          5. af_xdp_plugin.so                         26.06-release                    AF_XDP Device Plugin
+          6. arping_plugin.so                         26.06-release                    Arping (arping)
+          7. auto_sdl_plugin.so                       26.06-release                    Auto SDL
+          8. bpf_trace_filter_plugin.so               26.06-release                    BPF Trace Filter Plugin
+          9. cdp_plugin.so                            26.06-release                    Cisco Discovery Protocol (CDP)
+         10. cnat_plugin.so                           26.06-release                    CNat Translate
+         11. crypto_sw_scheduler_plugin.so            26.06-release                    SW Scheduler Crypto Async Engine plugin
+         12. ct6_plugin.so                            26.06-release                    IPv6 Connection Tracker
+         13. det44_plugin.so                          26.06-release                    Deterministic NAT (CGN)
+         14. dhcp_plugin.so                           26.06-release                    Dynamic Host Configuration Protocol (DHCP)
+         15. dma_intel_plugin.so                      26.06-release                    Intel DSA Backend
+         16. dns_plugin.so                            26.06-release                    Simple DNS name resolver
+         17. dpdk_plugin.so                           26.06-release                    Data Plane Development Kit (DPDK)
+         18. dslite_plugin.so                         26.06-release                    Dual-Stack Lite
+         19. flowprobe_plugin.so                      26.06-release                    Flow per Packet
+         20. geneve_plugin.so                         26.06-release                    GENEVE Tunnels
+         21. gre_plugin.so                            26.06-release                    Generic Routing Encapsulation (GRE) plugin
+         22. gtpu_plugin.so                           26.06-release                    GPRS Tunnelling Protocol, User Data (GTPv1-U)
+         23. hs_apps_plugin.so                        26.06-release                    Host Stack Applications
+         24. hsi_plugin.so                            26.06-release                    Host Stack Intercept (HSI)
+         25. http_plugin.so                           26.06-release                    Hypertext Transfer Protocol (HTTP)
+         26. http_static_plugin.so                    26.06-release                    HTTP Static Server
+         27. igmp_plugin.so                           26.06-release                    Internet Group Management Protocol (IGMP)
+         28. ikev2_plugin.so                          26.06-release                    Internet Key Exchange (IKEv2) Protocol
+         29. ila_plugin.so                            26.06-release                    Identifier Locator Addressing (ILA) for IPv6
+         30. ioam_plugin.so                           26.06-release                    Inbound Operations, Administration, and Maintenance (OAM)
+         31. ip_session_redirect_plugin.so            26.06-release                    IP session redirect
+         32. l2tp_plugin.so                           26.06-release                    Layer 2 Tunneling Protocol v3 (L2TP)
+         33. l3xc_plugin.so                           26.06-release                    L3 Cross-Connect (L3XC)
+         34. lacp_plugin.so                           26.06-release                    Link Aggregation Control Protocol (LACP)
+         35. lb_plugin.so                             26.06-release                    Load Balancer (LB)
+         36. linux_cp_plugin.so                       26.06-release                    Linux Control Plane - Interface Mirror
+         37. linux_nl_plugin.so                       26.06-release                    linux Control Plane - Netlink listener
+         38. lisp_plugin.so                           26.06-release                    Locator ID Separation Protocol (LISP)
+         39. lldp_plugin.so                           26.06-release                    Link Layer Discovery Protocol (LLDP)
+         40. mactime_plugin.so                        26.06-release                    Time-based MAC Source Address Filter
+         41. map_plugin.so                            26.06-release                    Mapping of Address and Port (MAP)
+         42. mdata_plugin.so                          26.06-release                    Buffer metadata change tracker.
+         43. memif_plugin.so                          26.06-release                    Packet Memory Interface (memif) -- Experimental
+         44. mss_clamp_plugin.so                      26.06-release                    TCP MSS clamping plugin
+         45. nat44_ei_plugin.so                       26.06-release                    IPv4 Endpoint-Independent NAT (NAT44 EI)
+         46. nat64_plugin.so                          26.06-release                    NAT64
+         47. nat66_plugin.so                          26.06-release                    NAT66
+         48. nat_plugin.so                            26.06-release                    Network Address Translation (NAT)
+         49. npol_plugin.so                           26.06-release                    Network Policy
+         50. npt66_plugin.so                          26.06-release                    NPTv6
+         51. nsh_plugin.so                            26.06-release                    Network Service Header (NSH)
+         52. nsim_plugin.so                           26.06-release                    Network Delay Simulator
+         53. osi_plugin.so                            26.06-release                    OSI plugin
+         54. ping_plugin.so                           26.06-release                    Ping (ping)
+         55. pnat_plugin.so                           26.06-release                    Policy 1:1 NAT
+         56. policer_plugin.so                        26.06-release                    Policer
+         57. ppp_plugin.so                            26.06-release                    Point-to-Point Protocol (PPP) plugin
+         58. prom_plugin.so                           26.06-release                    Prometheus Stats Exporter
+         59. pvti_plugin.so                           26.06-release                    Packet Vector Tunnel Interface plugin
+         60. quic_plugin.so                           26.06-release                    QUIC transport protocol
+         61. quic_quicly_plugin.so                    26.06-release                    Quicly QUIC Engine
+         62. rdma_plugin.so                           26.06-release                    RDMA IBverbs Device Driver
+         63. sasc_plugin.so                           26.06-release                    Session Aware Service Chaining (sasc)
+         64. selog_plugin.so                          26.06-release                    sFlow random packet sampling
+         65. sfdp_services_plugin.so                  26.06-release                    SFDP Services Plugin
+         66. sflow_plugin.so                          26.06-release                    sFlow random packet sampling
+         67. soft_rss_plugin.so                       26.06-release                    Software RSS feature arc template
+         68. srmpls_plugin.so                         26.06-release                    Segment Routing for MPLS plugin
+         69. srv6ad_plugin.so                         26.06-release                    Dynamic Segment Routing for IPv6 (SRv6) Proxy
+         70. srv6adflow_plugin.so                     26.06-release                    Dynamic Segment Routing for IPv6 (SRv6) Proxy
+         71. srv6am_plugin.so                         26.06-release                    Masquerading Segment Routing for IPv6 (SRv6) Proxy
+         72. srv6as_plugin.so                         26.06-release                    Static Segment Routing for IPv6 (SRv6) Proxy
+         73. srv6mobile_plugin.so                     26.06-release                    SRv6 GTP Endpoint Functions
+         74. stn_plugin.so                            26.06-release                    VPP Steals the NIC (STN) for Container Integration
+         75. svs_plugin.so                            26.06-release                    Source Virtual Routing and Forwarding (VRF) Select
+         76. tap_plugin.so                            26.06-release                    TAP/TUN device (virtio backend)
+         77. tlsopenssl_plugin.so                     26.06-release                    Transport Layer Security (TLS) Engine, OpenSSL Based
+         78. tlspicotls_plugin.so                     26.06-release                    Transport Layer Security (TLS) Engine, Picotls Based
+         79. udp_echo_plugin.so                       26.06-release                    UDP Echo Plugin
+         80. urpf_plugin.so                           26.06-release                    Unicast Reverse Path Forwarding (uRPF)
+         81. vhost_plugin.so                          26.06-release                    Vhost-User
+         82. vmxnet3_plugin.so                        26.06-release                    VMWare Vmxnet3 Device Driver
+         83. vrrp_plugin.so                           26.06-release                    VRRP v3 (RFC 5798)
+         84. vxlan-gpe_plugin.so                      26.06-release                    VxLan GPE Tunnels
+         85. vxlan_plugin.so                          26.06-release                    VxLan Tunnels
+         86. wireguard_plugin.so                      26.06-release                    Wireguard Protocol
+    zz_pppoe_live_overlay_test.go:507: DIAG lcp_ethertype_enable(wire 0x6388): &{Retval:0} <nil>
+    zz_pppoe_live_overlay_test.go:507: DIAG lcp_ethertype_enable(wire 0x6488): &{Retval:0} <nil>
+    zz_pppoe_live_overlay_test.go:510: DIAG lcp_ethertype_get: &{Retval:0 Count:2 Ethertypes:[34915 34916]} <nil>
+    zz_pppoe_live_overlay_test.go:514: rig up w9 (slot 9, path af_packet)
+          create netns ns-w9-lan
+          create veth w9l0 <-> ns-w9-lan:w9l1
+          create vpp host-w9l0 (af_packet on w9l0)
+          reset  ip/ip6 classify host-w9l0 (table-index ~0)
+          set    addr host-w9l0 10.9.1.1/24
+          create netns ns-w9-wan
+          create veth w9w0 <-> ns-w9-wan:w9w1
+          create vpp host-w9w0 (af_packet on w9w0)
+          reset  ip/ip6 classify host-w9w0 (table-index ~0)
+          set    addr host-w9w0 10.9.2.1/24
+        rig: up
+        prefix: w9
+        slot: 9
+        path: af_packet
+        lan_ns: ns-w9-lan
+        lan_veth: w9l1
+        lan_ip: 10.9.1.2/24
+        lan_gw: 10.9.1.1
+        vpp_lan_if: host-w9l0
+        vpp_lan_addr: 10.9.1.1/24 
+        wan_ns: ns-w9-wan
+        wan_veth: w9w1
+        wan_ip: 10.9.2.2/24
+        wan_gw: 10.9.2.1
+        vpp_wan_if: host-w9w0
+        vpp_wan_addr: 10.9.2.1/24 
+        ping: ip netns exec ns-w9-lan ping -c 3 10.9.2.2
+        
+    zz_pppoe_live_overlay_test.go:520: rig VPP side handed to the agent: af_packet_delete w9l0 (veth down)
+    zz_pppoe_live_overlay_test.go:520: rig VPP side handed to the agent: af_packet_delete w9w0 (veth down)
+2026/10/07 06:05:37 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w9 component=subsystems
+2026/10/07 06:05:37 INFO VPP binary API connected owner=w9 component=vpp socket=/run/vpp/api.sock
+2026/10/07 06:05:37 INFO PKI file materialiser wired owner=w9 component=subsystems root=/root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state/pki-w9 source=true
+2026/10/07 06:05:37 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w9 component=subsystems
+2026/10/07 06:05:37 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w9 component=subsystems
+2026/10/07 06:05:37 INFO fqdn state reloaded owner=w9 component=subsystems family=objects file=/root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/07 06:05:37 INFO objects domain wired owner=w9 component=subsystems store=/root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/07 06:05:37 INFO acl domain wired owner=w9 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/07 06:05:37 INFO host firewall wired owner=w9 component=subsystems table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state/host-acl-w9.nft
+2026/10/07 06:05:37 INFO kea wired owner=w9 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/07 06:05:37 INFO host services wired owner=w9 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-3983350017/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-3983350017/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-3983350017/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/07 06:05:37 INFO system identity wired owner=w9 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-3983350017/sysident/etc/hostname
+2026/10/07 06:05:37 INFO pppoe client wired owner=w9 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/07 06:05:37 INFO subsystems wired owner=w9 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state: claims-iface-w9.json, boot-w9.json; globals owner false" vpp_ids=9000-9999
+2026/10/07 06:05:37 INFO ngfw-agent listening owner=w9 socket=/root/.cache/go-tmp/TestPppoeClientLive3467788907/002/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state vpp_api=/run/vpp/api.sock
+2026/10/07 06:05:37 INFO VPP boot identity owner=w9 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/2083275/33407276 complete=true expired_claims=0
+2026/10/07 06:05:37 WARN neighbour events: interface dump owner=w9 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/07 06:05:37 INFO reconcile start owner=w9 txn_id="" mode=resync domains=[]
+time="2026-10-07T06:05:37Z" level=warning msg="Unable to retrieve message ID" async=true chanId=48 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=19
+2026/10/07 06:05:37 INFO reconcile done owner=w9 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=81.926636ms err=""
+2026/10/07 06:05:37 INFO resync finished owner=w9 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/07 06:05:37 INFO dynamic source started owner=w9 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/07 06:05:37 INFO dynamic source started owner=w9 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+time="2026-10-07T06:05:38Z" level=warning msg="Unable to retrieve message ID" async=true chanId=257 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=77
+time="2026-10-07T06:05:38Z" level=warning msg="Unable to retrieve message ID" async=true chanId=462 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=76
+    zz_pppoe_live_overlay_test.go:541: DIAG-RESOLVER: non-product name->material resolver installed for password/w9wan
+2026/10/07 06:05:38 INFO reconcile start owner=w9 txn_id=w9-pppoe-base mode=apply domains="[interfaces vrfs]"
+time="2026-10-07T06:05:38Z" level=warning msg="Unable to retrieve message ID" async=true chanId=667 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=265
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=vrf/9401
+2026/10/07 06:05:38 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=af-packet.host-interface/host-w9l0
+2026/10/07 06:05:38 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=af-packet.host-interface/host-w9w0
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=interface/host-w9l0
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=interface-ip.table/host-w9l0
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=interface-ip/host-w9l0/10.9.1.1/24
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=interface.admin-state/host-w9l0
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=interface/host-w9w0
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=interface-ip.table/host-w9w0
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=interface.admin-state/host-w9w0
+2026/10/07 06:05:38 INFO interface sanitized (VPP V19/V21 inherited state) interface=w9-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:05:38 INFO created owner=w9 component=scheduler key=lcp.itf-pair/host-w9w0
+2026/10/07 06:05:38 INFO reconcile done owner=w9 txn_id=w9-pppoe-base mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=452.290728ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply base: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created":  11
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:565: show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w9w0 tap4096 w9-w0 10 type tap
+2026/10/07 06:05:38 INFO reconcile start owner=w9 txn_id=w9-pppoe-dial mode=apply domains="[interfaces vrfs]"
+time="2026-10-07T06:05:38Z" level=warning msg="Unable to retrieve message ID" async=true chanId=1104 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=188
+2026/10/07 06:05:38 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:05:39 INFO created owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:05:39 INFO reconcile done owner=w9 txn_id=w9-pppoe-dial mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="created:1  unchanged:11" reapplied=0 duration=373.425203ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply dial: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created":  1,
+          "unchanged":  11
+        } validation={
+          "txnId":  "w9-pppoe-dial",
+          "ok":  true,
+          "errors":  [
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe",
+              "message":  "session files are rendered in the slot tree; the host units are not supervised",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.not-supervised"
+            },
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message":  "the password reference must resolve in the agent secret cache before apply",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.secret-unavailable"
+            }
+          ],
+          "summary":  {}
+        } message=""
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE apply-pppoe=PASS APPLIED with SecretBundle password/w9wan
+    zz_pppoe_live_overlay_test.go:575: rendered slot tree:
+        /tmp/ngfw-agent-test-3983350017/pppoe:
+        total 0
+        drwx------ 4 root root 80 Oct  7 06:05 etc
+        drwx------ 3 root root 60 Oct  7 06:05 run
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc:
+        total 0
+        drwx------ 7 root root 180 Oct  7 06:05 ppp
+        drwx------ 3 root root  60 Oct  7 06:05 systemd
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp:
+        total 8
+        -rw------- 1 root root 115 Oct  7 06:05 chap-secrets
+        drwx------ 2 root root  60 Oct  7 06:05 ip-down.d
+        drwx------ 2 root root  60 Oct  7 06:05 ip-up.d
+        drwx------ 2 root root  60 Oct  7 06:05 ipv6-down.d
+        drwx------ 2 root root  60 Oct  7 06:05 ipv6-up.d
+        -rw------- 1 root root 115 Oct  7 06:05 pap-secrets
+        drwx------ 2 root root  60 Oct  7 06:05 peers
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/ip-down.d:
+        total 4
+        -rwxr-xr-x 1 root root 714 Oct  7 06:05 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/ip-up.d:
+        total 4
+        -rwxr-xr-x 1 root root 710 Oct  7 06:05 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/ipv6-down.d:
+        total 4
+        -rwxr-xr-x 1 root root 2028 Oct  7 06:05 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/ipv6-up.d:
+        total 4
+        -rwxr-xr-x 1 root root 3169 Oct  7 06:05 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/peers:
+        total 4
+        -rw-r--r-- 1 root root 320 Oct  7 06:05 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/systemd:
+        total 0
+        drwx------ 2 root root 60 Oct  7 06:05 system
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/etc/systemd/system:
+        total 4
+        -rw-r--r-- 1 root root 339 Oct  7 06:05 ngfw-pppoe-w9-w0.service
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/run:
+        total 0
+        drwx------ 3 root root 60 Oct  7 06:05 ngfw
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/run/ngfw:
+        total 0
+        drwx------ 2 root root 40 Oct  7 06:05 pppoe
+        
+        /tmp/ngfw-agent-test-3983350017/pppoe/run/ngfw/pppoe:
+        total 0
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/peers/ngfw-w9-w0:
+        # ngfw-agent PPPoE client (F-pppoe-client) — session w9-w0. Rendered; hand edits are overwritten.
+        plugin rp-pppoe.so
+        nic-w9-w0
+        user "uw9"
+        remotename ngfw-w9-w0
+        mtu 1492
+        mru 1492
+        noipdefault
+        defaultroute
+        replacedefaultroute
+        +ipv6
+        hide-password
+        noauth
+        lcp-echo-interval 20
+        lcp-echo-failure 3
+        persist
+        holdoff 3
+        maxfail 2
+    zz_pppoe_live_overlay_test.go:579: rendered etc/systemd/system/ngfw-pppoe-w9-w0.service:
+        # ngfw-agent PPPoE client (F-pppoe-client) — session w9-w0. Rendered; hand edits are overwritten.
+        [Unit]
+        Description=ngfw PPPoE client on w9-w0
+        After=network.target vpp.service
+        [Service]
+        Type=simple
+        ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Restart=on-failure
+        RestartSec=3
+        [Install]
+        WantedBy=multi-user.target
+time="2026-10-07T06:05:39Z" level=warning msg="Unable to retrieve message ID" async=true chanId=1430 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=102
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/ip-up.d/ngfw-w9-w0:
+        #!/bin/sh
+        # ngfw-agent PPPoE ip-up hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+        # IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+        # and writes a state file the agent reads. Rendered; hand edits are overwritten.
+        set -eu
+        [ "${PPP_IPPARAM:-}" = "ngfw-w9-w0" ] || exit 0
+        dir="/tmp/ngfw-agent-test-3983350017/pppoe/run/ngfw/pppoe"
+        f="$dir/w9-w0.state"
+        mkdir -p "$dir"
+        tmp="$f.tmp.$$"
+        {
+          echo "phase=up"
+          echo "hostif=w9-w0"
+          echo "ppp_iface=${PPP_IFACE:-}"
+          echo "local=${IPLOCAL:-}"
+          echo "peer=${IPREMOTE:-}"
+          echo "dns1=${DNS1:-}"
+          echo "dns2=${DNS2:-}"
+          echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        } > "$tmp"
+        mv -f "$tmp" "$f"
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/ipv6-up.d/ngfw-w9-w0:
+        #!/bin/sh
+        # ngfw-agent PPPoE ipv6-up hook (F-pppoe-client, IPv6 = slaac). pppd runs this after IPv6CP and sets
+        # PPP_IFACE, PPP_IPPARAM, LLLOCAL, LLREMOTE, PPPD_PID. It only acts for our own session (PPP_IPPARAM) and keeps
+        # "<hostif>.state6" current for the agent: the global addresses and IPv6 default router the kernel holds on the
+        # PPP link (SLAAC from the ISP's Router Advertisements). Rendered; hand edits are overwritten.
+        set -u
+        PATH=/usr/sbin:/usr/bin:/sbin:/bin
+        [ "${PPP_IPPARAM:-}" = "ngfw-w9-w0" ] || exit 0
+        iface="${PPP_IFACE:-}"
+        case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+        self="$0"
+        dir="/tmp/ngfw-agent-test-3983350017/pppoe/run/ngfw/pppoe"
+        f="$dir/w9-w0.state6"
+        pidf="$dir/w9-w0.ipv6.pid"
+        pdf="$dir/w9-w0.pd"
+        mkdir -p "$dir"
+        ll="${LLLOCAL:-}"
+        case "$ll" in *[!0-9A-Fa-f:]*) ll="" ;; esac
+        peer="${LLREMOTE:-}"
+        case "$peer" in *[!0-9A-Fa-f:]*) peer="" ;; esac
+        since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        
+        # stop ends this session's refresher (and the DHCPv6 client it supervises) and waits until they are gone, so a
+        # late refresh can never overwrite the down state.
+        stop() {
+          [ -f "$pidf" ] || return 0
+          while read -r p; do
+            case "$p" in ''|*[!0-9]*) continue ;; esac
+            kill "$p" 2>/dev/null || true
+            n=0
+            while kill -0 "$p" 2>/dev/null && [ "$n" -lt 50 ]; do sleep 0.1; n=$((n + 1)); done
+          done < "$pidf"
+          rm -f "$pidf"
+        }
+        
+        # write PHASE renders the state file atomically and only when its content changed.
+        write() {
+          tmp="$f.tmp.$$"
+          {
+            echo "phase=$1"
+            echo "hostif=w9-w0"
+            echo "ppp_iface=$iface"
+            echo "lllocal=$ll"
+            echo "llremote=$peer"
+            if [ "$1" = up ]; then
+              ip -6 -o addr show dev "$iface" scope global -tentative -dadfailed 2>/dev/null | awk '{print "addr=" $4}'
+              ip -6 route show default dev "$iface" 2>/dev/null | awk '$2 == "via" {print "gw=" $3; exit}'
+              [ -f "$pdf" ] && grep '^pd=' "$pdf"
+            fi
+            echo "at=$since"
+          } > "$tmp"
+          if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
+        }
+        
+        stop
+        rm -f "$pdf"
+        # Kernel SLAAC on the PPP link (accept_ra=2: the box forwards). The IPv6 default route is learned from the RA only
+        # when the session carries the default route.
+        c="/proc/sys/net/ipv6/conf/$iface"
+        echo 2 > "$c/accept_ra"
+        echo 1 > "$c/autoconf"
+        echo 1 > "$c/accept_ra_defrtr"
+        # pppd added the link-local (with the peer, nodad) before the sysctls above, so the kernel did not solicit;
+        # re-adding it the same way sends the Router Solicitation now instead of waiting for the ISP's next periodic RA.
+        if [ -n "$ll" ] && [ -n "$peer" ]; then
+          ip -6 addr del "$ll" peer "$peer" dev "$iface" 2>/dev/null || true
+          ip -6 addr add "$ll" peer "$peer" dev "$iface" nodad 2>/dev/null || true
+        fi
+        write up
+        (
+          trap 'exit 0' TERM INT
+          # Refresh while the link, pppd and this session's configuration (this hook) live; exit, taking the DHCPv6 client
+          # along, when any is gone. A withdrawn session also loses its IPv6 state.
+          while [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+            write up
+            sleep 2
+          done
+          rm -f "$pidf"
+          [ -e "$self" ] || rm -f "$f" "$pdf"
+        ) </dev/null >/dev/null 2>&1 &
+        echo "$!" > "$pidf"
+        exit 0
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/ngfw-dhcpcd-w9-w0.conf:
+    zz_pppoe_live_overlay_test.go:434: rendered config/manifest: password present only in secret file /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/chap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:434: rendered config/manifest: password present only in secret file /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/pap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:442: rendered config/manifest: scanned 15 files under [/tmp/ngfw-agent-test-3983350017/pppoe /root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state]
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE password-not-in-rendered-config=PASS only 0600 chap/pap secret files hold it; peer/unit/hooks/manifest/RPC responses clean
+time="2026-10-07T06:05:40Z" level=warning msg="Unable to retrieve message ID" async=true chanId=1672 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=117
+    zz_pppoe_live_overlay_test.go:212: ISP pppoe-server started pid=2083840 in ns-w9-wan
+    zz_pppoe_live_overlay_test.go:400: supervisor: started rendered ExecStart pid=2083860: /usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+time="2026-10-07T06:05:41Z" level=warning msg="Unable to retrieve message ID" async=true chanId=1947 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=299
+time="2026-10-07T06:05:42Z" level=warning msg="Unable to retrieve message ID" async=true chanId=2233 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=32
+time="2026-10-07T06:05:43Z" level=warning msg="Unable to retrieve message ID" async=true chanId=2519 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=146
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE dial-up=PASS phase up after 3.331s: {
+          "phase":  "up",
+          "since":  "2026-10-07T06:05:43Z"
+        }
+time="2026-10-07T06:05:44Z" level=warning msg="Unable to retrieve message ID" async=true chanId=2794 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=145
+2026/10/07 06:05:44 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:613: VPP after up:
+        host-w9w0 (up):
+          L3 100.64.9.10/32 ip4 table-id 9401 fib-idx 1
+        
+        w9:wan, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, ]
+        0.0.0.0/0 fib:1 index:12 locks:3
+          API refs:1 src-flags:added,contributing,active,
+            path-list:[39] locks:2 flags:shared, uPRF-list:26 len:1 itfs:[1, ]
+              path:[47] pl-index:39 ip4 weight=1 pref=0 attached-nexthop:  oper-flags:resolved,
+                100.64.9.1 host-w9w0
+              [@0]: arp-ipv4: via 100.64.9.1 host-w9w0
+        
+          default-route refs:1 entry-flags:drop, src-flags:added,
+            path-list:[19] locks:1 flags:drop, uPRF-list:15 len:0 itfs:[]
+              path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:26 to:[0:0]]
+            [0] [@3]: arp-ipv4: via 100.64.9.1 host-w9w0
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv4-addr-route-mirror=PASS 100.64.9.10/32 on host-w9w0, 0/0 via 100.64.9.1 in table 9401
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE mss-clamp=PASS ipv4=1452/dir3 ipv6=1432/dir3 recv:EOF
+    zz_pppoe_live_overlay_test.go:262: ISP6: serving 2001:db8:9::/64 on ppp0 in ns-w9-wan (mode slaac)
+time="2026-10-07T06:05:45Z" level=warning msg="Unable to retrieve message ID" async=true chanId=3064 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=367
+2026/10/07 06:05:45 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+time="2026-10-07T06:05:46Z" level=warning msg="Unable to retrieve message ID" async=true chanId=3333 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=792
+2026/10/07 06:05:46 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=false local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+2026/10/07 06:05:46 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:632: IPv6 hook state6:
+        phase=up
+        hostif=w9-w0
+        ppp_iface=ppp0
+        lllocal=fe80::9c35:5c5c:9e8c:5ad9
+        llremote=fe80::d8a1:4368:50bd:97e7
+        addr=2001:db8:9:0:9c35:5c5c:9e8c:5ad9/64
+        gw=fe80::d8a1:4368:50bd:97e7
+        at=2026-10-07T06:05:43Z
+        
+        agent ipv6="2001:db8:9:0:9c35:5c5c:9e8c:5ad9/64" VPP /128s=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] ::/0 via LL=true
+        host-w9w0 (up):
+          L3 100.64.9.10/32 ip4 table-id 9401 fib-idx 1
+          L3 2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128 ip6 table-id 9401 fib-idx 1
+        
+        w9:wan, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, ]
+        ::/0 fib:1 index:10 locks:3
+          API refs:1 src-flags:added,contributing,active,
+            path-list:[42] locks:2 flags:shared, uPRF-list:29 len:1 itfs:[1, ]
+              path:[49] pl-index:42 ip6 weight=1 pref=0 attached-nexthop:  oper-flags:resolved,
+                fe80::d8a1:4368:50bd:97e7 host-w9w0
+              [@0]: arp-ipv6: via fe80::d8a1:4368:50bd:97e7 host-w9w0
+        
+          default-route refs:1 entry-flags:drop, src-flags:added,
+            path-list:[14] locks:1 flags:drop, uPRF-list:14 len:0 itfs:[]
+              path:[18] pl-index:14 ip6 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip6
+        
+         forwarding:   unicast-ip6-chain
+          [@0]: dpo-load-balance: [proto:ip6 index:12 buckets:1 uRPF:29 to:[0:0]]
+            [0] [@3]: arp-ipv6: via fe80::d8a1:4368:50bd:97e7 host-w9w0
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-negotiation=PASS mode slaac: ipv6="2001:db8:9:0:9c35:5c5c:9e8c:5ad9/64"
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-addr-route-mirror=PASS [2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] on host-w9w0 and ::/0 via the ISP link-local in table 9401, 2.052s after the ISP started RA
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE mss-clamp-ipv6=PASS ipv4=1452/dir3 ipv6=1432/dir3 recv:EOF
+time="2026-10-07T06:05:47Z" level=warning msg="Unable to retrieve message ID" async=true chanId=3602 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=25
+2026/10/07 06:05:47 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:48Z" level=warning msg="Unable to retrieve message ID" async=true chanId=3852 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=145
+2026/10/07 06:05:48 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:658: host ping6 over ppp0: <nil>
+        PING 2001:db8:9::1 (2001:db8:9::1) from 2001:db8:9:0:9c35:5c5c:9e8c:5ad9 ppp0: 56 data bytes
+        64 bytes from 2001:db8:9::1: icmp_seq=1 ttl=64 time=0.803 ms
+        64 bytes from 2001:db8:9::1: icmp_seq=2 ttl=64 time=1.15 ms
+        64 bytes from 2001:db8:9::1: icmp_seq=3 ttl=64 time=1.34 ms
+        
+        --- 2001:db8:9::1 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+        rtt min/avg/max/mdev = 0.803/1.100/1.344/0.224 ms
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-host-over-ppp=PASS NON-PRODUCT diag evidence: host ping6 2001:db8:9::1 over ppp0 replied
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-lan-transit=NOT-RUN blocked by defect 3 (no PPPoE encapsulation in the VPP path; IPv4 transit fails the same way)
+    zz_pppoe_live_overlay_test.go:670: hook state file:
+        phase=up
+        hostif=w9-w0
+        ppp_iface=ppp0
+        local=100.64.9.10
+        peer=100.64.9.1
+        dns1=
+        dns2=
+        at=2026-10-07T06:05:43Z
+time="2026-10-07T06:05:49Z" level=warning msg="Unable to retrieve message ID" async=true chanId=4102 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=139
+2026/10/07 06:05:49 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:50Z" level=warning msg="Unable to retrieve message ID" async=true chanId=4352 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=134
+2026/10/07 06:05:50 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:678: host ping over ppp0: <nil>
+        PING 100.64.9.1 (100.64.9.1) from 100.64.9.10 ppp0: 56(84) bytes of data.
+        64 bytes from 100.64.9.1: icmp_seq=1 ttl=64 time=0.842 ms
+        64 bytes from 100.64.9.1: icmp_seq=2 ttl=64 time=1.78 ms
+        64 bytes from 100.64.9.1: icmp_seq=3 ttl=64 time=1.16 ms
+        
+        --- 100.64.9.1 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+        rtt min/avg/max/mdev = 0.842/1.261/1.777/0.387 ms
+time="2026-10-07T06:05:51Z" level=warning msg="Unable to retrieve message ID" async=true chanId=4602 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=484
+2026/10/07 06:05:51 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:52Z" level=warning msg="Unable to retrieve message ID" async=true chanId=4852 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=25
+2026/10/07 06:05:52 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:53Z" level=warning msg="Unable to retrieve message ID" async=true chanId=5102 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=85
+2026/10/07 06:05:53 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:54Z" level=warning msg="Unable to retrieve message ID" async=true chanId=5352 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=273
+2026/10/07 06:05:54 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:55Z" level=warning msg="Unable to retrieve message ID" async=true chanId=5602 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=391
+2026/10/07 06:05:55 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:56Z" level=warning msg="Unable to retrieve message ID" async=true chanId=5852 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=338
+2026/10/07 06:05:56 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:57Z" level=warning msg="Unable to retrieve message ID" async=true chanId=6102 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=458
+2026/10/07 06:05:57 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:05:58Z" level=warning msg="Unable to retrieve message ID" async=true chanId=6352 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=32
+2026/10/07 06:05:58 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:686: LAN transit ping 10.9.1.2 -> 100.64.9.1: exit status 1
+        PING 100.64.9.1 (100.64.9.1) 56(84) bytes of data.
+        
+        --- 100.64.9.1 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 2069ms
+        
+        
+        WAN wire capture (w9w1):
+        tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+        listening on w9w1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+        06:05:51.430015 02:fe:c0:66:d1:eb > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 100.64.9.1 tell 100.64.9.10, length 28
+        06:05:51.430036 36:df:d0:8f:7f:0d > 02:fe:c0:66:d1:eb, ethertype ARP (0x0806), length 42: Reply 100.64.9.1 is-at 36:df:d0:8f:7f:0d, length 28
+        06:05:52.474160 02:fe:c0:66:d1:eb > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 100.64.9.1 tell 100.64.9.10, length 28
+        06:05:52.474189 36:df:d0:8f:7f:0d > 02:fe:c0:66:d1:eb, ethertype ARP (0x0806), length 42: Reply 100.64.9.1 is-at 36:df:d0:8f:7f:0d, length 28
+        06:05:53.497142 02:fe:c0:66:d1:eb > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 100.64.9.1 tell 100.64.9.10, length 28
+        06:05:53.497171 36:df:d0:8f:7f:0d > 02:fe:c0:66:d1:eb, ethertype ARP (0x0806), length 42: Reply 100.64.9.1 is-at 36:df:d0:8f:7f:0d, length 28
+        06:05:53.614974 36:df:d0:8f:7f:0d > 02:fe:c0:66:d1:eb, ethertype PPPoE S (0x8864), length 30: PPPoE  [ses 0x1] LCP (0xc021), length 10: LCP, Echo-Request (0x09), id 2, length 10
+        06:05:53.616540 02:fe:c0:66:d1:eb > 36:df:d0:8f:7f:0d, ethertype PPPoE S (0x8864), length 30: PPPoE  [ses 0x1] LCP (0xc021), length 10: LCP, Echo-Reply (0x0a), id 2, length 10
+        06:05:54.384959 36:df:d0:8f:7f:0d > 02:fe:c0:66:d1:eb, ethertype PPPoE S (0x8864), length 118: PPPoE  [ses 0x1] IP6 (0x0057), length 98: fe80::d8a1:4368:50bd:97e7 > ff02::1: ICMP6, router advertisement, length 56
+        
+        9 packets captured
+        9 packets received by filter
+        0 packets dropped by kernel
+    zz_pppoe_live_overlay_test.go:691: LAN transit through the PPPoE default route failed
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE traffic=FAIL host-over-ppp=ok; LAN transit 0 replies; VPP resolves the PPP peer with plain Ethernet ARP on the WAN and never sends the transit IPv4 inside the PPPoE session (no session encapsulation in the VPP path)
+time="2026-10-07T06:05:59Z" level=warning msg="Unable to retrieve message ID" async=true chanId=6613 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=20
+2026/10/07 06:05:59 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:06:00Z" level=warning msg="Unable to retrieve message ID" async=true chanId=6896 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=37
+2026/10/07 06:06:00 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+time="2026-10-07T06:06:01Z" level=warning msg="Unable to retrieve message ID" async=true chanId=7168 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=313
+2026/10/07 06:06:01 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=false local4=100.64.9.10/32 local6=[2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] router6=fe80::d8a1:4368:50bd:97e7 default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:709: server stopped: phase down after 1.282200621s; VPP while down addr=false route=false mss=none recv:EOF ipv6=[] ::/0=false
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-withdraw-on-down=PASS IPv6 /128s and ::/0 path withdrawn while the session is down
+time="2026-10-07T06:06:02Z" level=warning msg="Unable to retrieve message ID" async=true chanId=7420 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=411
+    zz_pppoe_live_overlay_test.go:212: ISP pppoe-server started pid=2084240 in ns-w9-wan
+time="2026-10-07T06:06:03Z" level=warning msg="Unable to retrieve message ID" async=true chanId=7673 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=323
+time="2026-10-07T06:06:04Z" level=warning msg="Unable to retrieve message ID" async=true chanId=7959 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=392
+time="2026-10-07T06:06:05Z" level=warning msg="Unable to retrieve message ID" async=true chanId=8245 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=34
+time="2026-10-07T06:06:06Z" level=warning msg="Unable to retrieve message ID" async=true chanId=8531 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=110
+    zz_pppoe_live_overlay_test.go:262: ISP6: serving 2001:db8:9::/64 on ppp0 in ns-w9-wan (mode slaac)
+time="2026-10-07T06:06:07Z" level=warning msg="Unable to retrieve message ID" async=true chanId=8828 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=121
+2026/10/07 06:06:07 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+time="2026-10-07T06:06:08Z" level=warning msg="Unable to retrieve message ID" async=true chanId=9098 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=566
+2026/10/07 06:06:08 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+time="2026-10-07T06:06:09Z" level=warning msg="Unable to retrieve message ID" async=true chanId=9367 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=517
+2026/10/07 06:06:09 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=false local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+2026/10/07 06:06:09 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:3ca5:b93f:42dc:590e/128] router6=fe80::e4e8:560a:6cc5:b122 default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-reconnect-remirror=PASS ipv6="2001:db8:9:0:3ca5:b93f:42dc:590e/64" mirrored again ([2001:db8:9:0:3ca5:b93f:42dc:590e/128], ::/0) 2.566s after IPv4 up
+time="2026-10-07T06:06:10Z" level=warning msg="Unable to retrieve message ID" async=true chanId=9636 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=23
+2026/10/07 06:06:10 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:3ca5:b93f:42dc:590e/128] router6=fe80::e4e8:560a:6cc5:b122 default_route=true mss_clamp=true
+time="2026-10-07T06:06:11Z" level=warning msg="Unable to retrieve message ID" async=true chanId=9886 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=20
+2026/10/07 06:06:11 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:3ca5:b93f:42dc:590e/128] router6=fe80::e4e8:560a:6cc5:b122 default_route=true mss_clamp=true
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE server-restart-reconnect=PASS down observed after 1.282s (mirror withdrawn), up again 11.017s after server stop (holdoff 3 s)
+2026/10/07 06:06:11 INFO reconcile start owner=w9 txn_id=w9-pppoe-badpw mode=apply domains="[interfaces vrfs]"
+time="2026-10-07T06:06:11Z" level=warning msg="Unable to retrieve message ID" async=true chanId=10136 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=323
+2026/10/07 06:06:11 INFO deleted owner=w9 component=scheduler key=interface-ip/host-w9w0/2001:db8:9:0:3ca5:b93f:42dc:590e/128
+2026/10/07 06:06:11 INFO deleted owner=w9 component=scheduler key=interface-ip/host-w9w0/100.64.9.10/32
+2026/10/07 06:06:11 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=false local4=100.64.9.10/32 local6=[2001:db8:9:0:3ca5:b93f:42dc:590e/128] router6=fe80::e4e8:560a:6cc5:b122 default_route=true mss_clamp=true
+2026/10/07 06:06:11 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:06:11 INFO updated owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:06:11 INFO reconcile done owner=w9 txn_id=w9-pppoe-badpw mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="updated:1  deleted:2  unchanged:11" reapplied=0 duration=229.62294ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply badpw: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "updated":  1,
+          "deleted":  2,
+          "unchanged":  11
+        } validation={
+          "txnId":  "w9-pppoe-badpw",
+          "ok":  true,
+          "errors":  [
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe",
+              "message":  "session files are rendered in the slot tree; the host units are not supervised",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.not-supervised"
+            },
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message":  "the password reference must resolve in the agent secret cache before apply",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.secret-unavailable"
+            }
+          ],
+          "summary":  {}
+        } message=""
+    zz_pppoe_live_overlay_test.go:400: supervisor: started rendered ExecStart pid=2084411: /usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+time="2026-10-07T06:06:12Z" level=warning msg="Unable to retrieve message ID" async=true chanId=10474 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=23
+time="2026-10-07T06:06:13Z" level=warning msg="Unable to retrieve message ID" async=true chanId=10716 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=97
+time="2026-10-07T06:06:14Z" level=warning msg="Unable to retrieve message ID" async=true chanId=10958 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=22
+time="2026-10-07T06:06:15Z" level=warning msg="Unable to retrieve message ID" async=true chanId=11200 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=19
+time="2026-10-07T06:06:16Z" level=warning msg="Unable to retrieve message ID" async=true chanId=11442 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=334
+time="2026-10-07T06:06:17Z" level=warning msg="Unable to retrieve message ID" async=true chanId=11684 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=614
+time="2026-10-07T06:06:18Z" level=warning msg="Unable to retrieve message ID" async=true chanId=11926 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=223
+time="2026-10-07T06:06:19Z" level=warning msg="Unable to retrieve message ID" async=true chanId=12168 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=40
+time="2026-10-07T06:06:20Z" level=warning msg="Unable to retrieve message ID" async=true chanId=12410 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=911
+time="2026-10-07T06:06:21Z" level=warning msg="Unable to retrieve message ID" async=true chanId=12652 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=97
+time="2026-10-07T06:06:22Z" level=warning msg="Unable to retrieve message ID" async=true chanId=12894 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=114
+    zz_pppoe_live_overlay_test.go:764: wrong password: pppd exit=19; agent state={
+          "phase":  "down",
+          "localIpv4":  "100.64.9.10/32",
+          "peerIpv4":  "100.64.9.1"
+        }; VPP addr=false route=false
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE wrong-password-dialer=PASS pppd exit 19 (19 = authentication to peer failed), phase=down, no mirror
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE wrong-password-agent-error-state=NOT-RUN slot agent reports phase="down" failCount=0 lastError="": exit tracking exists only via systemctl on the globals owner
+    zz_pppoe_live_overlay_test.go:434: after wrong password: password present only in secret file /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/chap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:434: after wrong password: password present only in secret file /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/pap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:442: after wrong password: scanned 17 files under [/tmp/ngfw-agent-test-3983350017/pppoe /root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state]
+2026/10/07 06:06:23 INFO reconcile start owner=w9 txn_id=w9-pppoe-goodpw mode=apply domains="[interfaces vrfs]"
+time="2026-10-07T06:06:23Z" level=warning msg="Unable to retrieve message ID" async=true chanId=13147 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=53
+2026/10/07 06:06:23 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:06:25 INFO updated owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:06:26 INFO reconcile done owner=w9 txn_id=w9-pppoe-goodpw mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="updated:1  unchanged:11" reapplied=0 duration=3.233930873s err=""
+    zz_pppoe_live_overlay_test.go:125: apply goodpw: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "updated":  1,
+          "unchanged":  11
+        } validation={
+          "txnId":  "w9-pppoe-goodpw",
+          "ok":  true,
+          "errors":  [
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe",
+              "message":  "session files are rendered in the slot tree; the host units are not supervised",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.not-supervised"
+            },
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message":  "the password reference must resolve in the agent secret cache before apply",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.secret-unavailable"
+            }
+          ],
+          "summary":  {}
+        } message=""
+    zz_pppoe_live_overlay_test.go:400: supervisor: started rendered ExecStart pid=2084567: /usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+time="2026-10-07T06:06:26Z" level=warning msg="Unable to retrieve message ID" async=true chanId=13484 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=632
+time="2026-10-07T06:06:26Z" level=warning msg="Unable to retrieve message ID" async=true chanId=13726 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=350
+time="2026-10-07T06:06:27Z" level=warning msg="Unable to retrieve message ID" async=true chanId=13979 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=223
+time="2026-10-07T06:06:28Z" level=warning msg="Unable to retrieve message ID" async=true chanId=14265 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=479
+time="2026-10-07T06:06:29Z" level=warning msg="Unable to retrieve message ID" async=true chanId=14551 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=122
+    zz_pppoe_live_overlay_test.go:434: before withdrawal: password present only in secret file /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/chap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:434: before withdrawal: password present only in secret file /tmp/ngfw-agent-test-3983350017/pppoe/etc/ppp/pap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:442: before withdrawal: scanned 18 files under [/tmp/ngfw-agent-test-3983350017/pppoe /root/.cache/go-tmp/TestPppoeClientLive3467788907/002/state]
+2026/10/07 06:06:29 INFO reconcile start owner=w9 txn_id=w9-pppoe-withdraw mode=apply domains="[interfaces vrfs]"
+time="2026-10-07T06:06:29Z" level=warning msg="Unable to retrieve message ID" async=true chanId=14837 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=29
+2026/10/07 06:06:30 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:06:30 INFO deleted owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:06:30 INFO reconcile done owner=w9 txn_id=w9-pppoe-withdraw mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:1  unchanged:11" reapplied=0 duration=368.040011ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply withdraw: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "deleted":  1,
+          "unchanged":  11
+        } validation=<nil> message=""
+time="2026-10-07T06:06:30Z" level=warning msg="Unable to retrieve message ID" async=true chanId=15163 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=143
+time="2026-10-07T06:06:31Z" level=warning msg="Unable to retrieve message ID" async=true chanId=15405 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=257
+time="2026-10-07T06:06:32Z" level=warning msg="Unable to retrieve message ID" async=true chanId=15647 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=368
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-withdrawal-cleanup=PASS no IPv6 /128 or ::/0 path left after removing pppoe
+    zz_pppoe_live_overlay_test.go:820: after withdrawal: addr=false route=false mss=none recv:EOF files="" manifest-absent=true state=<nil>
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE withdrawal-cleanup=PASS address, default path, MSS clamp, slot files and manifest removed
+2026/10/07 06:06:32 INFO reconcile start owner=w9 txn_id=w9-pppoe-confirm mode=apply domains="[interfaces vrfs]"
+time="2026-10-07T06:06:32Z" level=warning msg="Unable to retrieve message ID" async=true chanId=15900 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=115
+2026/10/07 06:06:32 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:06:32 INFO created owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:06:32 INFO confirm timer armed owner=w9 txn_id=w9-pppoe-confirm deadline=2026-10-07T06:07:02Z in=29.999945016s
+2026/10/07 06:06:32 INFO reconcile done owner=w9 txn_id=w9-pppoe-confirm mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="created:1  unchanged:11" reapplied=0 duration=199.977395ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply confirm: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created":  1,
+          "unchanged":  11
+        } validation={
+          "txnId":  "w9-pppoe-confirm",
+          "ok":  true,
+          "errors":  [
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe",
+              "message":  "session files are rendered in the slot tree; the host units are not supervised",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.not-supervised"
+            },
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message":  "the password reference must resolve in the agent secret cache before apply",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.secret-unavailable"
+            }
+          ],
+          "summary":  {}
+        } message=""
+    zz_pppoe_live_overlay_test.go:400: supervisor: started rendered ExecStart pid=2084698: /usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+time="2026-10-07T06:06:33Z" level=warning msg="Unable to retrieve message ID" async=true chanId=16248 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=154
+time="2026-10-07T06:06:34Z" level=warning msg="Unable to retrieve message ID" async=true chanId=16534 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=455
+time="2026-10-07T06:06:35Z" level=warning msg="Unable to retrieve message ID" async=true chanId=16820 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=661
+    zz_pppoe_live_overlay_test.go:262: ISP6: serving 2001:db8:9::/64 on ppp0 in ns-w9-wan (mode slaac)
+time="2026-10-07T06:06:36Z" level=warning msg="Unable to retrieve message ID" async=true chanId=17117 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=229
+2026/10/07 06:06:36 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+time="2026-10-07T06:06:37Z" level=warning msg="Unable to retrieve message ID" async=true chanId=17387 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=258
+2026/10/07 06:06:37 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+time="2026-10-07T06:06:38Z" level=warning msg="Unable to retrieve message ID" async=true chanId=17656 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=522
+2026/10/07 06:06:38 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=false local4=100.64.9.10/32 local6=[] router6="" default_route=true mss_clamp=true
+2026/10/07 06:06:38 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:39Z" level=warning msg="Unable to retrieve message ID" async=true chanId=17925 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=33
+2026/10/07 06:06:39 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:40Z" level=warning msg="Unable to retrieve message ID" async=true chanId=18175 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=471
+2026/10/07 06:06:40 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:41Z" level=warning msg="Unable to retrieve message ID" async=true chanId=18425 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=220
+2026/10/07 06:06:41 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:42Z" level=warning msg="Unable to retrieve message ID" async=true chanId=18675 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=120
+2026/10/07 06:06:42 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:43Z" level=warning msg="Unable to retrieve message ID" async=true chanId=18925 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=491
+2026/10/07 06:06:43 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:44Z" level=warning msg="Unable to retrieve message ID" async=true chanId=19175 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=23
+2026/10/07 06:06:44 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:45Z" level=warning msg="Unable to retrieve message ID" async=true chanId=19425 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=24
+2026/10/07 06:06:45 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:46Z" level=warning msg="Unable to retrieve message ID" async=true chanId=19675 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=98
+2026/10/07 06:06:46 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:47Z" level=warning msg="Unable to retrieve message ID" async=true chanId=19925 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=180
+2026/10/07 06:06:47 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:48Z" level=warning msg="Unable to retrieve message ID" async=true chanId=20175 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=884
+2026/10/07 06:06:48 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:49Z" level=warning msg="Unable to retrieve message ID" async=true chanId=20425 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=88
+2026/10/07 06:06:49 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:50Z" level=warning msg="Unable to retrieve message ID" async=true chanId=20675 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=243
+2026/10/07 06:06:50 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:51Z" level=warning msg="Unable to retrieve message ID" async=true chanId=20925 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=228
+2026/10/07 06:06:51 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:52Z" level=warning msg="Unable to retrieve message ID" async=true chanId=21175 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=5
+2026/10/07 06:06:52 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:53Z" level=warning msg="Unable to retrieve message ID" async=true chanId=21425 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=106
+2026/10/07 06:06:53 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:54Z" level=warning msg="Unable to retrieve message ID" async=true chanId=21675 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=245
+2026/10/07 06:06:54 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:55Z" level=warning msg="Unable to retrieve message ID" async=true chanId=21925 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=125
+2026/10/07 06:06:55 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:56Z" level=warning msg="Unable to retrieve message ID" async=true chanId=22175 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=126
+2026/10/07 06:06:56 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:57Z" level=warning msg="Unable to retrieve message ID" async=true chanId=22425 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=120
+2026/10/07 06:06:57 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:58Z" level=warning msg="Unable to retrieve message ID" async=true chanId=22675 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=711
+2026/10/07 06:06:58 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:06:59Z" level=warning msg="Unable to retrieve message ID" async=true chanId=22925 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=17
+2026/10/07 06:06:59 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:07:00Z" level=warning msg="Unable to retrieve message ID" async=true chanId=23175 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=368
+2026/10/07 06:07:00 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:07:01Z" level=warning msg="Unable to retrieve message ID" async=true chanId=23425 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=229
+2026/10/07 06:07:01 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+time="2026-10-07T06:07:02Z" level=warning msg="Unable to retrieve message ID" async=true chanId=23675 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=354
+2026/10/07 06:07:02 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=true local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+2026/10/07 06:07:02 WARN confirm timeout: reverting to the last confirmed state owner=w9 txn_id=w9-pppoe-confirm
+2026/10/07 06:07:02 INFO reconcile start owner=w9 txn_id="" mode=revert domains="[interfaces vrfs]"
+time="2026-10-07T06:07:02Z" level=warning msg="Unable to retrieve message ID" async=true chanId=23925 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=443
+2026/10/07 06:07:02 INFO pppoe mirror owner=w9 component=subsystems feature=pppoe-client interface=host-w9w0 sw_if_index=1 up=false local4=100.64.9.10/32 local6=[2001:db8:9:0:86b:3cc0:9a53:60b7/128] router6=fe80::e1e5:b14:ff97:223d default_route=true mss_clamp=true
+2026/10/07 06:07:02 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:07:02 INFO deleted owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:07:02 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w9w0 prefix=2001:db8:9:0:86b:3cc0:9a53:60b7/128 err="sw_interface_add_del_address host-w9w0 2001:db8:9:0:86b:3cc0:9a53:60b7/128 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/07 06:07:02 INFO deleted owner=w9 component=scheduler key=interface-ip/host-w9w0/2001:db8:9:0:86b:3cc0:9a53:60b7/128
+2026/10/07 06:07:02 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w9w0 prefix=100.64.9.10/32 err="sw_interface_add_del_address host-w9w0 100.64.9.10/32 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/07 06:07:02 INFO deleted owner=w9 component=scheduler key=interface-ip/host-w9w0/100.64.9.10/32
+2026/10/07 06:07:02 INFO reconcile done owner=w9 txn_id="" mode=revert domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:3  unchanged:11" reapplied=1 duration=150.817136ms err=""
+time="2026-10-07T06:07:03Z" level=warning msg="Unable to retrieve message ID" async=true chanId=24270 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=170
+time="2026-10-07T06:07:04Z" level=warning msg="Unable to retrieve message ID" async=true chanId=24512 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=21
+    zz_pppoe_live_overlay_test.go:868: rollback IPv6: after revert [] route=false
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-confirm-rollback=PASS IPv6 mirror of the unconfirmed candidate removed at the deadline
+    zz_pppoe_live_overlay_test.go:877: rollback: candidate addr=true route=true; reverted=true; after addr=false route=false mss=none recv:EOF files="" manifestGone=true
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE confirm-rollback=PASS unconfirmed candidate (session mirrored=true) reverted: files, manifest and VPP mirror removed
+    zz_pppoe_live_overlay_test.go:887: client (rendered pppd) log:
+        === supervisor start 2026-10-07T06:05:40.398111542Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        PPP session is 1
+        Connected to 36:DF:D0:8F:7F:0D via interface w9-w0
+        Using interface ppp0
+        Connect: ppp0 <--> w9-w0
+        Remote message: Login ok
+        PAP authentication succeeded
+        peer from calling number 36:DF:D0:8F:7F:0D authorized
+        local  LL address fe80::9c35:5c5c:9e8c:5ad9
+        remote LL address fe80::d8a1:4368:50bd:97e7
+        local  IP address 100.64.9.10
+        remote IP address 100.64.9.1
+        Modem hangup
+        Connect time 0.3 minutes.
+        Sent 612 bytes, received 1044 bytes.
+        Connection terminated.
+        Sent PADT
+        PPP session is 1
+        Connected to 36:DF:D0:8F:7F:0D via interface w9-w0
+        Using interface ppp0
+        Connect: ppp0 <--> w9-w0
+        Remote message: Login ok
+        PAP authentication succeeded
+        peer from calling number 36:DF:D0:8F:7F:0D authorized
+        local  LL address fe80::3ca5:b93f:42dc:590e
+        remote LL address fe80::e4e8:560a:6cc5:b122
+        local  IP address 100.64.9.10
+        remote IP address 100.64.9.1
+        Terminating on signal 15
+        Connect time 0.1 minutes.
+        Sent 48 bytes, received 324 bytes.
+        Connection terminated.
+        Sent PADT
+        === supervisor observed exit status 5 at 2026-10-07T06:06:11.940653042Z
+        === supervisor start 2026-10-07T06:06:11.941156752Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        PPP session is 2
+        Connected to 36:DF:D0:8F:7F:0D via interface w9-w0
+        Using interface ppp0
+        Connect: ppp0 <--> w9-w0
+        Remote message: Login incorrect
+        PAP authentication failed
+        Connection terminated.
+        Sent PADT
+        PPP session is 1
+        Connected to 36:DF:D0:8F:7F:0D via interface w9-w0
+        Using interface ppp0
+        Connect: ppp0 <--> w9-w0
+        Remote message: Login incorrect
+        PAP authentication failed
+        Connection terminated.
+        Sent PADT
+        === supervisor observed exit status 19 at 2026-10-07T06:06:21.426077376Z
+        === supervisor start 2026-10-07T06:06:26.569685061Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        PPP session is 2
+        Connected to 36:DF:D0:8F:7F:0D via interface w9-w0
+        Using interface ppp0
+        Connect: ppp0 <--> w9-w0
+        Remote message: Login ok
+        PAP authentication succeeded
+        peer from calling number 36:DF:D0:8F:7F:0D authorized
+        local  LL address fe80::dd45:be58:4bde:a1c3
+        remote LL address fe80::fdc7:9188:1139:3f1f
+        local  IP address 100.64.9.11
+        remote IP address 100.64.9.1
+        Terminating on signal 15
+        Connect time 0.1 minutes.
+        Sent 48 bytes, received 152 bytes.
+        Connection terminated.
+        Sent PADT
+        === supervisor observed exit status 5 at 2026-10-07T06:06:32.373901816Z
+        === supervisor start 2026-10-07T06:06:32.606350287Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        PPP session is 1
+        Connected to 36:DF:D0:8F:7F:0D via interface w9-w0
+        Using interface ppp0
+        Connect: ppp0 <--> w9-w0
+        Remote message: Login ok
+        PAP authentication succeeded
+        peer from calling number 36:DF:D0:8F:7F:0D authorized
+        local  LL address fe80::086b:3cc0:9a53:60b7
+        remote LL address fe80::e1e5:0b14:ff97:223d
+        local  IP address 100.64.9.10
+        remote IP address 100.64.9.1
+        Terminating on signal 15
+        Connect time 0.5 minutes.
+        Sent 48 bytes, received 516 bytes.
+        Connection terminated.
+        Sent PADT
+        === supervisor observed exit status 5 at 2026-10-07T06:07:04.825172493Z
+    zz_pppoe_live_overlay_test.go:889: server log:
+    zz_pppoe_live_overlay_test.go:892: ISP ra.py.log (tail):
+        ra periodic
+        ra periodic
+        ra periodic
+        ra send: [Errno 101] Network is unreachable
+        ra send: [Errno 101] Network is unreachable
+        ra periodic
+        ra periodic
+        ra periodic
+    zz_pppoe_live_overlay_test.go:470: PPPOE_SUMMARY_BEGIN
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE apply-pppoe=PASS APPLIED with SecretBundle password/w9wan
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE password-not-in-rendered-config=PASS only 0600 chap/pap secret files hold it; peer/unit/hooks/manifest/RPC responses clean
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE dial-up=PASS phase up after 3.331s: {
+          "phase":  "up",
+          "since":  "2026-10-07T06:05:43Z"
+        }
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv4-addr-route-mirror=PASS 100.64.9.10/32 on host-w9w0, 0/0 via 100.64.9.1 in table 9401
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE mss-clamp=PASS ipv4=1452/dir3 ipv6=1432/dir3 recv:EOF
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-negotiation=PASS mode slaac: ipv6="2001:db8:9:0:9c35:5c5c:9e8c:5ad9/64"
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-addr-route-mirror=PASS [2001:db8:9:0:9c35:5c5c:9e8c:5ad9/128] on host-w9w0 and ::/0 via the ISP link-local in table 9401, 2.052s after the ISP started RA
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE mss-clamp-ipv6=PASS ipv4=1452/dir3 ipv6=1432/dir3 recv:EOF
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-host-over-ppp=PASS NON-PRODUCT diag evidence: host ping6 2001:db8:9::1 over ppp0 replied
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-lan-transit=NOT-RUN blocked by defect 3 (no PPPoE encapsulation in the VPP path; IPv4 transit fails the same way)
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE traffic=FAIL host-over-ppp=ok; LAN transit 0 replies; VPP resolves the PPP peer with plain Ethernet ARP on the WAN and never sends the transit IPv4 inside the PPPoE session (no session encapsulation in the VPP path)
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-withdraw-on-down=PASS IPv6 /128s and ::/0 path withdrawn while the session is down
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-reconnect-remirror=PASS ipv6="2001:db8:9:0:3ca5:b93f:42dc:590e/64" mirrored again ([2001:db8:9:0:3ca5:b93f:42dc:590e/128], ::/0) 2.566s after IPv4 up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE server-restart-reconnect=PASS down observed after 1.282s (mirror withdrawn), up again 11.017s after server stop (holdoff 3 s)
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE wrong-password-dialer=PASS pppd exit 19 (19 = authentication to peer failed), phase=down, no mirror
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE wrong-password-agent-error-state=NOT-RUN slot agent reports phase="down" failCount=0 lastError="": exit tracking exists only via systemctl on the globals owner
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-withdrawal-cleanup=PASS no IPv6 /128 or ::/0 path left after removing pppoe
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE withdrawal-cleanup=PASS address, default path, MSS clamp, slot files and manifest removed
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-confirm-rollback=PASS IPv6 mirror of the unconfirmed candidate removed at the deadline
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE confirm-rollback=PASS unconfirmed candidate (session mirrored=true) reverted: files, manifest and VPP mirror removed
+    zz_pppoe_live_overlay_test.go:474: PPPOE_SUMMARY_END
+time="2026-10-07T06:07:05Z" level=warning msg="Unable to retrieve message ID" async=true chanId=24754 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=116
+2026/10/07 06:07:05 INFO reconcile start owner=w9 txn_id=w9-pppoe-cleanup mode=apply domains="[interfaces vrfs]"
+time="2026-10-07T06:07:05Z" level=warning msg="Unable to retrieve message ID" async=true chanId=24996 connId=2 error="unknown message: pppoe_session_dump_f9e6675e" isMulti=false msgCrc=f9e6675e msgId=0 msgName=pppoe_session_dump seqNum=622
+2026/10/07 06:07:05 INFO interface sanitized (VPP V19/V21 inherited state) interface=w9-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=lcp.itf-pair/host-w9w0
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=interface.admin-state/host-w9w0
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=interface.admin-state/host-w9l0
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=interface-ip.table/host-w9w0
+2026/10/07 06:07:05 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w9w0 descriptor=af-packet.host-interface ifindex=9 kind=veth
+2026/10/07 06:07:05 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=af-packet.host-interface/host-w9w0
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=interface-ip/host-w9l0/10.9.1.1/24
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=interface-ip.table/host-w9l0
+2026/10/07 06:07:05 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w9l0 descriptor=af-packet.host-interface ifindex=7 kind=veth
+2026/10/07 06:07:05 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=af-packet.host-interface/host-w9l0
+2026/10/07 06:07:05 INFO deleted owner=w9 component=scheduler key=vrf/9401
+2026/10/07 06:07:05 INFO reconcile done owner=w9 txn_id=w9-pppoe-cleanup mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=347.918727ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply cleanup: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "deleted":  9
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:545: cleanup apply: <nil> APPLY_STATUS_APPLIED
+    zz_pppoe_live_overlay_test.go:553: cleanup: VPP interfaces of w9 left: []; table 9401: [0] table_id:0 ipv4-VRF:0
+2026/10/07 06:07:05 INFO dynamic source stopped owner=w9 source=pppoe-watch
+2026/10/07 06:07:05 INFO dynamic source stopped owner=w9 source=multiwan
+2026/10/07 06:07:05 INFO ngfw-agent stopped owner=w9
+    zz_pppoe_live_overlay_test.go:517: rig down: <nil>
+        rig down w9
+          delete netns ns-w9-lan (and its veth peer)
+          delete veth w9l0
+          delete netns ns-w9-wan (and its veth peer)
+          delete veth w9w0
+        rig: down
+        prefix: w9
+        slot: 9
+        path: af_packet
+        lan_ns: ns-w9-lan
+        lan_veth: w9l1
+        lan_ip: 10.9.1.2/24
+        lan_gw: 10.9.1.1
+        vpp_lan_if: host-w9l0
+        vpp_lan_addr: -
+        wan_ns: ns-w9-wan
+        wan_veth: w9w1
+        wan_ip: 10.9.2.2/24
+        wan_gw: 10.9.2.1
+        vpp_wan_if: host-w9w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w9-lan ping -c 3 10.9.2.2
+--- FAIL: TestPppoeClientLive (89.89s)
+FAIL
+FAIL	ngfw/agent/internal/agent	90.010s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=2083275
+JOURNAL_PPP_LINES:
+vat-plug/load: vat_plugin_register: pppoe plugin not loaded...
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+PPP session is 1
+Using interface ppp0
+Connect: ppp0 <--> w9-w0
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+Using interface ppp0
+Connect: ppp0 <--> w9w1
+Terminating on signal 15 -- killing all PPPoE sessions
+PPP session is 1
+Using interface ppp0
+Connect: ppp0 <--> w9-w0
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+Using interface ppp0
+Connect: ppp0 <--> w9w1
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+PPP session is 2
+Using interface ppp0
+Connect: ppp0 <--> w9-w0
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+Using interface ppp0
+Connect: ppp0 <--> w9w1
+PPP session is 1
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+Using interface ppp0
+Connect: ppp0 <--> w9w1
+Using interface ppp0
+Connect: ppp0 <--> w9-w0
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+PPP session is 2
+Plugin rp-pppoe.so loaded.
+Using interface ppp0
+Connect: ppp0 <--> w9-w0
+pppd 2.5.2 started by root, uid 0
+Using interface ppp0
+Connect: ppp0 <--> w9w1
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+PPP session is 1
+Plugin rp-pppoe.so loaded.
+Using interface ppp0
+Connect: ppp0 <--> w9-w0
+pppd 2.5.2 started by root, uid 0
+Using interface ppp0
+Connect: ppp0 <--> w9w1
+Terminating on signal 15 -- killing all PPPoE sessions
+PASSWORD_GREP={"test-output": 0, "journal-since-start": 0} PASS
+LEFTOVER_PPP_PROCESSES=none
+HOST_NETNS_LIST=none
+SHARED_VPP before=MainPID=1014,NRestarts=0 after=MainPID=1014,NRestarts=0
+TEST_EXIT=1

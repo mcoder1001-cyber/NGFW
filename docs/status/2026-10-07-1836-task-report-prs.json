@@ -1,0 +1,34 @@
+[
+  {
+    "baseRefName": "main",
+    "headRefOid": "c6f82707fa7d1f517de533106e69505817a473ed",
+    "isDraft": true,
+    "number": 197,
+    "title": "fix(td19): keep installers on VMware native tooling",
+    "url": "https://github.com/mcoder1001-cyber/NGFW/pull/197"
+  },
+  {
+    "baseRefName": "main",
+    "headRefOid": "4bcf9f4977e2a9c248548de23cf552e4bcef94da",
+    "isDraft": true,
+    "number": 196,
+    "title": "feat(pppoe): IPv6 for the PPPoE client",
+    "url": "https://github.com/mcoder1001-cyber/NGFW/pull/196"
+  },
+  {
+    "baseRefName": "main",
+    "headRefOid": "b0367efb48339808359c4c82e2675060d8c1ddd4",
+    "isDraft": true,
+    "number": 193,
+    "title": "contract(ra-vpn): add sealed independent strongSwan remote-access engine",
+    "url": "https://github.com/mcoder1001-cyber/NGFW/pull/193"
+  },
+  {
+    "baseRefName": "main",
+    "headRefOid": "661cbc21bf4bead10abb93333f493406f4142db1",
+    "isDraft": true,
+    "number": 180,
+    "title": "test(bgp): restore private P12 FIB acceptance",
+    "url": "https://github.com/mcoder1001-cyber/NGFW/pull/180"
+  }
+]

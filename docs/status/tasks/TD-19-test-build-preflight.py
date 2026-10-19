@@ -1,15 +1,48 @@
 #!/usr/bin/env python3
 """Exercise build-bootstrap configuration without running any host mutation."""
+import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 
+import importlib.util
+spec = importlib.util.spec_from_file_location('safe_fixture', ROOT / 'scripts/tests/td19-safe-root-fixtures.py')
+safe_fixture = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(safe_fixture)
+
 
 class BuildPreflight(unittest.TestCase):
+    def run_package_boundary(self, fail_at):
+        f = safe_fixture.Fixture()
+        try:
+            f.env['FAIL_AT'] = fail_at
+            result = f.run('20-install-build.sh')
+            return result, f.calls()
+        finally:
+            f.close()
+
+    def test_build_package_plan_excludes_container_and_hypervisor_dependencies(self):
+        result, calls = self.run_package_boundary('install')
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertEqual(calls[0], ['apt-get', 'update'])
+        self.assertEqual(len(calls), 2, calls)
+        self.assertEqual(calls[1][:3], ['apt-get', 'install', '-y'])
+        packages = set(calls[1][3:])
+        self.assertFalse(packages & {'docker.io', 'docker-compose-v2', 'containerlab', 'qemu-kvm',
+                                     'libvirt-daemon-system', 'libvirt-clients', 'virtinst'})
+        self.assertTrue({'build-essential', 'libpcap-dev', 'libmnl-dev', 'protobuf-compiler',
+                         'nodejs', 'reprepro', 'qemu-utils', 'debootstrap'} <= packages)
+
+    def test_build_update_failure_stops_before_install_or_download(self):
+        result, calls = self.run_package_boundary('update')
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertEqual(calls, [['apt-get', 'update']])
+
     def run_check(self, digest, args=()):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -48,7 +81,7 @@ class BuildPreflight(unittest.TestCase):
         self.assertIn('go.fd.io/govpp v0.13.0', module)
         source = (ROOT / 'scripts/20-install-build.sh').read_text()
         self.assertNotIn('@latest', source)
-        self.assertLess(source.index('sha256sum --check'), source.index('rm -rf /usr/local/go'))
+        self.assertLess(source.index('sha256sum --check'), source.index('rm -rf -- "$go_dir"'))
 
     def test_invalid_cli_refuses_host_mutation(self):
         result, calls = self.run_check(None, ['--unknown'])
@@ -69,11 +102,13 @@ class BuildPreflight(unittest.TestCase):
                 binary.write_text(f'#!/bin/sh\nif [ "$1" = version ]; then echo "go version go{version} linux/amd64"; else printf "{label} %s\\n" "$*" >> "$CALL_LOG"; fi\n')
                 binary.chmod(0o755)
             source = (ROOT / 'scripts/20-install-build.sh').read_text()
-            start = source.index('export PATH=/usr/local/go/bin:$PATH')
-            end = source.index('\ncorepack enable', start)
-            fragment = source[start:end].replace('/usr/local/go/bin', str(fresh))
+            start = source.index('if [[ $NGFW_INSTALL_ROOT == / ]]; then')
+            end = source.index('\nif ! corepack enable', start)
+            fragment = source[start:end]
+            setup_paths = 'NGFW_INSTALL_ROOT=/\ngo_dir=' + shlex.quote(str(fresh.parent)) + '\nGOBIN=' + shlex.quote(str(fresh)) + '\n'
+            fragment = fragment.replace('$go_dir/bin', str(fresh))
             setup = 'set -euo pipefail\nGO_VER=1.26.0 PROTOC_GO_VER=v1.36.12 PROTOC_GRPC_VER=v1.6.2 GOVPP_VER=v0.13.0\n'
-            result = subprocess.run(['bash', '-c', setup + fragment], text=True, capture_output=True,
+            result = subprocess.run(['bash', '-c', setup + setup_paths + fragment], text=True, capture_output=True,
                                     env=dict(os.environ, PATH=f'{old}:/usr/bin:/bin', CALL_LOG=str(log)))
             return result, log.read_text() if log.exists() else ''
 
@@ -85,7 +120,7 @@ class BuildPreflight(unittest.TestCase):
             'fresh install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2',
             'fresh install go.fd.io/govpp/cmd/binapi-generator@v0.13.0'])
         source = (ROOT / 'scripts/20-install-build.sh').read_text()
-        self.assertIn("<<'GO_PROFILE'\nexport PATH=/usr/local/go/bin:$HOME/go/bin:$PATH\nGO_PROFILE", source)
+        self.assertIn("<<'GO_PROFILE'\nexport PATH=/usr/local/go/bin:/opt/ngfw-build/go/bin:$PATH\nGO_PROFILE", source)
 
     def test_wrong_selected_version_refuses_generator_execution(self):
         result, calls = self.run_shadow('1.23.4')

@@ -1,23 +1,23 @@
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteIcon from '@mui/icons-material/Delete';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Divider from '@mui/material/Divider';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgCloseIcon as CloseIcon,
+  PgDeleteIcon as DeleteIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgDivider as Divider,
+  PgDrawer as Drawer,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip, useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
@@ -153,7 +153,7 @@ function DrawerBody({
   );
   const live = item?.state;
   const rate = rates.get(live?.vppName ?? name);
-  const readOnly = !perms.editConfig;
+  const readOnly = !perms.editConfig || item?.inventoryOnly === true;
 
   // The form edits the value it opened with (review N4): a refetch of the candidate never remounts it (unsaved edits
   // stay), and Save sends only what changed against that value — a field another session changed meanwhile is not
@@ -205,7 +205,9 @@ function DrawerBody({
     const body =
       current === undefined || base === undefined ? value : createMergePatch(base, value);
     try {
-      await patch.mutateAsync({ [parentName]: { subinterfaces: { [id]: body } } });
+      await patch.mutateAsync({
+        [parentName]: { subinterfaces: { [id]: body } },
+      });
       setSubDialog(null);
     } catch (e) {
       setSubError(e);
@@ -215,7 +217,9 @@ function DrawerBody({
   const removeSub = async (id: string) => {
     setSubError(null);
     try {
-      await patch.mutateAsync({ [parentName]: { subinterfaces: { [id]: null } } });
+      await patch.mutateAsync({
+        [parentName]: { subinterfaces: { [id]: null } },
+      });
     } catch (e) {
       setSubError(e);
     }
@@ -243,7 +247,11 @@ function DrawerBody({
           component="h3"
           variant="h6"
           dir="ltr"
-          sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, flex: 1, textAlign: 'start' }}
+          sx={{
+            fontFamily: (th) => th.ngfw.monoFontFamily,
+            flex: 1,
+            textAlign: 'start',
+          }}
         >
           {name}
         </Typography>
@@ -266,43 +274,165 @@ function DrawerBody({
         </IconButton>
       </Stack>
       {(state.isPending || candidate.isPending) && <LinearProgress aria-label={t('loading')} />}
-      {!live && state.isSuccess && <Alert severity="info">{t('drawer.notInVpp')}</Alert>}
+      {!live && !item?.inventoryOnly && state.isSuccess && (
+        <Alert severity="info">{t('drawer.notInVpp')}</Alert>
+      )}
       {live && (
-        <Table size="small" aria-label={t('drawer.liveTitle')} sx={{ mb: 2 }}>
-          <TableBody>
-            {liveRows.map(([k, v]) => (
-              <TableRow key={k}>
-                <TableCell component="th" sx={{ inlineSize: 180 }}>
-                  {k}
-                </TableCell>
-                <TableCell dir="ltr" sx={{ textAlign: 'start' }}>
-                  {v}
-                </TableCell>
-              </TableRow>
-            ))}
-            <TableRow>
-              <TableCell component="th">{t('live.rates')}</TableCell>
-              <TableCell>
-                {rate ? (
-                  <Stack direction="row" gap={1} alignItems="center">
-                    <span>{t('col.rx')}</span>
-                    <bdi dir="ltr">{fmt.rate(rate.rxBps, BPS)}</bdi>
-                    <span>{t('col.tx')}</span>
-                    <bdi dir="ltr">{fmt.rate(rate.txBps, BPS)}</bdi>
-                    <Sparkline values={rate.history} label={t('trendLabel', { name })} />
-                  </Stack>
-                ) : (
-                  t('live.noRates')
-                )}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <ReactGeereedMaterial
+          hideFilterBuilderComponent
+          noFormWrapper
+          embedded
+          memoEnable={false}
+          hidePagination
+          hideToolbar
+          search={false}
+          exportToCSV={false}
+          sortable={false}
+          footer={false}
+          headerRows={<></>}
+          items={[
+            ...liveRows.map(([label, value]) => ({ label, value })),
+            {
+              label: t('live.rates'),
+              value: rate ? (
+                <Stack direction="row" gap={1} alignItems="center">
+                  <span>{t('col.rx')}</span>
+                  <bdi dir="ltr">{fmt.rate(rate.rxBps, BPS)}</bdi>
+                  <span>{t('col.tx')}</span>
+                  <bdi dir="ltr">{fmt.rate(rate.txBps, BPS)}</bdi>
+                  <Sparkline values={rate.history} label={t('trendLabel', { name })} />
+                </Stack>
+              ) : (
+                t('live.noRates')
+              ),
+              rates: true,
+            },
+          ]}
+          tableProps={{
+            size: 'small',
+            'aria-label': t('drawer.liveTitle'),
+            sx: { mb: 2 },
+          }}
+          rowKey={(row) => row.label}
+          columns={[
+            {
+              key: 'label',
+              sortable: false,
+              filterable: false,
+              renderer: (_value: unknown, row: { label: React.ReactNode }) => <>{row.label}</>,
+            },
+            {
+              key: 'value',
+              sortable: false,
+              filterable: false,
+              renderer: (_value: unknown, row: { value: React.ReactNode }) => <>{row.value}</>,
+            },
+          ]}
+          cellProps={(row, column) =>
+            column.key === 'label'
+              ? {
+                  component: 'th',
+                  sx: row.rates ? undefined : { inlineSize: 180 },
+                }
+              : row.rates
+                ? {}
+                : { dir: 'ltr', sx: { textAlign: 'start' } }
+          }
+          emptyContent={null}
+        />
       )}
       {live?.pppoe && <PppoePanel name={name} pppoe={live.pppoe} readOnly={readOnly} />}
       <Divider sx={{ mb: 2 }} />
 
-      {isSub ? (
+      {item?.inventoryOnly ? (
+        <>
+          <Alert severity="info" sx={{ mb: 1 }}>
+            {t(
+              item.hostInventory?.isManagement
+                ? 'inventory.managementInfo'
+                : 'inventory.readOnlyInfo',
+            )}
+          </Alert>
+          {(() => {
+            const gridItems = [
+              [t('inventory.netdev'), item.hostInventory?.netdev || '—'],
+              [t('inventory.pci'), item.hostInventory?.pci || '—'],
+              [t('inventory.driver'), item.hostInventory?.driver || '—'],
+              [t('live.mac'), item.hostInventory?.mac || '—'],
+              [
+                t('col.link'),
+                t(item.hostInventory?.linkUp ? 'status.up' : 'inventory.linkDownOrUnknown'),
+              ],
+            ];
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                headerRows={<></>}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <></>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const { 0: label } = gridRow;
+                      return <>{label}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <></>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const { 1: value } = gridRow;
+                      return (
+                        <>
+                          <bdi dir="ltr">{value}</bdi>
+                        </>
+                      );
+                    },
+                  },
+                ]}
+                tableProps={{
+                  size: 'small',
+                  'aria-label': t('inventory.title'),
+                }}
+                rowKey={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const { 0: label } = gridRow;
+                  return label ?? _gridIndex;
+                }}
+                rowProps={(_nativeRow, _gridIndex) => {
+                  return {};
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return { component: 'th' };
+                    case '1':
+                      return {};
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
+        </>
+      ) : isSub ? (
         <Alert severity="info">{t('drawer.subHint', { parent: parentName })}</Alert>
       ) : (
         <>
@@ -593,22 +723,73 @@ function PppoePanel({
           {t('pppoe.reconnecting')}
         </Alert>
       )}
-      {rows.length > 0 && (
-        <Table size="small" aria-label={t('pppoe.title')} sx={{ mb: 2 }}>
-          <TableBody>
-            {rows.map(([k, v]) => (
-              <TableRow key={k}>
-                <TableCell component="th" sx={{ inlineSize: 180 }}>
-                  {k}
-                </TableCell>
-                <TableCell dir="ltr" sx={{ textAlign: 'start' }}>
-                  {v}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      {rows.length > 0 &&
+        (() => {
+          const gridItems = rows;
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              headerRows={<></>}
+              items={gridItems}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <></>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 0: k } = gridRow;
+                    return <>{k}</>;
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <></>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 1: v } = gridRow;
+                    return <>{v}</>;
+                  },
+                },
+              ]}
+              tableProps={{
+                size: 'small',
+                'aria-label': t('pppoe.title'),
+                sx: { mb: 2 },
+              }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const { 0: k } = gridRow;
+                return k;
+              }}
+              rowProps={(_nativeRow, _gridIndex) => {
+                return {};
+              }}
+              cellProps={(_nativeRow, column, _gridIndex) => {
+                switch (column.key) {
+                  case '0':
+                    return { component: 'th', sx: { inlineSize: 180 } };
+                  case '1':
+                    return { dir: 'ltr', sx: { textAlign: 'start' } };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={null}
+            />
+          );
+        })()}
     </>
   );
 }

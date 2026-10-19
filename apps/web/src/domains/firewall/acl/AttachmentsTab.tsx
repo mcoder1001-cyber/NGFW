@@ -1,21 +1,24 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
@@ -136,54 +139,88 @@ export function AttachmentsTab() {
           </Typography>
         )}
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('attachments.configuredLabel')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.list')}</TableCell>
-                <TableCell>{t('col.target')}</TableCell>
-                <TableCell>{t('col.direction')}</TableCell>
-                <TableCell>{t('col.sequence')}</TableCell>
-                <TableCell>{t('col.vrf')}</TableCell>
-                <TableCell>{t('col.enabled')}</TableCell>
-                <TableCell>{t('col.description')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {candidate.isSuccess && rows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8}>
-                    <Typography color="text.secondary">{t('attachments.empty')}</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {rows.map((a, i) => (
-                <TableRow key={i} hover>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('attachments.configuredLabel') }}
+            columns={[
+              {
+                key: 'list',
+                headerRenderer: () => t('col.list'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'target',
+                headerRenderer: () => t('col.target'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'direction',
+                headerRenderer: () => t('col.direction'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'sequence',
+                headerRenderer: () => t('col.sequence'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'vrf',
+                headerRenderer: () => t('col.vrf'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'enabled',
+                headerRenderer: () => t('col.enabled'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'description',
+                headerRenderer: () => t('col.description'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => t('col.actions'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(rows.map((a, i) => ({
+                id: i,
+                list: (
+                  <>
                     <Stack direction="row" gap={0.5} alignItems="center">
                       <Mono>{a.list}</Mono>
                       {isPending(a) && <PendingChip pending={PENDING} />}
                     </Stack>
-                  </TableCell>
-                  <TableCell>
-                    {a.target.kind === 'zone' ? (
-                      <bdi>{targetText(a.target, tr)}</bdi>
-                    ) : (
-                      <Mono>{a.target.interface}</Mono>
-                    )}
-                  </TableCell>
-                  <TableCell>{t(`enum.direction.${a.direction ?? 'in'}`)}</TableCell>
-                  <TableCell>{fmt.number(a.sequence, { useGrouping: false })}</TableCell>
-                  <TableCell>{a.vrf ? <Mono>{a.vrf}</Mono> : null}</TableCell>
-                  <TableCell>
-                    {a.enabled === false ? (
-                      <Chip size="small" label={t('rules.off')} />
-                    ) : (
-                      t('rules.on')
-                    )}
-                  </TableCell>
-                  <TableCell>{a.description}</TableCell>
-                  <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+                  </>
+                ),
+                target:
+                  a.target.kind === 'zone' ? (
+                    <bdi>{targetText(a.target, tr)}</bdi>
+                  ) : (
+                    <Mono>{a.target.interface}</Mono>
+                  ),
+                direction: t(`enum.direction.${a.direction ?? 'in'}`),
+                sequence: fmt.number(a.sequence, { useGrouping: false }),
+                vrf: a.vrf ? <Mono>{a.vrf}</Mono> : null,
+                enabled:
+                  a.enabled === false ? (
+                    <Chip size="small" label={t('rules.off')} />
+                  ) : (
+                    t('rules.on')
+                  ),
+                description: a.description,
+                actions: (
+                  <>
                     <IconButton
                       size="small"
                       aria-label={t('attachments.editNamed', {
@@ -209,11 +246,41 @@ export function AttachmentsTab() {
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+                rowProps: { hover: true } satisfies ReturnType<
+                  NonNullable<GeereedTablePassthrough['rowProps']>
+                > &
+                  Record<`data-${string}`, unknown>,
+                cellProps: {
+                  actions: { sx: { textAlign: 'end', whiteSpace: 'nowrap' } },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={
+              candidate.isSuccess && rows.length === 0 ? (
+                <>
+                  <Typography color="text.secondary">{t('attachments.empty')}</Typography>
+                </>
+              ) : null
+            }
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       </Box>
 
@@ -235,47 +302,98 @@ export function AttachmentsTab() {
         {live.isPending && <LinearProgress aria-label={t('loading')} />}
         {live.isError && <ProblemAlert error={live.error} />}
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('attachments.liveLabel')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.interface')}</TableCell>
-                <TableCell>{t('col.input')}</TableCell>
-                <TableCell>{t('col.output')}</TableCell>
-                <TableCell>{t('col.macip')}</TableCell>
-                <TableCell>{t('col.expected')}</TableCell>
-                <TableCell>{t('col.inSync')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {live.data && live.data.interfaces.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6}>
-                    <Typography color="text.secondary">{t('attachments.liveEmpty')}</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {live.data?.interfaces.map((b) => (
-                <TableRow key={b.interface}>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('attachments.liveLabel') }}
+            columns={[
+              {
+                key: 'interface',
+                headerRenderer: () => t('col.interface'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'input',
+                headerRenderer: () => t('col.input'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'output',
+                headerRenderer: () => t('col.output'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'macip',
+                headerRenderer: () => t('col.macip'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'expected',
+                headerRenderer: () => t('col.expected'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'inSync',
+                headerRenderer: () => t('col.inSync'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(live.data?.interfaces.map((b) => ({
+                id: b.interface,
+                interface: (
+                  <>
                     <Mono>{b.interface}</Mono>
-                  </TableCell>
-                  <TableCell>
+                  </>
+                ),
+                input: (
+                  <>
                     <Chain acls={b.input} />
-                  </TableCell>
-                  <TableCell>
+                  </>
+                ),
+                output: (
+                  <>
                     <Chain acls={b.output} />
-                  </TableCell>
-                  <TableCell>{b.macip ? <BoundChip acl={b.macip} /> : <Dash />}</TableCell>
-                  <TableCell>
+                  </>
+                ),
+                macip: b.macip ? <BoundChip acl={b.macip} /> : <Dash />,
+                expected: (
+                  <>
                     <Expected binding={b} />
-                  </TableCell>
-                  <TableCell>
+                  </>
+                ),
+                inSync: (
+                  <>
                     <SyncChip inSync={b.inSync} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={
+              live.data && live.data.interfaces.length === 0 ? (
+                <>
+                  <Typography color="text.secondary">{t('attachments.liveEmpty')}</Typography>
+                </>
+              ) : null
+            }
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       </Box>
 

@@ -1,9 +1,9 @@
-import CloseIcon from '@mui/icons-material/Close';
-import Box from '@mui/material/Box';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { PgCloseIcon as CloseIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgDrawer as Drawer } from '@amnafzar/common-ui-lib/primitives';
+import { PgIconButton as IconButton } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 

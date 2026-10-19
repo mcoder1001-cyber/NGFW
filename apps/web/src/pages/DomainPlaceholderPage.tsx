@@ -1,5 +1,5 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router';
 import { configPathTo } from '../domains/advanced/schemaPath';

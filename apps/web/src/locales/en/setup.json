@@ -39,7 +39,7 @@
   "persian": "Persian",
   "selectInterface": "Select a network interface before continuing.",
   "loadingInterfaces": "Loading network interfaces…",
-  "interfacesFailed": "Live interfaces could not be loaded. Configured interfaces remain available.",
+  "interfacesFailed": "Some network interfaces could not be loaded. Configured interfaces remain available.",
   "retryInterfaces": "Retry",
   "noInterfaces": "No dataplane interfaces are available. Check interface ownership and the agent connection, then retry."
 }

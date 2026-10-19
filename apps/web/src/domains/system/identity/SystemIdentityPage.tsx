@@ -1,18 +1,19 @@
-import Button from '@mui/material/Button';
-import { Link as RouterLink } from 'react-router';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useTranslation } from 'react-i18next';
+import { Link as RouterLink } from 'react-router';
 import { ApiError } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -22,8 +23,8 @@ import {
   useCandidateSystem,
   usePatchSystem,
   useRunningSystem,
-  type SystemConfig,
   useSystemIdentityState,
+  type SystemConfig,
 } from './queries';
 
 export const NS = 'system-identity';
@@ -160,30 +161,68 @@ export function SystemIdentityPage() {
           <Typography component="h3" variant="h6" gutterBottom>
             {t('live.title')}
           </Typography>
-          <Table size="small" aria-label={t('live.title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('live.setting')}</TableCell>
-                <TableCell>{t('live.candidate')}</TableCell>
-                <TableCell>{t('live.running')}</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows(cand.data ?? {}, running.data ?? {}, none).map((r) => (
-                <TableRow key={r.key} data-testid={`sys-${r.key}`}>
-                  <TableCell>{t(`live.${r.key}`)}</TableCell>
-                  <TableCell dir="ltr">{r.candidate}</TableCell>
-                  <TableCell dir="ltr">{r.running}</TableCell>
-                  <TableCell>
-                    {running.isSuccess && r.candidate !== r.running && (
-                      <Chip size="small" color="warning" label={t('live.pending')} />
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('live.title') }}
+            columns={[
+              {
+                key: 'column0',
+                headerRenderer: () => t('live.setting'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column1',
+                headerRenderer: () => t('live.candidate'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column2',
+                headerRenderer: () => t('live.running'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column3',
+                headerRenderer: () => null,
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(rows(cand.data ?? {}, running.data ?? {}, none).map((r) => ({
+                id: r.key,
+                column0: t(`live.${r.key}`),
+                column1: r.candidate,
+                column2: r.running,
+                column3: running.isSuccess && r.candidate !== r.running && (
+                  <Chip size="small" color="warning" label={t('live.pending')} />
+                ),
+                rowProps: { 'data-testid': `sys-${r.key}` } satisfies ReturnType<
+                  NonNullable<GeereedTablePassthrough['rowProps']>
+                > &
+                  Record<`data-${string}`, unknown>,
+                cellProps: { column1: { dir: 'ltr' }, column2: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {t('live.note')}
           </Typography>

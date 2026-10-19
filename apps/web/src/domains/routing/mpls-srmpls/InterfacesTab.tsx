@@ -1,6 +1,6 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';

@@ -22,6 +22,7 @@ export const vpnTabs: readonly DomainTab[] = [
   // wave-BC: F-lisp
   { id: 'lisp', labelKey: 'lisp:tab', Component: lazy(() => import('./lisp/LispTab')) },
   // wave-BC: F-ra-vpn
+  { id: 'ra-vpn', labelKey: 'ra-vpn:tab', Component: lazy(() => import('./ra-vpn/RaVpnPage')) },
   // wave-A: P11
   // wave-A: F-wireguard
   {

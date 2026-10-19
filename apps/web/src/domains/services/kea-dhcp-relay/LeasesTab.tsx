@@ -1,9 +1,9 @@
-import Box from '@mui/material/Box';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgMenuItem as MenuItem } from '@amnafzar/common-ui-lib/primitives';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useCallback, useMemo, useState } from 'react';

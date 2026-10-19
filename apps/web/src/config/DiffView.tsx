@@ -1,10 +1,10 @@
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import RemoveIcon from '@mui/icons-material/Remove';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { PgAddIcon as AddIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgEditIcon as EditIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgRemoveIcon as RemoveIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { parsePointer } from '@ngfw/schema';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';

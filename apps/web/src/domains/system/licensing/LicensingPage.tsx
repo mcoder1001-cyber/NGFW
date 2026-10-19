@@ -1,24 +1,25 @@
-import { serviceText } from '../../../product-text';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Link from '@mui/material/Link';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import { PgUploadFileIcon as UploadFileIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgLink as Link,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import type { ChangeEvent, ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { useLicenseState, useUploadLicense, type LicenseState } from './queries';
 
@@ -81,40 +82,103 @@ export function LicensingPage(): ReactElement {
               />
             </Stack>
             {st.reason && <Alert severity="error">{serviceText(st.reason)}</Alert>}
-            <Table size="small" aria-label={t('status.heading')}>
-              <TableBody>
-                {st.customer !== undefined && (
-                  <TableRow>
-                    <TableCell component="th">{t('field.customer')}</TableCell>
-                    <TableCell>{st.customer}</TableCell>
-                  </TableRow>
-                )}
-                {st.licenseId !== undefined && (
-                  <TableRow>
-                    <TableCell component="th">{t('field.licenseId')}</TableCell>
-                    <TableCell dir="ltr">{st.licenseId}</TableCell>
-                  </TableRow>
-                )}
-                {st.expiresAt !== undefined && (
-                  <TableRow>
-                    <TableCell component="th">{t('field.expiresAt')}</TableCell>
-                    <TableCell>{fmt.dateTime(new Date(st.expiresAt))}</TableCell>
-                  </TableRow>
-                )}
-                {(st.status === 'valid' || st.status === 'grace') && (
-                  <TableRow>
-                    <TableCell component="th">{t(st.status === 'grace' ? 'field.graceLeft' : 'field.daysLeft')}</TableCell>
-                    <TableCell>{fmt.number(st.daysLeft)}</TableCell>
-                  </TableRow>
-                )}
-                {(st.bound.machineId || st.bound.serial) && (
-                  <TableRow>
-                    <TableCell component="th">{t('field.binding')}</TableCell>
-                    <TableCell>{[st.bound.machineId && t('binding.machineId'), st.bound.serial && t('binding.serial')].filter(Boolean).join(', ')}</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <ReactGeereedMaterial
+              tableProps={{ size: 'small', 'aria-label': t('status.heading') }}
+              columns={[
+                { key: 'label', filterable: false, renderer: (value) => <>{value}</> },
+                { key: 'value', filterable: false, renderer: (value) => <>{value}</> },
+              ]}
+              items={[
+                ...(st.customer !== undefined
+                  ? [
+                      {
+                        id: 0,
+                        label: t('field.customer'),
+                        value: st.customer,
+                        cellProps: { label: { component: 'th' } } satisfies Record<
+                          string,
+                          NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                        >,
+                      },
+                    ]
+                  : []),
+                ...(st.licenseId !== undefined
+                  ? [
+                      {
+                        id: 1,
+                        label: t('field.licenseId'),
+                        value: st.licenseId,
+                        cellProps: {
+                          label: { component: 'th' },
+                          value: { dir: 'ltr' },
+                        } satisfies Record<
+                          string,
+                          NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                        >,
+                      },
+                    ]
+                  : []),
+                ...(st.expiresAt !== undefined
+                  ? [
+                      {
+                        id: 2,
+                        label: t('field.expiresAt'),
+                        value: fmt.dateTime(new Date(st.expiresAt)),
+                        cellProps: { label: { component: 'th' } } satisfies Record<
+                          string,
+                          NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                        >,
+                      },
+                    ]
+                  : []),
+                ...(st.status === 'valid' || st.status === 'grace'
+                  ? [
+                      {
+                        id: 3,
+                        label: t(st.status === 'grace' ? 'field.graceLeft' : 'field.daysLeft'),
+                        value: fmt.number(st.daysLeft),
+                        cellProps: { label: { component: 'th' } } satisfies Record<
+                          string,
+                          NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                        >,
+                      },
+                    ]
+                  : []),
+                ...(st.bound.machineId || st.bound.serial
+                  ? [
+                      {
+                        id: 4,
+                        label: t('field.binding'),
+                        value: [
+                          st.bound.machineId && t('binding.machineId'),
+                          st.bound.serial && t('binding.serial'),
+                        ]
+                          .filter(Boolean)
+                          .join(', '),
+                        cellProps: { label: { component: 'th' } } satisfies Record<
+                          string,
+                          NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                        >,
+                      },
+                    ]
+                  : []),
+              ]}
+              rowKey={(item) => item.id}
+              rowProps={(item) => item.rowProps ?? {}}
+              cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+              headerRows={<></>}
+              emptyContent={null}
+              noFormWrapper
+              embedded
+              hideToolbar
+              hidePagination
+              hideFilterBuilderComponent
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+              footer={false}
+              memoEnable={false}
+            />
             {st.status === 'community' && (
               <Alert severity="warning" sx={{ mt: 1 }} data-testid="license-community-help">
                 {t('status.communityHelp')}
@@ -126,7 +190,11 @@ export function LicensingPage(): ReactElement {
                 )}
               </Alert>
             )}
-            {st.status === 'grace' && <Alert severity="warning" sx={{ mt: 1 }}>{t('banner.grace', { days: st.daysLeft })}</Alert>}
+            {st.status === 'grace' && (
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                {t('banner.grace', { days: st.daysLeft })}
+              </Alert>
+            )}
             {(st.status === 'expired' || st.status === 'invalid') && (
               <Alert severity="error" sx={{ mt: 1 }}>
                 {t('status.expiredHelp')}
@@ -145,44 +213,93 @@ export function LicensingPage(): ReactElement {
               {t('entitlements.heading')}
             </Typography>
             <TableContainer>
-              <Table size="small" aria-label={t('entitlements.heading')}>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>{t('entitlements.feature')}</TableCell>
-                    <TableCell>{t('entitlements.licensed')}</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {GATED_FEATURES.map((f) => (
-                    <TableRow key={f}>
-                      <TableCell>{t(`feature.${f}`)}</TableCell>
-                      <TableCell>{st.entitlements.features.includes(f) ? t('entitlements.yes') : t('entitlements.no')}</TableCell>
-                    </TableRow>
-                  ))}
-                  {limits.map(([k, v]) => (
-                    <TableRow key={k}>
-                      <TableCell>{t(`limit.${k}`, { defaultValue: k })}</TableCell>
-                      <TableCell>{t('entitlements.max', { n: fmt.number(v) })}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ReactGeereedMaterial
+                tableProps={{ size: 'small', 'aria-label': t('entitlements.heading') }}
+                columns={[
+                  {
+                    key: 'feature',
+                    headerRenderer: () => t('entitlements.feature'),
+                    filterable: false,
+                    renderer: (value) => <>{value}</>,
+                  },
+                  {
+                    key: 'licensed',
+                    headerRenderer: () => t('entitlements.licensed'),
+                    filterable: false,
+                    renderer: (value) => <>{value}</>,
+                  },
+                ]}
+                items={[
+                  ...(GATED_FEATURES.map((f) => ({
+                    id: f,
+                    feature: t(`feature.${f}`),
+                    licensed: st.entitlements.features.includes(f)
+                      ? t('entitlements.yes')
+                      : t('entitlements.no'),
+                  })) ?? []),
+                  ...(limits.map(([k, v]) => ({
+                    id: k,
+                    feature: t(`limit.${k}`, { defaultValue: k }),
+                    licensed: t('entitlements.max', { n: fmt.number(v) }),
+                  })) ?? []),
+                ]}
+                rowKey={(item) => item.id}
+                rowProps={(item) => item.rowProps ?? {}}
+                cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+                emptyContent={null}
+                noFormWrapper
+                embedded
+                hideToolbar
+                hidePagination
+                hideFilterBuilderComponent
+                search={false}
+                sortable={false}
+                exportToCSV={false}
+                footer={false}
+                memoEnable={false}
+              />
             </TableContainer>
           </Paper>
 
           {perms.manageUsers && (
-            <Paper sx={{ p: 2 }} id="license-upload" component="section" aria-labelledby="license-upload-heading">
+            <Paper
+              sx={{ p: 2 }}
+              id="license-upload"
+              component="section"
+              aria-labelledby="license-upload-heading"
+            >
               <Typography component="h3" variant="h6" gutterBottom id="license-upload-heading">
                 {t('upload.heading')}
               </Typography>
               <Typography sx={{ mb: 1 }}>{t('upload.help')}</Typography>
-              <Button component="label" variant="contained" startIcon={<UploadFileIcon />} disabled={upload.isPending}>
+              <Button
+                component="label"
+                variant="contained"
+                startIcon={<UploadFileIcon />}
+                disabled={upload.isPending}
+              >
                 {t('upload.button')}
-                <input hidden type="file" accept=".ngfwlic,application/json" aria-label={t('upload.button')} onChange={(e) => void onFile(e)} />
+                <input
+                  hidden
+                  type="file"
+                  accept=".ngfwlic,application/json"
+                  aria-label={t('upload.button')}
+                  onChange={(e) => void onFile(e)}
+                />
               </Button>
-              {upload.isSuccess && <Alert severity="success" sx={{ mt: 1 }}>{t('upload.done')}</Alert>}
-              {upload.error instanceof SyntaxError && <Alert severity="error" sx={{ mt: 1 }}>{t('upload.notJson')}</Alert>}
-              {upload.error && !(upload.error instanceof SyntaxError) && <ProblemAlert error={upload.error} sx={{ mt: 1 }} />}
+              {upload.isSuccess && (
+                <Alert severity="success" sx={{ mt: 1 }}>
+                  {t('upload.done')}
+                </Alert>
+              )}
+              {upload.error instanceof SyntaxError && (
+                <Alert severity="error" sx={{ mt: 1 }}>
+                  {t('upload.notJson')}
+                </Alert>
+              )}
+              {upload.error && !(upload.error instanceof SyntaxError) && (
+                <ProblemAlert error={upload.error} sx={{ mt: 1 }} />
+              )}
             </Paper>
           )}
         </Stack>

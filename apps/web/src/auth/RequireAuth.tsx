@@ -1,8 +1,8 @@
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import LinearProgress from '@mui/material/LinearProgress';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlertTitle as AlertTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgCircularProgress as CircularProgress } from '@amnafzar/common-ui-lib/primitives';
+import { PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation } from 'react-router';

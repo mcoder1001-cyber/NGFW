@@ -8,9 +8,9 @@ Updated 2026-10-07 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 205 |
 | review | 0 |
-| running | 1 |
+| running | 2 |
 | ready | 0 |
-| parked | 6 |
+| parked | 5 |
 | failed | 0 |
 | todo | 0 |
 
@@ -21,18 +21,18 @@ Updated 2026-10-07 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S2 | 274 / 274 | 100.0% | 29/29 | 0 | 0 | 0 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
 | S4 | 992.0 / 1003.0 | 98.9% | 147/151 | 0 | 0 | 4 |
-| S5 | 142 / 155.5 | 91.3% | 14/16 | 1 | 0 | 1 |
+| S5 | 142 / 155.5 | 91.3% | 14/16 | 2 | 0 | 0 |
 | S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
 Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.
 
 ## Remaining implementation / review
 
-- F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
+- F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; source developer and independent reviewer completed; native acceptance awaiting resume; no verified live native worker)
+- TD-19 — Install & lab provisioning from product artifacts (running, unassigned; source and fixture developers/reviewers completed with published checkpoints; remaining release Python dependency closure/native install/boot awaiting resume; no verified live developer)
 
 ## Parked
 
-- TD-19 — parked_on: PENDING-TD19-repository-trust
 - P12-fib-proof — parked_on: PR180 HOLD: current mgmtd startup failed at unchanged 30s deadline before 200-route proof
 - F-global-blocking-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-pppoe-client-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN

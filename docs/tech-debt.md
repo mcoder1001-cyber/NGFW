@@ -204,3 +204,21 @@ and timeout assertions. For the current complete gate, bound test-process
 scheduling with `GOMAXPROCS=4`; no tests, checks, race instrumentation or deadlines
 are removed or changed. This does not authorize data-plane performance tuning.
 A successful unchanged whole quick gate is still required before merge.
+
+## App lazy-route navigation test occurrence — 2026-10-07
+
+Owner: Web test maintainers / integration manager. Due: 2026-10-08.
+The final Interfaces local quick had one App.test.tsx:104 Tunnels heading wait
+expire after the existing 8000ms async wait; body was empty, 626 other web tests
+passed. App/router/Tunnels/test setup source is byte-identical to main. Root and
+independent tester full App suites passed12/12; independent A3 reran the original
+case twice (5174ms/5102ms), both PASS. Exact final hosted quick passed. A3 ruling
+7c7ca1c9400b78f7b363fb3d656ee3f73253b569 accepts the occurrence as FLAKY;
+a precise lazy initialization/scheduling cause is unproven. Actual /tmp inode
+exhaustion is separately recorded and is not a proven cause of this timeout.
+
+Preserve the failing output in the manager task report. Investigate deterministic
+initial route readiness while retaining navigation assertions; no deadlines or
+checks weakened. Acceptance never waives mandatory whole quick: final unchanged
+local retry must PASS on9d1a0291d before merge. Retry uses existing official
+NGFW_CI_TASK_CONCURRENCY=2 scheduler setting; all checks remain enabled.

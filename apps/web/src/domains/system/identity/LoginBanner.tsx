@@ -1,4 +1,4 @@
-import Alert from '@mui/material/Alert';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../api';

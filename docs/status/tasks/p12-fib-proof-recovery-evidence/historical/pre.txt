@@ -1,0 +1,15 @@
+Wed Sep 30 03:39:38 PM +0330 2026
+lcp default netns '<unset>'
+lcp lcp-auto-subint off
+lcp lcp-sync off
+lcp lcp-sync-unnumbered on
+lcp del-static-on-link-down off
+lcp del-dynamic-on-link-down off
+0
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, det44-hi:2, lcp-rt:1, ]
+    Prefix length         Count     
+                   0               1
+                   4               2
+                  32               2
+0
+NRestarts=0

@@ -1,7 +1,7 @@
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { ExpiryChip } from '../ExpiryChip';
 import { ListSection } from './ListSection';

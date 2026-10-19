@@ -1,22 +1,22 @@
-import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgCloseIcon as CloseIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgBox as Box,
+  PgDivider as Divider,
+  PgDrawer as Drawer,
+  PgIconButton as IconButton,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
@@ -36,11 +36,11 @@ import {
   leaveBridgeL2,
   localizeDeep,
   macKind,
-  presence,
-  roleOf,
   membersOf,
   portPatch,
   portsOf,
+  presence,
+  roleOf,
   tagRewriteText,
   type BridgeDomainItem,
   type MacRow,
@@ -142,7 +142,10 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
       if (item.id === null || item.state === null)
         return { rows: [] as (MacRow & { id: string })[], total: 0 };
       const r = await fetchMacs(item.id, req.page + 1, req.pageSize, signal);
-      return { rows: r.items.map((m) => ({ ...m, id: m.mac })), total: r.total };
+      return {
+        rows: r.items.map((m) => ({ ...m, id: m.mac })),
+        total: r.total,
+      };
     },
     [item.id, item.state],
   );
@@ -265,59 +268,144 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
           {t('domain.noMembers')}
         </Typography>
       ) : (
-        <Table size="small" aria-label={t('domain.members')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.interface')}</TableCell>
-              <TableCell>{t('col.role')}</TableCell>
-              <TableCell>{t('col.shg')}</TableCell>
-              <TableCell>{t('col.tagRewrite')}</TableCell>
-              <TableCell>{t('col.live')}</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {members.map((m) => {
-              const role = roleOf(m.l2);
-              const lv = live.get(m.name);
-              return (
-                <TableRow key={m.name}>
-                  <TableCell dir="ltr" sx={MONO}>
-                    {m.name}
-                  </TableCell>
-                  <TableCell>{t(`role.${role}`)}</TableCell>
-                  <TableCell>{m.l2?.shg ?? 0}</TableCell>
-                  <TableCell dir="ltr">{tagRewriteText(m.l2)}</TableCell>
-                  <TableCell>
-                    <StatusChip
-                      size="small"
-                      status={presence(lv !== undefined)}
-                      label={lv ? t('status.live') : t('status.missing')}
-                    />
-                  </TableCell>
-                  <TableCell sx={END_CELL}>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('edit')} ${m.name}`}
-                      disabled={readOnly}
-                      onClick={() => setMemberEdit({ port: m })}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('remove')} ${m.name}`}
-                      disabled={readOnly || patchPorts.isPending}
-                      onClick={() => void removeMember(m)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        (() => {
+          const gridItems = members;
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              items={gridItems}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.interface')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return <>{m.name}</>;
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.role')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    const role = roleOf(m.l2);
+                    return <>{t(`role.${role}`)}</>;
+                  },
+                },
+                {
+                  key: '2',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.shg')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return <>{m.l2?.shg ?? 0}</>;
+                  },
+                },
+                {
+                  key: '3',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.tagRewrite')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return <>{tagRewriteText(m.l2)}</>;
+                  },
+                },
+                {
+                  key: '4',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.live')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    const lv = live.get(m.name);
+                    return (
+                      <>
+                        <StatusChip
+                          size="small"
+                          status={presence(lv !== undefined)}
+                          label={lv ? t('status.live') : t('status.missing')}
+                        />
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '5',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <></>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const m = gridRow;
+                    return (
+                      <>
+                        <IconButton
+                          size="small"
+                          aria-label={`${t('edit')} ${m.name}`}
+                          disabled={readOnly}
+                          onClick={() => setMemberEdit({ port: m })}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          aria-label={`${t('remove')} ${m.name}`}
+                          disabled={readOnly || patchPorts.isPending}
+                          onClick={() => void removeMember(m)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </>
+                    );
+                  },
+                },
+              ]}
+              tableProps={{ size: 'small', 'aria-label': t('domain.members') }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const m = gridRow;
+                return m.name;
+              }}
+              rowProps={(_nativeRow, _gridIndex) => {
+                return {};
+              }}
+              cellProps={(_nativeRow, column, _gridIndex) => {
+                switch (column.key) {
+                  case '0':
+                    return { dir: 'ltr', sx: MONO };
+                  case '1':
+                    return {};
+                  case '2':
+                    return {};
+                  case '3':
+                    return { dir: 'ltr' };
+                  case '4':
+                    return {};
+                  case '5':
+                    return { sx: END_CELL };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={null}
+            />
+          );
+        })()
       )}
 
       <Divider sx={{ my: 2 }} />
@@ -331,7 +419,11 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
         <Button
           size="small"
           startIcon={<RefreshIcon />}
-          onClick={() => void qc.invalidateQueries({ queryKey: bridgeKeys.macs(item.id ?? 0) })}
+          onClick={() =>
+            void qc.invalidateQueries({
+              queryKey: bridgeKeys.macs(item.id ?? 0),
+            })
+          }
         >
           {t('refresh')}
         </Button>

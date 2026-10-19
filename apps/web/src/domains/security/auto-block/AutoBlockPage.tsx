@@ -1,24 +1,26 @@
-import BlockIcon from '@mui/icons-material/Block';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBlockIcon as BlockIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -81,33 +83,91 @@ export function AutoBlockPage() {
 
       {items.length > 0 && (
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.source')}</TableCell>
-                <TableCell>{t('col.reason')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.hits')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.offences')}</TableCell>
-                <TableCell dir="ltr">{t('col.blockedAt')}</TableCell>
-                <TableCell dir="ltr">{t('col.expiresAt')}</TableCell>
-                <TableCell>{t('col.note')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((e) => (
-                <Row
-                  key={e.source}
-                  e={e}
-                  onUnblock={() => unblock.mutate(e.source)}
-                  busy={unblock.isPending}
-                  reasonLabel={t(`reason.${e.reason}`, { defaultValue: e.reason })}
-                  unblockLabel={t('unblock')}
-                  dateTime={(iso) => fmt.dateTime(new Date(iso))}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('title') }}
+            columns={[
+              {
+                key: 'source',
+                headerRenderer: () => t('col.source'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'reason',
+                headerRenderer: () => t('col.reason'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'hits',
+                headerRenderer: () => t('col.hits'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'offences',
+                headerRenderer: () => t('col.offences'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'blockedAt',
+                headerRenderer: () => t('col.blockedAt'),
+                headerCellProps: { dir: 'ltr' },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'expiresAt',
+                headerRenderer: () => t('col.expiresAt'),
+                headerCellProps: { dir: 'ltr' },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'note',
+                headerRenderer: () => t('col.note'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => t('col.actions'),
+                headerCellProps: { sx: { textAlign: 'end' } },
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(items.map((e) =>
+                renderRow({
+                  key: e.source,
+                  e: e,
+                  onUnblock: () => unblock.mutate(e.source),
+                  busy: unblock.isPending,
+                  reasonLabel: t(`reason.${e.reason}`, { defaultValue: e.reason }),
+                  unblockLabel: t('unblock'),
+                  dateTime: (iso) => fmt.dateTime(new Date(iso)),
+                }),
+              ) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       )}
 
@@ -120,7 +180,8 @@ export function AutoBlockPage() {
   );
 }
 
-function Row({
+function renderRow({
+  key,
   e,
   onUnblock,
   busy,
@@ -128,6 +189,7 @@ function Row({
   unblockLabel,
   dateTime,
 }: {
+  key: string;
   e: BlockedEntry;
   onUnblock: () => void;
   busy: boolean;
@@ -135,28 +197,45 @@ function Row({
   unblockLabel: string;
   dateTime: (iso: string) => string;
 }) {
-  return (
-    <TableRow>
-      <TableCell>
+  return {
+    id: key,
+    source: (
+      <>
         <bdi>{e.source}</bdi>
-      </TableCell>
-      <TableCell>
+      </>
+    ),
+    reason: (
+      <>
         <Chip size="small" color={REASON_COLOR[e.reason] ?? 'default'} label={reasonLabel} />
-      </TableCell>
-      <TableCell sx={{ textAlign: 'end' }}>{e.hits}</TableCell>
-      <TableCell sx={{ textAlign: 'end' }}>{e.offences}</TableCell>
-      <TableCell dir="ltr">{dateTime(e.blockedAt)}</TableCell>
-      <TableCell dir="ltr">{dateTime(e.expiresAt)}</TableCell>
-      <TableCell>
+      </>
+    ),
+    hits: e.hits,
+    offences: e.offences,
+    blockedAt: dateTime(e.blockedAt),
+    expiresAt: dateTime(e.expiresAt),
+    note: (
+      <>
         <bdi>{e.note}</bdi>
-      </TableCell>
-      <TableCell sx={{ textAlign: 'end' }}>
+      </>
+    ),
+    actions: (
+      <>
         <Button size="small" color="primary" onClick={onUnblock} disabled={busy}>
           {unblockLabel}
         </Button>
-      </TableCell>
-    </TableRow>
-  );
+      </>
+    ),
+    cellProps: {
+      hits: { sx: { textAlign: 'end' } },
+      offences: { sx: { textAlign: 'end' } },
+      blockedAt: { dir: 'ltr' },
+      expiresAt: { dir: 'ltr' },
+      actions: { sx: { textAlign: 'end' } },
+    } satisfies Record<
+      string,
+      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+    >,
+  };
 }
 
 function ManualBlockDialog({ open, onClose }: { open: boolean; onClose: () => void }) {

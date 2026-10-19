@@ -1,28 +1,31 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgAlertTitle as AlertTitle,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogContentText as DialogContentText,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import type { UserConfig } from '@ngfw/schema';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
@@ -35,8 +38,8 @@ import { useAuth, usePermissions } from '../auth/AuthProvider';
 import { ProblemAlert } from '../config/ProblemAlert';
 import { secretEdits, useSecretEdits } from '../config/effective';
 import { invalidateConfig, qk } from '../config/queries';
-import { domainSchemas } from '../schema/registry';
 import { UserCredentialActions } from '../domains/system/aaa/UserCredentialActions';
+import { domainSchemas } from '../schema/registry';
 import { PageHeader } from '../shell/PageHeader';
 
 /** A configured user as the API returns it: redacted, so `passwordHash` is never present (D-046/D-070). */
@@ -62,7 +65,12 @@ export function localizeUserSchema(schema: JsonSchema, t: Translate): JsonSchema
     const hints = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
     const help = t(`field.${name}.help`, { defaultValue: '' });
     const enumLabels = Array.isArray(prop.enum)
-      ? Object.fromEntries(prop.enum.map((v) => [String(v), t(`field.${name}.enum.${String(v)}`, { defaultValue: String(v) })]))
+      ? Object.fromEntries(
+          prop.enum.map((v) => [
+            String(v),
+            t(`field.${name}.enum.${String(v)}`, { defaultValue: String(v) }),
+          ]),
+        )
       : undefined;
     localized[name] = {
       ...prop,
@@ -87,7 +95,10 @@ export function problemForItem(error: unknown, index: number): ProblemDetails | 
   const prefix = `${USERS_POINTER}/${index}`;
   return {
     ...p,
-    errors: (p.errors ?? []).map((e) => ({ ...e, pointer: e.pointer.startsWith(prefix) ? e.pointer.slice(prefix.length) || '' : e.pointer })),
+    errors: (p.errors ?? []).map((e) => ({
+      ...e,
+      pointer: e.pointer.startsWith(prefix) ? e.pointer.slice(prefix.length) || '' : e.pointer,
+    })),
   };
 }
 
@@ -109,30 +120,57 @@ export function adminEntry(username: string): ConfigUser {
 type RowState = 'new' | 'changed' | 'removed' | undefined;
 
 /** Candidate vs running, matched by username (the natural key P06 also uses for hashes). */
-export function rowStates(candidate: readonly ConfigUser[], running: readonly ConfigUser[]): { user: ConfigUser; index: number; state: RowState }[] {
+export function rowStates(
+  candidate: readonly ConfigUser[],
+  running: readonly ConfigUser[],
+): { user: ConfigUser; index: number; state: RowState }[] {
   const byName = new Map(running.map((u) => [u.username, u]));
   const rows: { user: ConfigUser; index: number; state: RowState }[] = candidate.map((u, index) => {
     const r = byName.get(u.username);
-    return { user: u, index, state: r === undefined ? 'new' : JSON.stringify(r) === JSON.stringify(u) ? undefined : 'changed' };
+    return {
+      user: u,
+      index,
+      state:
+        r === undefined ? 'new' : JSON.stringify(r) === JSON.stringify(u) ? undefined : 'changed',
+    };
   });
   const names = new Set(candidate.map((u) => u.username));
-  for (const r of running) if (!names.has(r.username)) rows.push({ user: r, index: -1, state: 'removed' });
+  for (const r of running)
+    if (!names.has(r.username)) rows.push({ user: r, index: -1, state: 'removed' });
   return rows;
 }
 
 async function fetchCandidateUsers({ signal }: { signal: AbortSignal }): Promise<ConfigUser[]> {
-  const r = await call(api.GET('/api/v1/config/candidate/{path}', { params: { path: { path: 'management' } }, signal }));
+  const r = await call(
+    api.GET('/api/v1/config/candidate/{path}', {
+      params: { path: { path: 'management' } },
+      signal,
+    }),
+  );
   return ((r.data as { users?: ConfigUser[] } | undefined)?.users ?? []) as ConfigUser[];
 }
 
 function useManagement(which: 'running' | 'candidate') {
   return useQuery({
-    queryKey: which === 'candidate' ? qk.candidate('management') : (['config', 'running', 'management'] as const),
+    queryKey:
+      which === 'candidate'
+        ? qk.candidate('management')
+        : (['config', 'running', 'management'] as const),
     queryFn: async ({ signal }) => {
       const r =
         which === 'candidate'
-          ? await call(api.GET('/api/v1/config/candidate/{path}', { params: { path: { path: 'management' } }, signal }))
-          : await call(api.GET('/api/v1/config/{path}', { params: { path: { path: 'management' } }, signal }));
+          ? await call(
+              api.GET('/api/v1/config/candidate/{path}', {
+                params: { path: { path: 'management' } },
+                signal,
+              }),
+            )
+          : await call(
+              api.GET('/api/v1/config/{path}', {
+                params: { path: { path: 'management' } },
+                signal,
+              }),
+            );
       return ((r.data as { users?: ConfigUser[] } | undefined)?.users ?? []) as ConfigUser[];
     },
     refetchInterval: 5_000,
@@ -161,11 +199,18 @@ export function UsersPage() {
 
   const save = useMutation({
     mutationFn: async (next: ConfigUser[]) =>
-      call(api.PATCH('/api/v1/config/{path}', { params: { path: { path: 'management' } }, body: { users: next } })),
+      call(
+        api.PATCH('/api/v1/config/{path}', {
+          params: { path: { path: 'management' } },
+          body: { users: next },
+        }),
+      ),
     onSuccess: () => invalidateConfig(qc),
   });
 
-  const blocked = perms.manageUsers ? undefined : t('adminOnly', { role: t(`auth:role.${perms.role ?? 'readonly'}`) });
+  const blocked = perms.manageUsers
+    ? undefined
+    : t('adminOnly', { role: t(`auth:role.${perms.role ?? 'readonly'}`) });
   const me = state.user?.username ?? '';
   const meListed = users.some((u) => u.username === me);
 
@@ -177,7 +222,11 @@ export function UsersPage() {
   /** The list as the candidate holds it NOW (review L4: never write back a snapshot up to one poll old). */
   const freshUsers = async (): Promise<ConfigUser[]> => {
     try {
-      return await qc.fetchQuery({ queryKey: qk.candidate('management'), queryFn: fetchCandidateUsers, staleTime: 0 });
+      return await qc.fetchQuery({
+        queryKey: qk.candidate('management'),
+        queryFn: fetchCandidateUsers,
+        staleTime: 0,
+      });
     } catch {
       return users;
     }
@@ -194,7 +243,8 @@ export function UsersPage() {
     try {
       await save.mutateAsync(next);
       // hash edits are invisible in the redacted diff: remember the username (never the value) — review H1
-      if (typeof user.passwordHash === 'string' && user.passwordHash !== '') secretEdits.markPassword(user.username);
+      if (typeof user.passwordHash === 'string' && user.passwordHash !== '')
+        secretEdits.markPassword(user.username);
       setEditing(null);
     } catch {
       // the problem (pointers mapped onto the fields) is rendered from `save.error`
@@ -231,99 +281,196 @@ export function UsersPage() {
       )}
       <Stack direction="row" sx={{ mb: 1 }}>
         <Why reason={blocked}>
-          <Button variant="contained" startIcon={<AddIcon />} disabled={blocked !== undefined} onClick={() => openEditor({ index: -1, user: null })}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            disabled={blocked !== undefined}
+            onClick={() => openEditor({ index: -1, user: null })}
+          >
             {t('add')}
           </Button>
         </Why>
       </Stack>
-      {(candidate.isPending || running.isPending) && <LinearProgress aria-label={t('config:loading')} />}
+      {(candidate.isPending || running.isPending) && (
+        <LinearProgress aria-label={t('config:loading')} />
+      )}
       {candidate.isError && <ProblemAlert error={candidate.error} />}
       {!editing && save.isError && <ProblemAlert error={save.error} sx={{ mb: 1 }} />}
       <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label={t('title')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.username')}</TableCell>
-              <TableCell>{t('col.fullName')}</TableCell>
-              <TableCell>{t('col.role')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-              <TableCell>{t('col.sshKeys')}</TableCell>
-              <TableCell>{t('col.pending')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.length === 0 && candidate.isSuccess && (
-              <TableRow>
-                <TableCell colSpan={7}>
-                  <Typography color="text.secondary">{t('none')}</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map(({ user, index, state: rowState }) => (
-              <TableRow key={`${user.username}:${index}`} sx={rowState === 'removed' ? { '& td': { textDecoration: 'line-through', color: 'text.disabled' } } : undefined}>
-                <TableCell>
-                  <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
+        <ReactGeereedMaterial
+          tableProps={{ size: 'small', 'aria-label': t('title') }}
+          columns={[
+            {
+              key: 'username',
+              headerRenderer: () => t('col.username'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'fullName',
+              headerRenderer: () => t('col.fullName'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'role',
+              headerRenderer: () => t('col.role'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'status',
+              headerRenderer: () => t('col.status'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'sshKeys',
+              headerRenderer: () => t('col.sshKeys'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'pending',
+              headerRenderer: () => t('col.pending'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'actions',
+              headerRenderer: () => t('col.actions'),
+              headerCellProps: { sx: { textAlign: 'end' } },
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+          ]}
+          items={[
+            ...(rows.map(({ user, index, state: rowState }) => ({
+              id: `${user.username}:${index}`,
+              username: (
+                <>
+                  <Box
+                    component="span"
+                    dir="ltr"
+                    sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}
+                  >
                     {user.username}
                   </Box>
-                  {user.username === me && <Chip size="small" label={t('you')} sx={{ marginInlineStart: 1 }} />}
-                </TableCell>
-                <TableCell>{user.fullName ?? ''}</TableCell>
-                <TableCell>
+                  {user.username === me && (
+                    <Chip size="small" label={t('you')} sx={{ marginInlineStart: 1 }} />
+                  )}
+                </>
+              ),
+              fullName: user.fullName ?? '',
+              role: (
+                <>
                   <Chip size="small" variant="outlined" label={t(`auth:role.${user.role}`)} />
-                </TableCell>
-                <TableCell>{user.disabled ? t('status.disabled') : t('status.enabled')}</TableCell>
-                <TableCell>{fmt.integer(user.sshKeys?.length ?? 0)}</TableCell>
-                <TableCell>
+                </>
+              ),
+              status: user.disabled ? t('status.disabled') : t('status.enabled'),
+              sshKeys: fmt.integer(user.sshKeys?.length ?? 0),
+              pending: (
+                <>
                   <Stack direction="row" gap={0.5} flexWrap="wrap">
-                    {rowState && <Chip size="small" color={rowState === 'removed' ? 'error' : 'warning'} label={t(`pending.${rowState}`)} />}
+                    {rowState && (
+                      <Chip
+                        size="small"
+                        color={rowState === 'removed' ? 'error' : 'warning'}
+                        label={t(`pending.${rowState}`)}
+                      />
+                    )}
                     {rowState !== 'removed' && passwordEdited.includes(user.username) && (
-                      <Chip size="small" color="warning" variant="outlined" label={t('pending.password')} data-testid="password-changed" />
+                      <Chip
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                        label={t('pending.password')}
+                        data-testid="password-changed"
+                      />
                     )}
                   </Stack>
-                </TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>
-                  {rowState !== 'removed' && (
-                    <>
-                      {/* D-102 (F-aaa-login): an existing user's password is set through the users route, not staged */}
-                      {rowState !== 'new' && perms.manageUsers && <UserCredentialActions username={user.username} />}
-                      <Why reason={blocked}>
-                        <IconButton
-                          size="small"
-                          aria-label={t('edit', { user: user.username })}
-                          disabled={blocked !== undefined}
-                          onClick={() => openEditor({ index, user })}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Why>
-                      <Why reason={blocked}>
-                        <IconButton
-                          size="small"
-                          aria-label={t('delete', { user: user.username })}
-                          disabled={blocked !== undefined}
-                          onClick={() => {
-                            save.reset();
-                            setDeleting({ index, user });
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Why>
-                    </>
+                </>
+              ),
+              actions: rowState !== 'removed' && (
+                <>
+                  {/* D-102 (F-aaa-login): an existing user's password is set through the users route, not staged */}
+                  {rowState !== 'new' && perms.manageUsers && (
+                    <UserCredentialActions username={user.username} />
                   )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  <Why reason={blocked}>
+                    <IconButton
+                      size="small"
+                      aria-label={t('edit', { user: user.username })}
+                      disabled={blocked !== undefined}
+                      onClick={() => openEditor({ index, user })}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Why>
+                  <Why reason={blocked}>
+                    <IconButton
+                      size="small"
+                      aria-label={t('delete', { user: user.username })}
+                      disabled={blocked !== undefined}
+                      onClick={() => {
+                        save.reset();
+                        setDeleting({ index, user });
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Why>
+                </>
+              ),
+              rowProps: {
+                sx:
+                  rowState === 'removed'
+                    ? { '& td': { textDecoration: 'line-through', color: 'text.disabled' } }
+                    : undefined,
+              } satisfies ReturnType<NonNullable<GeereedTablePassthrough['rowProps']>> &
+                Record<`data-${string}`, unknown>,
+              cellProps: { actions: { sx: { textAlign: 'end' } } } satisfies Record<
+                string,
+                NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+              >,
+            })) ?? []),
+          ]}
+          rowKey={(item) => item.id}
+          rowProps={(item) => item.rowProps ?? {}}
+          cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+          emptyContent={
+            rows.length === 0 && candidate.isSuccess ? (
+              <>
+                <Typography color="text.secondary">{t('none')}</Typography>
+              </>
+            ) : null
+          }
+          noFormWrapper
+          embedded
+          hideToolbar
+          hidePagination
+          hideFilterBuilderComponent
+          search={false}
+          sortable={false}
+          exportToCSV={false}
+          footer={false}
+          memoEnable={false}
+        />
       </TableContainer>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
         {t('bootstrapNote')}
       </Typography>
 
-      <Dialog open={editing !== null} onClose={save.isPending ? undefined : () => setEditing(null)} maxWidth="sm" fullWidth aria-labelledby="user-title">
-        <DialogTitle id="user-title">{editing?.user ? t('editTitle', { user: editing.user.username }) : t('addTitle')}</DialogTitle>
+      <Dialog
+        open={editing !== null}
+        onClose={save.isPending ? undefined : () => setEditing(null)}
+        maxWidth="sm"
+        fullWidth
+        aria-labelledby="user-title"
+      >
+        <DialogTitle id="user-title">
+          {editing?.user ? t('editTitle', { user: editing.user.username }) : t('addTitle')}
+        </DialogTitle>
         <DialogContent dividers>
           <Alert severity="info" sx={{ mb: 2 }}>
             {t('passwordNote')}
@@ -335,7 +482,11 @@ export function UsersPage() {
               schema={editing.user ? withoutPasswordHash(schema) : schema}
               value={editing.user ?? undefined}
               onSubmit={submitUser}
-              problem={save.error ? problemForItem(save.error, editing.index < 0 ? users.length : editing.index) : null}
+              problem={
+                save.error
+                  ? problemForItem(save.error, editing.index < 0 ? users.length : editing.index)
+                  : null
+              }
               hideActions
             />
           )}
@@ -350,8 +501,14 @@ export function UsersPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={deleting !== null} onClose={() => setDeleting(null)} aria-labelledby="del-title">
-        <DialogTitle id="del-title">{t('deleteTitle', { user: deleting?.user.username ?? '' })}</DialogTitle>
+      <Dialog
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        aria-labelledby="del-title"
+      >
+        <DialogTitle id="del-title">
+          {t('deleteTitle', { user: deleting?.user.username ?? '' })}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>{t('deleteBody')}</DialogContentText>
           {deleting?.user.username === me && (

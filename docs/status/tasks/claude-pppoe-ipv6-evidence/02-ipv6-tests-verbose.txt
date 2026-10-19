@@ -1,0 +1,17 @@
+HEAD=faf8d66d0c1b026de0ff80bd66285d5b4b504b44
+--- PASS: TestRenderIPv6Modes (0.01s)
+--- PASS: TestIPv6ScriptsParse (0.06s)
+--- PASS: TestIPv6DownHookStopsRefresherAndRecordsDown (0.21s)
+--- PASS: TestApplyRemovesIPv6FilesWhenTurnedOff (0.02s)
+--- PASS: TestReadIPv6 (0.00s)
+--- PASS: TestReadStateIncludesIPv6 (0.00s)
+ok  	ngfw/agent/internal/renderers/pppoe	0.339s
+--- PASS: TestClientMirrorIPv6Up (0.00s)
+--- PASS: TestClientMirrorIPv6WithdrawRoutesBeforeAddresses (0.00s)
+--- PASS: TestClientMirrorIPv6RouteConditions (0.00s)
+--- PASS: TestClientMirrorIPv6RouteRefusedByPolicy (0.00s)
+--- PASS: TestClientMirrorIPv6RejectsBadValues (0.01s)
+ok  	ngfw/agent/internal/descriptors/pppoe	0.050s
+--- PASS: TestPppoeIPv6MirrorFollowsHookState (0.15s)
+--- PASS: TestPppoeIPv6IgnoredWhenOff (0.00s)
+ok  	ngfw/agent/internal/subsystems	0.255s

@@ -1,4 +1,4 @@
-import Link from '@mui/material/Link';
+import { PgLink as Link } from '@amnafzar/common-ui-lib/primitives';
 import { useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 
 export interface KeyButtonProps {

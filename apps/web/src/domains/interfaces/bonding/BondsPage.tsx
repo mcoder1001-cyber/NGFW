@@ -1,20 +1,20 @@
-import AddIcon from '@mui/icons-material/Add';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgAddIcon as AddIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialog as Dialog } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogActions as DialogActions } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogContent as DialogContent } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogContentText as DialogContentText } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogTitle as DialogTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgMenuItem as MenuItem } from '@amnafzar/common-ui-lib/primitives';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { PgTooltip as Tooltip } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { BondMode, bondIdOf } from '@ngfw/schema';
 import { StatusChip } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
@@ -223,7 +223,7 @@ export function BondsPage() {
           refetchInterval={BONDS_POLL_MS}
           initialPageSize={25}
           onRowClick={(p) => setSelected(p.row.name)}
-          sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+          sx={{ '& [data-rowindex]': { cursor: 'pointer' } }}
         />
       </Paper>
       <BondDrawer name={selected} onClose={() => setSelected(null)} />

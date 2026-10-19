@@ -1,0 +1,17 @@
+# WIP: independent A3 CI arbitration
+
+Branch: `codex/interface-navigation-ci-arbiter-20261007`.
+Reviewed product/source SHA: `9d1a0291d7e3d342a5b56047e68e039bec82845b`. This report commit SHA is obtained using `git log -1` and remote publication using `git ls-remote origin refs/heads/codex/interface-navigation-ci-arbiter-20261007`; the self-containing report cannot embed its own SHA.
+Owned files: task envelope, WIP and ruling only.
+Completed: required reading; independently inspected original failure log, unchanged navigation sources, published independent tester report; verified exact-head hosted gate and comparison-main hosted gate PASS.
+Actual tests: three unchanged workspace dependency builds PASS. First unprepared invocation failed dependency resolution and collected no tests, retained in log. After preparation, two own sequential isolated reruns of the original failing case PASS, 1/1 each (other 11 unselected), no assertion/deadline/config/source changes.
+Ruling: FLAKY original baseline occurrence; no actionable touched-product regression demonstrated. Precise timing cause unproven. Manager still MUST get exact final whole local quick `CI GATE PASSED`, preserve original failure and add owner/date test-stability follow-up. No full local quick PASS claimed by this arbiter.
+Current failure: none in targeted prepared reproduction. Root full quick retry remains separately owned and required.
+Next command: `TMPDIR=/iac tools/ci.sh check --base origin/main`, then commit and push the three report files. Manager imports report onto own status branch and integrates proposed arbitration-log row; immutable product head stays unchanged.
+Remaining product work: none owned by arbiter. Merge and postmerge gates owned by manager. No live-host changes or laboratory acceptance executed.
+
+## Follow-up: fake-host CI environment dispute
+
+Prior App ruling published at `7c7ca1c9400b78f7b363fb3d656ee3f73253b569`. Same frozen product `9d1a0291d7e3d342a5b56047e68e039bec82845b`. New owner scope includes this task-prefix environment ruling only. Root's whole-gate retry reports all 35 Turbo tasks passing but final fake-host harness failed assertions in scenarios 4, 6, 11; shard 1 stopped at scenario 29 without final summary. Original log `/root/ngfw-wt/logs/interfaces-final-integration-quick-retry.log` and shard logs under `/root/ngfw-wt/logs/ci/interfaces-integration-20261007-20261007-112235-2901409/`. Independently verified unchanged deploy/vpp source and exact-head hosted success. Current /tmp has 5000 free inodes after manager-owned cache cleanup; original exhaustion and cleanup reported by manager. Own bounded 4/6/11/29 rerun 1 pending under /iac using exact-head startupgen binary. Next: finish rerun 1, execute identical rerun 2, record independently supported classification without claiming precise cause proved, precommit check and publish. No mandatory full gate waiver.
+
+Follow-up completion: two own sequential unchanged fake-host diagnostic selections completed exit 0, 18 assertions PASS / 0 FAIL each; scenario 29 rollback bounded at 6 s each. Precommit unchanged check --base origin/main PASS (17 s). Final environment ruling: requeue after verified filesystem resource relief; precise original lock/neighbour mechanism unproven, no product defect reproduced. Full unchanged root merge gate still MUST pass. No test or source edits, service actions, lab acceptance or merge. Next command: commit and publish report-only files, manager imports onto status branch.

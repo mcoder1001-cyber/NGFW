@@ -1,0 +1,33 @@
+HEAD=faf8d66d0c1b026de0ff80bd66285d5b4b504b44
+ok  	ngfw/agent/internal/renderers	1.555s
+ok  	ngfw/agent/internal/renderers/basepolicy	1.255s
+ok  	ngfw/agent/internal/renderers/chrony	1.480s
+ok  	ngfw/agent/internal/renderers/frr	2.711s
+ok  	ngfw/agent/internal/renderers/frr/bfd	1.111s
+ok  	ngfw/agent/internal/renderers/frr/bgp	1.199s
+ok  	ngfw/agent/internal/renderers/frr/frrtest	1.115s
+ok  	ngfw/agent/internal/renderers/frr/isis	1.243s
+ok  	ngfw/agent/internal/renderers/frr/ldp	1.129s
+ok  	ngfw/agent/internal/renderers/frr/ospf	1.287s
+ok  	ngfw/agent/internal/renderers/frr/pim	1.112s
+?   	ngfw/agent/internal/renderers/frr/policy	[no test files]
+ok  	ngfw/agent/internal/renderers/frr/redistribute	1.103s
+ok  	ngfw/agent/internal/renderers/frr/rip	1.271s
+ok  	ngfw/agent/internal/renderers/frr/ripng	1.132s
+ok  	ngfw/agent/internal/renderers/kea	3.600s
+ok  	ngfw/agent/internal/renderers/keepalived	2.699s
+ok  	ngfw/agent/internal/renderers/keepalived/cmd/ngfw-keepalived-notify	1.077s
+ok  	ngfw/agent/internal/renderers/nftables	2.831s
+?   	ngfw/agent/internal/renderers/nftables/nftest	[no test files]
+ok  	ngfw/agent/internal/renderers/pppoe	1.625s
+ok  	ngfw/agent/internal/renderers/rfkit	1.287s
+ok  	ngfw/agent/internal/renderers/rsyslog	11.821s
+ok  	ngfw/agent/internal/renderers/snmpd	3.471s
+ok  	ngfw/agent/internal/renderers/strongswan	6.533s
+?   	ngfw/agent/internal/renderers/strongswan/swantest	[no test files]
+ok  	ngfw/agent/internal/renderers/sysident	1.219s
+ok  	ngfw/agent/internal/renderers/unbound	1.788s
+ok  	ngfw/agent/internal/renderers/vppstartup	1.979s
+ok  	ngfw/agent/internal/descriptors/pppoe	1.274s
+ok  	ngfw/agent/internal/subsystems	31.945s
+ok  	ngfw/agent/internal/agent	57.703s

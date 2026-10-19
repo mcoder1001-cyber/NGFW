@@ -1,25 +1,24 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -133,79 +132,138 @@ export default function DnsTab() {
       </Stack>
       {patch.error && !editing && <ProblemAlert error={patch.error} sx={{ mb: 2 }} />}
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-        <Table size="small" aria-label={t('dns.resolvers')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.name')}</TableCell>
-              <TableCell>{t('col.listen')}</TableCell>
-              <TableCell>{t('col.forwarders')}</TableCell>
-              <TableCell>{t('col.localZones')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {names.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6}>{t('dns.none')}</TableCell>
-              </TableRow>
-            )}
-            {names.map((name) => {
-              const r = resolvers[name]!;
-              const zones = r.localZones.map((z) =>
-                (z.zone.endsWith('.') ? z.zone : `${z.zone}.`).toLowerCase(),
-              );
-              const served = zones.filter((z) => zonesUp.has(z)).length;
-              return (
-                <TableRow key={name}>
-                  <TableCell>{name}</TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace' }}>
-                    {r.listen.map((l) => `${l.address}:${l.port}`).join(', ')}
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace' }}>
-                    {[
-                      ...r.forwarders.map((f) => f.address),
-                      ...r.forwardZones.map(
-                        (z) => `${z.zone} → ${z.forwarders.map((f) => f.address).join(' ')}`,
-                      ),
-                    ].join(', ') || t('dns.recursion')}
-                  </TableCell>
-                  <TableCell>{t('dns.zonesServed', { served, total: zones.length })}</TableCell>
-                  <TableCell>
-                    {r.enabled === false ? (
-                      <Chip size="small" label={t('status.disabled')} />
-                    ) : (
-                      <Chip
-                        size="small"
-                        color={st?.running ? 'success' : 'default'}
-                        label={t(st?.running ? 'status.serving' : 'status.notServing')}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>
-                    <IconButton
-                      aria-label={t('edit', { name })}
-                      disabled={!perms.editConfig}
-                      onClick={() => {
-                        patch.reset();
-                        setEditing({ name, value: r });
-                      }}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      aria-label={t('delete', { name })}
-                      disabled={!perms.editConfig}
-                      onClick={() => remove(name)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        {(() => {
+          const nativeRows = names.map((name) => {
+            const r = resolvers[name]!;
+            const zones = r.localZones.map((z) =>
+              (z.zone.endsWith('.') ? z.zone : `${z.zone}.`).toLowerCase(),
+            );
+            const served = zones.filter((z) => zonesUp.has(z)).length;
+            return { name, r, zones, served };
+          });
+          return (
+            <ReactGeereedMaterial
+              footer={false}
+              hideFilterBuilderComponent
+              items={nativeRows}
+              columns={[
+                {
+                  key: 'name',
+                  headerRenderer: () => <>{t('col.name')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { name }: (typeof nativeRows)[number]) => <>{name}</>,
+                },
+                {
+                  key: 'listen',
+                  headerRenderer: () => <>{t('col.listen')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                    <>{r.listen.map((l) => `${l.address}:${l.port}`).join(', ')}</>
+                  ),
+                },
+                {
+                  key: 'forwarders',
+                  headerRenderer: () => <>{t('col.forwarders')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                    <>
+                      {[
+                        ...r.forwarders.map((f) => f.address),
+                        ...r.forwardZones.map(
+                          (z) => `${z.zone} → ${z.forwarders.map((f) => f.address).join(' ')}`,
+                        ),
+                      ].join(', ') || t('dns.recursion')}
+                    </>
+                  ),
+                },
+                {
+                  key: 'localZones',
+                  headerRenderer: () => <>{t('col.localZones')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { zones, served }: (typeof nativeRows)[number]) => (
+                    <>{t('dns.zonesServed', { served, total: zones.length })}</>
+                  ),
+                },
+                {
+                  key: 'status',
+                  headerRenderer: () => <>{t('col.status')}</>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                    <>
+                      {r.enabled === false ? (
+                        <Chip size="small" label={t('status.disabled')} />
+                      ) : (
+                        <Chip
+                          size="small"
+                          color={st?.running ? 'success' : 'default'}
+                          label={t(st?.running ? 'status.serving' : 'status.notServing')}
+                        />
+                      )}
+                    </>
+                  ),
+                },
+                {
+                  key: 'actions',
+                  headerRenderer: () => <></>,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value: unknown, { name, r }: (typeof nativeRows)[number]) => (
+                    <>
+                      <IconButton
+                        aria-label={t('edit', { name })}
+                        disabled={!perms.editConfig}
+                        onClick={() => {
+                          patch.reset();
+                          setEditing({ name, value: r });
+                        }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        aria-label={t('delete', { name })}
+                        disabled={!perms.editConfig}
+                        onClick={() => remove(name)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </>
+                  ),
+                },
+              ]}
+              rowKey={(item) => {
+                const { name } = item as (typeof nativeRows)[number];
+                return name;
+              }}
+              cellProps={(_item, column) => {
+                switch (column.key) {
+                  case 'listen':
+                    return { sx: { fontFamily: 'monospace' } };
+                  case 'forwarders':
+                    return { sx: { fontFamily: 'monospace' } };
+                  case 'actions':
+                    return { sx: { textAlign: 'end' } };
+                  default:
+                    return {};
+                }
+              }}
+              tableProps={{ size: 'small', 'aria-label': t('dns.resolvers') }}
+              emptyContent={<>{t('dns.none')}</>}
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+            />
+          );
+        })()}
       </TableContainer>
 
       {st && (st.forwards.length > 0 || liveZones.length > 0) && (

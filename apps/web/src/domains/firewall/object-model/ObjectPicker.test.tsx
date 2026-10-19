@@ -1,7 +1,7 @@
 import { NgfwThemeProvider } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it } from 'vitest';
 import i18n from '../../../i18n';
@@ -59,7 +59,7 @@ describe('ObjectPicker in F-acl attachment forms', () => {
     const list = await screen.findByRole('textbox', { name: /^Access list/ });
     expect((list as HTMLInputElement).value).toBe('web-in');
     const zone = await screen.findByRole('combobox', { name: /^Zone/ });
-    expect(zone).toHaveTextContent('lan');
+    await waitFor(() => expect(zone).toHaveDisplayValue(/lan/));
     expect(within(document.body).queryByText(/web1/)).toBeNull(); // no address object anywhere in the form
   });
 });

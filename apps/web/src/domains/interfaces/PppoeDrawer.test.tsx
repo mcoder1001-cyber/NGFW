@@ -37,7 +37,7 @@ const wanCfg = {
     mssClamp: true,
     defaultRoute: true,
     dnsFromPeer: true,
-    ipv6: 'off',
+    ipv6: 'dhcpv6',
     reconnect: { holdoffSec: 5, maxFail: 0 },
   },
 };
@@ -48,7 +48,7 @@ const pppoeUp = {
   acName: 'fake-ac',
   localIpv4: '203.0.113.5/32',
   peerIpv4: '203.0.113.1',
-  ipv6: '',
+  ipv6: '2001:db8:9::100/128, delegated 2001:db8:9100::/56',
   dns: ['203.0.113.53'],
   since: '2026-09-27T00:00:00.000Z',
   failCount: 0,
@@ -123,6 +123,10 @@ describe('PPPoE drawer panel', () => {
     expect(within(panel).getByText('203.0.113.5/32')).toBeInTheDocument();
     expect(within(panel).getByText('203.0.113.1')).toBeInTheDocument();
     expect(within(panel).getByText('203.0.113.53')).toBeInTheDocument();
+    // IPv6 (SLAAC/DHCPv6 addresses and the DHCPv6-PD prefix, as the agent reports them)
+    expect(
+      within(panel).getByText('2001:db8:9::100/128, delegated 2001:db8:9100::/56'),
+    ).toBeInTheDocument();
     // status chip carries the phase
     expect(within(drawer).getByText(/Session: up/)).toBeInTheDocument();
 

@@ -1,18 +1,18 @@
-import AddIcon from '@mui/icons-material/Add';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgAddIcon as AddIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialog as Dialog } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogActions as DialogActions } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogContent as DialogContent } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogContentText as DialogContentText } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogTitle as DialogTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { PgTooltip as Tooltip } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip, UI_KIT_NS, useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useQueryClient } from '@tanstack/react-query';
@@ -49,13 +49,15 @@ export function toRow(item: InterfaceItem): Row {
     id: item.name,
     name: item.name,
     item,
-    type: s?.type ?? (item.kind === 'subinterface' ? 'sub-interface' : ''),
+    type:
+      s?.type ??
+      (item.hostInventory ? 'physical' : item.kind === 'subinterface' ? 'sub-interface' : ''),
     admin: adminStatus(s) ?? '',
     link: linkStatus(s) ?? '',
     // VPP reports 0 for a sub-interface that inherits its parent's MTU: show nothing rather than 0
     mtu: s?.mtu || cfg.mtu || null,
     addresses: addressesOf(item).join(' '),
-    vrf: s?.vrf ?? cfg.vrf ?? 'default',
+    vrf: s?.vrf ?? cfg.vrf ?? (item.inventoryOnly ? '' : 'default'),
     errors: Number(item.counters?.errors ?? 0) + Number(item.counters?.drops ?? 0),
   };
 }
@@ -97,6 +99,7 @@ export function pageOf(rows: Row[], req: ServerPageRequest): { rows: Row[]; tota
 const LTR = { dir: 'ltr' } as const;
 const BPS = 'bps' as const;
 const PPS = 'pps' as const;
+const HOST_LINK_UP = 'up' as const;
 const NAME_RE = /^[A-Za-z][A-Za-z0-9_./-]{0,62}$/;
 
 export function InterfacesPage() {
@@ -110,6 +113,9 @@ export function InterfacesPage() {
   const [newName, setNewName] = useState('');
   const patch = usePatchInterfaces();
   const [lastError, setLastError] = useState<unknown>(null);
+  const [observationErrors, setObservationErrors] = useState<{ source: string; message: string }[]>(
+    [],
+  );
 
   const fetchPage = useCallback(
     async (req: ServerPageRequest, signal: AbortSignal) => {
@@ -117,6 +123,10 @@ export function InterfacesPage() {
         queryKey: ifaceKeys.state,
         queryFn: () => fetchInterfacesState(signal),
         staleTime: 1000,
+      });
+      setObservationErrors((previous) => {
+        const next = data.observationErrors ?? [];
+        return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
       });
       return pageOf(data.items.map(toRow), req);
     },
@@ -147,6 +157,17 @@ export function InterfacesPage() {
             >
               {p.row.name}
             </Box>
+            {p.row.item.inventoryOnly && (
+              <Chip size="small" variant="outlined" label={t('inventory.host')} />
+            )}
+            {p.row.item.hostInventory?.isManagement && (
+              <Chip
+                size="small"
+                color="info"
+                variant="outlined"
+                label={t('inventory.management')}
+              />
+            )}
             {p.row.item.builtIn && (
               <Chip size="small" color="info" variant="outlined" label={t('builtIn')} />
             )}
@@ -186,7 +207,17 @@ export function InterfacesPage() {
         headerName: t('col.link'),
         width: 120,
         renderCell: (p) =>
-          p.row.link ? <StatusChip size="small" status={linkStatus(p.row.item.state)!} /> : null,
+          p.row.link ? (
+            <StatusChip size="small" status={linkStatus(p.row.item.state)!} />
+          ) : p.row.item.hostInventory ? (
+            p.row.item.hostInventory.linkUp ? (
+              <StatusChip size="small" status={HOST_LINK_UP} />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {t('inventory.linkDownOrUnknown')}
+              </Typography>
+            )
+          ) : null,
       },
       {
         field: 'mtu',
@@ -283,6 +314,12 @@ export function InterfacesPage() {
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         {t('intro')}
       </Typography>
+      {observationErrors.map((error) => (
+        <Alert severity="warning" key={error.source} sx={{ mb: 1 }}>
+          {t('inventory.unavailable', { source: t(`inventory.sources.${error.source}`) })}{' '}
+          {error.message}
+        </Alert>
+      ))}
       <Stack direction="row" gap={1} sx={{ mb: 1 }} alignItems="center">
         <Tooltip title={perms.editConfig ? '' : t('readonly')}>
           <span>
@@ -314,7 +351,7 @@ export function InterfacesPage() {
           refetchInterval={STATE_POLL_MS}
           initialPageSize={25}
           onRowClick={(p) => setSelected(p.row.name)}
-          sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+          sx={{ '& [data-rowindex]': { cursor: 'pointer' } }}
         />
       </Paper>
       <InterfaceDrawer name={selected} onClose={() => setSelected(null)} rates={rates} />

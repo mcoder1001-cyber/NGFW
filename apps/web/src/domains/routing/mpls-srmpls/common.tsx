@@ -1,4 +1,4 @@
-import Box from '@mui/material/Box';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
 import type { ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import type { ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import type { ReactNode } from 'react';

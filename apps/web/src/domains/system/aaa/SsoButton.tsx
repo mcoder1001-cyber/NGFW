@@ -1,5 +1,5 @@
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgDivider as Divider } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { useLoginMethods } from './queries';
 

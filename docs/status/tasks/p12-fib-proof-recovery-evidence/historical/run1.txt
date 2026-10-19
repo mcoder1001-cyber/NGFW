@@ -1,0 +1,386 @@
+run-fib-root.sh: 2026-09-30T15:39:42 VPP NRestarts=0 before
+=== RUN   TestP12TopologyOnHost
+    p12_topology_integration_test.go:503: waiting for the exclusive globals lock /run/lock/vrx-globals.lock …
+    p12_topology_integration_test.go:507: globals window open at 2026-09-30T15:40:09+03:30
+    p12_topology_integration_test.go:514: systemctl show vpp -p NRestarts (before) = 0
+2026/09/30 15:40:09 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    p12_topology_integration_test.go:534: VRX_P12_FIB=root preconditions: VPP /run/vpp/api.sock, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    p12_topology_integration_test.go:539: vrx-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    p12_topology_integration_test.go:544: rig up w12 (slot 12, path af_packet)
+          create netns ns-w12-lan
+          create veth w12l0 <-> ns-w12-lan:w12l1
+          create vpp host-w12l0 (af_packet on w12l0)
+          reset  ip/ip6 classify host-w12l0 (table-index ~0)
+          set    addr host-w12l0 10.12.1.1/24
+          create netns ns-w12-wan
+          create veth w12w0 <-> ns-w12-wan:w12w1
+          create vpp host-w12w0 (af_packet on w12w0)
+          reset  ip/ip6 classify host-w12w0 (table-index ~0)
+          set    addr host-w12w0 10.12.2.1/24
+        rig: up
+        prefix: w12
+        slot: 12
+        path: af_packet
+        lan_ns: ns-w12-lan
+        lan_veth: w12l1
+        lan_ip: 10.12.1.2/24
+        lan_gw: 10.12.1.1
+        vpp_lan_if: host-w12l0
+        vpp_lan_addr: 10.12.1.1/24 
+        wan_ns: ns-w12-wan
+        wan_veth: w12w1
+        wan_ip: 10.12.2.2/24
+        wan_gw: 10.12.2.1
+        vpp_wan_if: host-w12w0
+        vpp_wan_addr: 10.12.2.1/24 
+        ping: ip netns exec ns-w12-lan ping -c 3 10.12.2.2
+        
+    p12_topology_integration_test.go:550: rig VPP side handed to the agent: af_packet_delete w12l0 (veth down)
+    p12_topology_integration_test.go:550: rig VPP side handed to the agent: af_packet_delete w12w0 (veth down)
+    p12_topology_integration_test.go:555: rootFRR: [mgmtd zebra staticd bgpd] started in the root netns, pathspace w12, base /run/vrx-test/w12/frr, pids map[bgpd:4160909 mgmtd:4160900 staticd:4160907 zebra:4160902]
+2026/09/30 15:40:48 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w12 component=subsystems
+2026/09/30 15:40:48 INFO pppoe client wired owner=w12 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/09/30 15:40:48 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w12 component=subsystems
+2026/09/30 15:40:48 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w12 component=subsystems
+2026/09/30 15:40:48 INFO fqdn state reloaded owner=w12 component=subsystems family=objects file=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state/objects-fqdn-w12.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/09/30 15:40:48 INFO objects domain wired owner=w12 component=subsystems store=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state/objects-w12.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/09/30 15:40:48 INFO acl domain wired owner=w12 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/09/30 15:40:48 INFO host firewall wired owner=w12 component=subsystems table="inet vrx_w12" mode=check netns="" rules_file=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state/host-acl-w12.nft
+2026/09/30 15:40:48 INFO strongSwan not driven by this agent owner=w12 component=subsystems component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/09/30 15:40:48 INFO VPP binary API connected owner=w12 component=vpp socket=/run/vpp/api.sock
+2026/09/30 15:40:48 INFO kea wired owner=w12 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/09/30 15:40:48 INFO host services wired owner=w12 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/g-w12/vrx-agent-test-3995966445/unbound/unbound.conf chrony_conf=/tmp/g-w12/vrx-agent-test-3995966445/chrony/agent/chrony.conf rsyslog_conf=/tmp/g-w12/vrx-agent-test-3995966445/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/09/30 15:40:48 INFO system identity wired owner=w12 component=subsystems product_paths=false mechanism=files issue_file=/tmp/g-w12/vrx-agent-test-3995966445/sysident/etc/issue.d/vrx.issue
+2026/09/30 15:40:48 INFO subsystems wired owner=w12 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management]" wiring="stores in /tmp/g-w12/TestP12TopologyOnHost3901755432/001/state: claims-iface-w12.json, boot-w12.json; globals owner false" vpp_ids=12000-12999
+2026/09/30 15:40:48 INFO vrx-agent listening owner=w12 socket=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/agent.sock metrics=off state_dir=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state vpp_api=/run/vpp/api.sock
+2026/09/30 15:40:48 INFO VPP boot identity owner=w12 component=subsystems identity=35157119-305c-4204-b86c-ce27f894b854/3761700/25059067 complete=true expired_claims=0
+2026/09/30 15:40:48 INFO reconcile start owner=w12 txn_id="" mode=resync domains=[]
+2026/09/30 15:40:48 WARN neighbour events: interface dump owner=w12 component=subsystems err="sw_interface_dump: context canceled"
+2026/09/30 15:40:48 INFO reconcile done owner=w12 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=263.978893ms err=""
+2026/09/30 15:40:48 INFO resync finished owner=w12 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/09/30 15:40:48 INFO reconcile start owner=w12 txn_id=w12-p12-commit mode=apply domains="[interfaces routing]"
+2026/09/30 15:40:49 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w12l0 sw_if_index=5 phase=create cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=af-packet.host-interface/host-w12l0
+2026/09/30 15:40:49 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w12w0 sw_if_index=6 phase=create cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=af-packet.host-interface/host-w12w0
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=interface/host-w12l0
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=interface-ip/host-w12l0/10.12.1.1/24
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=interface.admin-state/host-w12l0
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=interface/host-w12w0
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=interface-ip/host-w12w0/10.12.2.1/24
+2026/09/30 15:40:49 INFO created owner=w12 component=scheduler key=interface.admin-state/host-w12w0
+2026/09/30 15:40:50 INFO interface sanitized (VPP V19/V21 inherited state) interface=w12-l0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:40:50 INFO created owner=w12 component=scheduler key=lcp.itf-pair/host-w12l0
+2026/09/30 15:40:52 INFO interface sanitized (VPP V19/V21 inherited state) interface=w12-w0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:40:52 INFO created owner=w12 component=scheduler key=lcp.itf-pair/host-w12w0
+2026/09/30 15:40:54 INFO FRR configuration applied owner=w12 component=subsystems component=frr conf=/run/vrx-test/w12/frr/etc/w12/frr.conf bgp=true
+2026/09/30 15:40:54 INFO created owner=w12 component=scheduler key=frr.config/vrx
+2026/09/30 15:40:55 INFO reconcile done owner=w12 txn_id=w12-p12-commit mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=6.533488905s err=""
+    p12_topology_integration_test.go:628: apply commit: {
+          "created": 11
+        }
+    p12_topology_integration_test.go:630: both sessions Established after 3s: 10.12.2.2 Established rx=0; 10.12.1.2 Established rx=0
+    p12_topology_integration_test.go:631: 200 routes after commit: FRR RIB bgp=200, VPP lcp-rt-dynamic=200, neighbours=10.12.1.2 Established rx=100; 10.12.2.2 Established rx=100 after 1.5s
+    p12_topology_integration_test.go:632: [after commit] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w12w0 tap4097 w12-w0 153 type tap
+        itf-pair: [1] host-w12l0 tap4096 w12-l0 152 type tap
+    p12_topology_integration_test.go:632: [after commit] ip -br addr show dev w12-l0 / w12-w0 (taps):
+        w12-l0           UNKNOWN        10.12.1.1/24 fe80::fe:92ff:fe0f:4914/64 
+        w12-w0           UNKNOWN        10.12.2.1/24 fe80::fe:c5ff:fefd:7ea2/64 
+    p12_topology_integration_test.go:632: [after commit] vtysh -N w12 -c "show bgp summary":
+        
+        IPv4 Unicast Summary:
+        BGP router identifier 10.12.1.1, local AS number 65080 VRF default vrf-id 0
+        BGP table version 200
+        RIB entries 200, using 31 KiB of memory
+        Peers 2, using 60 KiB of memory
+        Peer groups 1, using 72 bytes of memory
+        
+        Neighbor        V         AS   MsgRcvd   MsgSent   TblVer  InQ OutQ  Up/Down State/PfxRcd   PfxSnt Desc
+        10.12.1.2       4      65081         5         5      200    0    0 00:00:03          100      200 peer one
+        10.12.2.2       4      65082         5         5      200    0    0 00:00:03          100      200 peer two
+        
+        Total number of neighbors 2
+    p12_topology_integration_test.go:632: [after commit] vppctl show ip fib summary:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+            Prefix length         Count     
+                           0               1
+                           4               2
+                          24               2
+                          25             200
+                          32              10
+    p12_topology_integration_test.go:632: [after commit] vppctl show ip fib 10.12.64.0/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+        10.12.64.0/25 fib:0 index:121 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[43] locks:200 flags:shared,popular, uPRF-list:49 len:1 itfs:[5, ]
+              path:[23] pl-index:43 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.12.1.2 host-w12l0
+              [@0]: ipv4 via 10.12.1.2 host-w12l0: mtu:9000 next:10 flags:[] 9a11e7637b1e02fe920f49140800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:124 buckets:1 uRPF:49 to:[0:0]]
+            [0] [@5]: ipv4 via 10.12.1.2 host-w12l0: mtu:9000 next:10 flags:[] 9a11e7637b1e02fe920f49140800
+    p12_topology_integration_test.go:632: [after commit] vppctl show ip fib 10.12.163.128/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+        10.12.163.128/25 fib:0 index:224 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[26] locks:200 flags:shared,popular, uPRF-list:48 len:1 itfs:[6, ]
+              path:[39] pl-index:26 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.12.2.2 host-w12w0
+              [@0]: ipv4 via 10.12.2.2 host-w12w0: mtu:9000 next:9 flags:[] 3e191aa35d8802fec5fd7ea20800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:227 buckets:1 uRPF:48 to:[0:0]]
+            [0] [@5]: ipv4 via 10.12.2.2 host-w12w0: mtu:9000 next:9 flags:[] 3e191aa35d8802fec5fd7ea20800
+    p12_topology_integration_test.go:632: [after commit] ip -4 route show proto bgp (root netns): 200 routes
+        10.12.64.0/25 nhid 16 via 10.12.1.2 dev w12-l0 metric 20 
+        10.12.64.128/25 nhid 18 via 10.12.2.2 dev w12-w0 metric 20 
+        10.12.65.0/25 nhid 16 via 10.12.1.2 dev w12-l0 metric 20 
+        … (197 more)
+2026/09/30 15:41:01 INFO reconcile start owner=w12 txn_id=w12-p12-idempotent mode=apply domains="[interfaces routing]"
+2026/09/30 15:41:02 INFO reconcile done owner=w12 txn_id=w12-p12-idempotent mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=0 duration=750.784231ms err=""
+    p12_topology_integration_test.go:648: apply idempotent: {
+          "unchanged": 11
+        }
+2026/09/30 15:41:02 INFO reconcile start owner=w12 txn_id=w12-p12-deny-half mode=apply domains="[interfaces routing]"
+2026/09/30 15:41:04 INFO FRR configuration applied owner=w12 component=subsystems component=frr conf=/run/vrx-test/w12/frr/etc/w12/frr.conf bgp=true
+2026/09/30 15:41:04 INFO updated owner=w12 component=scheduler key=frr.config/vrx
+2026/09/30 15:41:06 INFO reconcile done owner=w12 txn_id=w12-p12-deny-half mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1 unchanged:10" reapplied=0 duration=4.180102841s err=""
+    p12_topology_integration_test.go:655: apply deny-half: {
+          "updated": 1,
+          "unchanged": 10
+        }
+    p12_topology_integration_test.go:656: route map denies half: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.12.1.2 Established rx=50; 10.12.2.2 Established rx=50 after 700ms
+    p12_topology_integration_test.go:663: peer 1 withdrew: FRR RIB bgp=50, VPP lcp-rt-dynamic=50, neighbours=10.12.1.2 Established rx=0; 10.12.2.2 Established rx=50 after 500ms
+    p12_topology_integration_test.go:667: peer 1 announces again: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.12.1.2 Established rx=50; 10.12.2.2 Established rx=50 after 600ms
+2026/09/30 15:41:29 INFO vrx-agent stopped owner=w12
+    p12_topology_integration_test.go:679: simulated loss: lcp_itf_pair_add_del_v3 del host-w12l0 (sw_if_index 5) with the agent stopped
+    p12_topology_integration_test.go:679: simulated loss: lcp_itf_pair_add_del_v3 del host-w12w0 (sw_if_index 6) with the agent stopped
+2026/09/30 15:41:29 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w12 component=subsystems
+2026/09/30 15:41:29 INFO pppoe client wired owner=w12 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/09/30 15:41:29 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w12 component=subsystems
+2026/09/30 15:41:29 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w12 component=subsystems
+2026/09/30 15:41:29 INFO fqdn state reloaded owner=w12 component=subsystems family=objects file=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state/objects-fqdn-w12.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/09/30 15:41:29 INFO objects domain wired owner=w12 component=subsystems store=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state/objects-w12.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/09/30 15:41:29 INFO acl domain wired owner=w12 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/09/30 15:41:29 INFO host firewall wired owner=w12 component=subsystems table="inet vrx_w12" mode=check netns="" rules_file=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state/host-acl-w12.nft
+2026/09/30 15:41:29 INFO strongSwan not driven by this agent owner=w12 component=subsystems component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/09/30 15:41:29 INFO kea wired owner=w12 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/09/30 15:41:29 INFO host services wired owner=w12 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/g-w12/vrx-agent-test-3995966445/unbound/unbound.conf chrony_conf=/tmp/g-w12/vrx-agent-test-3995966445/chrony/agent/chrony.conf rsyslog_conf=/tmp/g-w12/vrx-agent-test-3995966445/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/09/30 15:41:29 INFO system identity wired owner=w12 component=subsystems product_paths=false mechanism=files issue_file=/tmp/g-w12/vrx-agent-test-3995966445/sysident/etc/issue.d/vrx.issue
+2026/09/30 15:41:29 INFO subsystems wired owner=w12 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management]" wiring="stores in /tmp/g-w12/TestP12TopologyOnHost3901755432/001/state: claims-iface-w12.json, boot-w12.json; globals owner false" vpp_ids=12000-12999
+2026/09/30 15:41:29 INFO VPP binary API connected owner=w12 component=vpp socket=/run/vpp/api.sock
+2026/09/30 15:41:29 INFO vrx-agent listening owner=w12 socket=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/agent.sock metrics=off state_dir=/tmp/g-w12/TestP12TopologyOnHost3901755432/001/state vpp_api=/run/vpp/api.sock
+2026/09/30 15:41:29 INFO VPP boot identity owner=w12 component=subsystems identity=35157119-305c-4204-b86c-ce27f894b854/3761700/25059067 complete=true expired_claims=0
+2026/09/30 15:41:29 INFO reconcile start owner=w12 txn_id="" mode=resync domains="[interfaces routing]"
+2026/09/30 15:41:29 WARN neighbour events: interface dump owner=w12 component=subsystems err="sw_interface_dump: context canceled"
+2026/09/30 15:41:30 INFO interface sanitized (VPP V19/V21 inherited state) interface=w12-l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:41:30 INFO created owner=w12 component=scheduler key=lcp.itf-pair/host-w12l0
+2026/09/30 15:41:30 INFO interface sanitized (VPP V19/V21 inherited state) interface=w12-w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:41:30 INFO created owner=w12 component=scheduler key=lcp.itf-pair/host-w12w0
+2026/09/30 15:41:32 INFO FRR configuration applied owner=w12 component=subsystems component=frr conf=/run/vrx-test/w12/frr/etc/w12/frr.conf bgp=true
+2026/09/30 15:41:32 INFO updated owner=w12 component=scheduler key=frr.config/vrx
+2026/09/30 15:41:33 INFO reconcile done owner=w12 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="created:2 updated:1 unchanged:8" reapplied=0 duration=3.295785833s err=""
+2026/09/30 15:41:33 INFO resync finished owner=w12 why=connect status=APPLY_STATUS_APPLIED summary="created:2 updated:1 unchanged:8"
+    p12_topology_integration_test.go:683: both sessions Established after 400ms: 10.12.1.2 Established rx=50; 10.12.2.2 Established rx=50
+    p12_topology_integration_test.go:684: after agent restart + pair loss: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.12.1.2 Established rx=50; 10.12.2.2 Established rx=50 after 600ms
+    p12_topology_integration_test.go:685: recovered 4.3s after the agent restart
+    p12_topology_integration_test.go:690: peer 1 withdrew after the restart: FRR RIB bgp=50, VPP lcp-rt-dynamic=50, neighbours=10.12.1.2 Established rx=0; 10.12.2.2 Established rx=50 after 600ms
+    p12_topology_integration_test.go:692: peer 1 announces again after the restart: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.12.1.2 Established rx=50; 10.12.2.2 Established rx=50 after 500ms
+    p12_topology_integration_test.go:694: [after restart] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w12l0 tap4096 w12-l0 154 type tap
+        itf-pair: [1] host-w12w0 tap4097 w12-w0 155 type tap
+    p12_topology_integration_test.go:694: [after restart] ip -br addr show dev w12-l0 / w12-w0 (taps):
+        w12-l0           UNKNOWN        10.12.1.1/24 fe80::a01c:92ff:fea8:bec4/64 
+        w12-w0           UNKNOWN        10.12.2.1/24 fe80::8c9c:73ff:fe06:49d5/64 
+    p12_topology_integration_test.go:694: [after restart] vtysh -N w12 -c "show bgp summary":
+        
+        IPv4 Unicast Summary:
+        BGP router identifier 10.12.1.1, local AS number 65080 VRF default vrf-id 0
+        BGP table version 700
+        RIB entries 100, using 16 KiB of memory
+        Peers 2, using 60 KiB of memory
+        Peer groups 1, using 72 bytes of memory
+        
+        Neighbor        V         AS   MsgRcvd   MsgSent   TblVer  InQ OutQ  Up/Down State/PfxRcd   PfxSnt Desc
+        10.12.1.2       4      65081       238       134      700    0    0 00:00:23           50      100 peer one
+        10.12.2.2       4      65082       132       136      700    0    0 00:00:23           50      100 peer two
+        
+        Total number of neighbors 2
+    p12_topology_integration_test.go:694: [after restart] vppctl show ip fib summary:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+            Prefix length         Count     
+                           0               1
+                           4               2
+                          24               2
+                          25             100
+                          32              10
+    p12_topology_integration_test.go:694: [after restart] vppctl show ip fib 10.12.64.0/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[14:936]]
+            [0] [@0]: dpo-drop ip4
+    p12_topology_integration_test.go:694: [after restart] vppctl show ip fib 10.12.163.128/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+        10.12.163.128/25 fib:0 index:224 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[26] locks:100 flags:shared,popular, uPRF-list:48 len:1 itfs:[6, ]
+              path:[39] pl-index:26 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.12.2.2 host-w12w0
+              [@0]: ipv4 via 10.12.2.2 host-w12w0: mtu:9000 next:9 flags:[] 3e191aa35d8802fec5fd7ea20800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:227 buckets:1 uRPF:48 to:[0:0]]
+            [0] [@5]: ipv4 via 10.12.2.2 host-w12w0: mtu:9000 next:9 flags:[] 3e191aa35d8802fec5fd7ea20800
+    p12_topology_integration_test.go:694: [after restart] ip -4 route show proto bgp (root netns): 100 routes
+        10.12.114.0/25 nhid 31 via 10.12.1.2 dev w12-l0 metric 20 
+        10.12.114.128/25 nhid 30 via 10.12.2.2 dev w12-w0 metric 20 
+        10.12.115.0/25 nhid 31 via 10.12.1.2 dev w12-l0 metric 20 
+        … (97 more)
+2026/09/30 15:41:54 INFO reconcile start owner=w12 txn_id=w12-p12-lan-down mode=apply domains="[interfaces routing]"
+2026/09/30 15:41:56 INFO deleted owner=w12 component=scheduler key=interface.admin-state/host-w12l0
+2026/09/30 15:41:57 INFO reconcile done owner=w12 txn_id=w12-p12-lan-down mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="deleted:1 unchanged:10" reapplied=0 duration=3.301961766s err=""
+    p12_topology_integration_test.go:697: apply lan-down: {
+          "deleted": 1,
+          "unchanged": 10
+        }
+    p12_topology_integration_test.go:707: link down on host-w12l0: BGP noticed after 500ms (state Idle); tap: carrier down after 500ms
+2026/09/30 15:41:57 INFO reconcile start owner=w12 txn_id=w12-p12-lan-up mode=apply domains="[interfaces routing]"
+2026/09/30 15:41:58 INFO reconcile done owner=w12 txn_id=w12-p12-lan-up mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=0 duration=573.027622ms err=""
+    p12_topology_integration_test.go:712: apply lan-up: {
+          "unchanged": 11
+        }
+    p12_topology_integration_test.go:713: both sessions Established after 1.4s: 10.12.1.2 Established rx=0; 10.12.2.2 Established rx=50
+2026/09/30 15:41:59 INFO reconcile start owner=w12 txn_id=w12-p12-rollback mode=apply domains="[interfaces routing]"
+2026/09/30 15:42:04 INFO FRR configuration applied owner=w12 component=subsystems component=frr conf=/run/vrx-test/w12/frr/etc/w12/frr.conf bgp=false
+2026/09/30 15:42:04 INFO updated owner=w12 component=scheduler key=frr.config/vrx
+2026/09/30 15:42:04 INFO reconcile done owner=w12 txn_id=w12-p12-rollback mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1 unchanged:10" reapplied=0 duration=4.992304962s err=""
+    p12_topology_integration_test.go:716: apply rollback: {
+          "updated": 1,
+          "unchanged": 10
+        }
+    p12_topology_integration_test.go:717: after rollback: FRR RIB bgp=0, VPP lcp-rt-dynamic=0, neighbours= after 700ms
+    p12_topology_integration_test.go:729: [after rollback] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w12l0 tap4096 w12-l0 154 type tap
+        itf-pair: [1] host-w12w0 tap4097 w12-w0 155 type tap
+    p12_topology_integration_test.go:729: [after rollback] ip -br addr show dev w12-l0 / w12-w0 (taps):
+        w12-l0           UP             10.12.1.1/24 fe80::a01c:92ff:fea8:bec4/64 
+        w12-w0           UNKNOWN        10.12.2.1/24 fe80::8c9c:73ff:fe06:49d5/64 
+    p12_topology_integration_test.go:729: [after rollback] vtysh -N w12 -c "show bgp summary":
+        % BGP instance not found
+    p12_topology_integration_test.go:729: [after rollback] vppctl show ip fib summary:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+            Prefix length         Count     
+                           0               1
+                           4               2
+                          24               2
+                          32              10
+    p12_topology_integration_test.go:729: [after rollback] vppctl show ip fib 10.12.64.0/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[14:936]]
+            [0] [@0]: dpo-drop ip4
+    p12_topology_integration_test.go:729: [after rollback] vppctl show ip fib 10.12.163.128/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, det44-hi:2, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[14:936]]
+            [0] [@0]: dpo-drop ip4
+    p12_topology_integration_test.go:729: [after rollback] ip -4 route show proto bgp (root netns): 0 routes
+2026/09/30 15:42:08 INFO reconcile start owner=w12 txn_id=w12-p12-cleanup mode=apply domains="[interfaces routing]"
+2026/09/30 15:42:11 INFO FRR configuration applied owner=w12 component=subsystems component=frr conf=/run/vrx-test/w12/frr/etc/w12/frr.conf bgp=false
+2026/09/30 15:42:11 INFO deleted owner=w12 component=scheduler key=frr.config/vrx
+2026/09/30 15:42:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=w12-w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:42:11 INFO deleted owner=w12 component=scheduler key=lcp.itf-pair/host-w12w0
+2026/09/30 15:42:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=w12-l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:42:12 INFO deleted owner=w12 component=scheduler key=lcp.itf-pair/host-w12l0
+2026/09/30 15:42:12 INFO deleted owner=w12 component=scheduler key=interface.admin-state/host-w12w0
+2026/09/30 15:42:12 INFO deleted owner=w12 component=scheduler key=interface.admin-state/host-w12l0
+2026/09/30 15:42:12 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w12w0 prefix=10.12.2.1/24 err="sw_interface_add_del_address host-w12w0 10.12.2.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/09/30 15:42:12 INFO deleted owner=w12 component=scheduler key=interface-ip/host-w12w0/10.12.2.1/24
+2026/09/30 15:42:12 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w12w0 descriptor=af-packet.host-interface ifindex=151 kind=veth
+2026/09/30 15:42:12 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w12w0 sw_if_index=6 phase=delete cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:42:12 INFO deleted owner=w12 component=scheduler key=af-packet.host-interface/host-w12w0
+2026/09/30 15:42:12 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w12l0 prefix=10.12.1.1/24 err="sw_interface_add_del_address host-w12l0 10.12.1.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/09/30 15:42:12 INFO deleted owner=w12 component=scheduler key=interface-ip/host-w12l0/10.12.1.1/24
+2026/09/30 15:42:12 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w12l0 descriptor=af-packet.host-interface ifindex=149 kind=veth
+2026/09/30 15:42:12 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w12l0 sw_if_index=5 phase=delete cleared=[] freed=[] placeholders=1 pops=[1] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/09/30 15:42:12 INFO deleted owner=w12 component=scheduler key=af-packet.host-interface/host-w12l0
+2026/09/30 15:42:12 INFO reconcile done owner=w12 txn_id=w12-p12-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=4.135904948s err=""
+    p12_topology_integration_test.go:594: cleanup apply: <nil> {
+          "deleted": 9
+        }
+    p12_topology_integration_test.go:600: cleanup: 0 lcp-rt-dynamic routes of 10.12/16 left in VPP table 0
+2026/09/30 15:42:12 INFO vrx-agent stopped owner=w12
+    p12_topology_integration_test.go:547: rig down: <nil>
+        rig down w12
+          delete netns ns-w12-lan (and its veth peer)
+          delete veth w12l0
+          delete netns ns-w12-wan (and its veth peer)
+          delete veth w12w0
+        rig: down
+        prefix: w12
+        slot: 12
+        path: af_packet
+        lan_ns: ns-w12-lan
+        lan_veth: w12l1
+        lan_ip: 10.12.1.2/24
+        lan_gw: 10.12.1.1
+        vpp_lan_if: host-w12l0
+        vpp_lan_addr: -
+        wan_ns: ns-w12-wan
+        wan_veth: w12w1
+        wan_ip: 10.12.2.2/24
+        wan_gw: 10.12.2.1
+        vpp_wan_if: host-w12w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w12-lan ping -c 3 10.12.2.2
+    p12_topology_integration_test.go:517: systemctl show vpp -p NRestarts (after) = 0
+    p12_topology_integration_test.go:509: globals window closed at 2026-09-30T15:42:15+03:30
+--- PASS: TestP12TopologyOnHost (125.57s)
+PASS
+ok  	ngfw/agent/internal/agent	125.929s
+run-fib-root.sh: 2026-09-30T15:42:15 VPP NRestarts=0 after, exit 0

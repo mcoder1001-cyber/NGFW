@@ -1,19 +1,20 @@
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgDivider as Divider,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { NS } from './model';
 import type { Subtree } from './model';
+import { NS } from './model';
 import { useNptv6State } from './queries';
 import { SubtreeForm } from './SubtreeForm';
 
@@ -40,29 +41,49 @@ export function Nptv6Tab() {
       {state.isError && <ProblemAlert error={state.error} sx={{ mb: 1 }} />}
       {state.isSuccess && (
         <Paper variant="outlined">
-          <Table size="small" aria-label={t('nptv6.running')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('field.interface.title')}</TableCell>
-                <TableCell>{t('field.internal.title')}</TableCell>
-                <TableCell>{t('field.external.title')}</TableCell>
-                <TableCell>{t('field.description.title')}</TableCell>
-                <TableCell>{t('col.status')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {state.data.bindings.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5}>{t('nptv6.empty')}</TableCell>
-                </TableRow>
-              )}
-              {state.data.bindings.map((b) => (
-                <TableRow key={`${b.interface}|${b.internal}`}>
-                  <TableCell dir="ltr">{b.interface}</TableCell>
-                  <TableCell dir="ltr">{b.internal}</TableCell>
-                  <TableCell dir="ltr">{b.external}</TableCell>
-                  <TableCell>{b.description ?? ''}</TableCell>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('nptv6.running') }}
+            columns={[
+              {
+                key: 'interface',
+                headerRenderer: () => t('field.interface.title'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'internal',
+                headerRenderer: () => t('field.internal.title'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'external',
+                headerRenderer: () => t('field.external.title'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'description',
+                headerRenderer: () => t('field.description.title'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'status',
+                headerRenderer: () => t('col.status'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(state.data.bindings.map((b) => ({
+                id: `${b.interface}|${b.internal}`,
+                interface: b.interface,
+                internal: b.internal,
+                external: b.external,
+                description: b.description ?? '',
+                status: (
+                  <>
                     <Tooltip title={t('nptv6.writeOnlyHelp')}>
                       <Chip
                         size="small"
@@ -71,11 +92,33 @@ export function Nptv6Tab() {
                         label={t('status.writeOnly')}
                       />
                     </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+                cellProps: {
+                  interface: { dir: 'ltr' },
+                  internal: { dir: 'ltr' },
+                  external: { dir: 'ltr' },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={state.data.bindings.length === 0 ? t('nptv6.empty') : null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </Paper>
       )}
     </Box>

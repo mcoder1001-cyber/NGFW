@@ -1,30 +1,31 @@
-import AddIcon from '@mui/icons-material/Add';
-import { ExpiryChip } from '../ExpiryChip'; // F-rule-expiry
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTableContainer as TableContainer,
+  PgTabs as Tabs,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -34,9 +35,9 @@ import { ApiError } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
+import { ExpiryChip } from '../ExpiryChip'; // F-rule-expiry
 import { objectModelWidgets } from '../object-model';
 import {
-  ATTACHMENT_COLUMNS,
   attachmentSchema,
   banners,
   countersByRule,
@@ -47,20 +48,17 @@ import {
   listSchema,
   listsOf,
   localizeSchema,
+  matchText,
   nextSequence,
   putRule,
   removeAt,
-  RENDERED_COLUMNS,
-  RULE_COLUMNS,
   ruleKey,
   ruleSchema,
   rulesOf,
   same,
   serviceText,
   settingsOf,
-  SET_COLUMNS,
   settingsSchema,
-  matchText,
   TABS,
   type HostAclConfig,
   type HostAclState,
@@ -239,6 +237,7 @@ function ListsPanel({
   state: HostAclState | undefined;
 }) {
   const { t } = useTranslation(NS);
+  const fmt = useFormatters();
   const perms = usePermissions();
   const readOnly = !perms.editConfig;
   const patch = usePatchAcl();
@@ -336,38 +335,132 @@ function ListsPanel({
                 </IconButton>
               </Stack>
               <TableContainer>
-                <Table size="small" aria-label={t('rules.tableLabel', { name })}>
-                  <TableHead>
-                    <TableRow>
-                      {RULE_COLUMNS.map((c) => (
-                        <TableCell key={c}>{t(`col.${c}`)}</TableCell>
-                      ))}
-                      <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {list.rules.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={RULE_COLUMNS.length + 1}>
-                          <Typography color="text.secondary">{t('rules.empty')}</Typography>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {rulesOf(list).map(({ rule, index }) => (
-                      <RuleRow
-                        key={`${rule.sequence}-${index}`}
-                        list={name}
-                        rule={rule}
-                        counters={counters.get(ruleKey(name, rule.sequence))}
-                        readOnly={readOnly || patch.isPending}
-                        onEdit={() =>
-                          setEditRule({ list: name, index, rule, defaultSequence: rule.sequence })
-                        }
-                        onDelete={() => void removeRule(name, index)}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
+                <ReactGeereedMaterial
+                  tableProps={{ size: 'small', 'aria-label': t('rules.tableLabel', { name }) }}
+                  columns={[
+                    {
+                      key: 'sequence',
+                      headerRenderer: () => t('col.sequence'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'action',
+                      headerRenderer: () => t('col.action'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'ipVersion',
+                      headerRenderer: () => t('col.ipVersion'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'source',
+                      headerRenderer: () => t('col.source'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'destination',
+                      headerRenderer: () => t('col.destination'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'service',
+                      headerRenderer: () => t('col.service'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'interface',
+                      headerRenderer: () => t('col.interface'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'log',
+                      headerRenderer: () => t('col.log'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'enabled',
+                      headerRenderer: () => t('col.enabled'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'description',
+                      headerRenderer: () => t('col.description'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'expiresAt',
+                      headerRenderer: () => t('col.expiresAt'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'packets',
+                      headerRenderer: () => t('col.packets'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'bytes',
+                      headerRenderer: () => t('col.bytes'),
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                    {
+                      key: 'actions',
+                      headerRenderer: () => t('col.actions'),
+                      headerCellProps: { sx: { textAlign: 'end' } },
+                      filterable: false,
+                      renderer: (value) => <>{value}</>,
+                    },
+                  ]}
+                  items={[
+                    ...(rulesOf(list).map(({ rule, index }) =>
+                      renderRuleRow({
+                        key: `${rule.sequence}-${index}`,
+                        list: name,
+                        rule: rule,
+                        counters: counters.get(ruleKey(name, rule.sequence)),
+                        readOnly: readOnly || patch.isPending,
+                        onEdit: () =>
+                          setEditRule({ list: name, index, rule, defaultSequence: rule.sequence }),
+                        onDelete: () => void removeRule(name, index),
+                        t,
+                        fmt,
+                      }),
+                    ) ?? []),
+                  ]}
+                  rowKey={(item) => item.id}
+                  rowProps={(item) => item.rowProps ?? {}}
+                  cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+                  emptyContent={
+                    list.rules.length === 0 ? (
+                      <>
+                        <Typography color="text.secondary">{t('rules.empty')}</Typography>
+                      </>
+                    ) : null
+                  }
+                  noFormWrapper
+                  embedded
+                  hideToolbar
+                  hidePagination
+                  hideFilterBuilderComponent
+                  search={false}
+                  sortable={false}
+                  exportToCSV={false}
+                  footer={false}
+                  memoEnable={false}
+                />
               </TableContainer>
             </Paper>
           );
@@ -411,13 +504,19 @@ function ListsPanel({
   );
 }
 
-function RuleRow({
+function renderRuleRow({
+  key,
+  t,
+  fmt,
   rule,
   counters,
   readOnly,
   onEdit,
   onDelete,
 }: {
+  key: string;
+  t: ReturnType<typeof useTranslation>['t'];
+  fmt: ReturnType<typeof useFormatters>;
   list: string;
   rule: HostRule;
   counters: { packets: string; bytes: string; nftRules: number } | undefined;
@@ -425,50 +524,54 @@ function RuleRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { t } = useTranslation(NS);
-  const fmt = useFormatters();
-  return (
-    <TableRow hover sx={{ cursor: 'pointer', opacity: rule.enabled ? 1 : 0.6 }} onClick={onEdit}>
-      <TableCell>{fmt.digits(String(rule.sequence))}</TableCell>
-      <TableCell>
+  return {
+    id: key,
+    sequence: fmt.digits(String(rule.sequence)),
+    action: (
+      <>
         <Chip
           size="small"
           color={rule.action === 'accept' ? 'success' : 'error'}
           variant="outlined"
           label={t(`action.${rule.action}`)}
         />
-      </TableCell>
-      <TableCell>{t(`ipVersion.${rule.ipVersion}`)}</TableCell>
-      <TableCell>
+      </>
+    ),
+    ipVersion: t(`ipVersion.${rule.ipVersion}`),
+    source: (
+      <>
         <Code>{matchText(rule.source)}</Code>
-      </TableCell>
-      <TableCell>
+      </>
+    ),
+    destination: (
+      <>
         <Code>{matchText(rule.destination)}</Code>
-      </TableCell>
-      <TableCell>
+      </>
+    ),
+    service: (
+      <>
         <Code>{serviceText(rule.service)}</Code>
-      </TableCell>
-      <TableCell>{rule.interface ? <Code>{rule.interface}</Code> : '*'}</TableCell>
-      <TableCell>{rule.log ? t('yes') : t('no')}</TableCell>
-      <TableCell>{rule.enabled ? t('yes') : t('no')}</TableCell>
-      <TableCell>{rule.description}</TableCell>
-      <TableCell>
+      </>
+    ),
+    interface: rule.interface ? <Code>{rule.interface}</Code> : '*',
+    log: rule.log ? t('yes') : t('no'),
+    enabled: rule.enabled ? t('yes') : t('no'),
+    description: rule.description,
+    expiresAt: (
+      <>
         <ExpiryChip expiresAt={rule.expiresAt} owner={rule.owner} ticket={rule.ticket} />
-      </TableCell>
-      <TableCell>
-        {counters ? (
-          <Tooltip title={t('rules.nftRules', { count: counters.nftRules })}>
-            <span>{fmt.digits(groupDigits(counters.packets))}</span>
-          </Tooltip>
-        ) : (
-          '—'
-        )}
-      </TableCell>
-      <TableCell>{counters ? fmt.digits(groupDigits(counters.bytes)) : '—'}</TableCell>
-      <TableCell
-        sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}
-        onClick={(ev) => ev.stopPropagation()}
-      >
+      </>
+    ),
+    packets: counters ? (
+      <Tooltip title={t('rules.nftRules', { count: counters.nftRules })}>
+        <span>{fmt.digits(groupDigits(counters.packets))}</span>
+      </Tooltip>
+    ) : (
+      '—'
+    ),
+    bytes: counters ? fmt.digits(groupDigits(counters.bytes)) : '—',
+    actions: (
+      <>
         <IconButton
           size="small"
           aria-label={t('rules.deleteNamed', { sequence: rule.sequence })}
@@ -477,9 +580,24 @@ function RuleRow({
         >
           <DeleteIcon fontSize="small" />
         </IconButton>
-      </TableCell>
-    </TableRow>
-  );
+      </>
+    ),
+    rowProps: {
+      hover: true,
+      sx: { cursor: 'pointer', opacity: rule.enabled ? 1 : 0.6 },
+      onClick: onEdit,
+    } satisfies ReturnType<NonNullable<GeereedTablePassthrough['rowProps']>> &
+      Record<`data-${string}`, unknown>,
+    cellProps: {
+      actions: {
+        sx: { textAlign: 'end', whiteSpace: 'nowrap' },
+        onClick: (ev) => ev.stopPropagation(),
+      },
+    } satisfies Record<
+      string,
+      NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+    >,
+  };
 }
 
 function ListForm({
@@ -655,34 +773,55 @@ function AttachmentsPanel({
       </Stack>
       {lastError !== null && <ProblemAlert error={lastError} sx={{ mb: 1 }} />}
       <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label={t('tabs.attachments')}>
-          <TableHead>
-            <TableRow>
-              {ATTACHMENT_COLUMNS.map((c) => (
-                <TableCell key={c}>{t(`col.${c}`)}</TableCell>
-              ))}
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6}>
-                  <Typography color="text.secondary">{t('attachments.empty')}</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {items.map((a, i) => {
+        <ReactGeereedMaterial
+          tableProps={{ size: 'small', 'aria-label': t('tabs.attachments') }}
+          columns={[
+            {
+              key: 'list',
+              headerRenderer: () => t('col.list'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'chain',
+              headerRenderer: () => t('col.chain'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'priority',
+              headerRenderer: () => t('col.priority'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'enabled',
+              headerRenderer: () => t('col.enabled'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'description',
+              headerRenderer: () => t('col.description'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'actions',
+              headerRenderer: () => t('col.actions'),
+              headerCellProps: { sx: { textAlign: 'end' } },
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+          ]}
+          items={[
+            ...(items.map((a, i) => {
               const pending =
                 running !== undefined && !(running.hostAttachments ?? []).some((r) => same(r, a));
-              return (
-                <TableRow
-                  key={`${a.list}-${a.chain}-${i}`}
-                  hover
-                  sx={{ cursor: 'pointer' }}
-                  onClick={() => setEditing({ index: i, value: a })}
-                >
-                  <TableCell>
+              return {
+                id: `${a.list}-${a.chain}-${i}`,
+                list: (
+                  <>
                     <Stack direction="row" gap={0.5} alignItems="center">
                       <Code>{a.list}</Code>
                       {pending && (
@@ -694,12 +833,14 @@ function AttachmentsPanel({
                         />
                       )}
                     </Stack>
-                  </TableCell>
-                  <TableCell>{t(`hook.${a.chain}`)}</TableCell>
-                  <TableCell>{fmt.digits(String(a.priority))}</TableCell>
-                  <TableCell>{a.enabled ? t('yes') : t('no')}</TableCell>
-                  <TableCell>{a.description}</TableCell>
-                  <TableCell sx={{ textAlign: 'end' }} onClick={(ev) => ev.stopPropagation()}>
+                  </>
+                ),
+                chain: t(`hook.${a.chain}`),
+                priority: fmt.digits(String(a.priority)),
+                enabled: a.enabled ? t('yes') : t('no'),
+                description: a.description,
+                actions: (
+                  <>
                     <IconButton
                       size="small"
                       aria-label={t('attachments.deleteNamed', { list: a.list, chain: a.chain })}
@@ -708,12 +849,44 @@ function AttachmentsPanel({
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                  </>
+                ),
+                rowProps: {
+                  hover: true,
+                  sx: { cursor: 'pointer' },
+                  onClick: () => setEditing({ index: i, value: a }),
+                } satisfies ReturnType<NonNullable<GeereedTablePassthrough['rowProps']>> &
+                  Record<`data-${string}`, unknown>,
+                cellProps: {
+                  actions: { sx: { textAlign: 'end' }, onClick: (ev) => ev.stopPropagation() },
+                } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              };
+            }) ?? []),
+          ]}
+          rowKey={(item) => item.id}
+          rowProps={(item) => item.rowProps ?? {}}
+          cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+          emptyContent={
+            items.length === 0 ? (
+              <>
+                <Typography color="text.secondary">{t('attachments.empty')}</Typography>
+              </>
+            ) : null
+          }
+          noFormWrapper
+          embedded
+          hideToolbar
+          hidePagination
+          hideFilterBuilderComponent
+          search={false}
+          sortable={false}
+          exportToCSV={false}
+          footer={false}
+          memoEnable={false}
+        />
       </TableContainer>
       <Dialog open={editing !== null} onClose={() => setEditing(null)} fullWidth maxWidth="sm">
         <DialogTitle>
@@ -891,71 +1064,152 @@ function RenderedPanel({ state, loading }: { state: HostAclState | undefined; lo
             )}
           </Stack>
           <TableContainer>
-            <Table size="small" aria-label={t('rendered.chainLabel', { name: c.name })}>
-              <TableHead>
-                <TableRow>
-                  {RENDERED_COLUMNS.map((col) => (
-                    <TableCell key={col}>{t(`rendered.col.${col}`)}</TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {c.rules.map((r, i) => (
-                  <TableRow key={`${r.comment}-${i}`}>
-                    <TableCell>
+            <ReactGeereedMaterial
+              tableProps={{
+                size: 'small',
+                'aria-label': t('rendered.chainLabel', { name: c.name }),
+              }}
+              columns={[
+                {
+                  key: 'kind',
+                  headerRenderer: () => t('rendered.col.kind'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'rule',
+                  headerRenderer: () => t('rendered.col.rule'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'verdict',
+                  headerRenderer: () => t('rendered.col.verdict'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'packets',
+                  headerRenderer: () => t('rendered.col.packets'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'bytes',
+                  headerRenderer: () => t('rendered.col.bytes'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+              ]}
+              items={[
+                ...(c.rules.map((r, i) => ({
+                  id: `${r.comment}-${i}`,
+                  kind: (
+                    <>
                       {t(`kind.${r.kind}`)}
                       {r.kind === 'rule' && (
                         <Typography variant="caption" component="div" color="text.secondary">
                           <Code size={11}>{`${r.list}:${r.sequence}`}</Code>
                         </Typography>
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </>
+                  ),
+                  rule: (
+                    <>
                       <Code>{r.text || r.comment || '—'}</Code>
-                    </TableCell>
-                    <TableCell>
-                      {r.verdict ? t(`action.${r.verdict}`, { defaultValue: r.verdict }) : '—'}
-                    </TableCell>
-                    <TableCell>{fmt.digits(groupDigits(r.packets))}</TableCell>
-                    <TableCell>{fmt.digits(groupDigits(r.bytes))}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </>
+                  ),
+                  verdict: r.verdict ? t(`action.${r.verdict}`, { defaultValue: r.verdict }) : '—',
+                  packets: fmt.digits(groupDigits(r.packets)),
+                  bytes: fmt.digits(groupDigits(r.bytes)),
+                })) ?? []),
+              ]}
+              rowKey={(item) => item.id}
+              rowProps={(item) => item.rowProps ?? {}}
+              cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+              emptyContent={null}
+              noFormWrapper
+              embedded
+              hideToolbar
+              hidePagination
+              hideFilterBuilderComponent
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+              footer={false}
+              memoEnable={false}
+            />
           </TableContainer>
         </Paper>
       ))}
       {state.sets.length > 0 && (
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('rendered.sets')}>
-            <TableHead>
-              <TableRow>
-                {SET_COLUMNS.map((col) => (
-                  <TableCell key={col}>{t(`rendered.setCol.${col}`)}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {state.sets.map((s) => (
-                <TableRow key={s.name}>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('rendered.sets') }}
+            columns={[
+              {
+                key: 'column0',
+                headerRenderer: () => t('rendered.setCol.name'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column1',
+                headerRenderer: () => t('rendered.setCol.object'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column2',
+                headerRenderer: () => t('rendered.setCol.type'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column3',
+                headerRenderer: () => t('rendered.setCol.elements'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(state.sets.map((s) => ({
+                id: s.name,
+                column0: (
+                  <>
                     <Code>{s.name}</Code>
-                  </TableCell>
-                  <TableCell>
+                  </>
+                ),
+                column1: (
+                  <>
                     <Code>{s.object || '—'}</Code>
-                  </TableCell>
-                  <TableCell>
-                    {t(`rendered.family.${s.type === 'ipv6_addr' ? 'ipv6' : 'ipv4'}`)}
-                  </TableCell>
-                  <TableCell>
+                  </>
+                ),
+                column2: t(`rendered.family.${s.type === 'ipv6_addr' ? 'ipv6' : 'ipv4'}`),
+                column3: (
+                  <>
                     <Code>
                       {s.elements.length > 0 ? s.elements.join(', ') : t('rendered.emptySet')}
                     </Code>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       )}
     </Stack>

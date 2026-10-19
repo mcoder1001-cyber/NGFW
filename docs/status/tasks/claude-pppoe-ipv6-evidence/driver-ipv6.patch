@@ -1,0 +1,543 @@
+diff -ruN pppoe/dhcp6s.py pppoe-ipv6/dhcp6s.py
+--- pppoe/dhcp6s.py	1970-01-01 00:00:00.000000000 +0000
++++ pppoe-ipv6/dhcp6s.py	2026-10-07 06:11:36.790649927 +0000
+@@ -0,0 +1,44 @@
++#!/usr/bin/env python3
++"""Minimal stateful DHCPv6 server for the PPPoE IPv6 lab ISP (test only): IA_NA + IA_PD.
++usage: dhcp6s.py IFACE ADDR PREFIX/LEN   e.g. dhcp6s.py ppp0 2001:db8:9::100 2001:db8:9100::/56"""
++import ipaddress, socket, struct, sys
++iface, addr, pfx = sys.argv[1], ipaddress.IPv6Address(sys.argv[2]), ipaddress.IPv6Network(sys.argv[3])
++idx = socket.if_nametoindex(iface)
++s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
++s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
++s.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, iface.encode())
++s.bind(("::", 547))
++s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, socket.inet_pton(socket.AF_INET6, "ff02::1:2") + struct.pack("@I", idx))
++SERVER_ID = struct.pack("!HH", 3, 1) + bytes.fromhex("020000000947")
++NAMES = {1: "SOLICIT", 3: "REQUEST", 5: "RENEW", 6: "REBIND", 8: "RELEASE", 11: "INFO-REQUEST"}
++
++def opt(code, data):
++    return struct.pack("!HH", code, len(data)) + data
++
++def parse(b):
++    out, i = [], 0
++    while i + 4 <= len(b):
++        c, l = struct.unpack("!HH", b[i:i + 4]); out.append((c, b[i + 4:i + 4 + l])); i += 4 + l
++    return out
++
++while True:
++    data, src = s.recvfrom(4096)
++    if len(data) < 4 or data[0] not in NAMES:
++        continue
++    mt, xid, opts = data[0], data[1:4], parse(data[4:])
++    print("rx", NAMES[mt], "from", src[0], "opts", [c for c, _ in opts], flush=True)
++    out = b""
++    for c, v in opts:
++        if c == 1:
++            out += opt(1, v)
++        elif c == 3 and len(v) >= 12 and mt != 8:
++            out += opt(3, v[:4] + struct.pack("!II", 1000, 2000) + opt(5, addr.packed + struct.pack("!II", 3000, 4000)))
++        elif c == 25 and len(v) >= 12 and mt != 8:
++            out += opt(25, v[:4] + struct.pack("!II", 1000, 2000) + opt(26, struct.pack("!IIB", 3000, 4000, pfx.prefixlen) + pfx.network_address.packed))
++    out += opt(2, SERVER_ID)
++    rapid = any(c == 14 for c, _ in opts)
++    if mt == 1 and rapid:
++        out += opt(14, b"")
++    rt = 2 if (mt == 1 and not rapid) else 7
++    s.sendto(bytes([rt]) + xid + out, (src[0], 546, 0, idx))
++    print("tx", "ADVERTISE" if rt == 2 else "REPLY", flush=True)
+diff -ruN pppoe/pppoe_live.go pppoe-ipv6/pppoe_live.go
+--- pppoe/pppoe_live.go	2026-10-07 06:11:36.783069171 +0000
++++ pppoe-ipv6/pppoe_live.go	2026-10-07 06:11:36.790994012 +0000
+@@ -10,6 +10,12 @@
+ //   unit's ExecStart verbatim in a private mount namespace where the rendered peer/secret/hook files are bind-mounted
+ //   over /etc/ppp. The ISP is rp-pppoe's pppoe-server (kernel mode) in ns-<p>-wan.
+ //
++// NGFW_PPPOE_IPV6=slaac|dhcpv6 (claude-pppoe-ipv6): the client is configured with that ipv6 mode, the ISP pppd runs
++// +ipv6, and once the session is up the driver starts, in ns-<p>-wan on the ISP's ppp interface, a periodic/solicited
++// Router Advertisement sender for 2001:db8:<slot>::/64 (ra.py, M+O flags for dhcpv6) and, for dhcpv6, a minimal
++// DHCPv6 server handing out IA_NA 2001:db8:<slot>::100 and IA_PD 2001:db8:<slot>00::/56 (dhcp6s.py). Both are test
++// ISP tools, not product. The client's /var/lib/dhcpcd and /run/dhcpcd are private tmp dirs (no host state).
++//
+ // NGFW_PPPOE_DIAG_PUNT=1 is a NON-PRODUCT diagnostic mode: the disposable VPP is started without pppoe_plugin.so and
+ // the driver enables linux-cp punt-xc for ethertypes 0x8863/0x8864 itself. The agent does neither.
+ // NGFW_PPPOE_DIAG_RESOLVER=1 is a NON-PRODUCT shim: after Start the driver replaces the PPPoE password resolver with a
+@@ -76,6 +82,9 @@
+ 	cliLog    string
+ 	results   []string
+ 	lastApply []byte
++	ipv6      string
++	tools     string
++	isp6      []*exec.Cmd
+ }
+ 
+ func (e *pplEnv) result(name, verdict, detail string) {
+@@ -88,7 +97,11 @@
+ 	p, n := e.prefix, e.slot
+ 	w0 := fmt.Sprintf(`{"enabled": true, "vrf": "wan", "lcp": {"hostIfName": %q, "hostIfType": "tap"}`, e.host)
+ 	if withPPPoE {
+-		w0 += fmt.Sprintf(`, "pppoe": {"username": "u%s", "passwordRef": %q, "mtu": 1492, "mssClamp": true, "defaultRoute": true, "dnsFromPeer": false, "reconnect": {"holdoffSec": 3, "maxFail": 2}}`, p, e.ref)
++		v6 := "off"
++		if e.ipv6 != "" {
++			v6 = e.ipv6
++		}
++		w0 += fmt.Sprintf(`, "pppoe": {"username": "u%s", "passwordRef": %q, "mtu": 1492, "mssClamp": true, "defaultRoute": true, "dnsFromPeer": false, "ipv6": %q, "reconnect": {"holdoffSec": 3, "maxFail": 2}}`, p, e.ref, v6)
+ 	}
+ 	w0 += "}"
+ 	js := fmt.Sprintf(`{"vrfs": {"wan": {"id": %d}}, "interfaces": {"host-%sl0": {"enabled": true, "vrf": "wan", "ipv4": ["10.%d.1.1/24"]}, "host-%sw0": %s}}`, e.table, p, n, p, w0)
+@@ -199,8 +212,132 @@
+ 	e.t.Logf("ISP pppoe-server started pid=%d in ns-%s-wan", cmd.Process.Pid, p)
+ }
+ 
++// startISP6 serves IPv6 on the ISP side of the current session (test tools, see the file comment): it finds the ISP
++// pppd's interface in ns-<p>-wan, gives it a global /128 plus a route back to the RA prefix (a ping target), turns on
++// forwarding there (so the all-routers group is joined and the client's RS is heard), and starts ra.py (+ dhcp6s.py).
++func (e *pplEnv) startISP6() string {
++	e.stopISP6()
++	ns := "ns-" + e.prefix + "-wan"
++	sif := ""
++	for i := 0; i < 40 && sif == ""; i++ {
++		out, _ := e.cmd("ip", "-n", ns, "-o", "link", "show", "type", "ppp")
++		for _, l := range strings.Split(out, "\n") {
++			if f := strings.SplitN(l, ": ", 3); len(f) >= 2 && sif == "" {
++				sif = strings.TrimSpace(strings.SplitN(f[1], "@", 2)[0])
++			}
++		}
++		if sif == "" {
++			time.Sleep(250 * time.Millisecond)
++		}
++	}
++	if sif == "" {
++		e.t.Logf("ISP6: no ppp interface in %s", ns)
++		return ""
++	}
++	pfx := fmt.Sprintf("2001:db8:%d::", e.slot)
++	for _, c := range [][]string{{"ip", "netns", "exec", ns, "sysctl", "-qw", "net.ipv6.conf.all.forwarding=1"},
++		{"ip", "-n", ns, "-6", "addr", "add", pfx + "1/128", "dev", sif}, {"ip", "-n", ns, "-6", "route", "replace", pfx + "/64", "dev", sif}} {
++		if out, err := e.cmd(c[0], c[1:]...); err != nil {
++			e.t.Logf("ISP6 %v: %v %s", c, err, out)
++		}
++	}
++	args := [][]string{{"python3", filepath.Join(e.tools, "ra.py"), sif, pfx + "/64"}}
++	if e.ipv6 == "dhcpv6" {
++		args[0] = append(args[0], "managed")
++		args = append(args, []string{"python3", filepath.Join(e.tools, "dhcp6s.py"), sif, pfx + "100", fmt.Sprintf("2001:db8:%d00::/56", e.slot)})
++	}
++	for _, a := range args {
++		cmd := exec.Command("ip", append([]string{"netns", "exec", ns}, a...)...) //nolint:gosec // fixed test tools
++		cmd.Env = append(os.Environ(), "RA_PERIOD=10")
++		f, _ := os.OpenFile(filepath.Join(e.tmp, filepath.Base(a[1])+".log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
++		cmd.Stdout, cmd.Stderr = f, f
++		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
++		if err := cmd.Start(); err != nil {
++			e.t.Logf("ISP6 start %v: %v", a, err)
++			continue
++		}
++		e.isp6 = append(e.isp6, cmd)
++		go func() { _ = cmd.Wait(); _ = f.Close() }()
++	}
++	e.t.Logf("ISP6: serving %s/64 on %s in %s (mode %s)", pfx, sif, ns, e.ipv6)
++	return sif
++}
++
++func (e *pplEnv) stopISP6() {
++	for _, c := range e.isp6 {
++		if c.Process != nil {
++			_ = syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
++		}
++	}
++	e.isp6 = nil
++}
++
++// mirror6 reports what VPP holds for the IPv6 side: the /128s on w0 and whether ::/0 in the table has a path via a
++// link-local router out w0.
++func (e *pplEnv) mirror6() (addrs []string, route bool) {
++	for _, f := range strings.Fields(e.vppctl("show", "interface", "address", "host-"+e.prefix+"w0")) {
++		if strings.HasPrefix(f, "2001:db8:") && strings.HasSuffix(f, "/128") {
++			addrs = append(addrs, f)
++		}
++	}
++	fib := e.vppctl("show", "ip6", "fib", "table", strconv.Itoa(int(e.table)), "::/0")
++	route = strings.Contains(fib, "fe80::") && strings.Contains(fib, "host-"+e.prefix+"w0")
++	return addrs, route
++}
++
++// want6 is the /128 set the agent should mirror for a reported ipv6 summary ("a/64, b/128, delegated p/56").
++func want6(summary string) []string {
++	var out []string
++	for _, part := range strings.Split(summary, ", ") {
++		if part == "" || strings.HasPrefix(part, "delegated ") {
++			continue
++		}
++		out = append(out, strings.SplitN(part, "/", 2)[0]+"/128")
++	}
++	return out
++}
++
++func sameSet(a, b []string) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	m := map[string]bool{}
++	for _, x := range a {
++		m[x] = true
++	}
++	for _, x := range b {
++		if !m[x] {
++			return false
++		}
++	}
++	return true
++}
++
++// waitIPv6 waits for the agent to report IPv6 (with the delegated prefix in dhcpv6 mode) and for VPP to hold exactly
++// that mirror; it returns the state, the VPP view and how long it took.
++func (e *pplEnv) waitIPv6(within time.Duration) (*ngfwv1.PppoeSessionState, []string, bool, time.Duration) {
++	start := time.Now()
++	var st *ngfwv1.PppoeSessionState
++	var addrs []string
++	var route bool
++	for time.Since(start) < within {
++		st = e.state()
++		ok := st.GetIpv6() != "" && (e.ipv6 != "dhcpv6" || (strings.Contains(st.GetIpv6(), "delegated ") && len(want6(st.GetIpv6())) >= 2))
++		if ok {
++			addrs, route = e.mirror6()
++			if route && sameSet(addrs, want6(st.GetIpv6())) {
++				return st, addrs, route, time.Since(start)
++			}
++		}
++		time.Sleep(500 * time.Millisecond)
++	}
++	addrs, route = e.mirror6()
++	return st, addrs, route, -1
++}
++
+ // stopServer sends SIGTERM to the server's whole process group (pppoe-server and its per-session pppd).
+ func (e *pplEnv) stopServer() {
++	e.stopISP6()
+ 	if e.srv == nil || e.srv.Process == nil {
+ 		return
+ 	}
+@@ -227,9 +364,15 @@
+ 	}
+ 	var b strings.Builder
+ 	b.WriteString("set -e; ")
+-	for _, d := range []string{"peers", "ip-up.d", "ip-down.d", "chap-secrets", "pap-secrets"} {
++	for _, d := range []string{"peers", "ip-up.d", "ip-down.d", "ipv6-up.d", "ipv6-down.d", "chap-secrets", "pap-secrets"} {
+ 		fmt.Fprintf(&b, "mount --bind %s /etc/ppp/%s; ", filepath.Join(e.slotTree, "etc/ppp", d), d)
+ 	}
++	// dhcpcd keeps its DUID/leases and control sockets here: private per run, never the host's.
++	for _, d := range []string{"/var/lib/dhcpcd", "/run/dhcpcd"} {
++		priv := filepath.Join(e.tmp, "dhcpcd"+strings.ReplaceAll(d, "/", "-"))
++		_ = os.MkdirAll(priv, 0o755) //nolint:gosec // test-private dhcpcd state
++		fmt.Fprintf(&b, "mkdir -p %s; mount --bind %s %s; ", d, priv, d)
++	}
+ 	b.WriteString("exec " + execStart)
+ 	cmd := exec.Command("unshare", "--mount", "--propagation", "private", "sh", "-c", b.String()) //nolint:gosec // rendered unit command
+ 	e.cliLog = filepath.Join(e.tmp, "client.log")
+@@ -333,7 +476,15 @@
+ 	if err := os.WriteFile(filepath.Join(e.tmp, "srv-secrets"), []byte(fmt.Sprintf("\"u%s\" * \"%s\" *\n", prefix, e.pw)), 0o600); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if err := os.WriteFile(filepath.Join(e.tmp, "srv-options"), []byte("auth\nrequire-pap\nlcp-echo-interval 5\nlcp-echo-failure 3\nms-dns 192.0.2.53\nnoipv6\n"), 0o600); err != nil {
++	e.ipv6, e.tools = os.Getenv("NGFW_PPPOE_IPV6"), os.Getenv("NGFW_PPPOE_TOOLS")
++	if e.ipv6 == "off" {
++		e.ipv6 = ""
++	}
++	srvV6 := "noipv6"
++	if e.ipv6 != "" {
++		srvV6 = "+ipv6"
++	}
++	if err := os.WriteFile(filepath.Join(e.tmp, "srv-options"), []byte("auth\nrequire-pap\nlcp-echo-interval 5\nlcp-echo-failure 3\nms-dns 192.0.2.53\n"+srvV6+"\n"), 0o600); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -384,7 +535,7 @@
+ 	waitReady(t, e.c)
+ 	if os.Getenv("NGFW_PPPOE_DIAG_RESOLVER") == "1" {
+ 		e.shim = &pplResolver{m: map[string][]byte{e.ref: []byte(e.pw)}}
+-		if err := subsystems.SetPppoeSecrets(prefix, e.shim); err != nil {
++		if err := subsystems.SetPppoeSecrets(prefix, func(ref string) ([]byte, error) { return e.shim.Resolve(context.Background(), ref) }); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		t.Log("DIAG-RESOLVER: non-product name->material resolver installed for " + e.ref)
+@@ -422,7 +573,8 @@
+ 	e.result("apply-pppoe", "PASS", "APPLIED with SecretBundle "+e.ref)
+ 	out, _ := e.cmd("ls", "-lR", e.slotTree)
+ 	t.Logf("rendered slot tree:\n%s", out)
+-	for _, f := range []string{"etc/ppp/peers/ngfw-" + e.host, "etc/systemd/system/ngfw-pppoe-" + e.host + ".service", "etc/ppp/ip-up.d/ngfw-" + e.host} {
++	for _, f := range []string{"etc/ppp/peers/ngfw-" + e.host, "etc/systemd/system/ngfw-pppoe-" + e.host + ".service", "etc/ppp/ip-up.d/ngfw-" + e.host,
++		"etc/ppp/ipv6-up.d/ngfw-" + e.host, "etc/ppp/ngfw-dhcpcd-" + e.host + ".conf"} {
+ 		b, _ := os.ReadFile(filepath.Join(e.slotTree, f))
+ 		t.Logf("rendered %s:\n%s", f, b)
+ 	}
+@@ -443,7 +595,7 @@
+ 		b, _ := os.ReadFile(e.cliLog)
+ 		t.Errorf("session did not come up within 40s; state=%s\nclient log:\n%s\nVPP errors:\n%s", protojson.Format(st), b, e.vppctl("show", "errors"))
+ 		e.result("dial-up", "FAIL", "phase="+st.GetPhase()+" (no PADO; see VPP errors / client log)")
+-		for _, c := range []string{"ipv4-addr-route-mirror", "mss-clamp", "traffic", "server-restart-reconnect", "wrong-password"} {
++		for _, c := range []string{"ipv4-addr-route-mirror", "mss-clamp", "ipv6-negotiation", "ipv6-addr-route-mirror", "traffic", "server-restart-reconnect", "wrong-password"} {
+ 			e.result(c, "NOT-RUN", "depends on dial-up")
+ 		}
+ 	} else {
+@@ -471,7 +623,46 @@
+ 			t.Errorf("mss clamp: %s", mss)
+ 			e.result("mss-clamp", "FAIL", mss)
+ 		}
+-		e.result("ipv6", "NOT-SUPPORTED", "hook/mirror carry IPv4 only (mirrorFor has no LocalIPv6); rendered noipv6")
++		if e.ipv6 == "" {
++			e.result("ipv6", "NOT-RUN", "ipv6 off in this run (run.py <mode> slaac|dhcpv6)")
++		} else {
++			e.startISP6()
++			st6, addrs6, route6, d6 := e.waitIPv6(45 * time.Second)
++			sb, _ := os.ReadFile(filepath.Join(e.slotTree, "run/ngfw/pppoe", e.host+".state6"))
++			t.Logf("IPv6 hook state6:\n%s\nagent ipv6=%q VPP /128s=%v ::/0 via LL=%v\n%s\n%s", sb, st6.GetIpv6(), addrs6, route6,
++				e.vppctl("show", "interface", "address", "host-"+prefix+"w0"), e.vppctl("show", "ip6", "fib", "table", strconv.Itoa(int(e.table)), "::/0"))
++			switch {
++			case st6.GetIpv6() == "":
++				e.result("ipv6-negotiation", "FAIL", "agent reports no IPv6 within 45 s")
++				e.result("ipv6-addr-route-mirror", "NOT-RUN", "no IPv6 state")
++			case d6 < 0:
++				e.result("ipv6-negotiation", "PASS", fmt.Sprintf("mode %s: ipv6=%q", e.ipv6, st6.GetIpv6()))
++				t.Errorf("IPv6 mirror incomplete: want %v got %v route=%v", want6(st6.GetIpv6()), addrs6, route6)
++				e.result("ipv6-addr-route-mirror", "FAIL", fmt.Sprintf("want %v got %v ::/0-via-LL=%v", want6(st6.GetIpv6()), addrs6, route6))
++			default:
++				e.result("ipv6-negotiation", "PASS", fmt.Sprintf("mode %s: ipv6=%q", e.ipv6, st6.GetIpv6()))
++				e.result("ipv6-addr-route-mirror", "PASS", fmt.Sprintf("%v on host-%sw0 and ::/0 via the ISP link-local in table %d, %s after the ISP started RA", addrs6, prefix, e.table, d6.Round(time.Millisecond)))
++			}
++			if strings.Contains(mss, "ipv6=1432/dir3") {
++				e.result("mss-clamp-ipv6", "PASS", mss)
++			} else {
++				e.result("mss-clamp-ipv6", "FAIL", mss)
++			}
++			pppIf6 := "ppp0"
++			for _, l := range strings.Split(string(sb), "\n") {
++				if v, ok := strings.CutPrefix(l, "ppp_iface="); ok && v != "" {
++					pppIf6 = v
++				}
++			}
++			p6, perr6 := e.cmd("ping", "-6", "-c", "3", "-W", "1", "-I", pppIf6, fmt.Sprintf("2001:db8:%d::1", slot))
++			t.Logf("host ping6 over %s: %v\n%s", pppIf6, perr6, p6)
++			if perr6 == nil {
++				e.result("ipv6-host-over-ppp", "PASS", "NON-PRODUCT diag evidence: host ping6 2001:db8:"+strconv.Itoa(slot)+"::1 over "+pppIf6+" replied")
++			} else {
++				e.result("ipv6-host-over-ppp", "FAIL", "host ping6 over "+pppIf6+" failed")
++			}
++			e.result("ipv6-lan-transit", "NOT-RUN", "blocked by defect 3 (no PPPoE encapsulation in the VPP path; IPv4 transit fails the same way)")
++		}
+ 
+ 		// traffic: (a) host-originated over ppp0 (control plane), (b) LAN transit through VPP's mirrored default route
+ 		pppIf := "ppp0"
+@@ -514,9 +705,28 @@
+ 		dDown, _ := e.waitPhase("down", 15*time.Second)
+ 		time.Sleep(1500 * time.Millisecond)
+ 		addrDown, routeDown, mssDown := e.mirror()
+-		t.Logf("server stopped: phase down after %v; VPP while down addr=%v route=%v mss=%s", dDown, addrDown, routeDown, mssDown)
++		v6Down, r6Down := e.mirror6()
++		t.Logf("server stopped: phase down after %v; VPP while down addr=%v route=%v mss=%s ipv6=%v ::/0=%v", dDown, addrDown, routeDown, mssDown, v6Down, r6Down)
++		if e.ipv6 != "" {
++			if len(v6Down) == 0 && !r6Down && dDown >= 0 {
++				e.result("ipv6-withdraw-on-down", "PASS", "IPv6 /128s and ::/0 path withdrawn while the session is down")
++			} else {
++				t.Errorf("IPv6 not withdrawn on down: %v %v", v6Down, r6Down)
++				e.result("ipv6-withdraw-on-down", "FAIL", fmt.Sprintf("left %v route=%v", v6Down, r6Down))
++			}
++		}
+ 		e.startServer()
+ 		dUp, st2 := e.waitPhase("up", 30*time.Second)
++		if e.ipv6 != "" && dUp >= 0 {
++			e.startISP6()
++			st6r, a6r, r6r, d6r := e.waitIPv6(45 * time.Second)
++			if d6r >= 0 {
++				e.result("ipv6-reconnect-remirror", "PASS", fmt.Sprintf("ipv6=%q mirrored again (%v, ::/0) %s after IPv4 up", st6r.GetIpv6(), a6r, d6r.Round(time.Millisecond)))
++			} else {
++				t.Errorf("IPv6 not re-mirrored after reconnect")
++				e.result("ipv6-reconnect-remirror", "FAIL", fmt.Sprintf("ipv6=%q VPP %v route=%v", st6r.GetIpv6(), a6r, r6r))
++			}
++		}
+ 		total := time.Since(t0)
+ 		time.Sleep(2 * time.Second)
+ 		addrUp, routeUp, _ := e.mirror()
+@@ -585,7 +795,24 @@
+ 		t.Errorf("withdraw apply failed")
+ 	}
+ 	time.Sleep(2 * time.Second)
++	// IPv6: the running refresher (pppd is still up: a slot agent does not stop it) notices its hook is gone within
++	// one 2 s cycle and removes its state; give it that cycle.
++	for i := 0; i < 12; i++ {
++		if out, _ := e.cmd("find", e.slotTree, "-type", "f"); strings.TrimSpace(out) == "" {
++			break
++		}
++		time.Sleep(500 * time.Millisecond)
++	}
+ 	addrW, routeW, mssW := e.mirror()
++	v6W, r6W := e.mirror6()
++	if e.ipv6 != "" {
++		if len(v6W) == 0 && !r6W {
++			e.result("ipv6-withdrawal-cleanup", "PASS", "no IPv6 /128 or ::/0 path left after removing pppoe")
++		} else {
++			t.Errorf("IPv6 left after withdrawal: %v %v", v6W, r6W)
++			e.result("ipv6-withdrawal-cleanup", "FAIL", fmt.Sprintf("left %v route=%v", v6W, r6W))
++		}
++	}
+ 	left, _ := e.cmd("find", e.slotTree, "-type", "f")
+ 	manifest := filepath.Join(e.cfg.StateDir, "pppoe-"+prefix+"-applied.pb")
+ 	_, mErr := os.Stat(manifest)
+@@ -610,6 +837,12 @@
+ 			if d, _ := e.waitPhase("up", 40*time.Second); d < 0 {
+ 				t.Logf("candidate session did not come up")
+ 			}
++			if e.ipv6 != "" {
++				e.startISP6()
++				if _, a, r, d := e.waitIPv6(30 * time.Second); d < 0 {
++					t.Logf("candidate IPv6 not mirrored: %v %v", a, r)
++				}
++			}
+ 			time.Sleep(3 * time.Second) // the mirror converges on the watcher's 1 s poll
+ 		}
+ 		addrC, routeC, _ := e.mirror()
+@@ -623,7 +856,22 @@
+ 			time.Sleep(time.Second)
+ 		}
+ 		time.Sleep(2 * time.Second)
++		for i := 0; i < 12; i++ {
++			if out, _ := e.cmd("find", e.slotTree, "-type", "f"); strings.TrimSpace(out) == "" {
++				break
++			}
++			time.Sleep(500 * time.Millisecond)
++		}
+ 		addrR, routeR, mssR := e.mirror()
++		v6R, r6R := e.mirror6()
++		if e.ipv6 != "" {
++			t.Logf("rollback IPv6: after revert %v route=%v", v6R, r6R)
++			if len(v6R) == 0 && !r6R {
++				e.result("ipv6-confirm-rollback", "PASS", "IPv6 mirror of the unconfirmed candidate removed at the deadline")
++			} else {
++				e.result("ipv6-confirm-rollback", "FAIL", fmt.Sprintf("left %v route=%v", v6R, r6R))
++			}
++		}
+ 		leftR, _ := e.cmd("find", e.slotTree, "-type", "f")
+ 		_, mErr2 := os.Stat(manifest)
+ 		t.Logf("rollback: candidate addr=%v route=%v; reverted=%v; after addr=%v route=%v mss=%s files=%q manifestGone=%v", addrC, routeC, reverted, addrR, routeR, mssR, leftR, os.IsNotExist(mErr2))
+@@ -639,4 +887,16 @@
+ 	t.Logf("client (rendered pppd) log:\n%s", b)
+ 	sb, _ := os.ReadFile(filepath.Join(e.tmp, "server.log"))
+ 	t.Logf("server log:\n%s", sb)
++	for _, l := range []string{"ra.py.log", "dhcp6s.py.log"} {
++		if b, err := os.ReadFile(filepath.Join(e.tmp, l)); err == nil {
++			t.Logf("ISP %s (tail):\n%s", l, tail(string(b), 1500))
++		}
++	}
++}
++
++func tail(s string, n int) string {
++	if len(s) > n {
++		return s[len(s)-n:]
++	}
++	return s
+ }
+diff -ruN pppoe/ra.py pppoe-ipv6/ra.py
+--- pppoe/ra.py	1970-01-01 00:00:00.000000000 +0000
++++ pppoe-ipv6/ra.py	2026-10-07 06:11:36.790462964 +0000
+@@ -0,0 +1,35 @@
++#!/usr/bin/env python3
++"""Minimal periodic Router Advertisement sender (test ISP): ra.py IFACE PREFIX/64 [managed]."""
++import socket, struct, sys, time, ipaddress
++iface, pfx = sys.argv[1], ipaddress.IPv6Network(sys.argv[2])
++managed = len(sys.argv) > 3 and sys.argv[3] == "managed"
++s = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.IPPROTO_ICMPV6)
++s.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, iface.encode())
++s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_HOPS, 255)
++s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_UNICAST_HOPS, 255)
++idx = socket.if_nametoindex(iface)
++flags = (0x80 | 0x40) if managed else 0
++ra = struct.pack("!BBHBBHII", 134, 0, 0, 64, flags, 1800, 0, 0)
++pio = struct.pack("!BBBBIII", 3, 4, pfx.prefixlen, 0xC0, 86400, 14400, 0) + pfx.network_address.packed
++mtu = struct.pack("!BBHI", 5, 1, 0, 1492)
++pkt = ra + pio + mtu
++import os, select
++period = float(os.environ.get("RA_PERIOD", "2"))
++nxt = 0.0
++while True:
++    now = time.time()
++    if now >= nxt:
++        try:
++            s.sendto(pkt, ("ff02::1", 0, 0, idx)); print("ra periodic", flush=True)
++        except OSError as e:
++            print("ra send:", e, flush=True)
++        nxt = now + period
++    r, _, _ = select.select([s], [], [], max(0.05, nxt - time.time()))
++    if r:
++        data, src = s.recvfrom(1500)
++        if data and data[0] == 133:
++            print("rs from", src[0], flush=True)
++            try:
++                s.sendto(pkt, ("ff02::1", 0, 0, idx)); print("ra solicited", flush=True)
++            except OSError as e:
++                print("ra send:", e, flush=True)
+diff -ruN pppoe/run.py pppoe-ipv6/run.py
+--- pppoe/run.py	2026-10-07 06:11:36.781775495 +0000
++++ pppoe-ipv6/run.py	2026-10-07 06:11:36.790130834 +0000
+@@ -1,10 +1,12 @@
+ #!/usr/bin/env python3
+ """F-pppoe-client-host live driver: real agent + rp-pppoe ISP on a disposable VPP in a private netns.
+ 
+-usage: run.py product|shim|diag
++usage: run.py product|shim|diag [off|slaac|dhcpv6]
+   product: unchanged agent and product VPP plugin set
+   shim: NON-PRODUCT name->material password resolver (see pppoe_live.go)
+   diag: shim + VPP without pppoe_plugin.so + driver-enabled linux-cp punt of 0x8863/0x8864
++  IPv6 (claude-pppoe-ipv6): the PPPoE client is configured with that ipv6 mode; the ISP negotiates IPv6CP and, in
++  ns-<p>-wan, sends Router Advertisements (ra.py) and, for dhcpv6, answers DHCPv6 IA_NA + IA_PD (dhcp6s.py).
+ Takes /run/lock/ngfw-slot-9.lock exclusively (slot 9, prefix w9). Shared VPP must be unchanged; no pppd/pppoe-server may survive.
+ """
+ import fcntl, hashlib, json, os, secrets, shlex, subprocess, sys, tempfile, time
+@@ -40,8 +42,10 @@
+ 
+ 
+ def procs():
+-    out = subprocess.run(['pgrep', '-a', '-x', 'pppd|pppoe-server|pppoe'], capture_output=True, text=True).stdout.strip()
+-    return out
++    out = subprocess.run(['pgrep', '-a', '-x', 'pppd|pppoe-server|pppoe|dhcpcd'], capture_output=True, text=True).stdout.strip()
++    here = str(Path(__file__).resolve().parent)
++    extra = subprocess.run(['pgrep', '-a', '-f', here + '/(ra|dhcp6s)[.]py|ipv6-up[.]d/ngfw-'], capture_output=True, text=True).stdout.strip()
++    return '\n'.join(x for x in (out, extra) if x)
+ 
+ 
+ def main():
+@@ -50,6 +54,8 @@
+         return
+     mode = sys.argv[1] if len(sys.argv) > 1 else 'product'
+     assert mode in ('product', 'shim', 'diag')
++    ipv6 = sys.argv[2] if len(sys.argv) > 2 else 'off'
++    assert ipv6 in ('off', 'slaac', 'dhcpv6')
+     lock = open('/run/lock/ngfw-slot-%s.lock' % SLOT, 'a')
+     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+     print('SLOT_LOCK=/run/lock/ngfw-slot-%s.lock held' % SLOT, flush=True)
+@@ -62,6 +68,8 @@
+     env['NGFW_PPPOE_DIAG_PUNT'] = '1' if mode == 'diag' else '0'
+     env['NGFW_PPPOE_DIAG_RESOLVER'] = '1' if mode in ('shim', 'diag') else '0'
+     env['NGFW_PPPOE_HOST_NETNS'] = os.readlink('/proc/self/ns/net')
++    env['NGFW_PPPOE_IPV6'] = ipv6
++    env['NGFW_PPPOE_TOOLS'] = str(Path(__file__).resolve().parent)
+     pw, bad = 'Pw' + secrets.token_hex(8), 'Bad' + secrets.token_hex(8)
+     env['NGFW_PPPOE_PASSWORD'], env['NGFW_PPPOE_BAD_PASSWORD'] = pw, bad
+     if procs():
+@@ -69,7 +77,7 @@
+     before = subprocess.check_output(['systemctl', 'show', 'vpp', '-p', 'MainPID', '-p', 'NRestarts'], text=True)
+     since = time.strftime('%Y-%m-%d %H:%M:%S')
+     print('SOURCE_SHA=' + subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), flush=True)
+-    print('MODE=' + mode, flush=True)
++    print('MODE=' + mode + ' IPV6=' + ipv6, flush=True)
+     print('PPP_VERSIONS=' + subprocess.check_output(['dpkg-query', '-W', 'ppp', 'pppoe'], text=True).replace('\n', ' '), flush=True)
+     (ROOT / '.scratch').mkdir(exist_ok=True)
+     with tempfile.TemporaryDirectory(prefix='pppoe-live-', dir=ROOT / '.scratch') as temp:
+@@ -79,6 +87,8 @@
+         overlay = Path(temp) / 'overlay.json'
+         overlay.write_text(json.dumps({'Replace': {str(target): str(staged)}}))
+         print('DRIVER_DIGEST=' + hashlib.sha256(staged.read_bytes()).hexdigest(), flush=True)
++        for tool in ('ra.py', 'dhcp6s.py'):
++            print('TOOL_DIGEST %s=%s' % (tool, hashlib.sha256(Path(__file__).with_name(tool).read_bytes()).hexdigest()), flush=True)
+         env['NGFW_PPPOE_OVERLAY'] = str(overlay)
+         env['NGFW_PPPOE_RUNTIME'] = str(Path(temp) / 'rt')
+         result = subprocess.run(['unshare', '--net', '--mount', '--propagation', 'private', sys.executable,

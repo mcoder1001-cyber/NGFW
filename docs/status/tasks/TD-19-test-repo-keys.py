@@ -8,6 +8,10 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
+import importlib.util
+spec = importlib.util.spec_from_file_location('safe_fixture', ROOT / 'scripts/tests/td19-safe-root-fixtures.py')
+safe_fixture = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(safe_fixture)
 A = 'A' * 40
 B = 'B' * 40
 
@@ -109,9 +113,11 @@ else: raise SystemExit(91)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             script = root / 'setup.sh'
-            source = (ROOT / 'scripts/00-add-repos.sh').read_text().replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
+            source = (ROOT / 'scripts/00-add-repos.sh').read_text().replace('source "$ROOT/scripts/install-common.sh"',
+                'source ' + json.dumps(str(ROOT / 'scripts/install-common.sh')), 1)
+            f = safe_fixture.Fixture(); self.addCleanup(f.close)
             script.write_text(source)
-            env = dict(os.environ, NGFW_VPP_ARTIFACTS=str(root / 'missing-artifacts'))
+            env = dict(f.env, NGFW_VPP_ARTIFACTS=str(root / 'missing-artifacts'))
             env.pop('NGFW_FRR_KEY_FINGERPRINTS', None)
             env.pop('NGFW_NODESOURCE_KEY_FINGERPRINTS', None)
             result = subprocess.run(['bash', str(script)], env=env, text=True, capture_output=True)

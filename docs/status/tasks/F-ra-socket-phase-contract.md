@@ -1,0 +1,12 @@
+# Fixed publisher socket phase contract — consumer pending
+
+Boot24 actual source-image and held proof passed; fixed manager refusal inner6 isolates socket metadata/state verification. Exact property discrepancy remains unknown until independent live readback. Upstream systemd v259 socket.c maps listening and running to active, and non-Accept activation enters running: https://github.com/systemd/systemd/blob/v259/src/core/socket.c . This is supporting source evidence, not a substitute for guest observations.
+
+Proposed internal contract numericPublisherSocketState(fields map[string]string, activeIdentity bool) bool: fixed FragmentPath, no DropInPaths, exact fixed SequentialPacket Listen, ActiveState=active always mandatory. Before server capture (activeIdentity=false) require listening. During exchange, running is eligible only with complete server identity and all unchanged subsequent fixed service MainPID/fullBoot/cgroup/CAP0/NNP/held image and proof validation. Listening may also pass the state check; service/process validation remains mandatory. All other states and metadata differences refuse. No socket service templates, capabilities, budgets, target paths or trust proof changes.
+
+This document precedes consumer implementation. Only after actual bounded independent property sampling confirms the discrepancy will the consumer change and security-negative tests be authored, reviewed and replayed in the original guest. No actual READY/full campaign claim.
+
+
+Consumer implemented only after P11 Boot25 actual seq19/kernelBoot61dc7776-88e3-4712-9524-95d3552f5492 positively captured active/running with every fixed socket metadata field unchanged and actual publisher PID172/start8131/service active/running/zero caps/NNP1. Pre-agent seq0 was active/listening plus inactive/dead service zeroPIDs. Closed actual failure remained manager17/inner6/deadlinefalse. Consumer changes only this phase-specific state eligibility; all subsequent complete identity and actual unit/capability/image/proof checks unchanged. Security negatives cover running without capture, foreign/dropin/inactive metadata and unsupported states. Independent review and fresh actual guest acceptance pending.
+
+Consumer wholeRA race2.504s EXIT0 and unchanged scopedgolangci0issues on frozen source; actualBoot25 receiptb464fee5625af45fa7759068dfc6280ef0300f66/tree7c5b90a6 confirms phase proof. Independent consumer review/neworiginal-unit guest replay pending.

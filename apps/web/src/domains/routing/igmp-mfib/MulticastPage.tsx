@@ -1,22 +1,20 @@
-import { serviceText } from '../../../product-text';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { multicastKeys, useMroutes, useMulticastGroups, usePimNeighbors } from './queries';
 
@@ -29,7 +27,8 @@ export function MulticastPage() {
   const groups = useMulticastGroups();
   const mroutes = useMroutes();
   const pim = usePimNeighbors();
-  const agentError = groups.data?.agentError ?? mroutes.data?.agentError ?? pim.data?.agentError ?? null;
+  const agentError =
+    groups.data?.agentError ?? mroutes.data?.agentError ?? pim.data?.agentError ?? null;
 
   return (
     <Box>
@@ -41,7 +40,10 @@ export function MulticastPage() {
 
       <Stack direction="row" sx={{ mb: 1 }}>
         <Box sx={{ flex: 1 }} />
-        <Button startIcon={<RefreshIcon />} onClick={() => void qc.invalidateQueries({ queryKey: multicastKeys.all })}>
+        <Button
+          startIcon={<RefreshIcon />}
+          onClick={() => void qc.invalidateQueries({ queryKey: multicastKeys.all })}
+        >
           {t('refresh')}
         </Button>
       </Stack>
@@ -61,24 +63,83 @@ export function MulticastPage() {
           <Alert severity="info">{t('groups.empty')}</Alert>
         ) : (
           <TableContainer component={Paper} variant="outlined">
-            <Table size="small" aria-label={t('groups.title')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('groups.col.interface')}</TableCell>
-                  <TableCell>{t('groups.col.group')}</TableCell>
-                  <TableCell>{t('groups.col.sources')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(groups.data?.groups ?? []).map((g, i) => (
-                  <TableRow key={`${g.interface}-${g.group}-${i}`}>
-                    <TableCell dir="ltr">{g.interface}</TableCell>
-                    <TableCell dir="ltr">{g.group}</TableCell>
-                    <TableCell dir="ltr">{g.sources.join(', ')}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {(() => {
+              const gridItems = groups.data?.groups ?? [];
+              type GridRow = (typeof gridItems)[number];
+              return (
+                <ReactGeereedMaterial
+                  hideFilterBuilderComponent
+                  noFormWrapper
+                  embedded
+                  memoEnable={false}
+                  hidePagination
+                  hideToolbar
+                  search={false}
+                  exportToCSV={false}
+                  sortable={false}
+                  footer={false}
+                  items={gridItems}
+                  columns={[
+                    {
+                      key: '0',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('groups.col.interface')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const g = gridRow;
+                        return <>{g.interface}</>;
+                      },
+                    },
+                    {
+                      key: '1',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('groups.col.group')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const g = gridRow;
+                        return <>{g.group}</>;
+                      },
+                    },
+                    {
+                      key: '2',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('groups.col.sources')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const g = gridRow;
+                        return <>{g.sources.join(', ')}</>;
+                      },
+                    },
+                  ]}
+                  tableProps={{
+                    size: 'small',
+                    'aria-label': t('groups.title'),
+                  }}
+                  rowKey={(nativeRow, gridIndex) => {
+                    const gridRow = nativeRow as unknown as GridRow;
+                    const g = gridRow;
+                    const i = gridIndex;
+                    return `${g.interface}-${g.group}-${i}`;
+                  }}
+                  rowProps={(_nativeRow, _gridIndex) => {
+                    return {};
+                  }}
+                  cellProps={(_nativeRow, column, _gridIndex) => {
+                    switch (column.key) {
+                      case '0':
+                        return { dir: 'ltr' };
+                      case '1':
+                        return { dir: 'ltr' };
+                      case '2':
+                        return { dir: 'ltr' };
+                      default:
+                        return {};
+                    }
+                  }}
+                  emptyContent={null}
+                />
+              );
+            })()}
           </TableContainer>
         )}
       </Section>
@@ -88,28 +149,107 @@ export function MulticastPage() {
           <Alert severity="info">{t('mroutes.empty')}</Alert>
         ) : (
           <TableContainer component={Paper} variant="outlined">
-            <Table size="small" aria-label={t('mroutes.title')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('mroutes.col.vrf')}</TableCell>
-                  <TableCell>{t('mroutes.col.group')}</TableCell>
-                  <TableCell>{t('mroutes.col.source')}</TableCell>
-                  <TableCell>{t('mroutes.col.accept')}</TableCell>
-                  <TableCell>{t('mroutes.col.forward')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(mroutes.data?.mroutes ?? []).map((m, i) => (
-                  <TableRow key={`${m.vrf}-${m.group}-${m.source}-${i}`}>
-                    <TableCell dir="ltr">{m.vrf}</TableCell>
-                    <TableCell dir="ltr">{m.group}</TableCell>
-                    <TableCell dir="ltr">{m.source || ANY_SOURCE}</TableCell>
-                    <TableCell dir="ltr">{m.accept}</TableCell>
-                    <TableCell dir="ltr">{m.forward.join(', ')}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {(() => {
+              const gridItems = mroutes.data?.mroutes ?? [];
+              type GridRow = (typeof gridItems)[number];
+              return (
+                <ReactGeereedMaterial
+                  hideFilterBuilderComponent
+                  noFormWrapper
+                  embedded
+                  memoEnable={false}
+                  hidePagination
+                  hideToolbar
+                  search={false}
+                  exportToCSV={false}
+                  sortable={false}
+                  footer={false}
+                  items={gridItems}
+                  columns={[
+                    {
+                      key: '0',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('mroutes.col.vrf')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const m = gridRow;
+                        return <>{m.vrf}</>;
+                      },
+                    },
+                    {
+                      key: '1',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('mroutes.col.group')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const m = gridRow;
+                        return <>{m.group}</>;
+                      },
+                    },
+                    {
+                      key: '2',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('mroutes.col.source')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const m = gridRow;
+                        return <>{m.source || ANY_SOURCE}</>;
+                      },
+                    },
+                    {
+                      key: '3',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('mroutes.col.accept')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const m = gridRow;
+                        return <>{m.accept}</>;
+                      },
+                    },
+                    {
+                      key: '4',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('mroutes.col.forward')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const m = gridRow;
+                        return <>{m.forward.join(', ')}</>;
+                      },
+                    },
+                  ]}
+                  tableProps={{
+                    size: 'small',
+                    'aria-label': t('mroutes.title'),
+                  }}
+                  rowKey={(nativeRow, gridIndex) => {
+                    const gridRow = nativeRow as unknown as GridRow;
+                    const m = gridRow;
+                    const i = gridIndex;
+                    return `${m.vrf}-${m.group}-${m.source}-${i}`;
+                  }}
+                  rowProps={(_nativeRow, _gridIndex) => {
+                    return {};
+                  }}
+                  cellProps={(_nativeRow, column, _gridIndex) => {
+                    switch (column.key) {
+                      case '0':
+                        return { dir: 'ltr' };
+                      case '1':
+                        return { dir: 'ltr' };
+                      case '2':
+                        return { dir: 'ltr' };
+                      case '3':
+                        return { dir: 'ltr' };
+                      case '4':
+                        return { dir: 'ltr' };
+                      default:
+                        return {};
+                    }
+                  }}
+                  emptyContent={null}
+                />
+              );
+            })()}
           </TableContainer>
         )}
       </Section>
@@ -119,24 +259,80 @@ export function MulticastPage() {
           <Alert severity="info">{t('pim.empty')}</Alert>
         ) : (
           <TableContainer component={Paper} variant="outlined">
-            <Table size="small" aria-label={t('pim.title')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('pim.col.interface')}</TableCell>
-                  <TableCell>{t('pim.col.address')}</TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>{t('pim.col.uptime')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(pim.data?.neighbors ?? []).map((n, i) => (
-                  <TableRow key={`${n.interface}-${n.address}-${i}`}>
-                    <TableCell dir="ltr">{n.interface}</TableCell>
-                    <TableCell dir="ltr">{n.address}</TableCell>
-                    <TableCell dir="ltr" sx={{ textAlign: 'end' }}>{n.uptimeSec}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {(() => {
+              const gridItems = pim.data?.neighbors ?? [];
+              type GridRow = (typeof gridItems)[number];
+              return (
+                <ReactGeereedMaterial
+                  hideFilterBuilderComponent
+                  noFormWrapper
+                  embedded
+                  memoEnable={false}
+                  hidePagination
+                  hideToolbar
+                  search={false}
+                  exportToCSV={false}
+                  sortable={false}
+                  footer={false}
+                  items={gridItems}
+                  columns={[
+                    {
+                      key: '0',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('pim.col.interface')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const n = gridRow;
+                        return <>{n.interface}</>;
+                      },
+                    },
+                    {
+                      key: '1',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('pim.col.address')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const n = gridRow;
+                        return <>{n.address}</>;
+                      },
+                    },
+                    {
+                      key: '2',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('pim.col.uptime')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const n = gridRow;
+                        return <>{n.uptimeSec}</>;
+                      },
+                    },
+                  ]}
+                  tableProps={{ size: 'small', 'aria-label': t('pim.title') }}
+                  rowKey={(nativeRow, gridIndex) => {
+                    const gridRow = nativeRow as unknown as GridRow;
+                    const n = gridRow;
+                    const i = gridIndex;
+                    return `${n.interface}-${n.address}-${i}`;
+                  }}
+                  rowProps={(_nativeRow, _gridIndex) => {
+                    return {};
+                  }}
+                  cellProps={(_nativeRow, column, _gridIndex) => {
+                    switch (column.key) {
+                      case '0':
+                        return { dir: 'ltr' };
+                      case '1':
+                        return { dir: 'ltr' };
+                      case '2':
+                        return { dir: 'ltr', sx: { textAlign: 'end' } };
+                      default:
+                        return {};
+                    }
+                  }}
+                  emptyContent={null}
+                />
+              );
+            })()}
           </TableContainer>
         )}
       </Section>

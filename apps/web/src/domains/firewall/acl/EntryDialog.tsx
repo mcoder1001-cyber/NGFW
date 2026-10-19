@@ -1,9 +1,9 @@
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Stack from '@mui/material/Stack';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgDialog as Dialog } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogContent as DialogContent } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogTitle as DialogTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
 import { SchemaForm, type JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';

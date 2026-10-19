@@ -1,7 +1,7 @@
-import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgTab as Tab } from '@amnafzar/common-ui-lib/primitives';
+import { PgTabs as Tabs } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { PageHeader } from '../../../shell/PageHeader';

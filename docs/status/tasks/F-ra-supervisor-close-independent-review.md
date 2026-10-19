@@ -1,0 +1,9 @@
+# Scoped independent descriptor-close review
+
+Author source630d78adfd7f4cae9076f075a131dfa3d7bafc47/local7870920d8ec5ddfef55f44b99a5e20ea4fa6ed4e; test-only follow-up166d124a94230890957663cf4914052a9f571310/localeae20cbd8b4288499b0fd50f96d6c29eb0faaa62. Reviewer root is independent of these supervisor implementation changes. Scope ONLY new unit_supervisor.go descriptor-close delta and four runtime_test/unit_supervisor_test annotations, not root-authored target/observer/API/packaging or whole RA source.
+
+R1/R2/R4 APPROVE: named executable result becomes false on held artifact close failure; inactive unit result becomes ErrEngine on protected root/daemon descriptor close failure. Existing owner/root/mode/nlink/dev/inode/source/namespace/cgroup/socket predicates, activation order and finite deadlines remain unchanged. Defers close both root and daemon, including early returns; errors retain refusal, not success. Test annotations describe private generated inventory/manifest/executable access and deliberate mode0777 rejection; exact executable test bodies/modes/assertions unchanged.
+
+Actual assembled replay c00cf050d on current MAIN4788 plus reviewed source and packaging: whole internal/ra_vpn race PASS3.614s EXIT0; unchanged golangci-lint package scope EXIT0, 0 issues. Logs /root/ngfw-observer-tmp-20261005/ra-supervisor-union-race.log and ra-complete-owned-lint.log. Prior seven lint findings retained in ra-current-union-lint.log (EXIT1); no linter configuration changes or disabled checks. Focused desired merge test independently of this scope PASS1.446s; does not grade this supervisor scope.
+
+No actual canonical full-profile/installed package/restart/stop-failure proof from this replay. Default publisher operational acceptance remains unresolved pending separately reviewed finite validation/IPC phase correction and real guest execution. Whole quick and final applicable panels remain required.

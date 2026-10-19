@@ -1,16 +1,5 @@
-import {
-  Alert,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  MenuItem,
-  Stack,
-  Step,
-  StepLabel,
-  Stepper,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { PgAlert as Alert, PgCheckbox as Checkbox, PgFormControlLabel as FormControlLabel, PgMenuItem as MenuItem, PgStack as Stack, PgStep as Step, PgStepLabel as StepLabel, PgStepper as Stepper, PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
 import { RootConfig, SetupInputSchema, parentInterfaceName, type SetupInput } from '@ngfw/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -82,6 +71,8 @@ export function SetupWizardPage() {
     queryFn: ({ signal }) => fetchInterfacesState(signal),
     enabled: step === 3 || step === 4,
   });
+  const interfacesUnavailable =
+    interfaces.isError || (interfaces.data?.observationErrors?.length ?? 0) > 0;
   const interfaceNames = [
     ...new Set([
       ...Object.entries(running.data?.doc.interfaces ?? {})
@@ -295,7 +286,7 @@ export function SetupWizardPage() {
       {(step === 3 || step === 4) && interfaces.isFetching && (
         <Typography>{t('loadingInterfaces')}</Typography>
       )}
-      {(step === 3 || step === 4) && interfaces.isError && (
+      {(step === 3 || step === 4) && interfacesUnavailable && (
         <Alert severity="warning">
           {t('interfacesFailed')}
           <Button onClick={() => void interfaces.refetch()}>{t('retryInterfaces')}</Button>

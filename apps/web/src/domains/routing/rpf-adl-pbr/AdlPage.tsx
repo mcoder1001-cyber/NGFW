@@ -1,22 +1,20 @@
-import EditIcon from '@mui/icons-material/Edit';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgEditIcon as EditIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -120,55 +118,135 @@ export function AdlPage() {
         {t('adl.interfaces')}
       </Typography>
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 1 }}>
-        <Table size="small" aria-label={t('adl.interfaces')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.interface')}</TableCell>
-              <TableCell>{t('col.urpf')}</TableCell>
-              <TableCell>{t('col.adl')}</TableCell>
-              <TableCell>{t('col.pending')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.length === 0 && ifs.isSuccess && (
-              <TableRow>
-                <TableCell colSpan={5}>
+        {(() => {
+          const gridItems = rows;
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              items={gridItems}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.interface')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const r = gridRow;
+                    return (
+                      <>
+                        <Box component="span" dir="ltr" sx={MONO}>
+                          {r.name}
+                        </Box>
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.urpf')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const r = gridRow;
+                    return <>{urpfText(r.urpf, tr)}</>;
+                  },
+                },
+                {
+                  key: '2',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.adl')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const r = gridRow;
+                    return <>{adlText(r.adl, tr)}</>;
+                  },
+                },
+                {
+                  key: '3',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.pending')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const r = gridRow;
+                    return (
+                      <>
+                        {pending(r.name, r.urpf, r.adl) && (
+                          <Chip size="small" color="warning" label={t('pending.changed')} />
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '4',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.actions')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const r = gridRow;
+                    return (
+                      <>
+                        <IconButton
+                          size="small"
+                          aria-label={t('adl.edit', { name: r.name })}
+                          disabled={readOnly}
+                          onClick={() => {
+                            patchIfs.reset();
+                            setEditing(r.name);
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </>
+                    );
+                  },
+                },
+              ]}
+              tableProps={{ size: 'small', 'aria-label': t('adl.interfaces') }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const r = gridRow;
+                return r.name;
+              }}
+              rowProps={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const r = gridRow;
+                return { role: 'row', 'data-testid': `sec-${r.name}` };
+              }}
+              cellProps={(_nativeRow, column, _gridIndex) => {
+                switch (column.key) {
+                  case '0':
+                    return {};
+                  case '1':
+                    return {};
+                  case '2':
+                    return {};
+                  case '3':
+                    return {};
+                  case '4':
+                    return { sx: { textAlign: 'end' } };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={
+                <>
                   <Typography color="text.secondary">{t('adl.noInterfaces')}</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map((r) => (
-              <TableRow key={r.name} data-testid={`sec-${r.name}`}>
-                <TableCell>
-                  <Box component="span" dir="ltr" sx={MONO}>
-                    {r.name}
-                  </Box>
-                </TableCell>
-                <TableCell>{urpfText(r.urpf, tr)}</TableCell>
-                <TableCell>{adlText(r.adl, tr)}</TableCell>
-                <TableCell>
-                  {pending(r.name, r.urpf, r.adl) && (
-                    <Chip size="small" color="warning" label={t('pending.changed')} />
-                  )}
-                </TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>
-                  <IconButton
-                    size="small"
-                    aria-label={t('adl.edit', { name: r.name })}
-                    disabled={readOnly}
-                    onClick={() => {
-                      patchIfs.reset();
-                      setEditing(r.name);
-                    }}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </>
+              }
+            />
+          );
+        })()}
       </TableContainer>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         {t('adl.note')}

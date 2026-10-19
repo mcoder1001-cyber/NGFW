@@ -1,16 +1,16 @@
-import Autocomplete from '@mui/material/Autocomplete';
-import Button from '@mui/material/Button';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import {
+  PgAutocomplete as Autocomplete,
+  PgButton as Button,
+  PgText as TextField,
+} from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgFormControlLabel as FormControlLabel,
+  PgMenuItem as MenuItem,
+  PgStack as Stack,
+  PgSwitch as Switch,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NS, type PanelProps } from './FlowExportTab';
@@ -153,28 +153,59 @@ export function SflowPanel({ cfg, state, interfaces, readOnly, pending, save }: 
         </Button>
       </div>
       <Typography variant="subtitle2">{t('sflow.live')}</Typography>
-      <Table size="small" aria-label={t('sflow.live')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('interface')}</TableCell>
-            <TableCell>{t('sflow.hwIfIndex')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {(state?.sflow.interfaces ?? []).map((i) => (
-            <TableRow key={i.interface}>
-              <TableCell>{i.interface}</TableCell>
-              <TableCell>{i.hwIfIndex}</TableCell>
-            </TableRow>
-          ))}
-          {(state?.sflow.counters ?? []).map((c) => (
-            <TableRow key={c.name}>
-              <TableCell dir="ltr">{c.name}</TableCell>
-              <TableCell>{c.value}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const rows = [
+          ...(state?.sflow.interfaces ?? []).map((item) => ({
+            key: `interface-${item.interface}`,
+            name: item.interface,
+            value: item.hwIfIndex,
+            counter: false,
+          })),
+          ...(state?.sflow.counters ?? []).map((item) => ({
+            key: `counter-${item.name}`,
+            name: item.name,
+            value: item.value,
+            counter: true,
+          })),
+        ];
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={rows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('interface')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, row: (typeof rows)[number]) => <>{row.name}</>,
+              },
+              {
+                key: 'value',
+                headerRenderer: () => <>{t('sflow.hwIfIndex')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, row: (typeof rows)[number]) => <>{row.value}</>,
+              },
+            ]}
+            rowKey={(item) => (item as (typeof rows)[number]).key}
+            cellProps={(item, column) =>
+              (item as (typeof rows)[number]).counter && column.key === 'name' ? { dir: 'ltr' } : {}
+            }
+            tableProps={{ size: 'small', 'aria-label': t('sflow.live') }}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
     </Stack>
   );
 }

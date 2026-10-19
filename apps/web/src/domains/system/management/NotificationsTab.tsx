@@ -1,14 +1,13 @@
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableHead from '@mui/material/TableHead';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
+import type { NotificationsConfig } from '@ngfw/schema';
 import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,14 +15,12 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../../api';
 import { ApiError, call } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
-import { invalidateConfig, qk } from '../../../config/queries';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { invalidateConfig, qk } from '../../../config/queries';
 import { domainSchemas } from '../../../schema/registry';
-import type { NotificationsConfig } from '@ngfw/schema';
 
 const PATH = 'management';
 const NS = 'management';
-const COLUMNS = ['channel', 'rule', 'at', 'result', 'error'] as const;
 export function notificationProblem(error: unknown): ProblemDetails | null {
   if (!(error instanceof ApiError)) return null;
   const problem = error.toFormProblem();
@@ -147,31 +144,67 @@ export default function NotificationsTab() {
         ))}
       {test.isError && <ProblemAlert error={test.error} />}
       {test.isSuccess && <Alert severity="info">{t('notifications.testQueued')}</Alert>}
-      <Table aria-label={t('notifications.deliveryTitle')}>
-        <TableHead>
-          <TableRow>
-            {COLUMNS.map((column) => (
-              <TableCell key={column}>{t(`notifications.columns.${column}`)}</TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {state.isSuccess && state.data?.deliveries.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5}>{t('notifications.empty')}</TableCell>
-            </TableRow>
-          )}
-          {state.data?.deliveries.map((d, i) => (
-            <TableRow key={`${d.at}-${i}`}>
-              <TableCell>{d.channel}</TableCell>
-              <TableCell>{d.rule ?? t('notifications.testLabel')}</TableCell>
-              <TableCell>{fmt.dateTime(d.at)}</TableCell>
-              <TableCell>{t(`notifications.result.${d.result}`)}</TableCell>
-              <TableCell>{d.error ?? '—'}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ReactGeereedMaterial
+        tableProps={{ 'aria-label': t('notifications.deliveryTitle') }}
+        columns={[
+          {
+            key: 'column0',
+            headerRenderer: () => t('notifications.columns.channel'),
+            filterable: false,
+            renderer: (value) => <>{value}</>,
+          },
+          {
+            key: 'column1',
+            headerRenderer: () => t('notifications.columns.rule'),
+            filterable: false,
+            renderer: (value) => <>{value}</>,
+          },
+          {
+            key: 'column2',
+            headerRenderer: () => t('notifications.columns.at'),
+            filterable: false,
+            renderer: (value) => <>{value}</>,
+          },
+          {
+            key: 'column3',
+            headerRenderer: () => t('notifications.columns.result'),
+            filterable: false,
+            renderer: (value) => <>{value}</>,
+          },
+          {
+            key: 'column4',
+            headerRenderer: () => t('notifications.columns.error'),
+            filterable: false,
+            renderer: (value) => <>{value}</>,
+          },
+        ]}
+        items={[
+          ...(state.data?.deliveries.map((d, i) => ({
+            id: `${d.at}-${i}`,
+            column0: d.channel,
+            column1: d.rule ?? t('notifications.testLabel'),
+            column2: fmt.dateTime(d.at),
+            column3: t(`notifications.result.${d.result}`),
+            column4: d.error ?? '—',
+          })) ?? []),
+        ]}
+        rowKey={(item) => item.id}
+        rowProps={(item) => item.rowProps ?? {}}
+        cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+        emptyContent={
+          state.isSuccess && state.data?.deliveries.length === 0 ? t('notifications.empty') : null
+        }
+        noFormWrapper
+        embedded
+        hideToolbar
+        hidePagination
+        hideFilterBuilderComponent
+        search={false}
+        sortable={false}
+        exportToCSV={false}
+        footer={false}
+        memoEnable={false}
+      />
     </Stack>
   );
 }

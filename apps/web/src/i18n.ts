@@ -91,6 +91,8 @@ import faLisp from './locales/fa/lisp.json';
 import enBfdRedistribution from "./locales/en/bfd-redistribution.json";
 import faBfdRedistribution from "./locales/fa/bfd-redistribution.json";
 // wave-BC: F-ra-vpn
+import enRaVpn from './locales/en/ra-vpn.json';
+import faRaVpn from './locales/fa/ra-vpn.json';
 // wave-BC: F-mpls-ldp
 import enMplsLdp from './locales/en/mpls-ldp.json';
 import faMplsLdp from './locales/fa/mpls-ldp.json';
@@ -237,6 +239,7 @@ export const NAMESPACES = [
   // wave-BC: F-bfd-redistribution
   'bfd-redistribution',
   // wave-BC: F-ra-vpn
+  'ra-vpn',
   // wave-BC: F-mpls-ldp
   'mpls-ldp',
   // wave-BC: F-igmp-mfib
@@ -352,6 +355,7 @@ const en = {
   // wave-BC: F-bfd-redistribution
   "bfd-redistribution": enBfdRedistribution,
   // wave-BC: F-ra-vpn
+  'ra-vpn': enRaVpn,
   // wave-BC: F-mpls-ldp
   'mpls-ldp': enMplsLdp,
   // wave-BC: F-igmp-mfib
@@ -464,6 +468,7 @@ const fa = {
   // wave-BC: F-bfd-redistribution
   "bfd-redistribution": faBfdRedistribution,
   // wave-BC: F-ra-vpn
+  'ra-vpn': faRaVpn,
   // wave-BC: F-mpls-ldp
   'mpls-ldp': faMplsLdp,
   // wave-BC: F-igmp-mfib

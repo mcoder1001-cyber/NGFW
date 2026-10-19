@@ -1,0 +1,12 @@
+{
+  "scope": "Historical local shared-root proof, not new execution and not private-mode acceptance",
+  "source": "49ec41af",
+  "local_merge": "8084739c30a85e5e1d3a880f7676fd1df46d330c",
+  "independent_audit": "807d1cac",
+  "audit_published": "4657ec73d60f833c858d1303ffe152380b5cd0a0",
+  "sha256": {
+    "pre.txt": "3c9328d303dd736665ed9bebd9a59fb6f2d059ad01ea9b0bd372540690eea57d",
+    "run1.txt": "0cef15a5d9c438ad7a1b9186e446d8a6ae39142b36d3592fc2cf5dc04c3cbea2",
+    "post.txt": "58e1a3ff5dce7e52b912c8c12a080f1801ffbc94141891e6b5a525fba09a3524"
+  }
+}

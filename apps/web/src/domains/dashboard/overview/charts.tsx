@@ -1,8 +1,8 @@
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
+import { useTheme } from '@amnafzar/common-ui-lib/styles';
 import { useId, useState, type MouseEvent, type ReactNode } from 'react';
 import { niceTicks } from './model';
 

@@ -1,0 +1,98 @@
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/ppp/ip-down.d/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/ppp/ipv6-up.d/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/ppp/ipv6-down.d/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/ppp/chap-secrets
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/ppp/pap-secrets
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/ppp/peers/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/systemd/system/ngfw-pppoe-cli0.service
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/etc/ppp/ip-up.d/ngfw-cli0
+7: ppp0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1492 qdisc noqueue state UNKNOWN group default qlen 3
+    inet6 fe80::e099:f047:b888:7422 peer fe80::247f:bd2:ac3e:936c/128 scope link nodad 
+       valid_lft forever preferred_lft forever
+== after 2 s
+phase=up
+hostif=cli0
+ppp_iface=ppp0
+lllocal=fe80::247f:0bd2:ac3e:936c
+llremote=fe80::e099:f047:b888:7422
+addr=2001:db8:9:0:247f:bd2:ac3e:936c/64
+gw=fe80::e099:f047:b888:7422
+at=2026-10-07T05:33:49Z
+phase=up
+hostif=cli0
+ppp_iface=ppp0
+local=100.64.9.10
+peer=100.64.9.1
+dns1=
+dns2=
+at=2026-10-07T05:33:49Z
+total 20
+drwxr-xr-x 2 root root 4096 Oct  7 05:33 .
+drwxr-xr-x 3 root root 4096 Oct  7 05:33 ..
+-rw-r--r-- 1 root root    8 Oct  7 05:33 cli0.ipv6.pid
+-rw-r--r-- 1 root root  106 Oct  7 05:33 cli0.state
+-rw-r--r-- 1 root root  198 Oct  7 05:33 cli0.state6
+7: ppp0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1492 qdisc noqueue state UNKNOWN group default qlen 3
+    inet6 2001:db8:9:0:247f:bd2:ac3e:936c/64 scope global dynamic mngtmpaddr proto kernel_ra 
+       valid_lft 86399sec preferred_lft 14399sec
+    inet6 fe80::247f:bd2:ac3e:936c peer fe80::e099:f047:b888:7422/128 scope link nodad 
+       valid_lft forever preferred_lft forever
+2001:db8:9::/64 dev ppp0 proto kernel metric 256 expires 86398sec pref medium
+fe80::247f:bd2:ac3e:936c dev ppp0 proto kernel metric 256 pref medium
+fe80::e099:f047:b888:7422 dev ppp0 proto kernel metric 256 pref medium
+fe80::/64 dev cli0 proto kernel metric 256 pref medium
+default via fe80::e099:f047:b888:7422 dev ppp0 proto ra metric 1024 expires 1798sec hoplimit 64 pref medium
+root     1973878 1973719  0 05:33 ?        00:00:00 pppd call ngfw-cli0 nodetach ipparam ngfw-cli0
+root     1974147       1  0 05:33 ?        00:00:00 /bin/sh /etc/ppp/ipv6-up.d/ngfw-cli0 ppp0 cli0 0 fe80::247f:0bd2:ac3e:936c fe80::e099:f047:b888:7422 ngfw-cli0
+root     1974155 1974147  1 05:33 ?        00:00:00 sleep 2
+PING fe80::e099:f047:b888:7422%ppp0 (fe80::e099:f047:b888:7422%ppp0) 56 data bytes
+64 bytes from fe80::e099:f047:b888:7422%ppp0: icmp_seq=1 ttl=64 time=0.197 ms
+64 bytes from fe80::e099:f047:b888:7422%ppp0: icmp_seq=2 ttl=64 time=0.191 ms
+
+--- fe80::e099:f047:b888:7422%ppp0 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1023ms
+rtt min/avg/max/mdev = 0.191/0.194/0.197/0.003 ms
+== RS trigger check
+0
+1
+7: ppp0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1492 qdisc noqueue state UNKNOWN group default qlen 3
+    inet6 2001:db8:9:0:247f:bd2:ac3e:936c/64 scope global dynamic mngtmpaddr proto kernel_ra 
+       valid_lft 86399sec preferred_lft 14399sec
+    inet6 fe80::247f:bd2:ac3e:936c peer fe80::e099:f047:b888:7422/128 scope link nodad 
+       valid_lft forever preferred_lft forever
+default via fe80::e099:f047:b888:7422 dev ppp0 proto ra metric 1024 expires 1798sec hoplimit 64 pref medium
+== /root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/run/ngfw/pppoe/env.*
+grep: /root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-slaac/root/run/ngfw/pppoe/env.*: No such file or directory
+== after client stop
+phase=down
+hostif=cli0
+ppp_iface=ppp0
+lllocal=fe80::247f:0bd2:ac3e:936c
+llremote=fe80::e099:f047:b888:7422
+at=2026-10-07T05:33:53Z
+total 16
+drwxr-xr-x 2 root root 4096 Oct  7 05:33 .
+drwxr-xr-x 3 root root 4096 Oct  7 05:33 ..
+-rw-r--r-- 1 root root  108 Oct  7 05:33 cli0.state
+-rw-r--r-- 1 root root  131 Oct  7 05:33 cli0.state6
+== logs
+Plugin rp-pppoe.so loaded.
+PPP session is 1
+Connected to B2:12:AE:2E:BF:30 via interface cli0
+Using interface ppp0
+Connect: ppp0 <--> cli0
+Remote message: Login ok
+PAP authentication succeeded
+peer from calling number B2:12:AE:2E:BF:30 authorized
+local  LL address fe80::247f:0bd2:ac3e:936c
+remote LL address fe80::e099:f047:b888:7422
+local  IP address 100.64.9.10
+remote IP address 100.64.9.1
+Terminating on signal 15
+Connect time 0.1 minutes.
+Sent 304 bytes, received 552 bytes.
+Connection terminated.
+Sent PADT
+ra periodic
+rs from fe80::247f:bd2:ac3e:936c
+ra solicited

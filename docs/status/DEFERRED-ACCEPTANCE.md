@@ -321,3 +321,6 @@ Deferred laboratory acceptance: real appliance NIC inventory, browser screenshot
 against an owned API/agent stack, and confirmed-commit DHCP/NAT/LAN management
 packet checks. No appliance configuration or service was modified for this fix.
 The unchanged complete local and hosted quick gates remain mandatory before merge.
+## Automatic Interfaces host discovery — 2026-10-07
+
+PR199 / interfaces-discovery-20261007 source is independently reviewed; unit checks use scripted API/agent and fake sysfs fixtures. Real appliance/browser acceptance has **not been executed**: confirm all agent-returned physical PCI functions (including management and userspace-bound devices) appear automatically on the target appliance, capture EN/FA browser screenshots, confirm host-only drawers have no configuration actions, and observe unavailable engine/inventory diagnostics without changing NIC ownership. No claim of real seven-NIC VMware inventory or host connectivity verification is made by unit evidence. Existing HostNics scope is one entry per PCI function; Linux-only virtual/USB inventory and ambiguous virtio engine identity are explicitly outside this change. This laboratory-only acceptance is deferred under the owner instruction; complete local and hosted quick gates remain mandatory before merge.

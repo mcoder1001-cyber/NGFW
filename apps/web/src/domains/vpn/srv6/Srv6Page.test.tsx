@@ -239,6 +239,33 @@ function renderTab() {
 }
 
 describe('SRv6 tab', () => {
+  it('keeps every SID visible beyond twenty rows, with translated headings and row actions', async () => {
+    const api = installFakeApi();
+    const localSids = Object.fromEntries(
+      Array.from({ length: 25 }, (_, index) => [
+        `fd00:42::${(index + 1).toString(16)}`,
+        { behavior: 'end', psp: false, vrf: 'default' },
+      ]),
+    );
+    api.on('GET /api/v1/state/srv6', {
+      body: { ...state, localSids: [], policies: [], steering: [] },
+    });
+    api.on('GET /api/v1/config/candidate/routing', {
+      body: { static: [], srv6: { localSids, policies: {}, steering: [] } },
+    });
+    await signIn();
+    renderTab();
+    const last = await screen.findByTestId('srv6-sid-fd00:42::19', {}, { timeout: 15_000 });
+    const table = screen.getByRole('table', { name: 'Local SIDs' });
+    expect(within(table).getAllByRole('row')).toHaveLength(26);
+    for (const name of ['SID', 'Behavior', 'VRF', 'Target', 'Status', 'Processed', 'Dropped']) {
+      expect(within(table).getByRole('columnheader', { name })).toBeInTheDocument();
+    }
+    expect(within(last).getByRole('button', { name: 'Edit' })).toBeEnabled();
+    expect(within(last).getByRole('button', { name: 'Delete' })).toBeEnabled();
+    expect(api.calls.some((call) => call.method === 'PATCH')).toBe(false);
+  });
+
   it('lists local SIDs with counters, policies with segment lists, steering; the proxy note', async () => {
     const api = installFakeApi();
     api.on('GET /api/v1/state/srv6', { body: state });

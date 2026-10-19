@@ -1,24 +1,30 @@
-import { serviceText } from '../../../product-text';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgCircularProgress as CircularProgress,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { problemFor } from '../../interfaces/InterfaceDrawer';
-import { LISP_POINTER, SECTIONS, sectionPatch, sectionSchema, sectionValue, statusRows, type SectionId } from './model';
+import {
+  LISP_POINTER,
+  SECTIONS,
+  sectionPatch,
+  sectionSchema,
+  sectionValue,
+  statusRows,
+  type SectionId,
+} from './model';
 import { useCandidateLisp, useLispState, usePatchTunnels } from './queries';
 
 /**
@@ -35,14 +41,28 @@ export function LispTab() {
   const patch = usePatchTunnels();
   const schema = useMemo(() => sectionSchema(section), [section]);
   const value = useMemo(() => sectionValue(section, candidate.data), [section, candidate.data]);
-  const rows = useMemo(() => statusRows(section, candidate.data, state.data ?? null), [section, candidate.data, state.data]);
+  const rows = useMemo(
+    () => statusRows(section, candidate.data, state.data ?? null),
+    [section, candidate.data, state.data],
+  );
 
   return (
     <Stack gap={2}>
       <Alert severity="info">{t('advanced')}</Alert>
-      <Tabs value={section} onChange={(_, v: SectionId) => setSection(v)} aria-label={t('sections')} variant="scrollable">
+      <Tabs
+        value={section}
+        onChange={(_, v: SectionId) => setSection(v)}
+        aria-label={t('sections')}
+        variant="scrollable"
+      >
         {SECTIONS.map((s) => (
-          <Tab key={s.id} value={s.id} label={t(`section.${s.id}`)} id={`lisp-tab-${s.id}`} aria-controls={`lisp-panel-${s.id}`} />
+          <Tab
+            key={s.id}
+            value={s.id}
+            label={t(`section.${s.id}`)}
+            id={`lisp-tab-${s.id}`}
+            aria-controls={`lisp-panel-${s.id}`}
+          />
         ))}
       </Tabs>
       <Box role="tabpanel" id={`lisp-panel-${section}`} aria-labelledby={`lisp-tab-${section}`}>
@@ -50,37 +70,82 @@ export function LispTab() {
         <Typography component="h3" variant="subtitle1" sx={{ mb: 1 }}>
           {t('status.title')}
         </Typography>
-        <Table size="small" aria-label={t('status.title')} sx={{ mb: 3 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.kind')}</TableCell>
-              <TableCell>{t('col.id')}</TableCell>
-              <TableCell>{t('col.detail')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4}>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('empty')}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map((r) => (
-              <TableRow key={`${r.kind}:${r.id}`}>
-                <TableCell>{t(`kind.${r.kind}`)}</TableCell>
-                <TableCell dir="ltr">{r.id}</TableCell>
-                <TableCell dir="ltr">{serviceText(r.detail)}</TableCell>
-                <TableCell>
-                  <StatusChip size="small" status={r.status} label={t(r.labelKey)} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ReactGeereedMaterial
+          hideFilterBuilderComponent
+          items={rows}
+          columns={[
+            {
+              key: 'kind',
+              headerRenderer: () => t('col.kind'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return <>{t(`kind.${r.kind}`)}</>;
+              },
+            },
+            {
+              key: 'id',
+              headerRenderer: () => t('col.id'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return <>{r.id}</>;
+              },
+            },
+            {
+              key: 'detail',
+              headerRenderer: () => t('col.detail'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return <>{serviceText(r.detail)}</>;
+              },
+            },
+            {
+              key: 'status',
+              headerRenderer: () => t('col.status'),
+              sortable: false,
+              filterable: false,
+              renderer: (_value, r: (typeof rows)[number]) => {
+                return (
+                  <>
+                    <StatusChip size="small" status={r.status} label={t(r.labelKey)} />
+                  </>
+                );
+              },
+            },
+          ]}
+          rowKey={(r) => `${r.kind}:${r.id}`}
+
+          cellProps={(_item, column) => {
+            if (column.key === 'id') return { dir: 'ltr' };
+            if (column.key === 'detail') return { dir: 'ltr' };
+            return {};
+          }}
+          tableProps={{
+            size: 'small',
+            'aria-label': t('status.title'),
+            sx: { mb: 3 },
+          }}
+
+          emptyContent={
+            <>
+              {' '}
+              <Typography variant="body2" color="text.secondary">
+                {t('empty')}
+              </Typography>{' '}
+            </>
+          }
+          noFormWrapper
+          embedded
+          memoEnable={false}
+          hidePagination
+          hideToolbar
+          footer={false}
+          search={false}
+          sortable={false}
+          exportToCSV={false}
+        />
         {candidate.isPending && <CircularProgress aria-label={t('loading')} />}
         {candidate.isError && <ProblemAlert error={candidate.error} />}
         {candidate.isSuccess && (
@@ -92,7 +157,11 @@ export function LispTab() {
             submitLabel={t('save')}
             resetLabel={t('reset')}
             problem={problemFor(patch.error, LISP_POINTER)}
-            onSubmit={(v) => patch.mutateAsync(sectionPatch(section, v as Record<string, unknown>)).then(() => undefined)}
+            onSubmit={(v) =>
+              patch
+                .mutateAsync(sectionPatch(section, v as Record<string, unknown>))
+                .then(() => undefined)
+            }
           />
         )}
       </Box>

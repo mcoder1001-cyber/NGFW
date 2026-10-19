@@ -397,7 +397,7 @@ describe('NAT screen', () => {
     await signIn();
     render(app('/firewall/nat'));
     const select = await screen.findByRole('combobox', { name: 'NAT44' }, { timeout: 30_000 });
-    expect(select).toHaveTextContent('Automatic (on when NAT44 is configured)');
+    expect(select).toHaveValue('Automatic (on when NAT44 is configured)');
     fireEvent.mouseDown(select);
     fireEvent.click(
       await screen.findByRole('option', { name: 'Off (keep the configuration, apply nothing)' }),

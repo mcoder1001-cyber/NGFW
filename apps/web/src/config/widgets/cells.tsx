@@ -1,7 +1,7 @@
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgTooltip as Tooltip } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip, UI_KIT_NS, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import type { ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';

@@ -1,28 +1,27 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import DownloadIcon from '@mui/icons-material/Download';
-import EditIcon from '@mui/icons-material/Edit';
-import KeyIcon from '@mui/icons-material/Key';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgDownloadIcon as DownloadIcon,
+  PgEditIcon as EditIcon,
+  PgKeyIcon as KeyIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip, useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useTopic } from '@ngfw/ui-kit/ws';
@@ -103,10 +102,15 @@ export function WireguardPage() {
   });
   // client private keys generated in this browser session only (never stored, never sent)
   const [clientKeys, setClientKeys] = useState<ReadonlyMap<string, string>>(() => new Map());
-  const [editIface, setEditIface] = useState<{ name: string; isNew: boolean } | null>(null);
-  const [editPeer, setEditPeer] = useState<{ iface: string; name: string; isNew: boolean } | null>(
-    null,
-  );
+  const [editIface, setEditIface] = useState<{
+    name: string;
+    isNew: boolean;
+  } | null>(null);
+  const [editPeer, setEditPeer] = useState<{
+    iface: string;
+    name: string;
+    isNew: boolean;
+  } | null>(null);
   const [keypairOpen, setKeypairOpen] = useState(false);
 
   const ifaces = candidate.data ?? {};
@@ -169,7 +173,9 @@ export function WireguardPage() {
       {candidate.isSuccess && names.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {unconfigured.length > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          {t('unconfigured', { names: unconfigured.map((i) => i.vppName).join(', ') })}
+          {t('unconfigured', {
+            names: unconfigured.map((i) => i.vppName).join(', '),
+          })}
         </Alert>
       )}
       {names.map((name) => {
@@ -236,59 +242,110 @@ export function WireguardPage() {
               {st && (
                 <Typography variant="body2">
                   {t('col.traffic')}:{' '}
-                  {t('bytesRxTx', { rx: fmt.integer(st.rxBytes), tx: fmt.integer(st.txBytes) })}
+                  {t('bytesRxTx', {
+                    rx: fmt.integer(st.rxBytes),
+                    tx: fmt.integer(st.txBytes),
+                  })}
                 </Typography>
               )}
             </Stack>
-            <Table size="small" aria-label={t('peers', { name })}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('col.peer')}</TableCell>
-                  <TableCell>{t('col.status')}</TableCell>
-                  <TableCell>{t('col.publicKey')}</TableCell>
-                  <TableCell>{t('col.endpoint')}</TableCell>
-                  <TableCell>{t('col.allowedIps')}</TableCell>
-                  <TableCell>{t('col.lastHandshake')}</TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {peers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7}>{t('peer.none')}</TableCell>
-                  </TableRow>
-                )}
-                {peers.map(([pname, p]) => {
-                  const ps = st?.peers.find((x) => x.publicKey === p.publicKey);
-                  const status =
-                    st && ps
-                      ? peerStatus(st, ps, live, state.data?.retrievedAt ?? null)
-                      : undefined;
-                  const endpoint = ps?.endpoint
-                    ? `${ps.endpoint}:${ps.endpointPort}`
-                    : p.endpoint
-                      ? `${p.endpoint.address}:${p.endpoint.port}`
-                      : '—';
-                  return (
-                    <TableRow key={pname} data-testid={`wg-peer-${name}-${pname}`}>
-                      <TableCell>{pname}</TableCell>
-                      <TableCell>
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              items={peers.map(([pname, p]) => ({ pname, p }))}
+              columns={[
+                {
+                  key: 'peer',
+                  headerRenderer: () => t('col.peer'),
+                  sortable: false,
+                  filterable: false,
+                  renderer: (
+                    _value,
+                    { pname }: { pname: string; p: (typeof peers)[number][1] },
+                  ) => {
+                    return <>{pname}</>;
+                  },
+                },
+                {
+                  key: 'status',
+                  headerRenderer: () => t('col.status'),
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value, { p }: { pname: string; p: (typeof peers)[number][1] }) => {
+                    const ps = st?.peers.find((x) => x.publicKey === p.publicKey);
+                    const status =
+                      st && ps
+                        ? peerStatus(st, ps, live, state.data?.retrievedAt ?? null)
+                        : undefined;
+                    return (
+                      <>
                         <StatusChip
                           status={peerChip(status)}
                           label={t(`peer.status.${status ?? 'unknown'}`)}
                         />
-                      </TableCell>
-                      <TableCell>
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: 'publicKey',
+                  headerRenderer: () => t('col.publicKey'),
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value, { p }: { pname: string; p: (typeof peers)[number][1] }) => {
+                    return (
+                      <>
                         <Tooltip title={p.publicKey}>
                           <span dir="ltr">{short(p.publicKey)}</span>
                         </Tooltip>
-                      </TableCell>
-                      <TableCell dir="ltr">{endpoint}</TableCell>
-                      <TableCell dir="ltr">{p.allowedIps.join(' ')}</TableCell>
-                      <TableCell>
-                        {ps?.lastHandshake ? fmt.dateTime(ps.lastHandshake) : '—'}
-                      </TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: 'endpoint',
+                  headerRenderer: () => t('col.endpoint'),
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value, { p }: { pname: string; p: (typeof peers)[number][1] }) => {
+                    const ps = st?.peers.find((x) => x.publicKey === p.publicKey);
+                    const endpoint = ps?.endpoint
+                      ? `${ps.endpoint}:${ps.endpointPort}`
+                      : p.endpoint
+                        ? `${p.endpoint.address}:${p.endpoint.port}`
+                        : '—';
+                    return <>{endpoint}</>;
+                  },
+                },
+                {
+                  key: 'allowedIps',
+                  headerRenderer: () => t('col.allowedIps'),
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value, { p }: { pname: string; p: (typeof peers)[number][1] }) => {
+                    return <>{p.allowedIps.join(' ')}</>;
+                  },
+                },
+                {
+                  key: 'lastHandshake',
+                  headerRenderer: () => t('col.lastHandshake'),
+                  sortable: false,
+                  filterable: false,
+                  renderer: (_value, { p }: { pname: string; p: (typeof peers)[number][1] }) => {
+                    const ps = st?.peers.find((x) => x.publicKey === p.publicKey);
+                    return <>{ps?.lastHandshake ? fmt.dateTime(ps.lastHandshake) : '—'}</>;
+                  },
+                },
+                {
+                  key: 'actions',
+                  headerRenderer: () => null,
+                  sortable: false,
+                  filterable: false,
+                  renderer: (
+                    _value,
+                    { pname, p }: { pname: string; p: (typeof peers)[number][1] },
+                  ) => {
+                    return (
+                      <>
                         <Tooltip title={t('export.hint')}>
                           <IconButton
                             size="small"
@@ -314,7 +371,11 @@ export function WireguardPage() {
                               size="small"
                               aria-label={t('edit')}
                               onClick={() =>
-                                setEditPeer({ iface: name, name: pname, isNew: false })
+                                setEditPeer({
+                                  iface: name,
+                                  name: pname,
+                                  isNew: false,
+                                })
                               }
                             >
                               <EditIcon fontSize="small" />
@@ -322,18 +383,45 @@ export function WireguardPage() {
                             <IconButton
                               size="small"
                               aria-label={t('delete')}
-                              onClick={() => void remove({ [name]: { peers: { [pname]: null } } })}
+                              onClick={() =>
+                                void remove({
+                                  [name]: { peers: { [pname]: null } },
+                                })
+                              }
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </>
+                    );
+                  },
+                },
+              ]}
+              rowKey={({ pname }) => pname}
+              rowProps={({ pname }) => ({
+                role: 'row',
+                'data-testid': `wg-peer-${name}-${pname}`,
+              })}
+              cellProps={(_item, column) => {
+                if (column.key === 'endpoint') return { dir: 'ltr' };
+                if (column.key === 'allowedIps') return { dir: 'ltr' };
+                if (column.key === 'actions') return { sx: { whiteSpace: 'nowrap' } };
+                return {};
+              }}
+              tableProps={{ size: 'small', 'aria-label': t('peers', { name }) }}
+
+              emptyContent={t('peer.none')}
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              footer={false}
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+            />
           </Paper>
         );
       })}

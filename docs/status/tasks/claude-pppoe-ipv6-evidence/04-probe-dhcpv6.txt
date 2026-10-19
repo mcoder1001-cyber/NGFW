@@ -1,0 +1,154 @@
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/ip-down.d/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/ipv6-up.d/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/ngfw-dhcp6-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/systemd/system/ngfw-pppoe-cli0.service
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/ipv6-down.d/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/ngfw-dhcpcd-cli0.conf
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/chap-secrets
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/pap-secrets
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/peers/ngfw-cli0
+/root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/etc/ppp/ip-up.d/ngfw-cli0
+7: ppp0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1492 qdisc noqueue state UNKNOWN group default qlen 3
+    inet6 fe80::6805:ce4e:a081:b70e peer fe80::b98a:555d:f7d7:b7e2/128 scope link nodad 
+       valid_lft forever preferred_lft forever
+== after 6 s
+phase=up
+hostif=cli0
+ppp_iface=ppp0
+lllocal=fe80::b98a:555d:f7d7:b7e2
+llremote=fe80::6805:ce4e:a081:b70e
+addr=2001:db8:9::100/128
+addr=2001:db8:9:0:b98a:555d:f7d7:b7e2/64
+gw=fe80::6805:ce4e:a081:b70e
+pd=2001:db8:9100::/56
+at=2026-10-07T05:37:45Z
+phase=up
+hostif=cli0
+ppp_iface=ppp0
+local=100.64.9.10
+peer=100.64.9.1
+dns1=
+dns2=
+at=2026-10-07T05:37:45Z
+total 36
+drwxr-xr-x 2 root root 4096 Oct  7 05:37 .
+drwxr-xr-x 3 root root 4096 Oct  7 05:37 ..
+-rw-r--r-- 1 root root    8 Oct  7 05:37 cli0.ipv6.pid
+-rw-r--r-- 1 root root   22 Oct  7 05:37 cli0.pd
+-rw-r--r-- 1 root root  106 Oct  7 05:37 cli0.state
+-rw-r--r-- 1 root root  246 Oct  7 05:37 cli0.state6
+-rw-r--r-- 1 root root  269 Oct  7 05:37 env.CARRIER
+-rw-r--r-- 1 root root  269 Oct  7 05:37 env.PREINIT
+-rw-r--r-- 1 root root 1309 Oct  7 05:37 env.REBIND6
+7: ppp0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1492 qdisc noqueue state UNKNOWN group default qlen 3
+    inet6 2001:db8:9::100/128 scope global dynamic noprefixroute 
+       valid_lft 3998sec preferred_lft 2998sec
+    inet6 2001:db8:9:0:b98a:555d:f7d7:b7e2/64 scope global dynamic mngtmpaddr proto kernel_ra 
+       valid_lft 86399sec preferred_lft 14399sec
+    inet6 fe80::b98a:555d:f7d7:b7e2 peer fe80::6805:ce4e:a081:b70e/128 scope link nodad 
+       valid_lft forever preferred_lft forever
+2001:db8:9::/64 dev ppp0 proto kernel metric 256 expires 86398sec pref medium
+unreachable 2001:db8:9100::/56 dev lo proto dhcp metric 1001 pref medium
+fe80::6805:ce4e:a081:b70e dev ppp0 proto kernel metric 256 pref medium
+fe80::b98a:555d:f7d7:b7e2 dev ppp0 proto kernel metric 256 pref medium
+fe80::/64 dev cli0 proto kernel metric 256 pref medium
+default via fe80::6805:ce4e:a081:b70e dev ppp0 proto ra metric 1024 expires 1798sec hoplimit 64 pref medium
+root     2016286 2015922  0 05:37 ?        00:00:00 pppd call ngfw-cli0 nodetach ipparam ngfw-cli0
+root     2017135       1  0 05:37 ?        00:00:00 /bin/sh /etc/ppp/ipv6-up.d/ngfw-cli0 ppp0 cli0 0 fe80::b98a:555d:f7d7:b7e2 fe80::6805:ce4e:a081:b70e ngfw-cli0
+dhcpcd   2017136 2017135  0 05:37 ?        00:00:00 dhcpcd: ppp0 [ip6]
+root     2017144 2017136  0 05:37 ?        00:00:00 dhcpcd: [privileged proxy] ppp0 [ip6]
+dhcpcd   2017146 2017136  0 05:37 ?        00:00:00 dhcpcd: [network proxy] ppp0 [ip6]
+dhcpcd   2017147 2017136  0 05:37 ?        00:00:00 dhcpcd: [control proxy] ppp0 [ip6]
+dhcpcd   2017155 2017144  0 05:37 ?        00:00:00 dhcpcd: [DHCP6 proxy] fe80::b98a:555d:f7d7:b7e2
+dhcpcd   2017172 2017144  0 05:37 ?        00:00:00 dhcpcd: [DHCP6 proxy] 2001:db8:9:0:b98a:555d:f7d7:b7e2
+dhcpcd   2017716 2017144  0 05:37 ?        00:00:00 dhcpcd: [DHCP6 proxy] 2001:db8:9::100
+root     2018028 2017135  0 05:37 ?        00:00:00 sleep 2
+PING fe80::6805:ce4e:a081:b70e%ppp0 (fe80::6805:ce4e:a081:b70e%ppp0) 56 data bytes
+64 bytes from fe80::6805:ce4e:a081:b70e%ppp0: icmp_seq=1 ttl=64 time=0.201 ms
+64 bytes from fe80::6805:ce4e:a081:b70e%ppp0: icmp_seq=2 ttl=64 time=0.164 ms
+
+--- fe80::6805:ce4e:a081:b70e%ppp0 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1010ms
+rtt min/avg/max/mdev = 0.164/0.182/0.201/0.018 ms
+== RS trigger check
+0
+1
+7: ppp0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1492 qdisc noqueue state UNKNOWN group default qlen 3
+    inet6 2001:db8:9::100/128 scope global dynamic noprefixroute 
+       valid_lft 3995sec preferred_lft 2995sec
+    inet6 2001:db8:9:0:b98a:555d:f7d7:b7e2/64 scope global dynamic mngtmpaddr proto kernel_ra 
+       valid_lft 86399sec preferred_lft 14399sec
+    inet6 fe80::b98a:555d:f7d7:b7e2 peer fe80::6805:ce4e:a081:b70e/128 scope link nodad 
+       valid_lft forever preferred_lft forever
+default via fe80::6805:ce4e:a081:b70e dev ppp0 proto ra metric 1024 expires 1798sec hoplimit 64 pref medium
+== /root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/run/ngfw/pppoe/env.CARRIER
+interface=ppp0
+interface_order=ppp0
+reason=CARRIER
+== /root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/run/ngfw/pppoe/env.PREINIT
+interface=ppp0
+interface_order=ppp0
+reason=PREINIT
+== /root/ngfw-wt/claude-pppoe-ipv6/.scratch/probe6/run-dhcpv6/root/run/ngfw/pppoe/env.REBIND6
+new_dhcp6_ia_pd1_prefix1_length=56
+new_dhcp6_ia_pd1_prefix1=2001:db8:9100::
+new_dhcp6_ia_pd1_iaid=00000002
+new_dhcp6_ia_na1_ia_addr1_pltime=3000
+new_dhcp6_ia_na1_iaid=00000001
+new_dhcp6_ia_na1_t2=2000
+new_dhcp6_ia_na1_t1=1000
+new_dhcp6_ia_na1_ia_addr1=2001:db8:9::100
+new_dhcp6_ia_na1_ia_addr1_vltime=4000
+interface=ppp0
+interface_order=ppp0
+new_dhcp6_ia_pd1_prefix1_pltime=3000
+new_dhcp6_ia_pd1_t1=1000
+new_dhcp6_ia_pd1_t2=2000
+reason=REBIND6
+new_dhcp6_ia_pd1_prefix1_vltime=4000
+== after client stop
+phase=down
+hostif=cli0
+ppp_iface=ppp0
+lllocal=fe80::b98a:555d:f7d7:b7e2
+llremote=fe80::6805:ce4e:a081:b70e
+at=2026-10-07T05:37:52Z
+total 40
+drwxr-xr-x 2 root root 4096 Oct  7 05:37 .
+drwxr-xr-x 3 root root 4096 Oct  7 05:37 ..
+-rw-r--r-- 1 root root  108 Oct  7 05:37 cli0.state
+-rw-r--r-- 1 root root  131 Oct  7 05:37 cli0.state6
+-rw-r--r-- 1 root root  269 Oct  7 05:37 env.CARRIER
+-rw-r--r-- 1 root root  788 Oct  7 05:37 env.EXPIRE6
+-rw-r--r-- 1 root root  271 Oct  7 05:37 env.NOCARRIER
+-rw-r--r-- 1 root root  269 Oct  7 05:37 env.PREINIT
+-rw-r--r-- 1 root root 1309 Oct  7 05:37 env.REBIND6
+-rw-r--r-- 1 root root  264 Oct  7 05:37 env.STOPPED
+== logs
+Plugin rp-pppoe.so loaded.
+PPP session is 1
+Connected to 5E:FE:28:A8:01:7D via interface cli0
+Using interface ppp0
+Connect: ppp0 <--> cli0
+Remote message: Login ok
+PAP authentication succeeded
+peer from calling number 5E:FE:28:A8:01:7D authorized
+local  LL address fe80::b98a:555d:f7d7:b7e2
+remote LL address fe80::6805:ce4e:a081:b70e
+local  IP address 100.64.9.10
+remote IP address 100.64.9.1
+Terminating on signal 15
+Connect time 0.2 minutes.
+Sent 543 bytes, received 1129 bytes.
+Connection terminated.
+Sent PADT
+rx REBIND from fe80::b98a:555d:f7d7:b7e2 opts [1, 3, 25, 6, 8, 16]
+tx REPLY
+ra periodic
+ra periodic
+ra periodic
+ra periodic
+rs from fe80::b98a:555d:f7d7:b7e2
+ra solicited
+ra send: [Errno 101] Network is unreachable
+ra send: [Errno 101] Network is unreachable

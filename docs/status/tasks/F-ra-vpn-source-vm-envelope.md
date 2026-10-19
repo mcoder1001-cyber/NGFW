@@ -1,0 +1,7 @@
+# Source-only actual agent VM artifact
+
+Owner: /root/ra_production_controller. Branch codex/ra-source-vm-20261005. Isolated worktree /root/ngfw-wt/ra-source-vm-20261005. Base local1302159b7d94cfb247158d1dca6b28a674823e81, current MAIN security/schema/generated/BFD/HA/native preserved.
+
+Authorized scope: integrate ONLY controller-exclusive RA runtime/controller/descriptor/verifier/supervisor/RPC and named startup/Service/failed-construction assembly hunks from50f6d3b76746763b44024137577e7f43005446bb exactlocal60b01b3d6; engine SOURCE-only namespace bootstrap/capabilities/agent peer/reference/generation/interfaces from6adf528589920311bb81007c9c7d630aac961453; ROOT observer6newGo files+2templates+fixed CLI observe-unit hunk fromb7e757b99ad4ff7685dd6c476bab6bc461d294de. No wholesale stale branch merge or unrelated current MAIN changes. New task WIP/envelope owned here. Exact source manifest in WIP before building.
+
+Build actual CGO_ENABLED=0 agent ELF; independent p11 executes only owned VM original unit/private VPP, samples ALL OS threads before/after SourceInitialize. No testbinary/childCLI canonical-source substitutions. No shared host mutation. Source preparation before global StopAll; unavailable target supplier/readiness stays failclosed. Full READY/engine completion not claimed. ROOT owns target provider implementation, engine author source helpers. Paired extra missing pure declarations require exact manager-authorized scope.

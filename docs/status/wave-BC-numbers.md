@@ -417,7 +417,7 @@ No ActionRequest (PKI actions are API-side), no EventKind (expiry = API bus topi
 | message | allocation |
 |---|---|
 | `ActionRequest` | **12 `remote_access_disconnect`** → `RemoteAccessDisconnectAction{profile, session}` |
-| `RemoteAccessProfile` / `RemoteAccessUser` | **17–18 / 3 reserved, only with a proven gap** (RADIUS accounting, per-user static IP) |
+| `RemoteAccessProfile` / `RemoteAccessUser` | **17 transport, 18 access_policy / user3 reserved** — 2026-10-05 owner-approved independent engine requires explicit VPP/namespace addressing and protected TAP ACLs (DEC-independent-ra-vpn) |
 | `EventKind` | **16 `EVENT_KIND_REMOTE_ACCESS_SESSION`**, only if connect/disconnect events are built (else stays reserved) |
 | new messages (`// ----- F-ra-vpn -----`) | `RemoteAccessSession*`, `RemoteAccessDisconnectAction` (from 1) |
 | RPCs | `RemoteAccessSessions` (paged) |

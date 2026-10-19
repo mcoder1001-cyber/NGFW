@@ -1,0 +1,34 @@
+{
+  "source": "d16471ba9e89de2a83ae8010623d9277043f5e38",
+  "base": "0b3a61be60bb6014962dd153bfc1e12c0c739e6c",
+  "current_main_equal_base_tree": "49d377fae7bab650ecd1c853568914c93009e446",
+  "fixture_sha256": {
+    "apps/agent/internal/agent/p12_topology_integration_test.go": "93471ef27ca9865a5f4f182654ca2a728a4e127a16c78543d23565521761e9a0",
+    "test/topology/frr-linuxcp/private-fib.py": "77f1c10da17ebebe23c11f1efe7cddb15cacaf7ee984b1a3f8dfb7147303195c",
+    "test/topology/frr-linuxcp/run-fib-root.sh": "ef21a93326a77d6756c9c87d9d7ed9df52d8959afcb1a4ac46ae446c5e864529"
+  },
+  "exit": 0,
+  "test": "TestP12TopologyOnHost",
+  "duration": "81.07s",
+  "package_duration": "81.212s",
+  "skip": false,
+  "native_frr_route_counts": [
+    200,
+    100,
+    50,
+    100
+  ],
+  "restart_recovery": "6s",
+  "postrestart_counts": [
+    50,
+    100
+  ],
+  "withdrawal": "300ms before and after restart",
+  "rollback_native_frr": 0,
+  "cleanup_native_owned": 0,
+  "shared_before_after_equal": true,
+  "private_processes_after": {},
+  "private_vpp_pid_absent": "1937409",
+  "raw_sha256": "18e0ce9417cd12131a85b433a0e5f68b528b6094007f4e7279605e9132d65943",
+  "scope": "New actual private outer namespace/disposable VPP root-mode FIB proof; historical shared-root evidence separately labeled. Mandatory complete quick and integration review remain pending."
+}

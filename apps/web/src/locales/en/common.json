@@ -4,7 +4,11 @@
   "menu": {
     "open": "Open navigation",
     "settings": "Settings",
-    "navigation": "Main navigation"
+    "navigation": "Main navigation",
+    "search": "Search menu",
+    "clearSearch": "Clear menu search",
+    "close": "Close navigation",
+    "pageLocation": "Page location"
   },
   "theme": {
     "label": "Theme",

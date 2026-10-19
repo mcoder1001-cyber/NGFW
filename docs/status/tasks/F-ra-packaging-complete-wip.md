@@ -1,0 +1,13 @@
+# RA fixed-supplier packaging completion
+
+Branch codex/ra-packaging-complete-20261005; base final union localba6ef8a2b/remote7ee3f3ae0bb814ea168cea9a66034522179f52da/treed871baaa1e17ed23aa5d52f46904eb1a23deae14. Explicit engine ownership handoff covers prepare.sh, debian/ngfw-agent.install, debian/ngfw-meta.postinst, debian/rules, tests/test_prepare.py and tests/test_packaging.py. Original agent unit/hardening and all eight supplier templates are unchanged. No strongSwan offline bundle changes.
+
+Completed: stage both fixed CGO0 trimpath unstripped RA helper binaries and bare SHA256 receipts; include the namespace broker binary/receipt and all eight fixed publisher/target/observer/broker templates in install manifest. Existing meta provisioning registers only the added fixed publisher socket alongside previous four units for future boot. Packaging no-enable/no-start rules retained; build and tests never install/start a host service. Exclude the two RA static Go helpers from dwz like existing static agent helpers. Preserve all main backup/hardening/A-B guards and tests.
+
+Actual verification final source: test_prepare.py3 PASS1.950s EXIT0 (actual staging driver with private source/harmless compiler fixture, fresh dist before staging, failed build and dirty source refusal preserved). test_packaging.py15 PASS1.084s EXIT0; actual meta postinst executed only against isolated deb-systemd-helper recording stub, exact five enable operations/no start and abort-upgrade no operations. Both helpers/receipts/install entries verified, all nine RA templates copied byte-for-byte0644, binary stub0755. Earlier3+15 initialPASS also retained. git diff --check PASS.
+
+Limits: actual full Debian build, installed appliance boot sequencing and strongSwan authenticated offline artifact installation NOT RUN by these fixtures. Binary compilation and default original-unit guest are separately source-bound controller/p11 evidence; this checkpoint does not claim them for modified packaging. Engine readiness remains false when authenticated target-compatible engine absent.
+
+Remaining: independent R1/R2/R4/R8 scoped review; consume exactly these six paths on latest coherent source; complete original-unit supplier/profile acceptance and unchanged final quick/gates. Next command: publish exact committed blobs/tree then independent review.
+
+Independent review a6d2032 reproduced a real dh_strip digest change on the static broker ELF. Packaging correction adds an override excluding exactly ngfw-ra-daemon and ngfw-ra-namespace-broker from dh_strip; all other package binaries retain normal processing. This preserves the precomputed receipt and the unstripped artifact requirement. Independent real ELF recheck remains pending.

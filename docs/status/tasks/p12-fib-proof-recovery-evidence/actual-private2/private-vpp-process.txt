@@ -1,0 +1,49 @@
+vpp[2010770]: vat-plug/load: vat_plugin_register: idpf plugin not loaded...
+vpp[2010770]: af_packet: fd 24 reason af_packet_fd_error: Network is down
+vpp[2010770]: af_packet: fd 25 reason af_packet_fd_error: Network is down
+vpp[2010770]: vlib/file: vlib_file_update: epoll_ctl() failed on epfd (7), file 'host-w14l0 queue 0' (fd 24), errno 9
+vpp[2010770]: vlib/file: vlib_file_update: epoll_ctl() failed on epfd (7), file 'host-w14w0 queue 0' (fd 25), errno 9
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=2 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=2 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=2 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=1 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=1 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=1 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: af_packet: fd 24 reason af_packet_fd_error: Network is down
+vpp[2010770]: linux-cp/router: Failed to delete neighbor: 10.14.1.2 host-w14l0
+vpp[2010770]: af_packet: fd 24 reason af_packet_fd_error: Network is down
+vpp[2010770]: af_packet: fd 25 reason af_packet_fd_error: Network is down
+vpp[2010770]: linux-cp/router: Failed to delete neighbor: 10.14.1.2 host-w14l0
+vpp[2010770]: linux-cp/router: Failed to delete neighbor: 10.14.2.2 host-w14w0
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=3 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=4 with table_index=0 for delete
+vpp[2010770]: ip4_add_del_interface_address_internal: 10.14.2.1/24 not found for interface host-w14w0
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=1 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=1 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=1 with table_index=0 for delete
+vpp[2010770]: vlib/file: vlib_file_update: epoll_ctl() failed on epfd (7), file 'host-w14w0 queue 0' (fd 25), errno 9
+vpp[2010770]: ip4_add_del_interface_address_internal: 10.14.1.1/24 not found for interface host-w14l0
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=2 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=2 with table_index=0 for delete
+vpp[2010770]: vnet_set_in_out_acl_intfc:107: Non-existent intf_idx=2 with table_index=0 for delete
+vpp[2010770]: vlib/file: vlib_file_update: epoll_ctl() failed on epfd (7), file 'host-w14l0 queue 0' (fd 24), errno 9
+vpp[2010770]: show interface: unknown input `host-w14l0'
+vpp[2010770]: show interface: unknown input `host-w14w0'
+vpp[2010770]: received signal SIGTERM, PC 0x7c9cec0aca82
+vpp[2010770]: received SIGTERM from PID 2010767 UID 0, exiting...

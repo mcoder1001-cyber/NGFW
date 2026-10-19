@@ -1,9 +1,9 @@
-import AddIcon from '@mui/icons-material/Add';
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
+import { PgAddIcon as AddIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -57,7 +57,7 @@ export interface CollectionViewProps<T = Json> {
 
 const NO_COLUMNS: readonly never[] = [];
 const REMOVED = 'kit-removed';
-const GRID_SX = { '& .MuiDataGrid-row': { cursor: 'pointer' }, [`& .${REMOVED}`]: { cursor: 'default', textDecoration: 'line-through', color: 'text.disabled' } };
+const GRID_SX = { '& [data-rowindex]': { cursor: 'pointer' }, [`& .${REMOVED}`]: { cursor: 'default', textDecoration: 'line-through', color: 'text.disabled' } };
 const removedClass = (p: { row: CollectionRow<unknown> }) => (p.row.state === 'removed' ? REMOVED : '');
 
 function memberOf(row: CollectionRow<unknown>, field: string): unknown {

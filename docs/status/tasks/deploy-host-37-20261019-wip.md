@@ -1,6 +1,7 @@
 # WIP: deploy-host-37-20261019 — upgrade 172.30.126.37 to main
 
 Branch: `claude/machine-172-30-126-37-update-c90ed0` (cut from `origin/main` `cb148aafb`).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/244 (open; quick gate and independent review pending).
 Owner request (2026-10-19): "ماشین 172.30.126.37 را بروزرسانی کن" — bring the appliance
 `root@172.30.126.37` to the current integrated `main` product.
 Owned files: `docs/status/tasks/deploy-host-37-20261019-wip.md`, `deploy/deploy-hosts.sh`
@@ -109,4 +110,4 @@ Read-only checks over SSH at 07:57–08:00 UTC:
 
 ## Exact next command
 
-None for the upgrade (complete). For the branch: open the PR and run the hosted quick gate.
+None for the upgrade (complete). For the branch: read PR #244 checks (`gh pr checks 244`), fix real failures, obtain an independent review, then merge sequentially.

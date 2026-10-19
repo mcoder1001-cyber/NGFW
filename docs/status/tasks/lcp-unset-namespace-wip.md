@@ -1,13 +1,31 @@
-# LCP unset namespace work in progress
+# LCP unset namespace recovery — appliance repair verified
 
-Branch codex/fix-lcp-unset-namespace. Deployed source base 4c8d1b247c6b; prior local checkpoint 2952fe42b. Published plan checkpoint dd07c24f908e109c8efcd159f880439155b1d6ee on the same GitHub branch via authorized connector; CLI push lacks credentials.
-Owned files: see task envelope.
+Branch: codex/fix-lcp-unset-namespace. Source base: deployed 4c8d1b247c6b.
+Local source checkpoint: 0e3813d73. Remote source checkpoint: 74fffa92db5a7f2e03dbe56361e727ac52147961. Both have tree 48c8190ad29667de64dc4d76321df17953433aec. Published via authorized GitHub connector because CLI push has no credentials. Draft PR: https://github.com/mcoder1001-cyber/NGFW/pull/249. Not merged; integration-tree conflicts and full hosted quick gate remain for integration.
+Owned files: envelope. Independent source review APPROVE, including final Unicode control hardening. Reviewer performed read-only review; author ran tests.
 
-Completed: basepolicy malformed namespace read now requires independently corroborated exact unset status via generated fixed read-only CliInband. Existing API validity/error behavior preserved. Nineteen table-driven regression cases cover fail-closed behavior, command identity and context. Independent implementation review APPROVE (read-only; test execution not yet verified).
+## What changed
 
-Tests: focused TestBasePolicy PASS; complete basepolicy renderer and LCP descriptor packages PASS; go vet of subsystems/basepolicy/LCP/agent PASS; static agent build PASS. Race run pending. Broader subsystems+agent package tests FAIL on pre-existing fixture directory permissions; unmodified deployed baseline independently reproduces TestRegisterACLWiring failure. Initial new test compile failed because this generated namespace reply has no Retval; corrected test to the checked generated schema, then focused tests passed. Official Go1.26.0 archive downloaded and checksum verified; expected SHA256 aac1b08a0fb0c4e0a7c1555beb7b59180b05dfc5a3d62e40e9de90cd42f88235. No production binary deployed. Source checkpoint 89522895f031e08567ba863c94eb8cacd74c863e is published; its tree 3356c6b03771331fe1d073eb83116a1c949b0846 equals local f2ad1ea5647cd64b91f3bb09ce24d16007a79603 tree. Final delta adds C1 control rejection and corrects test-only schema use; independently reviewed APPROVE. No VPP restart, namespace policy change or user draft modification.
+Malformed namespace binary API readback now requires independent exact unset proof from fixed read-only CliInband `show lcp` on the same VPP client. Named, ambiguous, duplicate, failed, oversized, invalid UTF-8 or control-containing status fails closed. Valid API results are unchanged. No public contract, VPP source, privilege or sandbox changes.
 
-Additional observed restart prerequisite: existing API omits NGFW_AGENT_OWNER, so disabled auto-block writes an empty cache which old agent refuses on startup. Before agent replacement, preserve the cache, explicitly configure the API's existing ngfw owner, and initialize only an observed empty cache with that same owner. No new owner or privileges.
+## Actual verification
 
-Remaining: finish race test, publish tested checkpoint, back up and deploy matching agent binary, verify malformed namespace no longer blocks projection. Preserve the user's staged credential/firewall changes; do not apply them merely to test this repair.
-Next command: wait for race-focused TestBasePolicy; rebuild stripped static agent and deploy with backup, then issue read-only repeated DryRun requests against unchanged candidate.
+- Go1.26.0 official archive SHA256 verified: aac1b08a0fb0c4e0a7c1555beb7b59180b05dfc5a3d62e40e9de90cd42f88235.
+- `go test ./internal/subsystems -run TestBasePolicy -count=1`: PASS, 0.018s (19 new table cases plus existing projection tests).
+- Same focused command with `-race`: PASS, 1.065s.
+- `go test ./internal/renderers/basepolicy ./internal/descriptors/lcp -count=1`: PASS, 0.021s / 0.123s.
+- `go vet ./internal/subsystems ./internal/renderers/basepolicy ./internal/descriptors/lcp ./internal/agent`: PASS.
+- Stripped static agent build: PASS; SHA256 7f5ff341aa5894fcf28de4efaaca5afe40a18cdd6fcbef88d7d51072088a7d7f.
+- `tools/ci.sh check --base 4c8d1b247c6b`: PASS. Gitleaks absent locally; built-in secret pattern checks passed. This is not the full quick gate.
+- Broader subsystems+agent tests FAIL on legacy fixture directory permissions. Untouched deployed-source baseline independently reproduces `TestRegisterACLWiring`: fingerprint key directory must not be group/world-writable. No baseline test or security check weakened. Full quick gate not claimed.
+- Initial test compile failed on a nonexistent namespace-get Retval field; checked generated reply, corrected test, then reran focused tests successfully.
+
+## Appliance result
+
+Backed up installed binary and agent state under `/root/ngfw-lcp-repair`. Installed only matching-source corrected static agent. Explicitly set existing API owner `ngfw`, which also corrects empty-owner auto-block cache serialization; no new owner/privileges. Both services active with zero restarts after installation. VPP MainPID unchanged. Staged candidate payload SHA256 unchanged; staged password/firewall settings were not applied.
+
+Twenty consecutive authenticated read-only validation requests: HTTP200, ok=true, zero namespace errors. Remote receipts: deployment.json, verification.json, recovery.json in `/root/ngfw-lcp-repair`. Existing binary backup ngfw-agent.before and agent-state.before.tar are root-private. Current user draft still requests UTC while provisioned identity is Asia/Tehran; the existing identity-write package limitation is separate and remains explicit.
+
+## Recovery / next work
+
+No further appliance change required for this namespace repair. Preserve user's pending wizard. For integration, port/rebase patch onto current main, resolve integration conflicts, run unchanged full hosted quick gate and obtain review for the integration tree; do not merge this old-base draft directly. Broader package and real Internet acceptance remain unverified. Exact next command for investigation: `cat /root/ngfw-lcp-repair/verification.json` on the appliance.

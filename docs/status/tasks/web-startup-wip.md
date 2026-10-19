@@ -22,3 +22,7 @@ NGFW retained MUI7 overrides: updated common-ui explicitly supports MUI7/9 input
 Interface/setup integration runs were stopped without results after prolonged CSS processing; these checks remain unverified; interface worker profile shows jsdom nwsapi CSS selector parsing/GC, not evidence of a render loop. Full hosted quick CI has not been run; not merge-ready. Browser verification blocked by browser tool URL policy; no workaround attempted. Preview restarted from repaired worktree at http://127.0.0.1:5174/ in sample-data mode, not connected to a device.
 
 Common-ui published checkpoint verified: c4d1c93a0e1c5c5c07487c1e8a92d50dddd59160 on codex/common-ui-updated-review. NGFW preview remains running; no main branches merged.
+
+## Appliance connection request
+
+User requested local web traffic to 172.30.126.250. Observed SSH22 and HTTPS443 reachable; HTTP80/API3000 timeout. Verified HTTPS request fails with self-signed certificate. Added NGFW_API_TARGET with TLS verification kept enabled and documented NODE_EXTRA_CA_CERTS. Awaiting trusted certificate path (covering target IP/DNS) or configured SSH identity before switching from sample preview to live appliance. No appliance configuration changed. `tools/ci.sh check --base HEAD` passed.

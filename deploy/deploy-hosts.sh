@@ -408,8 +408,13 @@ grep -Fxq 'NGFW_DATABASE_URL=postgresql:///ngfw?host=/var/run/postgresql&user=ng
 grep -Fxq 'NGFW_SECRET_KEY_FILE=/var/lib/ngfw/secret.key' /etc/ngfw/api.env || { echo 'secret key configuration requires manual backup review' >&2; exit 1; }
 [[ -f /var/lib/ngfw/secret.key && ! -L /var/lib/ngfw/secret.key && -f /etc/vpp/startup.conf ]]
 dpkg-query -W -f='${Package} ${Version}\n' ngfw-agent ngfw-api ngfw-meta ngfw-web vpp > "$BACKUP/previous-versions.txt"
-# Simulation must leave VPP and every dependency untouched. No removals/downloads.
-apt_args=(--no-download --no-remove --assume-yes -o APT::Install-Recommends=false -o Dpkg::Options::=--force-confold)
+# Simulation must leave VPP and every dependency untouched. No removals, and no
+# downloads: every configured repository is hidden, so APT sees only the staged
+# archives and the installed packages, and a dependency that would need a
+# download cannot be resolved. (--no-download would break the local archives on
+# apt >= 3: their file: fetch, which resolves the absolute path handed to dpkg,
+# never runs and apt fails with "Pathname to install is not absolute".)
+apt_args=(-o Dir::Etc::SourceList=/dev/null -o Dir::Etc::SourceParts=/dev/null --no-remove --assume-yes -o APT::Install-Recommends=false -o Dpkg::Options::=--force-confold)
 apt-get "${apt_args[@]}" "${downgrade_args[@]}" --simulate install ./ngfw-*.deb > "$BACKUP/apt-plan.txt"
 python3 - "$BACKUP/apt-plan.txt" <<'PYPLAN'
 import pathlib, sys

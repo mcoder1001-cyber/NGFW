@@ -150,8 +150,12 @@ concurrent run changed it. Install only `main` builds outside explicit review.
 
 Before installation the script records the raw IPv4/IPv6 default routes and
 installed versions, then simulates APT. Any proposed dependency/VPP change or removal is
-rejected. The real APT call forbids downloads and removals and preserves existing
-configuration files. It makes no VPP restart request. Dependencies requiring
+rejected. The real APT call forbids removals, preserves existing configuration
+files and cannot download: both calls hide every configured repository
+(`Dir::Etc::SourceList` and `Dir::Etc::SourceParts` set to `/dev/null`), so APT
+sees only the staged archives and the installed packages. apt 3 and newer refuse
+`--no-download` for local archives ("Pathname to install is not absolute"),
+which is why the repositories are hidden instead. It makes no VPP restart request. Dependencies requiring
 changes must be reviewed separately through the appropriate package workflow.
 
 Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`
@@ -226,7 +230,7 @@ step rechecks the routes under its lock. With the flag the empty before-state is
 accepted and recorded in `no-default-route.txt` in the recovery directory; the
 before/after comparison still applies, so a default route that appears during
 the upgrade is reported as a change. The upgrade itself needs no default route:
-APT runs with downloads forbidden.
+APT runs without any repository, so it cannot download.
 
 If a step fails, stop and inspect the reported recovery directory, APT plan,
 previous versions, backups and system logs through the console or surviving SSH

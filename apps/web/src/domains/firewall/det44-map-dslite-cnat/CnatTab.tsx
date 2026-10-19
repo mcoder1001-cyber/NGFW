@@ -1,13 +1,14 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBox as Box,
+  PgDivider as Divider,
+  PgPaper as Paper,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
@@ -58,29 +59,58 @@ export function CnatTab() {
       {q.isError && <ProblemAlert error={q.error} sx={{ mb: 1 }} />}
       {purge.isError && <ProblemAlert error={purge.error} sx={{ mb: 1 }} />}
       <Paper variant="outlined">
-        <Table size="small" aria-label={t('cnat.sessions', { total: q.data?.total ?? 0 })}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.dst')}</TableCell>
-              <TableCell>{t('col.src')}</TableCell>
-              <TableCell>{t('col.protocol')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {q.data?.items.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3}>{t('empty')}</TableCell>
-              </TableRow>
-            )}
-            {q.data?.items.map((s, i) => (
-              <TableRow key={`${s.dstAddress}:${s.dstPort}|${s.srcAddress}:${s.srcPort}|${i}`}>
-                <TableCell dir="ltr">{`${s.dstAddress}:${s.dstPort}`}</TableCell>
-                <TableCell dir="ltr">{`${s.srcAddress}:${s.srcPort}`}</TableCell>
-                <TableCell>{s.protocol}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ReactGeereedMaterial
+          tableProps={{
+            size: 'small',
+            'aria-label': t('cnat.sessions', { total: q.data?.total ?? 0 }),
+          }}
+          columns={[
+            {
+              key: 'dst',
+              headerRenderer: () => t('col.dst'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'src',
+              headerRenderer: () => t('col.src'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'protocol',
+              headerRenderer: () => t('col.protocol'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+          ]}
+          items={[
+            ...(q.data?.items.map((s, i) => ({
+              id: `${s.dstAddress}:${s.dstPort}|${s.srcAddress}:${s.srcPort}|${i}`,
+              dst: `${s.dstAddress}:${s.dstPort}`,
+              src: `${s.srcAddress}:${s.srcPort}`,
+              protocol: s.protocol,
+              cellProps: { dst: { dir: 'ltr' }, src: { dir: 'ltr' } } satisfies Record<
+                string,
+                NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+              >,
+            })) ?? []),
+          ]}
+          rowKey={(item) => item.id}
+          rowProps={(item) => item.rowProps ?? {}}
+          cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+          emptyContent={q.data?.items.length === 0 ? t('empty') : null}
+          noFormWrapper
+          embedded
+          hideToolbar
+          hidePagination
+          hideFilterBuilderComponent
+          search={false}
+          sortable={false}
+          exportToCSV={false}
+          footer={false}
+          memoEnable={false}
+        />
       </Paper>
     </Box>
   );

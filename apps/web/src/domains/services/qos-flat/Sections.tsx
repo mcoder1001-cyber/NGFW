@@ -1,32 +1,30 @@
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgRestartAltIcon as RestartAltIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogContentText as DialogContentText,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgMenuItem as MenuItem,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
+import type { Theme } from '@amnafzar/common-ui-lib/styles';
+import { useInterfaceLabel, StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { Theme } from '@mui/material/styles';
-import { StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
@@ -175,22 +173,23 @@ function Toolbar({
   );
 }
 
-function RowActions({
+function renderRowActions({
+  t,
   name,
   onEdit,
   onRemove,
   disabled,
   children,
 }: {
+  t: ReturnType<typeof useTranslation>['t'];
   name: string;
   onEdit: (() => void) | undefined;
   onRemove: (() => void) | undefined;
   disabled: boolean;
   children?: ReactNode;
 }) {
-  const { t } = useTranslation('qos-flat');
   return (
-    <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+    <Box component="span" sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
       {children}
       {onEdit && (
         <IconButton
@@ -212,18 +211,12 @@ function RowActions({
           <DeleteIcon fontSize="small" />
         </IconButton>
       )}
-    </TableCell>
+    </Box>
   );
 }
 
-function EmptyRow({ cols, text }: { cols: number; text: string }) {
-  return (
-    <TableRow>
-      <TableCell colSpan={cols}>
-        <Typography color="text.secondary">{text}</Typography>
-      </TableCell>
-    </TableRow>
-  );
+function renderEmptyContent({ text }: { text: string }) {
+  return <Typography color="text.secondary">{text}</Typography>;
 }
 
 function Frame({ ed, children }: { ed: Editor; children: ReactNode }) {
@@ -263,19 +256,25 @@ function StateChip({ status }: { status: RowStatus }) {
 }
 
 /** Conform / exceed / violate packets of a live policer (empty while it is not in VPP). */
-function Counters({ item }: { item: PolicerItem | undefined }) {
-  const { t } = useTranslation('qos-flat');
-  const fmt = useFormatters();
-  if (!item?.present) return <TableCell />;
+function renderCounters({
+  t,
+  fmt,
+  item,
+}: {
+  t: ReturnType<typeof useTranslation>['t'];
+  fmt: ReturnType<typeof useFormatters>;
+  item: PolicerItem | undefined;
+}) {
+  if (!item?.present) return <></>;
   const n = (x: number) => fmt.integer(x);
   return (
-    <TableCell dir="ltr" sx={{ ...MONO, whiteSpace: 'nowrap' }}>
+    <Box component="span" dir="ltr" sx={{ ...MONO, whiteSpace: 'nowrap' }}>
       <span title={t('counters.conform')}>{counterText(item.conform, n)}</span>
       {' / '}
       <span title={t('counters.exceed')}>{counterText(item.exceed, n)}</span>
       {' / '}
       <span title={t('counters.violate')}>{counterText(item.violate, n)}</span>
-    </TableCell>
+    </Box>
   );
 }
 
@@ -410,6 +409,7 @@ function BurstHelper({
 
 export function PolicersTab() {
   const { t } = useTranslation('qos-flat');
+  const fmt = useFormatters();
   const ed = useQosEditor();
   const schema = useMemo(
     () => localize(policerItemSchema(), (k, o) => t(k, o ?? {}), 'policer'),
@@ -429,56 +429,143 @@ export function PolicersTab() {
         onAdd={() => setTarget({ name: '', value: undefined, editing: false })}
       />
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('policers.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.name')}</TableCell>
-            <TableCell>{t('col.algorithm')}</TableCell>
-            <TableCell>{t('col.rates')}</TableCell>
-            <TableCell>{t('col.bursts')}</TableCell>
-            <TableCell>{t('col.counters')}</TableCell>
-            <TableCell>{t('col.status')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={7} text={t('policers.none')} />}
-          {rows.map((r) => (
-            <TableRow key={r.name} hover>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.name}
-              </TableCell>
-              <TableCell dir="ltr">{r.type}</TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.eir !== undefined
-                  ? t('rates.two', { cir: r.cir, eir: r.eir, unit: t(`unit.${r.rateUnit}`) })
-                  : t('rates.one', { cir: r.cir, unit: t(`unit.${r.rateUnit}`) })}
-              </TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.eb !== undefined
-                  ? t('bursts.two', { cb: r.cb, eb: r.eb })
-                  : t('bursts.one', { cb: r.cb })}
-              </TableCell>
-              <Counters item={r.state} />
-              <TableCell>
-                <StateChip status={r.status} />
-              </TableCell>
-              <RowActions
-                name={r.name}
-                disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={
-                  r.cfg ? () => setTarget({ name: r.name, value: r.cfg, editing: true }) : undefined
-                }
-                onRemove={r.cfg ? () => void ed.remove(qosPath(POLICERS, r.name)) : undefined}
-              >
-                {r.state?.present && (
-                  <ResetButton vppName={r.state.vppName} label={r.name} disabled={ed.readOnly} />
-                )}
-              </RowActions>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('col.name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+              },
+              {
+                key: 'algorithm',
+                headerRenderer: () => <>{t('col.algorithm')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.type}</>,
+              },
+              {
+                key: 'rates',
+                headerRenderer: () => <>{t('col.rates')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.eir !== undefined
+                      ? t('rates.two', { cir: r.cir, eir: r.eir, unit: t(`unit.${r.rateUnit}`) })
+                      : t('rates.one', { cir: r.cir, unit: t(`unit.${r.rateUnit}`) })}
+                  </>
+                ),
+              },
+              {
+                key: 'bursts',
+                headerRenderer: () => <>{t('col.bursts')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.eb !== undefined
+                      ? t('bursts.two', { cb: r.cb, eb: r.eb })
+                      : t('bursts.one', { cb: r.cb })}
+                  </>
+                ),
+              },
+              {
+                key: 'counters',
+                headerRenderer: () => <>{t('col.counters')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{renderCounters({ item: r.state, t, fmt })}</>
+                ),
+              },
+              {
+                key: 'status',
+                headerRenderer: () => <>{t('col.status')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    <StateChip status={r.status} />
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: r.name,
+                      disabled: ed.readOnly || ed.patch.isPending,
+                      onEdit: r.cfg
+                        ? () => setTarget({ name: r.name, value: r.cfg, editing: true })
+                        : undefined,
+                      onRemove: r.cfg ? () => void ed.remove(qosPath(POLICERS, r.name)) : undefined,
+                      t,
+                      children: (
+                        <>
+                          {r.state?.present && (
+                            <ResetButton
+                              vppName={r.state.vppName}
+                              label={r.name}
+                              disabled={ed.readOnly}
+                            />
+                          )}
+                        </>
+                      ),
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.name;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'name':
+                  return { dir: 'ltr', sx: MONO };
+                case 'algorithm':
+                  return { dir: 'ltr' };
+                case 'rates':
+                  return { dir: 'ltr', sx: MONO };
+                case 'bursts':
+                  return { dir: 'ltr', sx: MONO };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('policers.title') }}
+            emptyContent={renderEmptyContent({ text: t('policers.none') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <SchemaDialog
         open={target !== null}
         title={
@@ -528,52 +615,130 @@ export function ShapersTab() {
         onAdd={() => setTarget({ name: '', value: undefined, editing: false })}
       />
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('shapers.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.name')}</TableCell>
-            <TableCell>{t('col.rate')}</TableCell>
-            <TableCell>{t('col.burst')}</TableCell>
-            <TableCell>{t('col.counters')}</TableCell>
-            <TableCell>{t('col.status')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={6} text={t('shapers.none')} />}
-          {rows.map((r) => (
-            <TableRow key={r.name} hover>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.name}
-              </TableCell>
-              <TableCell dir="ltr">
-                {t('rates.one', { cir: r.rateKbps, unit: t('unit.kbps') })}
-              </TableCell>
-              <TableCell dir="ltr">
-                {r.burstBytes !== undefined && r.cfg?.burstBytes !== undefined
-                  ? t('bursts.bytes', { n: fmt.integer(r.burstBytes) })
-                  : t('shapers.autoBurst', { n: fmt.integer(r.derivedBurst ?? 0) })}
-              </TableCell>
-              <Counters item={r.state} />
-              <TableCell>
-                <StateChip status={r.status} />
-              </TableCell>
-              <RowActions
-                name={r.name}
-                disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={
-                  r.cfg ? () => setTarget({ name: r.name, value: r.cfg, editing: true }) : undefined
-                }
-                onRemove={r.cfg ? () => void ed.remove(qosPath(SHAPERS, r.name)) : undefined}
-              >
-                {r.state?.present && (
-                  <ResetButton vppName={r.state.vppName} label={r.name} disabled={ed.readOnly} />
-                )}
-              </RowActions>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('col.name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+              },
+              {
+                key: 'rate',
+                headerRenderer: () => <>{t('col.rate')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{t('rates.one', { cir: r.rateKbps, unit: t('unit.kbps') })}</>
+                ),
+              },
+              {
+                key: 'burst',
+                headerRenderer: () => <>{t('col.burst')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.burstBytes !== undefined && r.cfg?.burstBytes !== undefined
+                      ? t('bursts.bytes', { n: fmt.integer(r.burstBytes) })
+                      : t('shapers.autoBurst', { n: fmt.integer(r.derivedBurst ?? 0) })}
+                  </>
+                ),
+              },
+              {
+                key: 'counters',
+                headerRenderer: () => <>{t('col.counters')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{renderCounters({ item: r.state, t, fmt })}</>
+                ),
+              },
+              {
+                key: 'status',
+                headerRenderer: () => <>{t('col.status')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    <StateChip status={r.status} />
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: r.name,
+                      disabled: ed.readOnly || ed.patch.isPending,
+                      onEdit: r.cfg
+                        ? () => setTarget({ name: r.name, value: r.cfg, editing: true })
+                        : undefined,
+                      onRemove: r.cfg ? () => void ed.remove(qosPath(SHAPERS, r.name)) : undefined,
+                      t,
+                      children: (
+                        <>
+                          {r.state?.present && (
+                            <ResetButton
+                              vppName={r.state.vppName}
+                              label={r.name}
+                              disabled={ed.readOnly}
+                            />
+                          )}
+                        </>
+                      ),
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.name;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'name':
+                  return { dir: 'ltr', sx: MONO };
+                case 'rate':
+                  return { dir: 'ltr' };
+                case 'burst':
+                  return { dir: 'ltr' };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('shapers.title') }}
+            emptyContent={renderEmptyContent({ text: t('shapers.none') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <SchemaDialog
         open={target !== null}
         title={
@@ -615,42 +780,108 @@ export function MapsTab() {
         onAdd={() => setTarget({ name: '', cfg: undefined, editing: false })}
       />
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('maps.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.name')}</TableCell>
-            <TableCell>{t('col.mapId')}</TableCell>
-            <TableCell>{t('col.rows')}</TableCell>
-            <TableCell>{t('col.usedBy')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={5} text={t('maps.none')} />}
-          {rows.map((r) => (
-            <TableRow key={r.name} hover>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.name}
-              </TableCell>
-              <TableCell dir="ltr">{r.id !== undefined ? r.id : t('maps.autoId')}</TableCell>
-              <TableCell>
-                {QOS_SOURCES.filter((s) => r.entries[s] !== undefined)
-                  .map((s) => t('maps.rowSummary', { source: t(`source.${s}`), n: r.entries[s] }))
-                  .join(t('listSeparator'))}
-              </TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.usedBy.join(' ')}
-              </TableCell>
-              <RowActions
-                name={r.name}
-                disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={() => setTarget({ name: r.name, cfg: r.cfg, editing: true })}
-                onRemove={() => void ed.remove(qosPath(MAPS, r.name))}
-              />
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('col.name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+              },
+              {
+                key: 'mapId',
+                headerRenderer: () => <>{t('col.mapId')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.id !== undefined ? r.id : t('maps.autoId')}</>
+                ),
+              },
+              {
+                key: 'rows',
+                headerRenderer: () => <>{t('col.rows')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {QOS_SOURCES.filter((s) => r.entries[s] !== undefined)
+                      .map((s) =>
+                        t('maps.rowSummary', { source: t(`source.${s}`), n: r.entries[s] }),
+                      )
+                      .join(t('listSeparator'))}
+                  </>
+                ),
+              },
+              {
+                key: 'usedBy',
+                headerRenderer: () => <>{t('col.usedBy')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.usedBy.join(' ')}</>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: r.name,
+                      disabled: ed.readOnly || ed.patch.isPending,
+                      onEdit: () => setTarget({ name: r.name, cfg: r.cfg, editing: true }),
+                      onRemove: () => void ed.remove(qosPath(MAPS, r.name)),
+                      t,
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.name;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'name':
+                  return { dir: 'ltr', sx: MONO };
+                case 'mapId':
+                  return { dir: 'ltr' };
+                case 'usedBy':
+                  return { dir: 'ltr', sx: MONO };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('maps.title') }}
+            emptyContent={renderEmptyContent({ text: t('maps.none') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <MapDialog
         target={target}
         existing={rows.map((r) => r.name)}
@@ -690,56 +921,138 @@ export function AttachmentsTab() {
         onAdd={() => setTarget({ name: '', cfg: undefined, editing: false })}
       />
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('interfaces.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.interface')}</TableCell>
-            <TableCell>{t('col.ingress')}</TableCell>
-            <TableCell>{t('col.egress')}</TableCell>
-            <TableCell>{t('col.record')}</TableCell>
-            <TableCell>{t('col.store')}</TableCell>
-            <TableCell>{t('col.mark')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={7} text={t('interfaces.nothing')} />}
-          {rows.map((r) => (
-            <TableRow key={r.name} hover>
-              <TableCell dir="ltr" sx={MONO}>
-                {interfaceLabel(r.name)}
-              </TableCell>
-              <TableCell dir="ltr">{dash(r.input)}</TableCell>
-              <TableCell dir="ltr">
-                {r.shaper ? t('interfaces.egressShaperValue', { name: r.shaper }) : dash(r.output)}
-              </TableCell>
-              <TableCell>{r.record ? t(`source.${r.record}`) : t('none')}</TableCell>
-              <TableCell>
-                {r.store
-                  ? t('interfaces.storeValueText', {
-                      source: t(`source.${r.store.source ?? 'ip'}`),
-                      value: r.store.value,
-                    })
-                  : t('none')}
-              </TableCell>
-              <TableCell>
-                {r.mark
-                  ? t('interfaces.markValueText', {
-                      map: r.mark.map,
-                      output: t(`source.${r.mark.output ?? 'ip'}`),
-                    })
-                  : t('none')}
-              </TableCell>
-              <RowActions
-                name={interfaceLabel(r.name)}
-                disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={() => setTarget({ name: r.name, cfg: r.cfg, editing: true })}
-                onRemove={() => void ed.remove(qosPath(INTERFACES, r.name))}
-              />
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'interface',
+                headerRenderer: () => <>{t('col.interface')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{interfaceLabel(r.name)}</>,
+              },
+              {
+                key: 'ingress',
+                headerRenderer: () => <>{t('col.ingress')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{dash(r.input)}</>
+                ),
+              },
+              {
+                key: 'egress',
+                headerRenderer: () => <>{t('col.egress')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.shaper
+                      ? t('interfaces.egressShaperValue', { name: r.shaper })
+                      : dash(r.output)}
+                  </>
+                ),
+              },
+              {
+                key: 'record',
+                headerRenderer: () => <>{t('col.record')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.record ? t(`source.${r.record}`) : t('none')}</>
+                ),
+              },
+              {
+                key: 'store',
+                headerRenderer: () => <>{t('col.store')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.store
+                      ? t('interfaces.storeValueText', {
+                          source: t(`source.${r.store.source ?? 'ip'}`),
+                          value: r.store.value,
+                        })
+                      : t('none')}
+                  </>
+                ),
+              },
+              {
+                key: 'mark',
+                headerRenderer: () => <>{t('col.mark')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.mark
+                      ? t('interfaces.markValueText', {
+                          map: r.mark.map,
+                          output: t(`source.${r.mark.output ?? 'ip'}`),
+                        })
+                      : t('none')}
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: interfaceLabel(r.name),
+                      disabled: ed.readOnly || ed.patch.isPending,
+                      onEdit: () => setTarget({ name: r.name, cfg: r.cfg, editing: true }),
+                      onRemove: () => void ed.remove(qosPath(INTERFACES, r.name)),
+                      t,
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.name;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'interface':
+                  return { dir: 'ltr', sx: MONO };
+                case 'ingress':
+                  return { dir: 'ltr' };
+                case 'egress':
+                  return { dir: 'ltr' };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('interfaces.title') }}
+            emptyContent={renderEmptyContent({ text: t('interfaces.nothing') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <AttachmentDialog
         target={target}
         existing={rows.map((r) => r.name)}

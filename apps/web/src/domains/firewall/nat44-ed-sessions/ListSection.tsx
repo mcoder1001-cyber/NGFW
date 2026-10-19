@@ -1,19 +1,16 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgAddIcon as AddIcon, PgDeleteIcon as DeleteIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgDialog as Dialog,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -137,66 +134,80 @@ export function ListSection({
         </Alert>
       )}
       {error !== null && !editing && <ProblemAlert error={error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={title}>
-        <TableHead>
-          <TableRow>
-            {columns.map((c) => (
-              <TableCell key={c.label}>{c.label}</TableCell>
-            ))}
-            {status && <TableCell>{status.label}</TableCell>}
-            <TableCell sx={{ textAlign: 'end' }}>{t('list.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {items.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={columns.length + (status ? 2 : 1)}>
-                <Typography color="text.secondary">{emptyText}</Typography>
-              </TableCell>
-            </TableRow>
-          )}
-          {items.map((item, i) => (
-            <TableRow
-              key={`${i}:${JSON.stringify(item)}`}
-              hover
-              sx={{ cursor: readOnly ? 'default' : 'pointer' }}
-              onClick={() => !readOnly && setEditing({ index: i, value: item })}
-            >
-              {columns.map((c) => (
-                <TableCell
-                  key={c.label}
-                  {...(c.ltr ? LTR : {})}
-                  sx={
-                    c.ltr
-                      ? {
-                          textAlign: 'start',
-                          fontFamily: (th) => th.ngfw.monoFontFamily,
-                          fontSize: 12,
-                        }
-                      : {}
-                  }
-                >
-                  {c.value(item, i)}
-                </TableCell>
-              ))}
-              {status && <TableCell>{status.value(item)}</TableCell>}
-              <TableCell sx={{ textAlign: 'end' }}>
-                <IconButton
-                  size="small"
-                  aria-label={t('list.remove', { name: itemLabel(item, i) })}
-                  disabled={readOnly || patch.isPending}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void remove(i);
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ReactGeereedMaterial
+        items={items.map((item, index) => ({ item, index }))}
+        columns={[
+          ...columns.map((column, index) => ({
+            key: String(index),
+            title: column.label,
+            filterable: false,
+            renderer: (_value: unknown, row: { item: Item; index: number }) => (
+              <>{column.value(row.item, row.index)}</>
+            ),
+          })),
+          ...(status
+            ? [
+                {
+                  key: 'status',
+                  title: status.label,
+                  filterable: false,
+                  renderer: (_value: unknown, row: { item: Item }) => <>{status.value(row.item)}</>,
+                },
+              ]
+            : []),
+          {
+            key: 'actions',
+            title: t('list.actions'),
+            filterable: false,
+            headerCellProps: { sx: { textAlign: 'end' } },
+            renderer: (_value, { item, index }: { item: Item; index: number }) => (
+              <IconButton
+                size="small"
+                aria-label={t('list.remove', { name: itemLabel(item, index) })}
+                disabled={readOnly || patch.isPending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void remove(index);
+                }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            ),
+          },
+        ]}
+        rowKey={({ item, index }) => String(index) + ':' + JSON.stringify(item)}
+        rowProps={({ item, index }) => ({
+          hover: true,
+          sx: { cursor: readOnly ? 'default' : 'pointer' },
+          onClick: () => !readOnly && setEditing({ index, value: item }),
+        })}
+        cellProps={(_row, column) =>
+          column.key === 'actions'
+            ? { sx: { textAlign: 'end' } }
+            : columns[Number(column.key)]?.ltr
+              ? {
+                  ...LTR,
+                  sx: {
+                    textAlign: 'start',
+                    fontFamily: (th) => th.ngfw.monoFontFamily,
+                    fontSize: 12,
+                  },
+                }
+              : {}
+        }
+        tableProps={{ size: 'small', 'aria-label': title }}
+        emptyContent={<Typography color="text.secondary">{emptyText}</Typography>}
+        noFormWrapper
+        embedded
+        hideToolbar
+        hidePagination
+        hideFilterBuilderComponent
+        search={false}
+        sortable={false}
+        exportToCSV={false}
+        footer={false}
+        memoEnable={false}
+      />
       <Dialog open={editing !== null} onClose={() => setEditing(null)} fullWidth maxWidth="sm">
         <DialogTitle>
           {editing && editing.index >= 0

@@ -1,10 +1,10 @@
-import ReportProblemOutlined from '@mui/icons-material/ReportProblemOutlined';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { PgReportProblemOutlinedIcon as ReportProblemOutlined } from '@amnafzar/common-ui-lib/icons';
+import { PgCard as Card } from '@amnafzar/common-ui-lib/primitives';
+import { PgCardContent as CardContent } from '@amnafzar/common-ui-lib/primitives';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgLink as Link } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router';
 import { useDashboardSummary } from './queries';

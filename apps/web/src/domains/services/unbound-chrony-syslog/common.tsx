@@ -1,11 +1,11 @@
 import { serviceText } from '../../../product-text';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlertTitle as AlertTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';

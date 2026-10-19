@@ -1,12 +1,10 @@
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../api';
@@ -64,44 +62,92 @@ export function PkiInventoryPanel() {
           {groups
             .filter((group) => group.rows.length > 0)
             .map((group) => (
-              <Table key={group.title} size="small" aria-label={group.title}>
-                <TableHead>
-                  <TableRow>
-                    {[t('name'), t('subject'), t('issuer'), t('expires'), t('status')].map(
-                      (label) => (
-                        <TableCell key={label}>{label}</TableCell>
-                      ),
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {group.rows.map((item) => (
-                    <TableRow key={item.name}>
-                      <TableCell component="th" scope={ROW_SCOPE}>
-                        {item.name}
-                      </TableCell>
-                      <TableCell>{item.subject ?? t('unknown')}</TableCell>
-                      <TableCell>{item.issuer ?? t('unknown')}</TableCell>
-                      <TableCell>{item.notAfter ?? t('unknown')}</TableCell>
-                      <TableCell>
-                        {t(
-                          'revokedByCrl' in item &&
-                            (item.revokedByCrl || item.ocsp?.status === 'revoked')
-                            ? 'revoked'
-                            : item.notAfter !== null &&
-                                Date.parse(item.notAfter) < Date.parse(data.generatedAt)
-                              ? 'expired'
-                              : 'expiring' in item && item.expiring
-                                ? 'expiring'
-                                : item.problems.length > 0
-                                  ? 'attention'
-                                  : 'configured',
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                key={group.title}
+                items={group.rows}
+                columns={[
+                  {
+                    key: 'name',
+                    headerRenderer: () => t('name'),
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value, item: (typeof group.rows)[number]) => {
+                      return <>{item.name}</>;
+                    },
+                  },
+                  {
+                    key: 'subject',
+                    headerRenderer: () => t('subject'),
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value, item: (typeof group.rows)[number]) => {
+                      return <>{item.subject ?? t('unknown')}</>;
+                    },
+                  },
+                  {
+                    key: 'issuer',
+                    headerRenderer: () => t('issuer'),
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value, item: (typeof group.rows)[number]) => {
+                      return <>{item.issuer ?? t('unknown')}</>;
+                    },
+                  },
+                  {
+                    key: 'expires',
+                    headerRenderer: () => t('expires'),
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value, item: (typeof group.rows)[number]) => {
+                      return <>{item.notAfter ?? t('unknown')}</>;
+                    },
+                  },
+                  {
+                    key: 'status',
+                    headerRenderer: () => t('status'),
+                    sortable: false,
+                    filterable: false,
+                    renderer: (_value, item: (typeof group.rows)[number]) => {
+                      return (
+                        <>
+                          {t(
+                            'revokedByCrl' in item &&
+                              (item.revokedByCrl || item.ocsp?.status === 'revoked')
+                              ? 'revoked'
+                              : item.notAfter !== null &&
+                                  Date.parse(item.notAfter) < Date.parse(data.generatedAt)
+                                ? 'expired'
+                                : 'expiring' in item && item.expiring
+                                  ? 'expiring'
+                                  : item.problems.length > 0
+                                    ? 'attention'
+                                    : 'configured',
+                          )}
+                        </>
+                      );
+                    },
+                  },
+                ]}
+                rowKey={(item) => item.name}
+
+                cellProps={(_item, column) => {
+                  if (column.key === 'name') return { component: 'th', scope: ROW_SCOPE };
+                  return {};
+                }}
+                tableProps={{ size: 'small', 'aria-label': group.title }}
+
+                emptyContent={null}
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                footer={false}
+                search={false}
+                sortable={false}
+                exportToCSV={false}
+              />
             ))}
         </>
       )}

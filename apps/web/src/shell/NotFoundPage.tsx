@@ -1,5 +1,5 @@
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { PageHeader } from './PageHeader';

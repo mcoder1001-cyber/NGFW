@@ -1,23 +1,22 @@
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
+import type { Theme } from '@amnafzar/common-ui-lib/styles';
+import { useInterfaceLabel, StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
-import type { Theme } from '@mui/material/styles';
-import { StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
@@ -169,20 +168,21 @@ function Toolbar({
   );
 }
 
-function RowActions({
+function renderRowActions({
+  t,
   name,
   onEdit,
   onRemove,
   disabled,
 }: {
+  t: ReturnType<typeof useTranslation>['t'];
   name: string;
   onEdit: () => void;
   onRemove: () => void;
   disabled: boolean;
 }) {
-  const { t } = useTranslation('kea-dhcp-relay');
   return (
-    <TableCell sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+    <Box component="span" sx={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
       <IconButton
         size="small"
         aria-label={t('actions.edit', { name })}
@@ -199,18 +199,12 @@ function RowActions({
       >
         <DeleteIcon fontSize="small" />
       </IconButton>
-    </TableCell>
+    </Box>
   );
 }
 
-function EmptyRow({ cols, text }: { cols: number; text: string }) {
-  return (
-    <TableRow>
-      <TableCell colSpan={cols}>
-        <Typography color="text.secondary">{text}</Typography>
-      </TableCell>
-    </TableRow>
-  );
+function renderEmptyContent({ text }: { text: string }) {
+  return <Typography color="text.secondary">{text}</Typography>;
 }
 
 function Frame({ ed, children }: { ed: Editor; children: ReactNode }) {
@@ -286,56 +280,136 @@ export function ServersTab() {
         onAdd={() => setTarget({ keys: { name: '' }, value: undefined, editing: false })}
       />
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('servers.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.name')}</TableCell>
-            <TableCell>{t('col.family')}</TableCell>
-            <TableCell>{t('col.vrf')}</TableCell>
-            <TableCell>{t('col.interfaces')}</TableCell>
-            <TableCell>{t('col.subnets')}</TableCell>
-            <TableCell>{t('col.enabled')}</TableCell>
-            <TableCell>{t('col.status')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={8} text={t('servers.none')} />}
-          {rows.map((r) => (
-            <TableRow key={r.id} hover>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.name}
-              </TableCell>
-              <TableCell>{t(`family.${r.family}`)}</TableCell>
-              <TableCell dir="ltr">{r.vrf}</TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.interfaces.map(interfaceLabel).join(' ')}
-              </TableCell>
-              <TableCell>{r.subnets}</TableCell>
-              <TableCell>{r.enabled ? t('yes') : t('no')}</TableCell>
-              <TableCell>
-                {r.enabled ? (
-                  <DaemonChip status={byFamily.get(r.family)} />
-                ) : (
-                  <Chip size="small" variant="outlined" label={t('status.disabled')} />
-                )}
-              </TableCell>
-              <RowActions
-                name={r.name}
-                disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={() =>
-                  setTarget({
-                    keys: { name: r.name },
-                    value: omit(r.cfg, SUBNETS),
-                    editing: true,
-                  })
-                }
-                onRemove={() => void ed.remove(serverPath(r.name))}
-              />
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('col.name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+              },
+              {
+                key: 'family',
+                headerRenderer: () => <>{t('col.family')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{t(`family.${r.family}`)}</>
+                ),
+              },
+              {
+                key: 'vrf',
+                headerRenderer: () => <>{t('col.vrf')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.vrf}</>,
+              },
+              {
+                key: 'interfaces',
+                headerRenderer: () => <>{t('col.interfaces')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.interfaces.map(interfaceLabel).join(' ')}</>
+                ),
+              },
+              {
+                key: 'subnets',
+                headerRenderer: () => <>{t('col.subnets')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.subnets}</>,
+              },
+              {
+                key: 'enabled',
+                headerRenderer: () => <>{t('col.enabled')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.enabled ? t('yes') : t('no')}</>
+                ),
+              },
+              {
+                key: 'status',
+                headerRenderer: () => <>{t('col.status')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.enabled ? (
+                      <DaemonChip status={byFamily.get(r.family)} />
+                    ) : (
+                      <Chip size="small" variant="outlined" label={t('status.disabled')} />
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: r.name,
+                      disabled: ed.readOnly || ed.patch.isPending,
+                      onEdit: () =>
+                        setTarget({
+                          keys: { name: r.name },
+                          value: omit(r.cfg, SUBNETS),
+                          editing: true,
+                        }),
+                      onRemove: () => void ed.remove(serverPath(r.name)),
+                      t,
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.id;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'name':
+                  return { dir: 'ltr', sx: MONO };
+                case 'vrf':
+                  return { dir: 'ltr' };
+                case 'interfaces':
+                  return { dir: 'ltr', sx: MONO };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('servers.title') }}
+            emptyContent={renderEmptyContent({ text: t('servers.none') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <EditDialog
         open={target !== null}
         title={
@@ -429,60 +503,135 @@ export function SubnetsTab() {
         }
       />
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('subnets.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.server')}</TableCell>
-            <TableCell>{t('col.subnet')}</TableCell>
-            <TableCell>{t('col.prefix')}</TableCell>
-            <TableCell>{t('col.pools')}</TableCell>
-            <TableCell>{t('col.reservations')}</TableCell>
-            <TableCell>{t('col.usage')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={7} text={t('subnets.none')} />}
-          {rows.map((r) => (
-            <TableRow key={r.id} hover>
-              <TableCell dir="ltr">{r.server}</TableCell>
-              <TableCell dir="ltr">{r.name}</TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.prefix}
-              </TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.pools.join(', ')}
-              </TableCell>
-              <TableCell>{r.reservations}</TableCell>
-              <TableCell>
-                {r.usage ? (
-                  <UsageBar
-                    assigned={r.usage.assigned}
-                    total={r.usage.total}
-                    label={t('subnets.usageLabel', { name: r.id })}
-                  />
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    {t('subnets.noUsage')}
-                  </Typography>
-                )}
-              </TableCell>
-              <RowActions
-                name={r.id}
-                disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={() =>
-                  setTarget({
-                    keys: { server: r.server, name: r.name },
-                    value: omit(r.cfg, RESERVATIONS),
-                    editing: true,
-                  })
-                }
-                onRemove={() => void ed.remove(subnetPath(r.server, r.name))}
-              />
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'server',
+                headerRenderer: () => <>{t('col.server')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.server}</>,
+              },
+              {
+                key: 'subnet',
+                headerRenderer: () => <>{t('col.subnet')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+              },
+              {
+                key: 'prefix',
+                headerRenderer: () => <>{t('col.prefix')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.prefix}</>,
+              },
+              {
+                key: 'pools',
+                headerRenderer: () => <>{t('col.pools')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.pools.join(', ')}</>
+                ),
+              },
+              {
+                key: 'reservations',
+                headerRenderer: () => <>{t('col.reservations')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.reservations}</>
+                ),
+              },
+              {
+                key: 'usage',
+                headerRenderer: () => <>{t('col.usage')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.usage ? (
+                      <UsageBar
+                        assigned={r.usage.assigned}
+                        total={r.usage.total}
+                        label={t('subnets.usageLabel', { name: r.id })}
+                      />
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        {t('subnets.noUsage')}
+                      </Typography>
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: r.id,
+                      disabled: ed.readOnly || ed.patch.isPending,
+                      onEdit: () =>
+                        setTarget({
+                          keys: { server: r.server, name: r.name },
+                          value: omit(r.cfg, RESERVATIONS),
+                          editing: true,
+                        }),
+                      onRemove: () => void ed.remove(subnetPath(r.server, r.name)),
+                      t,
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.id;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'server':
+                  return { dir: 'ltr' };
+                case 'subnet':
+                  return { dir: 'ltr' };
+                case 'prefix':
+                  return { dir: 'ltr', sx: MONO };
+                case 'pools':
+                  return { dir: 'ltr', sx: MONO };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('subnets.title') }}
+            emptyContent={renderEmptyContent({ text: t('subnets.none') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <EditDialog
         open={target !== null}
         title={
@@ -563,50 +712,124 @@ export function ReservationsTab() {
         {t('reservations.hint')}
       </Typography>
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('reservations.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.server')}</TableCell>
-            <TableCell>{t('col.subnet')}</TableCell>
-            <TableCell>{t('col.name')}</TableCell>
-            <TableCell>{t('col.client')}</TableCell>
-            <TableCell>{t('col.ip')}</TableCell>
-            <TableCell>{t('col.hostname')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={7} text={t('reservations.none')} />}
-          {rows.map((r) => (
-            <TableRow key={r.id} hover>
-              <TableCell dir="ltr">{r.server}</TableCell>
-              <TableCell dir="ltr">{r.subnet}</TableCell>
-              <TableCell dir="ltr">{r.name}</TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.client}
-              </TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.ip}
-              </TableCell>
-              <TableCell dir="ltr">{r.hostname}</TableCell>
-              <RowActions
-                name={r.id}
-                disabled={ed.readOnly || ed.patch.isPending}
-                onEdit={() =>
-                  setTarget({
-                    keys: { server: r.server, subnet: r.subnet, name: r.name },
-                    value: r.cfg,
-                    editing: true,
-                  })
-                }
-                onRemove={() =>
-                  void ed.remove(path({ server: r.server, subnet: r.subnet, name: r.name }))
-                }
-              />
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'server',
+                headerRenderer: () => <>{t('col.server')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.server}</>,
+              },
+              {
+                key: 'subnet',
+                headerRenderer: () => <>{t('col.subnet')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.subnet}</>,
+              },
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('col.name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+              },
+              {
+                key: 'client',
+                headerRenderer: () => <>{t('col.client')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.client}</>,
+              },
+              {
+                key: 'ip',
+                headerRenderer: () => <>{t('col.ip')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.ip}</>,
+              },
+              {
+                key: 'hostname',
+                headerRenderer: () => <>{t('col.hostname')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.hostname}</>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: r.id,
+                      disabled: ed.readOnly || ed.patch.isPending,
+                      onEdit: () =>
+                        setTarget({
+                          keys: { server: r.server, subnet: r.subnet, name: r.name },
+                          value: r.cfg,
+                          editing: true,
+                        }),
+                      onRemove: () =>
+                        void ed.remove(path({ server: r.server, subnet: r.subnet, name: r.name })),
+                      t,
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.id;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'server':
+                  return { dir: 'ltr' };
+                case 'subnet':
+                  return { dir: 'ltr' };
+                case 'name':
+                  return { dir: 'ltr' };
+                case 'client':
+                  return { dir: 'ltr', sx: MONO };
+                case 'ip':
+                  return { dir: 'ltr', sx: MONO };
+                case 'hostname':
+                  return { dir: 'ltr' };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('reservations.title') }}
+            emptyContent={renderEmptyContent({ text: t('reservations.none') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <EditDialog
         open={target !== null}
         title={
@@ -673,61 +896,147 @@ export function RelaysTab() {
       </Typography>
       {state.isError && <ProblemAlert error={state.error} sx={{ mb: 1 }} />}
       {ed.error !== null && target === null && <ProblemAlert error={ed.error} sx={{ mb: 1 }} />}
-      <Table size="small" aria-label={t('relays.title')}>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('col.name')}</TableCell>
-            <TableCell>{t('col.vrf')}</TableCell>
-            <TableCell>{t('col.serverVrf')}</TableCell>
-            <TableCell>{t('col.dhcpServers')}</TableCell>
-            <TableCell>{t('col.source')}</TableCell>
-            <TableCell>{t('col.interfaces')}</TableCell>
-            <TableCell>{t('col.status')}</TableCell>
-            <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && <EmptyRow cols={8} text={t('relays.none')} />}
-          {rows.map((r) => (
-            <TableRow key={r.id} hover>
-              <TableCell dir="ltr">{r.name}</TableCell>
-              <TableCell dir="ltr">{r.vrf}</TableCell>
-              <TableCell dir="ltr">{r.serverVrf}</TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.servers.join(' ')}
-              </TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.source}
-              </TableCell>
-              <TableCell dir="ltr" sx={MONO}>
-                {r.interfaces.map(interfaceLabel).join(' ')}
-              </TableCell>
-              <TableCell>
-                {r.state === 'pending' ? (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    color="warning"
-                    label={t('relayState.pending')}
-                  />
-                ) : (
-                  <StatusChip
-                    size="small"
-                    status={RELAY_STATUS[r.state]}
-                    label={t(`relayState.${r.state}`)}
-                  />
-                )}
-              </TableCell>
-              <RowActions
-                name={r.name}
-                disabled={ed.readOnly || ed.patch.isPending || r.cfg === undefined}
-                onEdit={() => setTarget({ keys: { name: r.name }, value: r.cfg, editing: true })}
-                onRemove={() => void ed.remove(relayPath(r.name))}
-              />
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {(() => {
+        const nativeRows = rows.map((r) => {
+          return { r };
+        });
+        return (
+          <ReactGeereedMaterial
+            footer={false}
+            hideFilterBuilderComponent
+            items={nativeRows}
+            columns={[
+              {
+                key: 'name',
+                headerRenderer: () => <>{t('col.name')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+              },
+              {
+                key: 'vrf',
+                headerRenderer: () => <>{t('col.vrf')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.vrf}</>,
+              },
+              {
+                key: 'serverVrf',
+                headerRenderer: () => <>{t('col.serverVrf')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.serverVrf}</>
+                ),
+              },
+              {
+                key: 'dhcpServers',
+                headerRenderer: () => <>{t('col.dhcpServers')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.servers.join(' ')}</>
+                ),
+              },
+              {
+                key: 'source',
+                headerRenderer: () => <>{t('col.source')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.source}</>,
+              },
+              {
+                key: 'interfaces',
+                headerRenderer: () => <>{t('col.interfaces')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>{r.interfaces.map(interfaceLabel).join(' ')}</>
+                ),
+              },
+              {
+                key: 'status',
+                headerRenderer: () => <>{t('col.status')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {r.state === 'pending' ? (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        label={t('relayState.pending')}
+                      />
+                    ) : (
+                      <StatusChip
+                        size="small"
+                        status={RELAY_STATUS[r.state]}
+                        label={t(`relayState.${r.state}`)}
+                      />
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => <>{t('col.actions')}</>,
+                sortable: false,
+                filterable: false,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
+                  <>
+                    {renderRowActions({
+                      name: r.name,
+                      disabled: ed.readOnly || ed.patch.isPending || r.cfg === undefined,
+                      onEdit: () =>
+                        setTarget({ keys: { name: r.name }, value: r.cfg, editing: true }),
+                      onRemove: () => void ed.remove(relayPath(r.name)),
+                      t,
+                    })}
+                  </>
+                ),
+              },
+            ]}
+            rowKey={(item) => {
+              const { r } = item as (typeof nativeRows)[number];
+              return r.id;
+            }}
+            rowProps={() => {
+              return { hover: true };
+            }}
+            cellProps={(_item, column) => {
+              switch (column.key) {
+                case 'name':
+                  return { dir: 'ltr' };
+                case 'vrf':
+                  return { dir: 'ltr' };
+                case 'serverVrf':
+                  return { dir: 'ltr' };
+                case 'dhcpServers':
+                  return { dir: 'ltr', sx: MONO };
+                case 'source':
+                  return { dir: 'ltr', sx: MONO };
+                case 'interfaces':
+                  return { dir: 'ltr', sx: MONO };
+                case 'actions':
+                  return { sx: { textAlign: 'end', whiteSpace: 'nowrap' } };
+                default:
+                  return {};
+              }
+            }}
+            tableProps={{ size: 'small', 'aria-label': t('relays.title') }}
+            emptyContent={renderEmptyContent({ text: t('relays.none') })}
+            noFormWrapper
+            embedded
+            memoEnable={false}
+            hidePagination
+            hideToolbar
+            search={false}
+            exportToCSV={false}
+            sortable={false}
+          />
+        );
+      })()}
       <EditDialog
         open={target !== null}
         title={

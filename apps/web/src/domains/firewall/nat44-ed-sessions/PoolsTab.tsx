@@ -1,9 +1,9 @@
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
+import { PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useTranslation } from 'react-i18next';
 import { ListSection } from './ListSection';

@@ -2,14 +2,24 @@ import { ROOT_KEYS } from '@ngfw/schema';
 import { QueryClient } from '@tanstack/react-query';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEV_ROUTES } from './build-flags';
 import i18n from './i18n';
 import { App } from './App';
-import { buildNav, BUILT_DOMAINS, domainPath, isCollapsible } from './nav/nav';
+import { buildNav, BUILT_DOMAINS, isCollapsible } from './nav/nav';
 import { buildRoutes, createTestRouter, type RouteOptions } from './router';
 import { domains } from './schema/registry';
 import { installFakeApi, resetSession, signIn } from './test-api';
+
+/** Explicit responsive viewport: jsdom has no layout-backed matchMedia. */
+function viewport(desktop: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('min-width') ? desktop : false,
+    media: query, onchange: null,
+    addListener: () => {}, removeListener: () => {},
+    addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+  }));
+}
 
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 
@@ -21,6 +31,7 @@ function app(path: string, options?: RouteOptions) {
 
 describe('App frame', () => {
   beforeEach(async () => {
+    viewport(true);
     installFakeApi();
     await signIn();
   });
@@ -40,24 +51,28 @@ describe('App frame', () => {
     const collapsible = model.filter(isCollapsible);
     for (const group of model.filter((g) => !isCollapsible(g))) {
       const item = group.items[0]!;
-      expect(within(nav).getByRole('link', { name: new RegExp(`^${i18n.t(item.labelKey, { defaultValue: item.fallbackLabel })}`) })).toBeVisible();
+      expect(within(nav).getByRole('link', { name: name => name.startsWith(i18n.t(item.labelKey, { defaultValue: item.fallbackLabel })) })).toBeVisible();
     }
     const headers = [...nav.querySelectorAll('[aria-expanded]')];
     expect(headers.map((h) => h.textContent)).toEqual(collapsible.map((g) => i18n.t(g.labelKey)));
     const user = userEvent.setup();
-    for (const header of headers) {
-      expect(header).toHaveAttribute('aria-expanded', 'false');
-      await user.click(header);
-      expect(header).toHaveAttribute('aria-expanded', 'true');
+    // Common UI uses one open section at a time. Verify every route while its section is visible.
+    for (const header of headers) expect(header).toHaveAttribute('aria-expanded', 'false');
+    for (const group of model) {
+      const header = isCollapsible(group) ? within(nav).getByRole('button', { name: i18n.t(group.labelKey) }) : null;
+      if (header) {
+        await user.click(header);
+        expect(header).toHaveAttribute('aria-expanded', 'true');
+        for (const other of headers.filter(h => h !== header)) expect(other).toHaveAttribute('aria-expanded', 'false');
+      }
+      for (const item of group.items) {
+        const candidates = within(nav).getAllByRole('link', { name: name => name.startsWith(i18n.t(item.labelKey, { defaultValue: item.fallbackLabel })) });
+        const links = candidates.filter(link => link.getAttribute('href') === item.path);
+        expect(links).toHaveLength(1);
+        expect(links[0]).toBeVisible();
+      }
     }
-    for (const key of ROOT_KEYS) {
-      const candidates = await within(nav).findAllByRole('link', {
-        name: new RegExp(`^${i18n.t(`nav:domains.${key}`)}`),
-      });
-      const rootLinks = candidates.filter((link) => link.getAttribute('href') === domainPath(key));
-      expect(rootLinks).toHaveLength(1);
-      expect(rootLinks[0]).toBeVisible();
-    }
+    expect(model.flatMap(group => group.items).filter(item => item.domain).map(item => item.domain).sort()).toEqual([...ROOT_KEYS].sort());
     expect(screen.getByRole('region', { name: 'Traffic, all interfaces' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main');
   });
@@ -109,7 +124,7 @@ describe('App frame', () => {
     const current = nav.querySelectorAll('[aria-current="page"]');
     expect(current).toHaveLength(1);
     expect(current[0]).toHaveTextContent('Tunnels');
-    expect(nav.querySelectorAll('.Mui-selected')).toHaveLength(1);
+    expect(nav.querySelectorAll('a.active')).toHaveLength(1);
   });
 
   it('opens the group of a deep-linked page, marks its entry current, and lets the user close it (D-117)', async () => {
@@ -151,19 +166,23 @@ describe('App frame', () => {
     expect(vpn).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('phone drawer: unique ids per list and the same expanded groups as the side drawer', async () => {
+  it('phone drawer opens navigation, resolves every disclosure id and closes after navigating', async () => {
+    viewport(false);
     render(app('/'));
     await screen.findByRole('heading', { level: 2, name: 'Dashboard' });
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
     const user = userEvent.setup();
-    const [side] = screen.getAllByRole('navigation', { name: 'Main navigation' });
-    await user.click(within(side!).getByRole('button', { name: 'System' }));
     await user.click(screen.getByRole('button', { name: 'Open navigation' }));
-    const navs = screen.getAllByRole('navigation', { name: 'Main navigation', hidden: true });
-    expect(navs).toHaveLength(2);
-    const controls = [...document.querySelectorAll('[aria-controls]')].map((e) => e.getAttribute('aria-controls')!);
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    const controls = [...nav.querySelectorAll('[aria-controls]')].map(e => e.getAttribute('aria-controls')!);
     expect(new Set(controls).size).toBe(controls.length);
     for (const id of controls) expect(document.querySelectorAll(`[id="${id}"]`)).toHaveLength(1);
-    for (const n of navs) expect(within(n).getByRole('button', { name: 'System', hidden: true })).toHaveAttribute('aria-expanded', 'true');
+    const system = within(nav).getByRole('button', { name: 'System' });
+    await user.click(system);
+    expect(system).toHaveAttribute('aria-expanded', 'true');
+    await user.click(await within(nav).findByRole('link', { name: /^Users/ }));
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
   });
 
   it('keeps groups collapsed until their header is clicked, and toggles them closed again', async () => {

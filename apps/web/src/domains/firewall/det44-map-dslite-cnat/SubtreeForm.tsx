@@ -1,6 +1,6 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

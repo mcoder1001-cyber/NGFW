@@ -1,14 +1,14 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBox as Box,
+  PgDivider as Divider,
+  PgPaper as Paper,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -51,31 +51,62 @@ function Det44Sessions() {
             })}
           </Typography>
           <Paper variant="outlined">
-            <Table size="small" aria-label={t('det44.sessions')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('col.insidePort')}</TableCell>
-                  <TableCell>{t('col.outsidePort')}</TableCell>
-                  <TableCell>{t('col.external')}</TableCell>
-                  <TableCell>{t('col.state')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {q.data.items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4}>{t('empty')}</TableCell>
-                  </TableRow>
-                )}
-                {q.data.items.map((s) => (
-                  <TableRow key={`${s.insidePort}|${s.externalAddress}|${s.externalPort}`}>
-                    <TableCell>{s.insidePort}</TableCell>
-                    <TableCell>{s.outsidePort}</TableCell>
-                    <TableCell dir="ltr">{`${s.externalAddress}:${s.externalPort}`}</TableCell>
-                    <TableCell>{s.state}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ReactGeereedMaterial
+              tableProps={{ size: 'small', 'aria-label': t('det44.sessions') }}
+              columns={[
+                {
+                  key: 'insidePort',
+                  headerRenderer: () => t('col.insidePort'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'outsidePort',
+                  headerRenderer: () => t('col.outsidePort'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'external',
+                  headerRenderer: () => t('col.external'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'state',
+                  headerRenderer: () => t('col.state'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+              ]}
+              items={[
+                ...(q.data.items.map((s) => ({
+                  id: `${s.insidePort}|${s.externalAddress}|${s.externalPort}`,
+                  insidePort: s.insidePort,
+                  outsidePort: s.outsidePort,
+                  external: `${s.externalAddress}:${s.externalPort}`,
+                  state: s.state,
+                  cellProps: { external: { dir: 'ltr' } } satisfies Record<
+                    string,
+                    NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                  >,
+                })) ?? []),
+              ]}
+              rowKey={(item) => item.id}
+              rowProps={(item) => item.rowProps ?? {}}
+              cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+              emptyContent={q.data.items.length === 0 ? t('empty') : null}
+              noFormWrapper
+              embedded
+              hideToolbar
+              hidePagination
+              hideFilterBuilderComponent
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+              footer={false}
+              memoEnable={false}
+            />
           </Paper>
         </>
       )}

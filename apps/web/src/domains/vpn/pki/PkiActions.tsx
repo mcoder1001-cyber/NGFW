@@ -1,17 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Checkbox,
-  FormControlLabel,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Stack,
-  TextField,
-} from '@mui/material';
+import { PgAlert as Alert, PgCheckbox as Checkbox, PgFormControlLabel as FormControlLabel, PgDialog as Dialog, PgDialogActions as DialogActions, PgDialogContent as DialogContent, PgDialogTitle as DialogTitle, PgMenuItem as MenuItem, PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
 import { useTranslation } from 'react-i18next';
 import { session } from '../../../auth/session';
 import { api } from '../../../api';

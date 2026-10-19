@@ -1,23 +1,23 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+  PgRefreshIcon as RefreshIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgIconButton as IconButton,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTooltip as Tooltip,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useQueryClient } from '@tanstack/react-query';
@@ -36,10 +36,10 @@ import {
   formSchemas,
   L2_TABLES,
   l2Patch,
-  presence,
   NAME_RE,
   portPatch,
   portsOf,
+  presence,
   rangesText,
   type BridgeDomainItem,
   type BridgeL2Config,
@@ -189,14 +189,24 @@ function DomainsTab() {
           />
         ),
       },
-      { field: 'members', headerName: t('col.members'), type: 'number', width: 100 },
+      {
+        field: 'members',
+        headerName: t('col.members'),
+        type: 'number',
+        width: 100,
+      },
       {
         field: 'bvi',
         headerName: t('col.bvi'),
         width: 130,
         renderCell: (p) => <span dir="ltr">{interfaceLabel(p.row.bvi)}</span>,
       },
-      { field: 'learned', headerName: t('col.learned'), type: 'number', width: 130 },
+      {
+        field: 'learned',
+        headerName: t('col.learned'),
+        type: 'number',
+        width: 130,
+      },
       {
         field: 'macAge',
         headerName: t('col.macAge'),
@@ -246,7 +256,7 @@ function DomainsTab() {
           refetchInterval={BRIDGE_POLL_MS}
           initialPageSize={25}
           onRowClick={(p) => setSelected(p.row.name)}
-          sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+          sx={{ '& [data-rowindex]': { cursor: 'pointer' } }}
         />
       </Paper>
       <BridgeDomainDrawer item={selectedItem} onClose={() => setSelected(null)} />
@@ -348,47 +358,110 @@ function XconnectsTab() {
         <Typography color="text.secondary">{t('xc.none')}</Typography>
       ) : (
         <Paper variant="outlined">
-          <Table size="small" aria-label={t('tab.xconnects')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.kind')}</TableCell>
-                <TableCell>{t('col.rx')}</TableCell>
-                <TableCell>{t('col.tx')}</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={`${r.table}:${r.rx}`}>
-                  <TableCell>{r.table === 'xconnects' ? t('xc.l2') : t('xc.l3')}</TableCell>
-                  <TableCell dir="ltr" sx={MONO}>
-                    {interfaceLabel(r.rx)}
-                  </TableCell>
-                  <TableCell dir="ltr" sx={MONO}>
-                    {r.text}
-                  </TableCell>
-                  <TableCell sx={END_CELL}>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('edit')} ${interfaceLabel(r.rx)}`}
-                      disabled={!perms.editConfig}
-                      onClick={() => setEditing({ table: r.table, key: r.rx })}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('remove')} ${interfaceLabel(r.rx)}`}
-                      disabled={!perms.editConfig || patch.isPending}
-                      onClick={() => void removeCrossConnect(r.table, r.rx)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const gridItems = rows;
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('col.kind')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return <>{r.table === 'xconnects' ? t('xc.l2') : t('xc.l3')}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('col.rx')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return <>{r.rx}</>;
+                    },
+                  },
+                  {
+                    key: '2',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('col.tx')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return <>{r.text}</>;
+                    },
+                  },
+                  {
+                    key: '3',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <></>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const r = gridRow;
+                      return (
+                        <>
+                          <IconButton
+                            size="small"
+                            aria-label={`${t('edit')} ${r.rx}`}
+                            disabled={!perms.editConfig}
+                            onClick={() => setEditing({ table: r.table, key: r.rx })}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            aria-label={`${t('remove')} ${r.rx}`}
+                            disabled={!perms.editConfig || patch.isPending}
+                            onClick={() => void removeCrossConnect(r.table, r.rx)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      );
+                    },
+                  },
+                ]}
+                tableProps={{ size: 'small', 'aria-label': t('tab.xconnects') }}
+                rowKey={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const r = gridRow;
+                  return `${r.table}:${r.rx}`;
+                }}
+                rowProps={(_nativeRow, _gridIndex) => {
+                  return {};
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return {};
+                    case '1':
+                      return { dir: 'ltr', sx: MONO };
+                    case '2':
+                      return { dir: 'ltr', sx: MONO };
+                    case '3':
+                      return { sx: END_CELL };
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
         </Paper>
       )}
       {editing !== null && editing.table !== 'macFilters' && (
@@ -439,51 +512,131 @@ function MacFilterTab() {
         <Typography color="text.secondary">{t('mf.none')}</Typography>
       ) : (
         <Paper variant="outlined">
-          <Table size="small" aria-label={t('tab.macFilter')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.device')}</TableCell>
-                <TableCell>{t('col.mac')}</TableCell>
-                <TableCell>{t('col.action')}</TableCell>
-                <TableCell>{t('col.ranges')}</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {devices.map(([name, f]) => (
-                <TableRow key={name}>
-                  <TableCell dir="ltr">{name}</TableCell>
-                  <TableCell dir="ltr" sx={MONO}>
-                    {f.mac}
-                  </TableCell>
-                  <TableCell>{f.action}</TableCell>
-                  <TableCell dir="ltr">{rangesText(f, t('mf.always'))}</TableCell>
-                  <TableCell sx={END_CELL}>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('edit')} ${name}`}
-                      disabled={!perms.editConfig}
-                      onClick={() => setEditing({ table: L2_TABLES.macFilters, key: name })}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      aria-label={`${t('remove')} ${name}`}
-                      disabled={!perms.editConfig || patch.isPending}
-                      onClick={() =>
-                        void patch
-                          .mutateAsync(l2Patch(L2_TABLES.macFilters, name, null))
-                          .catch(() => undefined)
-                      }
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const gridItems = devices;
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('col.device')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const { 0: name } = gridRow;
+                      return <>{name}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('col.mac')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const { 1: f } = gridRow;
+                      return <>{f.mac}</>;
+                    },
+                  },
+                  {
+                    key: '2',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('col.action')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const { 1: f } = gridRow;
+                      return <>{f.action}</>;
+                    },
+                  },
+                  {
+                    key: '3',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('col.ranges')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const { 1: f } = gridRow;
+                      return <>{rangesText(f, t('mf.always'))}</>;
+                    },
+                  },
+                  {
+                    key: '4',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <></>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const { 0: name } = gridRow;
+                      return (
+                        <>
+                          <IconButton
+                            size="small"
+                            aria-label={`${t('edit')} ${name}`}
+                            disabled={!perms.editConfig}
+                            onClick={() =>
+                              setEditing({
+                                table: L2_TABLES.macFilters,
+                                key: name,
+                              })
+                            }
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            aria-label={`${t('remove')} ${name}`}
+                            disabled={!perms.editConfig || patch.isPending}
+                            onClick={() =>
+                              void patch
+                                .mutateAsync(l2Patch(L2_TABLES.macFilters, name, null))
+                                .catch(() => undefined)
+                            }
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      );
+                    },
+                  },
+                ]}
+                tableProps={{ size: 'small', 'aria-label': t('tab.macFilter') }}
+                rowKey={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const { 0: name } = gridRow;
+                  return name;
+                }}
+                rowProps={(_nativeRow, _gridIndex) => {
+                  return {};
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return { dir: 'ltr' };
+                    case '1':
+                      return { dir: 'ltr', sx: MONO };
+                    case '2':
+                      return {};
+                    case '3':
+                      return { dir: 'ltr' };
+                    case '4':
+                      return { sx: END_CELL };
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
         </Paper>
       )}
       {editing !== null && editing.table === 'macFilters' && (

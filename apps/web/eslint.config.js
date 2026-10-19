@@ -26,6 +26,11 @@ export default [
               'filterMode', 'density', 'maxWidth', 'fontSize', 'valueLabelDisplay', 'data-.*', 'aria-(controls|labelledby|describedby|haspopup|live|current|hidden|expanded|owns)',
             ],
           },
+          // Grid definitions carry non-text DOM/CSS metadata as object props rather than JSX attributes.
+          // Labels, titles, messages, descriptions and aria-label remain checked.
+          'object-properties': {
+            exclude: ['key', 'dir', 'size', 'textAlign', 'whiteSpace', 'component', 'role', 'fontFamily', 'cursor', 'wordBreak', 'textDecoration', 'color'],
+          },
           words: { exclude: ['[0-9!-/:-@[-`{-~]+', '—', '…'] },
         },
       ],

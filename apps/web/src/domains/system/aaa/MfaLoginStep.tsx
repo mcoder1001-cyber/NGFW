@@ -1,10 +1,10 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgLink as Link } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../auth/AuthProvider';

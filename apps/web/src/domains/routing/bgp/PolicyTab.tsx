@@ -1,4 +1,4 @@
-import Box from '@mui/material/Box';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';

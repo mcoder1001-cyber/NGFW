@@ -1,14 +1,23 @@
+import { Agent as HttpsAgent } from 'node:https';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 // Slot ports come from the environment (docs/lab/shared-host-rules.md): never hardcode 3000/5173 for a worker.
 const apiPort = process.env.NGFW_HTTP_PORT ?? '3000';
+const apiTarget = process.env.NGFW_API_TARGET ?? `http://127.0.0.1:${apiPort}`;
+const apiAgent = apiTarget.startsWith('https:') && process.env.NGFW_API_TLS_SERVERNAME
+  ? new HttpsAgent({ servername: process.env.NGFW_API_TLS_SERVERNAME })
+  : undefined;
 const webPort = Number(process.env.NGFW_WEB_PORT ?? '5173');
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => ({
   plugins: [react()],
+  resolve: { dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled'] },
   // Developer demo routes (/dev/*) never ship in a production build unless explicitly requested (review P07a M1).
-  define: { __NGFW_DEV_ROUTES__: JSON.stringify(mode !== 'production' || process.env.VITE_NGFW_DEV_ROUTES === '1') },
+  define: {
+    __NGFW_DEV_ROUTES__: JSON.stringify(mode !== 'production' || process.env.VITE_NGFW_DEV_ROUTES === '1'),
+    __NGFW_UI_PREVIEW__: JSON.stringify(command === 'serve' && mode === 'development' && process.env.NGFW_UI_PREVIEW === '1'),
+  },
   server: {
     host: '127.0.0.1',
     port: webPort,
@@ -17,7 +26,7 @@ export default defineConfig(({ mode }) => ({
     // (NGFW_TRUST_PROXY): rate limits, lockout and audit see the browser's address, and a password that reached this
     // proxy over plain HTTP from another machine is refused (403 tls-required) instead of passing as "loopback".
     // `vite preview` (tools/app) uses this proxy too.
-    proxy: { '/api': { target: `http://127.0.0.1:${apiPort}`, ws: true, changeOrigin: false, xfwd: true } },
+    proxy: { '/api': { target: apiTarget, agent: apiAgent, ws: true, changeOrigin: Boolean(process.env.NGFW_API_TARGET), xfwd: true, secure: true } },
   },
   preview: { host: '127.0.0.1', port: webPort, strictPort: true },
   build: { sourcemap: true, target: 'es2022' },

@@ -1,27 +1,26 @@
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAddIcon as AddIcon,
+  PgDeleteIcon as DeleteIcon,
+  PgEditIcon as EditIcon,
+} from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgIconButton as IconButton,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { objectName } from '@ngfw/schema';
 import { StatusChip, useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
@@ -108,7 +107,10 @@ export function PbrPage() {
   const policySchema = useMemo(
     () =>
       localize(
-        withChoices(schemas.policy(), { acl: aclNames, 'paths.items.vrf': vrfNames }),
+        withChoices(schemas.policy(), {
+          acl: aclNames,
+          'paths.items.vrf': vrfNames,
+        }),
         (k, o) => t(k, o ?? {}),
         'form.policy',
       ),
@@ -163,7 +165,9 @@ export function PbrPage() {
     const cur = await fresh();
     await patch
       .mutateAsync({
-        pbr: { attachments: (cur.attachments ?? []).filter((a) => attachmentKey(a) !== key) },
+        pbr: {
+          attachments: (cur.attachments ?? []).filter((a) => attachmentKey(a) !== key),
+        },
       })
       .catch(() => undefined);
   };
@@ -198,7 +202,9 @@ export function PbrPage() {
         </Typography>
         {state.data?.retrievedAt && (
           <Typography variant="body2" color="text.secondary">
-            {t('pbr.retrievedAt', { time: fmt.time(new Date(state.data.retrievedAt)) })}
+            {t('pbr.retrievedAt', {
+              time: fmt.time(new Date(state.data.retrievedAt)),
+            })}
           </Typography>
         )}
         <Button
@@ -215,110 +221,208 @@ export function PbrPage() {
         </Button>
       </Stack>
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-        <Table size="small" aria-label={t('pbr.policies')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.name')}</TableCell>
-              <TableCell>{t('col.acl')}</TableCell>
-              <TableCell>{t('col.priority')}</TableCell>
-              <TableCell>{t('col.paths')}</TableCell>
-              <TableCell>{t('col.attachments')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {views.length === 0 && routing.isSuccess && (
-              <TableRow>
-                <TableCell colSpan={7}>
-                  <Typography color="text.secondary">{t('pbr.none')}</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {views.map((v) => {
-              const shown = v.config ?? v.live;
-              const paths = (shown?.paths ?? []) as {
-                address?: string;
-                interface?: string;
-                vrf?: string;
-                weight?: number;
-              }[];
-              return (
-                <TableRow key={v.name} data-testid={`policy-${v.name}`}>
-                  <TableCell>
-                    <Box component="span" dir="ltr" sx={MONO}>
-                      {v.name}
-                    </Box>
-                  </TableCell>
-                  <TableCell dir="ltr">{shown?.acl ?? ''}</TableCell>
-                  <TableCell>{fmt.integer(shown?.priority ?? 100)}</TableCell>
-                  <TableCell>
-                    <Stack>
-                      {paths.map((p, i) => (
-                        <Box key={i} component="span" dir="ltr" sx={MONO}>
-                          {pathText(
-                            {
-                              ...p,
-                              ...(p.interface ? { interface: interfaceLabel(p.interface) } : {}),
-                            },
-                            (k, o) => t(k, o ?? {}),
-                          )}
-                        </Box>
-                      ))}
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    {fmt.integer(
-                      (pbr?.attachments ?? []).filter((a) => a.policy === v.name).length,
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" gap={0.5} flexWrap="wrap">
-                      {v.live && (
-                        <StatusChip
-                          status={statusColour(v.live.status)}
-                          label={t(`status.${v.live.status}`)}
-                        />
-                      )}
-                      {v.pending && (
-                        <Chip
-                          size="small"
-                          color={v.pending === 'removed' ? 'error' : 'warning'}
-                          label={t(`pending.${v.pending}`)}
-                        />
-                      )}
-                    </Stack>
-                  </TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>
-                    {v.config && (
+        {(() => {
+          const gridItems = views;
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              items={gridItems}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.name')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const v = gridRow;
+                    return (
                       <>
-                        <IconButton
-                          size="small"
-                          aria-label={t('pbr.edit', { name: v.name })}
-                          disabled={readOnly}
-                          onClick={() => {
-                            patch.reset();
-                            setEditing({ name: v.name, value: v.config });
-                          }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          aria-label={t('pbr.delete', { name: v.name })}
-                          disabled={readOnly || patch.isPending}
-                          onClick={() => void deletePolicy(v.name)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <Box component="span" dir="ltr" sx={MONO}>
+                          {v.name}
+                        </Box>
                       </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    );
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.acl')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const v = gridRow;
+                    const shown = v.config ?? v.live;
+                    return <>{shown?.acl ?? ''}</>;
+                  },
+                },
+                {
+                  key: '2',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.priority')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const v = gridRow;
+                    const shown = v.config ?? v.live;
+                    return <>{fmt.integer(shown?.priority ?? 100)}</>;
+                  },
+                },
+                {
+                  key: '3',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.paths')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const v = gridRow;
+                    const shown = v.config ?? v.live;
+                    const paths = (shown?.paths ?? []) as {
+                      address?: string;
+                      interface?: string;
+                      vrf?: string;
+                      weight?: number;
+                    }[];
+                    return (
+                      <>
+                        <Stack>
+                          {paths.map((p, i) => (
+                            <Box key={i} component="span" dir="ltr" sx={MONO}>
+                              {pathText({ ...p, ...(p.interface ? { interface: interfaceLabel(p.interface) } : {}) }, (k, o) => t(k, o ?? {}))}
+                            </Box>
+                          ))}
+                        </Stack>
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '4',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.attachments')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const v = gridRow;
+                    return (
+                      <>
+                        {fmt.integer(
+                          (pbr?.attachments ?? []).filter((a) => a.policy === v.name).length,
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '5',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.status')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const v = gridRow;
+                    return (
+                      <>
+                        <Stack direction="row" gap={0.5} flexWrap="wrap">
+                          {v.live && (
+                            <StatusChip
+                              status={statusColour(v.live.status)}
+                              label={t(`status.${v.live.status}`)}
+                            />
+                          )}
+                          {v.pending && (
+                            <Chip
+                              size="small"
+                              color={v.pending === 'removed' ? 'error' : 'warning'}
+                              label={t(`pending.${v.pending}`)}
+                            />
+                          )}
+                        </Stack>
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '6',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.actions')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const v = gridRow;
+                    return (
+                      <>
+                        {v.config && (
+                          <>
+                            <IconButton
+                              size="small"
+                              aria-label={t('pbr.edit', { name: v.name })}
+                              disabled={readOnly}
+                              onClick={() => {
+                                patch.reset();
+                                setEditing({ name: v.name, value: v.config });
+                              }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              aria-label={t('pbr.delete', { name: v.name })}
+                              disabled={readOnly || patch.isPending}
+                              onClick={() => void deletePolicy(v.name)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+                      </>
+                    );
+                  },
+                },
+              ]}
+              tableProps={{ size: 'small', 'aria-label': t('pbr.policies') }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const v = gridRow;
+                return v.name;
+              }}
+              rowProps={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const v = gridRow;
+                return { role: 'row', 'data-testid': `policy-${v.name}` };
+              }}
+              cellProps={(_nativeRow, column, _gridIndex) => {
+                switch (column.key) {
+                  case '0':
+                    return {};
+                  case '1':
+                    return { dir: 'ltr' };
+                  case '2':
+                    return {};
+                  case '3':
+                    return {};
+                  case '4':
+                    return {};
+                  case '5':
+                    return {};
+                  case '6':
+                    return { sx: { textAlign: 'end' } };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={
+                <>
+                  <Typography color="text.secondary">{t('pbr.none')}</Typography>
+                </>
+              }
+            />
+          );
+        })()}
       </TableContainer>
 
       <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
@@ -338,64 +442,142 @@ export function PbrPage() {
         </Button>
       </Stack>
       <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label={t('pbr.attachments')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('col.policy')}</TableCell>
-              <TableCell>{t('col.interface')}</TableCell>
-              <TableCell>{t('col.family')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-              <TableCell sx={{ textAlign: 'end' }}>{t('col.actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(pbr?.attachments ?? []).length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5}>
+        {(() => {
+          const gridItems = pbr?.attachments ?? [];
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              items={gridItems}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.policy')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const a = gridRow;
+                    return <>{a.policy}</>;
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.interface')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const a = gridRow;
+                    return (
+                      <>
+                        <Box component="span" dir="ltr" sx={MONO}>
+                          {interfaceLabel(a.interface)}
+                        </Box>
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '2',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.family')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const a = gridRow;
+                    return <>{t(`family.${a.family ?? 'ipv4'}`)}</>;
+                  },
+                },
+                {
+                  key: '3',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.status')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const a = gridRow;
+                    const key = attachmentKey(a);
+                    const live = liveAttach.get(key);
+                    return (
+                      <>
+                        {live ? (
+                          <StatusChip
+                            status={statusColour(live.status)}
+                            label={t(`status.${live.status}`)}
+                          />
+                        ) : (
+                          <Chip size="small" color="warning" label={t('pending.new')} />
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  key: '4',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('col.actions')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const a = gridRow;
+                    const key = attachmentKey(a);
+                    return (
+                      <>
+                        <IconButton
+                          size="small"
+                          aria-label={t('pbr.detach', {
+                            policy: a.policy,
+                            interface: interfaceLabel(a.interface),
+                          })}
+                          disabled={readOnly || patch.isPending}
+                          onClick={() => void deleteAttachment(key)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </>
+                    );
+                  },
+                },
+              ]}
+              tableProps={{ size: 'small', 'aria-label': t('pbr.attachments') }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const a = gridRow;
+                const key = attachmentKey(a);
+                return key;
+              }}
+              rowProps={(_nativeRow, _gridIndex) => {
+                return {};
+              }}
+              cellProps={(_nativeRow, column, _gridIndex) => {
+                switch (column.key) {
+                  case '0':
+                    return { dir: 'ltr' };
+                  case '1':
+                    return {};
+                  case '2':
+                    return {};
+                  case '3':
+                    return {};
+                  case '4':
+                    return { sx: { textAlign: 'end' } };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={
+                <>
                   <Typography color="text.secondary">{t('pbr.noAttachments')}</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {(pbr?.attachments ?? []).map((a) => {
-              const key = attachmentKey(a);
-              const live = liveAttach.get(key);
-              return (
-                <TableRow key={key}>
-                  <TableCell dir="ltr">{a.policy}</TableCell>
-                  <TableCell>
-                    <Box component="span" dir="ltr" sx={MONO}>
-                      {interfaceLabel(a.interface)}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{t(`family.${a.family ?? 'ipv4'}`)}</TableCell>
-                  <TableCell>
-                    {live ? (
-                      <StatusChip
-                        status={statusColour(live.status)}
-                        label={t(`status.${live.status}`)}
-                      />
-                    ) : (
-                      <Chip size="small" color="warning" label={t('pending.new')} />
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: 'end' }}>
-                    <IconButton
-                      size="small"
-                      aria-label={t('pbr.detach', {
-                        policy: a.policy,
-                        interface: interfaceLabel(a.interface),
-                      })}
-                      disabled={readOnly || patch.isPending}
-                      onClick={() => void deleteAttachment(key)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                </>
+              }
+            />
+          );
+        })()}
       </TableContainer>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
         {state.data?.counters.available === false ? t('pbr.noCounters') : ''}

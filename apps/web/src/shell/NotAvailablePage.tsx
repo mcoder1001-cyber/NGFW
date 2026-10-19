@@ -1,6 +1,6 @@
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
-import Typography from '@mui/material/Typography';
+import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlertTitle as AlertTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from './PageHeader';
 

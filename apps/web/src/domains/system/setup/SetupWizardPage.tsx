@@ -1,17 +1,6 @@
+import { PgAlert as Alert, PgCheckbox as Checkbox, PgFormControlLabel as FormControlLabel, PgMenuItem as MenuItem, PgStack as Stack, PgStep as Step, PgStepLabel as StepLabel, PgStepper as Stepper, PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import {
-  Alert,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  MenuItem,
-  Stack,
-  Step,
-  StepLabel,
-  Stepper,
-  TextField,
-  Typography,
-} from '@mui/material';
 import { RootConfig, SetupInputSchema, parentInterfaceName, type SetupInput } from '@ngfw/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';

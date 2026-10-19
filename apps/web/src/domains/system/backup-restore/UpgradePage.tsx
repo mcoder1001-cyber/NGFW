@@ -2,19 +2,8 @@ import type { paths } from '@ngfw/api-client';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  LinearProgress,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { PgAlert as Alert, PgBox as Box, PgDialog as Dialog, PgDialogActions as DialogActions, PgDialogContent as DialogContent, PgDialogTitle as DialogTitle, PgLinearProgress as LinearProgress, PgStack as Stack, PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ApiError } from '../../../api-problem';
 import { ProblemAlert } from '../../../config/ProblemAlert';

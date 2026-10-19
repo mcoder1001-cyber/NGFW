@@ -1,17 +1,15 @@
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -58,33 +56,107 @@ function Sessions() {
         <Typography color="text.secondary">{t('bfd.empty')}</Typography>
       ) : (
         <Box sx={{ overflowX: 'auto' }}>
-          <Table size="small" aria-label={t('bfd.sessions')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('bfd.interface')}</TableCell>
-                <TableCell>{t('bfd.local')}</TableCell>
-                <TableCell>{t('bfd.peer')}</TableCell>
-                <TableCell>{t('bfd.timers')}</TableCell>
-                <TableCell>{t('bfd.enabled')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sessions.map((s) => (
-                <TableRow
-                  key={`${s.interface}|${s.peerAddress}`}
-                  data-testid={`bfd-${s.peerAddress}`}
-                >
-                  <TableCell dir="ltr">{interfaceLabel(s.interface)}</TableCell>
-                  <TableCell dir="ltr">{s.localAddress}</TableCell>
-                  <TableCell dir="ltr">{s.peerAddress}</TableCell>
-                  <TableCell dir="ltr">
-                    {`${s.desiredMinTxUs ?? 300000} / ${s.requiredMinRxUs ?? 300000} × ${s.detectMultiplier ?? 3}`}
-                  </TableCell>
-                  <TableCell>{s.enabled === false ? t('no') : t('yes')}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const gridItems = sessions;
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bfd.interface')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const s = gridRow;
+                      return <>{interfaceLabel(s.interface)}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bfd.local')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const s = gridRow;
+                      return <>{s.localAddress}</>;
+                    },
+                  },
+                  {
+                    key: '2',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bfd.peer')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const s = gridRow;
+                      return <>{s.peerAddress}</>;
+                    },
+                  },
+                  {
+                    key: '3',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bfd.timers')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const s = gridRow;
+                      return (
+                        <>{`${s.desiredMinTxUs ?? 300000} / ${s.requiredMinRxUs ?? 300000} × ${s.detectMultiplier ?? 3}`}</>
+                      );
+                    },
+                  },
+                  {
+                    key: '4',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bfd.enabled')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const s = gridRow;
+                      return <>{s.enabled === false ? t('no') : t('yes')}</>;
+                    },
+                  },
+                ]}
+                tableProps={{ size: 'small', 'aria-label': t('bfd.sessions') }}
+                rowKey={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const s = gridRow;
+                  return `${s.interface}|${s.peerAddress}`;
+                }}
+                rowProps={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const s = gridRow;
+                  return { role: 'row', 'data-testid': `bfd-${s.peerAddress}` };
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return { dir: 'ltr' };
+                    case '1':
+                      return { dir: 'ltr' };
+                    case '2':
+                      return { dir: 'ltr' };
+                    case '3':
+                      return { dir: 'ltr' };
+                    case '4':
+                      return {};
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
         </Box>
       )}
     </Paper>
@@ -101,36 +173,62 @@ function Redistribution() {
         {t('bfd.matrix')}
       </Typography>
       <Box sx={{ overflowX: 'auto' }}>
-        <Table size="small" aria-label={t('bfd.matrix')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('bfd.into')}</TableCell>
-              {REDISTRIBUTE_SOURCES.map((s) => (
-                <TableCell key={s} dir="ltr">
-                  {s}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {TARGETS.map((p) => (
-              <TableRow key={p} data-testid={`redist-${p}`}>
-                <TableCell dir="ltr">{p}</TableCell>
-                {m[p] === null ? (
-                  <TableCell colSpan={REDISTRIBUTE_SOURCES.length}>
-                    <Chip size="small" label={t('bfd.notRunning')} />
-                  </TableCell>
-                ) : (
-                  REDISTRIBUTE_SOURCES.map((s) => (
-                    <TableCell key={s}>
-                      {s === p ? t('none') : m[p]?.includes(s) ? CHECK : null}
-                    </TableCell>
-                  ))
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ReactGeereedMaterial
+          hideFilterBuilderComponent
+          noFormWrapper
+          embedded
+          memoEnable={false}
+          hidePagination
+          hideToolbar
+          search={false}
+          exportToCSV={false}
+          sortable={false}
+          footer={false}
+          items={TARGETS.map((protocol) => ({ protocol }))}
+          tableProps={{ size: 'small', 'aria-label': t('bfd.matrix') }}
+          rowKey={(row) => row.protocol}
+          rowProps={(row) => ({ role: 'row', 'data-testid': `redist-${row.protocol}` })}
+          columns={[
+            {
+              key: 'target',
+              sortable: false,
+              filterable: false,
+              headerRenderer: () => <>{t('bfd.into')}</>,
+              renderer: (_value: unknown, row: { protocol: (typeof TARGETS)[number] }) => (
+                <>{row.protocol}</>
+              ),
+            },
+            ...REDISTRIBUTE_SOURCES.map((source, index) => ({
+              key: source,
+              sortable: false,
+              filterable: false,
+              headerRenderer: () => <bdi dir="ltr">{source}</bdi>,
+              renderer: (_value: unknown, row: { protocol: (typeof TARGETS)[number] }) => (
+                <>
+                  {m[row.protocol] === null ? (
+                    index === 0 ? (
+                      <Chip size="small" label={t('bfd.notRunning')} />
+                    ) : null
+                  ) : source === row.protocol ? (
+                    t('none')
+                  ) : m[row.protocol]?.includes(source) ? (
+                    CHECK
+                  ) : null}
+                </>
+              ),
+            })),
+          ]}
+          cellProps={(row, column) =>
+            column.key === 'target'
+              ? { dir: 'ltr' }
+              : m[row.protocol as (typeof TARGETS)[number]] === null
+                ? column.key === REDISTRIBUTE_SOURCES[0]
+                  ? { colSpan: REDISTRIBUTE_SOURCES.length }
+                  : null
+                : {}
+          }
+          emptyContent={null}
+        />
       </Box>
     </Paper>
   );

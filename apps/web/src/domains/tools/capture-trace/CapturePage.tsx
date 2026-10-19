@@ -1,25 +1,25 @@
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgCheckbox as Checkbox,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgFormControlLabel as FormControlLabel,
+  PgLinearProgress as LinearProgress,
+  PgMenuItem as MenuItem,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel, useInterfaceName } from '@ngfw/ui-kit';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import LinearProgress from '@mui/material/LinearProgress';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
@@ -40,7 +40,6 @@ export const NS = 'capture-trace';
 const DIRS = ['both', 'rx', 'tx'] as const;
 const LIMITS = ['maxPackets', 'seconds', 'snaplen'] as const;
 const TABS = ['capture', 'trace', 'pg'] as const;
-const COLS = ['id', 'state', 'interface', 'packets', 'size', 'actions'] as const;
 const BPF_INPUT = { dir: 'ltr', 'data-testid': 'bpf' } as const;
 /** Same alphabet as the API and agent (pcap-filter(7), no quotes / ";" / "$" / backslash). */
 const BPF_RE = /^[A-Za-z0-9 .:/[\]()&|!=<>\-+*%^~_,]*$/;
@@ -244,23 +243,55 @@ export function CapturePage() {
           <Typography variant="h6" component="h2" sx={{ mt: 3, mb: 1 }}>
             {t('files', { max: q.data?.maxFiles ?? 0 })}
           </Typography>
-          <Table size="small" aria-label={t('files', { max: q.data?.maxFiles ?? 0 })}>
-            <TableHead>
-              <TableRow>
-                {COLS.map((h) => (
-                  <TableCell key={h}>{t(`col.${h}`)}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(q.data?.captures ?? []).map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell dir="ltr">{c.id}</TableCell>
-                  <TableCell>{t(`state.${c.state}`, { defaultValue: c.state })}</TableCell>
-                  <TableCell dir="ltr">{interfaceLabel(c.interface)}</TableCell>
-                  <TableCell>{c.packets}</TableCell>
-                  <TableCell>{c.size}</TableCell>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('files', { max: q.data?.maxFiles ?? 0 }) }}
+            columns={[
+              {
+                key: 'id',
+                headerRenderer: () => t('col.id'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'state',
+                headerRenderer: () => t('col.state'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'interface',
+                headerRenderer: () => t('col.interface'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'packets',
+                headerRenderer: () => t('col.packets'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'size',
+                headerRenderer: () => t('col.size'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'actions',
+                headerRenderer: () => t('col.actions'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...((q.data?.captures ?? []).map((c) => ({
+                id: c.id,
+                state: t(`state.${c.state}`, { defaultValue: c.state }),
+                interface: interfaceLabel(c.interface),
+                packets: c.packets,
+                size: c.size,
+                actions: (
+                  <>
                     {admin && c.state === 'running' && (
                       <Button
                         size="small"
@@ -280,11 +311,29 @@ export function CapturePage() {
                         {t('delete')}
                       </Button>
                     )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+                cellProps: { id: { dir: 'ltr' }, interface: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
           {!admin && (
             <Typography variant="body2" sx={{ mt: 1 }}>
               {t('adminOnly')}

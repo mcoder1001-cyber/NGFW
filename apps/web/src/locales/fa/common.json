@@ -4,7 +4,11 @@
   "menu": {
     "open": "بازکردن منو",
     "settings": "تنظیمات",
-    "navigation": "ناوبری اصلی"
+    "navigation": "ناوبری اصلی",
+    "search": "جستجوی منو",
+    "clearSearch": "پاک کردن جستجوی منو",
+    "close": "بستن ناوبری",
+    "pageLocation": "موقعیت صفحه"
   },
   "theme": {
     "label": "پوسته",

@@ -1,32 +1,27 @@
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgDialog as Dialog,
+  PgDialogActions as DialogActions,
+  PgDialogContent as DialogContent,
+  PgDialogTitle as DialogTitle,
+  PgMenuItem as MenuItem,
+  PgStack as Stack,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
+import { useFormatters } from '@ngfw/ui-kit';
+import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { useFormatters } from '@ngfw/ui-kit';
-import { formatCounter } from '../../../config/widgets/format';
-import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { formatCounter } from '../../../config/widgets/format';
 import {
+  activationAllowed,
   localizeRaSchema,
   newProfile,
   sessionColumns,
-  activationAllowed,
   stepSchema,
   steps,
   type Profile,
@@ -54,9 +49,10 @@ export default function RaVpnPage() {
   } | null>(null);
   const [step, setStep] = useState(0);
   const [blocked, setBlocked] = useState(false);
-  const [disconnectTarget, setDisconnectTarget] = useState<{ profile: string; id: string } | null>(
-    null,
-  );
+  const [disconnectTarget, setDisconnectTarget] = useState<{
+    profile: string;
+    id: string;
+  } | null>(null);
   const save = useSaveProfile();
   const disconnect = useDisconnect();
   const sessions = useSessions(selected, cursor, capability.data?.operational === true);
@@ -158,38 +154,105 @@ export default function RaVpnPage() {
       {disconnect.data?.disconnected === false && (
         <Alert severity="warning">{t('notRemoved')}</Alert>
       )}
-      <Table aria-label={t('sessions')}>
-        <TableHead>
-          <TableRow>
-            {sessionColumns.map((key) => (
-              <TableCell key={key}>{t(key)}</TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {(sessions.data?.items ?? []).map((session) => (
-            <TableRow key={session.id}>
-              <TableCell>{session.identity}</TableCell>
-              <TableCell dir="ltr">{session.addresses.join(', ')}</TableCell>
-              <TableCell dir="ltr">{formatCounter(fmt, session.establishedSeconds)}</TableCell>
-              <TableCell dir="ltr">{formatCounter(fmt, session.bytesIn)}</TableCell>
-              <TableCell dir="ltr">{formatCounter(fmt, session.bytesOut)}</TableCell>
-              <TableCell>
-                <Button
-                  disabled={
-                    permissions.role !== 'admin' ||
-                    disconnect.isPending ||
-                    !capability.data?.operational
-                  }
-                  onClick={() => setDisconnectTarget({ profile: session.profile, id: session.id })}
-                >
-                  {t('disconnect')}
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ReactGeereedMaterial
+        hideFilterBuilderComponent
+        items={sessions.data?.items ?? []}
+        columns={[
+          {
+            key: 'identity',
+            headerRenderer: () => t(sessionColumns[0]),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, session: NonNullable<typeof sessions.data>['items'][number]) => {
+              return <>{session.identity}</>;
+            },
+          },
+          {
+            key: 'addresses',
+            headerRenderer: () => t(sessionColumns[1]),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, session: NonNullable<typeof sessions.data>['items'][number]) => {
+              return <>{session.addresses.join(', ')}</>;
+            },
+          },
+          {
+            key: 'uptime',
+            headerRenderer: () => t(sessionColumns[2]),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, session: NonNullable<typeof sessions.data>['items'][number]) => {
+              return <>{formatCounter(fmt, session.establishedSeconds)}</>;
+            },
+          },
+          {
+            key: 'bytesIn',
+            headerRenderer: () => t(sessionColumns[3]),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, session: NonNullable<typeof sessions.data>['items'][number]) => {
+              return <>{formatCounter(fmt, session.bytesIn)}</>;
+            },
+          },
+          {
+            key: 'bytesOut',
+            headerRenderer: () => t(sessionColumns[4]),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, session: NonNullable<typeof sessions.data>['items'][number]) => {
+              return <>{formatCounter(fmt, session.bytesOut)}</>;
+            },
+          },
+          {
+            key: 'actions',
+            headerRenderer: () => t(sessionColumns[5]),
+            sortable: false,
+            filterable: false,
+            renderer: (_value, session: NonNullable<typeof sessions.data>['items'][number]) => {
+              return (
+                <>
+                  <Button
+                    disabled={
+                      permissions.role !== 'admin' ||
+                      disconnect.isPending ||
+                      !capability.data?.operational
+                    }
+                    onClick={() =>
+                      setDisconnectTarget({
+                        profile: session.profile,
+                        id: session.id,
+                      })
+                    }
+                  >
+                    {t('disconnect')}
+                  </Button>
+                </>
+              );
+            },
+          },
+        ]}
+        rowKey={(session) => session.id}
+
+        cellProps={(_item, column) => {
+          if (column.key === 'addresses') return { dir: 'ltr' };
+          if (column.key === 'uptime') return { dir: 'ltr' };
+          if (column.key === 'bytesIn') return { dir: 'ltr' };
+          if (column.key === 'bytesOut') return { dir: 'ltr' };
+          return {};
+        }}
+        tableProps={{ 'aria-label': t('sessions') }}
+
+        emptyContent={null}
+        noFormWrapper
+        embedded
+        memoEnable={false}
+        hidePagination
+        hideToolbar
+        footer={false}
+        search={false}
+        sortable={false}
+        exportToCSV={false}
+      />
       {sessions.isSuccess && sessions.data.items.length === 0 && (
         <Typography>{t('empty')}</Typography>
       )}

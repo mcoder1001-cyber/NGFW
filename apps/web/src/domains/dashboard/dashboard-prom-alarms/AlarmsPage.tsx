@@ -1,21 +1,21 @@
-import { serviceText } from '../../../product-text';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTableContainer as TableContainer,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useFormatters } from '@ngfw/ui-kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { useAckAlarm, useAlarms, type Alarm } from './queries';
 
@@ -92,30 +93,67 @@ export function AlarmsPage() {
       {q.data && q.data.items.length === 0 && <Alert severity="success">{t('empty')}</Alert>}
       {q.data && q.data.items.length > 0 && (
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('col.severity')}</TableCell>
-                <TableCell>{t('col.rule')}</TableCell>
-                <TableCell>{t('col.message')}</TableCell>
-                <TableCell>{t('col.raised')}</TableCell>
-                <TableCell>{t('col.state')}</TableCell>
-                <TableCell>{t('col.ack')}</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {q.data.items.map((a: Alarm) => (
-                <TableRow key={a.id}>
-                  <TableCell>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('title') }}
+            columns={[
+              {
+                key: 'severity',
+                headerRenderer: () => t('col.severity'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'rule',
+                headerRenderer: () => t('col.rule'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'message',
+                headerRenderer: () => t('col.message'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'raised',
+                headerRenderer: () => t('col.raised'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'state',
+                headerRenderer: () => t('col.state'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'ack',
+                headerRenderer: () => t('col.ack'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column6',
+                headerRenderer: () => null,
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(q.data.items.map((a: Alarm) => ({
+                id: a.id,
+                severity: (
+                  <>
                     <Chip
                       size="small"
                       color={SEV_COLOR[a.severity] ?? 'default'}
                       variant="outlined"
                       label={t(`severity.${a.severity}`, { defaultValue: a.severity })}
                     />
-                  </TableCell>
-                  <TableCell>
+                  </>
+                ),
+                rule: (
+                  <>
                     <bdi>{a.rule}</bdi>
                     {a.instance && (
                       <Typography
@@ -127,33 +165,51 @@ export function AlarmsPage() {
                         {a.instance}
                       </Typography>
                     )}
-                  </TableCell>
-                  <TableCell>{serviceText(a.message)}</TableCell>
-                  <TableCell dir="ltr">{fmt.dateTime(new Date(a.raisedAt))}</TableCell>
-                  <TableCell>
+                  </>
+                ),
+                message: serviceText(a.message),
+                raised: fmt.dateTime(new Date(a.raisedAt)),
+                state: (
+                  <>
                     <Chip
                       size="small"
                       variant="outlined"
                       color={a.state === 'active' ? 'warning' : 'default'}
                       label={t(`state.${a.state}`, { defaultValue: a.state })}
                     />
-                  </TableCell>
-                  <TableCell>{a.ackedBy ? <bdi>{a.ackedBy}</bdi> : '—'}</TableCell>
-                  <TableCell>
-                    {a.ackedAt === null && (
-                      <Button
-                        size="small"
-                        disabled={!perms.editConfig || ack.isPending}
-                        onClick={() => void doAck(a.id)}
-                      >
-                        {t('ack')}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </>
+                ),
+                ack: a.ackedBy ? <bdi>{a.ackedBy}</bdi> : '—',
+                column6: a.ackedAt === null && (
+                  <Button
+                    size="small"
+                    disabled={!perms.editConfig || ack.isPending}
+                    onClick={() => void doAck(a.id)}
+                  >
+                    {t('ack')}
+                  </Button>
+                ),
+                cellProps: { raised: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         </TableContainer>
       )}
     </Box>

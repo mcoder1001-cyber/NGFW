@@ -1,24 +1,22 @@
-import { serviceText } from '../../../product-text';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTableContainer as TableContainer,
+  PgTablePagination as TablePagination,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
+import { serviceText } from '../../../product-text';
 import { ldpKeys, useLdpBindings, useLdpNeighbors, useLdpSync } from './queries';
 
 const NS = 'mpls-ldp';
@@ -41,12 +39,17 @@ export function LdpTab() {
         <Typography variant="body2" color="text.secondary" sx={{ flex: 1, maxInlineSize: 800 }}>
           {t('intro')}
         </Typography>
-        <Button startIcon={<RefreshIcon />} onClick={() => void qc.invalidateQueries({ queryKey: ldpKeys.all })}>
+        <Button
+          startIcon={<RefreshIcon />}
+          onClick={() => void qc.invalidateQueries({ queryKey: ldpKeys.all })}
+        >
           {t('refresh')}
         </Button>
       </Stack>
 
-      {(neighbors.isPending || sync.isPending) && <LinearProgress aria-label={t('loading')} sx={{ mb: 1 }} />}
+      {(neighbors.isPending || sync.isPending) && (
+        <LinearProgress aria-label={t('loading')} sx={{ mb: 1 }} />
+      )}
       {neighbors.isError && <ProblemAlert error={neighbors.error} sx={{ mb: 1 }} />}
       {agentError && (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -85,31 +88,103 @@ export function LdpTab() {
         {t('neighbors.title')}
       </Typography>
       {(neighbors.data?.neighbors ?? []).length === 0 ? (
-        <Alert severity="info" sx={{ mb: 3 }}>{t('neighbors.empty')}</Alert>
+        <Alert severity="info" sx={{ mb: 3 }}>
+          {t('neighbors.empty')}
+        </Alert>
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-          <Table size="small" aria-label={t('neighbors.title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('neighbors.col.lsrId')}</TableCell>
-                <TableCell>{t('neighbors.col.address')}</TableCell>
-                <TableCell>{t('neighbors.col.state')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('neighbors.col.uptime')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(neighbors.data?.neighbors ?? []).map((n) => (
-                <TableRow key={n.lsrId}>
-                  <TableCell dir="ltr">{n.lsrId}</TableCell>
-                  <TableCell dir="ltr">{n.address}</TableCell>
-                  <TableCell>
-                    <Chip size="small" variant="outlined" label={n.state} />
-                  </TableCell>
-                  <TableCell dir="ltr" sx={{ textAlign: 'end' }}>{n.uptimeSec}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const gridItems = neighbors.data?.neighbors ?? [];
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('neighbors.col.lsrId')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const n = gridRow;
+                      return <>{n.lsrId}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('neighbors.col.address')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const n = gridRow;
+                      return <>{n.address}</>;
+                    },
+                  },
+                  {
+                    key: '2',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('neighbors.col.state')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const n = gridRow;
+                      return (
+                        <>
+                          <Chip size="small" variant="outlined" label={n.state} />
+                        </>
+                      );
+                    },
+                  },
+                  {
+                    key: '3',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('neighbors.col.uptime')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const n = gridRow;
+                      return <>{n.uptimeSec}</>;
+                    },
+                  },
+                ]}
+                tableProps={{
+                  size: 'small',
+                  'aria-label': t('neighbors.title'),
+                }}
+                rowKey={(nativeRow, _gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const n = gridRow;
+                  return n.lsrId;
+                }}
+                rowProps={(_nativeRow, _gridIndex) => {
+                  return {};
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return { dir: 'ltr' };
+                    case '1':
+                      return { dir: 'ltr' };
+                    case '2':
+                      return {};
+                    case '3':
+                      return { dir: 'ltr', sx: { textAlign: 'end' } };
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
         </TableContainer>
       )}
 
@@ -120,28 +195,107 @@ export function LdpTab() {
         <Alert severity="info">{t('bindings.empty')}</Alert>
       ) : (
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label={t('bindings.title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('bindings.col.prefix')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('bindings.col.localLabel')}</TableCell>
-                <TableCell>{t('bindings.col.peer')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('bindings.col.remoteLabel')}</TableCell>
-                <TableCell>{t('bindings.col.inUse')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(bindings.data?.bindings ?? []).map((b, i) => (
-                <TableRow key={`${b.prefix}-${b.localLabel}-${i}`}>
-                  <TableCell dir="ltr">{b.prefix}</TableCell>
-                  <TableCell dir="ltr" sx={{ textAlign: 'end' }}>{b.localLabel}</TableCell>
-                  <TableCell dir="ltr">{b.peer}</TableCell>
-                  <TableCell dir="ltr" sx={{ textAlign: 'end' }}>{b.remoteLabel}</TableCell>
-                  <TableCell>{b.inUse ? t('bindings.yes') : t('bindings.no')}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const gridItems = bindings.data?.bindings ?? [];
+            type GridRow = (typeof gridItems)[number];
+            return (
+              <ReactGeereedMaterial
+                hideFilterBuilderComponent
+                noFormWrapper
+                embedded
+                memoEnable={false}
+                hidePagination
+                hideToolbar
+                search={false}
+                exportToCSV={false}
+                sortable={false}
+                footer={false}
+                items={gridItems}
+                columns={[
+                  {
+                    key: '0',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bindings.col.prefix')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const b = gridRow;
+                      return <>{b.prefix}</>;
+                    },
+                  },
+                  {
+                    key: '1',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bindings.col.localLabel')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const b = gridRow;
+                      return <>{b.localLabel}</>;
+                    },
+                  },
+                  {
+                    key: '2',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bindings.col.peer')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const b = gridRow;
+                      return <>{b.peer}</>;
+                    },
+                  },
+                  {
+                    key: '3',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bindings.col.remoteLabel')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const b = gridRow;
+                      return <>{b.remoteLabel}</>;
+                    },
+                  },
+                  {
+                    key: '4',
+                    sortable: false,
+                    filterable: false,
+                    headerRenderer: () => <>{t('bindings.col.inUse')}</>,
+                    renderer: (_value: unknown, gridRow: GridRow) => {
+                      const b = gridRow;
+                      return <>{b.inUse ? t('bindings.yes') : t('bindings.no')}</>;
+                    },
+                  },
+                ]}
+                tableProps={{
+                  size: 'small',
+                  'aria-label': t('bindings.title'),
+                }}
+                rowKey={(nativeRow, gridIndex) => {
+                  const gridRow = nativeRow as unknown as GridRow;
+                  const b = gridRow;
+                  const i = gridIndex;
+                  return `${b.prefix}-${b.localLabel}-${i}`;
+                }}
+                rowProps={(_nativeRow, _gridIndex) => {
+                  return {};
+                }}
+                cellProps={(_nativeRow, column, _gridIndex) => {
+                  switch (column.key) {
+                    case '0':
+                      return { dir: 'ltr' };
+                    case '1':
+                      return { dir: 'ltr', sx: { textAlign: 'end' } };
+                    case '2':
+                      return { dir: 'ltr' };
+                    case '3':
+                      return { dir: 'ltr', sx: { textAlign: 'end' } };
+                    case '4':
+                      return {};
+                    default:
+                      return {};
+                  }
+                }}
+                emptyContent={null}
+              />
+            );
+          })()}
           <TablePagination
             component="div"
             count={bindings.data?.total ?? 0}

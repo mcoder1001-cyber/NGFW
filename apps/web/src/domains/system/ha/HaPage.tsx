@@ -1,19 +1,20 @@
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import { clusterPanels } from './clusterPanels';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import { SchemaForm, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,11 +26,11 @@ import { PageHeader } from '../../../shell/PageHeader';
 import { NS } from './locale';
 import {
   useCandidateHa,
-  useVrrpRuntime,
   useClusterRuntime,
   useForceClusterSync,
   usePatchHa,
   useRunningHa,
+  useVrrpRuntime,
   vrrpPatch,
   type HaCluster,
   type VrrpRouter,
@@ -104,39 +105,85 @@ function VrrpTab() {
           <Typography color="text.secondary">{t('vrrp.empty')}</Typography>
         ) : (
           <Box sx={{ overflowX: 'auto' }}>
-            <Table size="small" aria-label={t('vrrp.title')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('vrrp.name')}</TableCell>
-                  <TableCell>{t('vrrp.interface')}</TableCell>
-                  <TableCell>{t('vrrp.vrId')}</TableCell>
-                  <TableCell>{t('vrrp.family')}</TableCell>
-                  <TableCell>{t('vrrp.priority')}</TableCell>
-                  <TableCell>{t('vrrp.currentPriority')}</TableCell>
-                  <TableCell>{t('vrrp.masterInterval')}</TableCell>
-                  <TableCell>{t('vrrp.addresses')}</TableCell>
-                  <TableCell>{t('vrrp.engine')}</TableCell>
-                  <TableCell>{t('vrrp.status')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {entries.map(([name, r]) => (
-                  <TableRow key={name} data-testid={`vrrp-${name}`}>
-                    <TableCell dir="ltr">{name}</TableCell>
-                    <TableCell dir="ltr">{interfaceLabel(r.interface)}</TableCell>
-                    <TableCell dir="ltr">{r.vrId}</TableCell>
-                    <TableCell dir="ltr">{r.addressFamily ?? DEFAULT_FAMILY}</TableCell>
-                    <TableCell dir="ltr">{r.priority ?? 100}</TableCell>
-                    <TableCell>
-                      {roles.find((v) => v.name === name)?.currentPriority || t('none')}
-                    </TableCell>
-                    <TableCell>
-                      {roles.find((v) => v.name === name)?.masterAdvertisementIntervalMs ||
-                        t('none')}
-                    </TableCell>
-                    <TableCell dir="ltr">{r.addresses.join(', ')}</TableCell>
-                    <TableCell>{t(`vrrp.engineLabels.${r.engine ?? DEFAULT_ENGINE}`)}</TableCell>
-                    <TableCell>
+            <ReactGeereedMaterial
+              tableProps={{ size: 'small', 'aria-label': t('vrrp.title') }}
+              columns={[
+                {
+                  key: 'column0',
+                  headerRenderer: () => t('vrrp.name'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column1',
+                  headerRenderer: () => t('vrrp.interface'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column2',
+                  headerRenderer: () => t('vrrp.vrId'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column3',
+                  headerRenderer: () => t('vrrp.family'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column4',
+                  headerRenderer: () => t('vrrp.priority'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column5',
+                  headerRenderer: () => t('vrrp.currentPriority'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column6',
+                  headerRenderer: () => t('vrrp.masterInterval'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column7',
+                  headerRenderer: () => t('vrrp.addresses'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column8',
+                  headerRenderer: () => t('vrrp.engine'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+                {
+                  key: 'column9',
+                  headerRenderer: () => t('vrrp.status'),
+                  filterable: false,
+                  renderer: (value) => <>{value}</>,
+                },
+              ]}
+              items={[
+                ...(entries.map(([name, r]) => ({
+                  id: name,
+                  column0: name,
+                  column1: interfaceLabel(r.interface),
+                  column2: r.vrId,
+                  column3: r.addressFamily ?? DEFAULT_FAMILY,
+                  column4: r.priority ?? 100,
+                  column5: roles.find((v) => v.name === name)?.currentPriority || t('none'),
+                  column6:
+                    roles.find((v) => v.name === name)?.masterAdvertisementIntervalMs || t('none'),
+                  column7: r.addresses.join(', '),
+                  column8: t(`vrrp.engineLabels.${r.engine ?? DEFAULT_ENGINE}`),
+                  column9: (
+                    <>
                       <Stack direction="row" spacing={1}>
                         <Chip
                           size="small"
@@ -159,11 +206,40 @@ function VrrpTab() {
                           />
                         )}
                       </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </>
+                  ),
+                  rowProps: { 'data-testid': `vrrp-${name}` } satisfies ReturnType<
+                    NonNullable<GeereedTablePassthrough['rowProps']>
+                  > &
+                    Record<`data-${string}`, unknown>,
+                  cellProps: {
+                    column0: { dir: 'ltr' },
+                    column1: { dir: 'ltr' },
+                    column2: { dir: 'ltr' },
+                    column3: { dir: 'ltr' },
+                    column4: { dir: 'ltr' },
+                    column7: { dir: 'ltr' },
+                  } satisfies Record<
+                    string,
+                    NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                  >,
+                })) ?? []),
+              ]}
+              rowKey={(item) => item.id}
+              rowProps={(item) => item.rowProps ?? {}}
+              cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+              emptyContent={null}
+              noFormWrapper
+              embedded
+              hideToolbar
+              hidePagination
+              hideFilterBuilderComponent
+              search={false}
+              sortable={false}
+              exportToCSV={false}
+              footer={false}
+              memoEnable={false}
+            />
           </Box>
         )}
       </Paper>
@@ -217,30 +293,69 @@ function ClusterTab() {
           {t('cluster.revision')}: {live.isError ? t('none') : (live.data?.revision ?? t('none'))}
         </Typography>
         {!live.isError && live.data?.members && (
-          <Table size="small" aria-label={t('cluster.live')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('cluster.peers')}</TableCell>
-                <TableCell>{t('cluster.role')}</TableCell>
-                <TableCell>{t('cluster.revision')}</TableCell>
-                <TableCell>{t('cluster.lag')}</TableCell>
-                <TableCell>{t('cluster.syncStatus')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {live.data.members.map((peer) => (
-                <TableRow key={peer.name}>
-                  <TableCell dir="ltr">{peer.name}</TableCell>
-                  <TableCell>{t(`vrrp.roles.${peer.role ?? 'unknown'}`)}</TableCell>
-                  <TableCell>{peer.revision ?? t('none')}</TableCell>
-                  <TableCell>{peer.lag ?? t('none')}</TableCell>
-                  <TableCell>
-                    {peer.error || (peer.syncedAt ? t('cluster.synced') : t('cluster.waiting'))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('cluster.live') }}
+            columns={[
+              {
+                key: 'column0',
+                headerRenderer: () => t('cluster.peers'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column1',
+                headerRenderer: () => t('cluster.role'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column2',
+                headerRenderer: () => t('cluster.revision'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column3',
+                headerRenderer: () => t('cluster.lag'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+              {
+                key: 'column4',
+                headerRenderer: () => t('cluster.syncStatus'),
+                filterable: false,
+                renderer: (value) => <>{value}</>,
+              },
+            ]}
+            items={[
+              ...(live.data.members.map((peer) => ({
+                id: peer.name,
+                column0: peer.name,
+                column1: t(`vrrp.roles.${peer.role ?? 'unknown'}`),
+                column2: peer.revision ?? t('none'),
+                column3: peer.lag ?? t('none'),
+                column4: peer.error || (peer.syncedAt ? t('cluster.synced') : t('cluster.waiting')),
+                cellProps: { column0: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              })) ?? []),
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         )}
         {clusterPanels.map((Panel, i) => (
           <Panel key={i} />
@@ -248,34 +363,67 @@ function ClusterTab() {
         {!c ? (
           <Typography color="text.secondary">{t('cluster.notConfigured')}</Typography>
         ) : (
-          <Table size="small" aria-label={t('cluster.title')}>
-            <TableBody>
-              <TableRow>
-                <TableCell>{t('cluster.node')}</TableCell>
-                <TableCell dir="ltr">{c.nodeName}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>{t('cluster.peers')}</TableCell>
-                <TableCell dir="ltr">
-                  {c.peers.map((p) => `${p.name} (${p.address})`).join(', ') || t('none')}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>{t('cluster.port')}</TableCell>
-                <TableCell dir="ltr">{c.port ?? 4370}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>{t('cluster.configSync')}</TableCell>
-                <TableCell>{onOff(c.configSync ?? true)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>{t('cluster.stateSync')}</TableCell>
-                <TableCell dir="ltr">
-                  {`NAT: ${onOff(c.stateSync?.nat)}, IPsec: ${onOff(c.stateSync?.ipsec)}, ACL: ${onOff(c.stateSync?.acl)}`}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <ReactGeereedMaterial
+            tableProps={{ size: 'small', 'aria-label': t('cluster.title') }}
+            columns={[
+              { key: 'label', filterable: false, renderer: (value) => <>{value}</> },
+              { key: 'value', filterable: false, renderer: (value) => <>{value}</> },
+            ]}
+            items={[
+              {
+                id: 0,
+                label: t('cluster.node'),
+                value: c.nodeName,
+                cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              },
+              {
+                id: 1,
+                label: t('cluster.peers'),
+                value: c.peers.map((p) => `${p.name} (${p.address})`).join(', ') || t('none'),
+                cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              },
+              {
+                id: 2,
+                label: t('cluster.port'),
+                value: c.port ?? 4370,
+                cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              },
+              { id: 3, label: t('cluster.configSync'), value: onOff(c.configSync ?? true) },
+              {
+                id: 4,
+                label: t('cluster.stateSync'),
+                value: `NAT: ${onOff(c.stateSync?.nat)}, IPsec: ${onOff(c.stateSync?.ipsec)}, ACL: ${onOff(c.stateSync?.acl)}`,
+                cellProps: { value: { dir: 'ltr' } } satisfies Record<
+                  string,
+                  NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+                >,
+              },
+            ]}
+            rowKey={(item) => item.id}
+            rowProps={(item) => item.rowProps ?? {}}
+            cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+            headerRows={<></>}
+            emptyContent={null}
+            noFormWrapper
+            embedded
+            hideToolbar
+            hidePagination
+            hideFilterBuilderComponent
+            search={false}
+            sortable={false}
+            exportToCSV={false}
+            footer={false}
+            memoEnable={false}
+          />
         )}
       </Paper>
     </Stack>

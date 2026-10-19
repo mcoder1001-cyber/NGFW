@@ -1,14 +1,14 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgAddIcon as AddIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgDeleteIcon as DeleteIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
+import { PgDialog as Dialog } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogContent as DialogContent } from '@amnafzar/common-ui-lib/primitives';
+import { PgDialogTitle as DialogTitle } from '@amnafzar/common-ui-lib/primitives';
+import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
+import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
+import { PgTooltip as Tooltip } from '@amnafzar/common-ui-lib/primitives';
+import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm, type JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { useCallback, useState, type ReactNode } from 'react';
@@ -115,7 +115,7 @@ export function ListEditor<R extends EditorRow>(p: ListEditorProps<R>) {
           fetchPage={fetchPage}
           initialPageSize={25}
           onRowClick={(e) => setEdit({ row: e.row })}
-          sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+          sx={{ '& [data-rowindex]': { cursor: 'pointer' } }}
         />
       </Paper>
       <Dialog open={edit !== null} onClose={() => setEdit(null)} fullWidth maxWidth="md">

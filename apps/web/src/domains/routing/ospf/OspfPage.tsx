@@ -1,25 +1,23 @@
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgAlert as Alert,
+  PgBox as Box,
+  PgChip as Chip,
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
-import Alert from '@mui/material/Alert';
-import Chip from '@mui/material/Chip';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 import { useState } from 'react';
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
 import { NS, registerIgpLocale } from './locale';
 import { ProtocolForm } from './ProtocolForm';
-import { useCandidateRouting, useRunningRouting, useOspfNeighbors } from './queries';
+import { useCandidateRouting, useOspfNeighbors, useRunningRouting } from './queries';
 
 registerIgpLocale();
 
@@ -76,31 +74,103 @@ export function OspfPage() {
             {!observed.data.unavailable && observed.data.neighbors.length === 0 && (
               <Typography>{t('ospf.noNeighbors')}</Typography>
             )}
-            <Table size="small" aria-label={t('ospf.neighbors')}>
-              <TableHead>
-                <TableRow>
-                  {NEIGHBOR_COLUMNS.map((k) => (
-                    <TableCell key={k}>{t(`ospf.${k}`)}</TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {observed.data.neighbors.map((n, i) => (
-                  <TableRow key={`${n.vrf}-${n.routerId}-${n.interface}-${i}`}>
-                    <TableCell>{n.vrf}</TableCell>
-                    <TableCell dir="ltr">{n.routerId}</TableCell>
-                    <TableCell dir="ltr">{interfaceLabel(n.interface ?? '—')}</TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        color={n.state.startsWith('Full') ? 'success' : 'warning'}
-                        label={n.state}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {(() => {
+              const gridItems = observed.data.neighbors;
+              type GridRow = (typeof gridItems)[number];
+              return (
+                <ReactGeereedMaterial
+                  hideFilterBuilderComponent
+                  noFormWrapper
+                  embedded
+                  memoEnable={false}
+                  hidePagination
+                  hideToolbar
+                  search={false}
+                  exportToCSV={false}
+                  sortable={false}
+                  footer={false}
+                  items={gridItems}
+                  columns={[
+                    {
+                      key: '0',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t(`ospf.${NEIGHBOR_COLUMNS[0]}`)}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const n = gridRow;
+                        return <>{n.vrf}</>;
+                      },
+                    },
+                    {
+                      key: '1',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t(`ospf.${NEIGHBOR_COLUMNS[1]}`)}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const n = gridRow;
+                        return <>{n.routerId}</>;
+                      },
+                    },
+                    {
+                      key: '2',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t(`ospf.${NEIGHBOR_COLUMNS[2]}`)}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const n = gridRow;
+                        return <>{interfaceLabel(n.interface ?? '—')}</>;
+                      },
+                    },
+                    {
+                      key: '3',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t(`ospf.${NEIGHBOR_COLUMNS[3]}`)}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const n = gridRow;
+                        return (
+                          <>
+                            <Chip
+                              size="small"
+                              color={n.state.startsWith('Full') ? 'success' : 'warning'}
+                              label={n.state}
+                            />
+                          </>
+                        );
+                      },
+                    },
+                  ]}
+                  tableProps={{
+                    size: 'small',
+                    'aria-label': t('ospf.neighbors'),
+                  }}
+                  rowKey={(nativeRow, gridIndex) => {
+                    const gridRow = nativeRow as unknown as GridRow;
+                    const n = gridRow;
+                    const i = gridIndex;
+                    return `${n.vrf}-${n.routerId}-${n.interface}-${i}`;
+                  }}
+                  rowProps={(_nativeRow, _gridIndex) => {
+                    return {};
+                  }}
+                  cellProps={(_nativeRow, column, _gridIndex) => {
+                    switch (column.key) {
+                      case '0':
+                        return {};
+                      case '1':
+                        return { dir: 'ltr' };
+                      case '2':
+                        return { dir: 'ltr' };
+                      case '3':
+                        return {};
+                      default:
+                        return {};
+                    }
+                  }}
+                  emptyContent={null}
+                />
+              );
+            })()}
           </>
         )}
       </Paper>
@@ -113,24 +183,81 @@ export function OspfPage() {
           {areas.length === 0 ? (
             <Typography color="text.secondary">{t('ospf.empty')}</Typography>
           ) : (
-            <Table size="small" aria-label={t('ospf.areas')}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('ospf.area')}</TableCell>
-                  <TableCell>{t('ospf.type')}</TableCell>
-                  <TableCell>{t('ospf.noSummary')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {areas.map(([id, a]) => (
-                  <TableRow key={id} data-testid={`ospf-area-${id}`}>
-                    <TableCell dir="ltr">{id}</TableCell>
-                    <TableCell dir="ltr">{a.type ?? DEFAULT_AREA_TYPE}</TableCell>
-                    <TableCell>{yn(a.noSummary)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            (() => {
+              const gridItems = areas;
+              type GridRow = (typeof gridItems)[number];
+              return (
+                <ReactGeereedMaterial
+                  hideFilterBuilderComponent
+                  noFormWrapper
+                  embedded
+                  memoEnable={false}
+                  hidePagination
+                  hideToolbar
+                  search={false}
+                  exportToCSV={false}
+                  sortable={false}
+                  footer={false}
+                  items={gridItems}
+                  columns={[
+                    {
+                      key: '0',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('ospf.area')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const { 0: id } = gridRow;
+                        return <>{id}</>;
+                      },
+                    },
+                    {
+                      key: '1',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('ospf.type')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const { 1: a } = gridRow;
+                        return <>{a.type ?? DEFAULT_AREA_TYPE}</>;
+                      },
+                    },
+                    {
+                      key: '2',
+                      sortable: false,
+                      filterable: false,
+                      headerRenderer: () => <>{t('ospf.noSummary')}</>,
+                      renderer: (_value: unknown, gridRow: GridRow) => {
+                        const { 1: a } = gridRow;
+                        return <>{yn(a.noSummary)}</>;
+                      },
+                    },
+                  ]}
+                  tableProps={{ size: 'small', 'aria-label': t('ospf.areas') }}
+                  rowKey={(nativeRow, _gridIndex) => {
+                    const gridRow = nativeRow as unknown as GridRow;
+                    const { 0: id } = gridRow;
+                    return id;
+                  }}
+                  rowProps={(nativeRow, _gridIndex) => {
+                    const gridRow = nativeRow as unknown as GridRow;
+                    const { 0: id } = gridRow;
+                    return { role: 'row', 'data-testid': `ospf-area-${id}` };
+                  }}
+                  cellProps={(_nativeRow, column, _gridIndex) => {
+                    switch (column.key) {
+                      case '0':
+                        return { dir: 'ltr' };
+                      case '1':
+                        return { dir: 'ltr' };
+                      case '2':
+                        return {};
+                      default:
+                        return {};
+                    }
+                  }}
+                  emptyContent={null}
+                />
+              );
+            })()
           )}
           <Typography component="h3" variant="h6" gutterBottom sx={{ mt: 3 }}>
             {t('ospf.interfaces')}
@@ -139,28 +266,112 @@ export function OspfPage() {
             <Typography color="text.secondary">{t('ospf.empty')}</Typography>
           ) : (
             <Box sx={{ overflowX: 'auto' }}>
-              <Table size="small" aria-label={t('ospf.interfaces')}>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>{t('ospf.interface')}</TableCell>
-                    <TableCell>{t('ospf.area')}</TableCell>
-                    <TableCell>{t('ospf.cost')}</TableCell>
-                    <TableCell>{t('ospf.passive')}</TableCell>
-                    {proto === 'ospf' && <TableCell>{t('ospf.bfd')}</TableCell>}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {ifaces.map(([name, i]) => (
-                    <TableRow key={name} data-testid={`ospf-if-${name}`}>
-                      <TableCell dir="ltr">{interfaceLabel(name)}</TableCell>
-                      <TableCell dir="ltr">{i.area}</TableCell>
-                      <TableCell dir="ltr">{i.cost ?? t('none')}</TableCell>
-                      <TableCell>{yn(i.passive)}</TableCell>
-                      {proto === 'ospf' && <TableCell>{yn(i.bfd)}</TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {(() => {
+                const gridItems = ifaces;
+                type GridRow = (typeof gridItems)[number];
+                return (
+                  <ReactGeereedMaterial
+                    hideFilterBuilderComponent
+                    noFormWrapper
+                    embedded
+                    memoEnable={false}
+                    hidePagination
+                    hideToolbar
+                    search={false}
+                    exportToCSV={false}
+                    sortable={false}
+                    footer={false}
+                    items={gridItems}
+                    columns={[
+                      {
+                        key: '0',
+                        sortable: false,
+                        filterable: false,
+                        headerRenderer: () => <>{t('ospf.interface')}</>,
+                        renderer: (_value: unknown, gridRow: GridRow) => {
+                          const { 0: name } = gridRow;
+                          return <>{interfaceLabel(name)}</>;
+                        },
+                      },
+                      {
+                        key: '1',
+                        sortable: false,
+                        filterable: false,
+                        headerRenderer: () => <>{t('ospf.area')}</>,
+                        renderer: (_value: unknown, gridRow: GridRow) => {
+                          const { 1: i } = gridRow;
+                          return <>{i.area}</>;
+                        },
+                      },
+                      {
+                        key: '2',
+                        sortable: false,
+                        filterable: false,
+                        headerRenderer: () => <>{t('ospf.cost')}</>,
+                        renderer: (_value: unknown, gridRow: GridRow) => {
+                          const { 1: i } = gridRow;
+                          return <>{i.cost ?? t('none')}</>;
+                        },
+                      },
+                      {
+                        key: '3',
+                        sortable: false,
+                        filterable: false,
+                        headerRenderer: () => <>{t('ospf.passive')}</>,
+                        renderer: (_value: unknown, gridRow: GridRow) => {
+                          const { 1: i } = gridRow;
+                          return <>{yn(i.passive)}</>;
+                        },
+                      },
+                      ...(proto === 'ospf'
+                        ? [
+                            {
+                              key: '4',
+                              sortable: false,
+                              filterable: false,
+                              headerRenderer: () => <>{t('ospf.bfd')}</>,
+                              renderer: (_value: unknown, gridRow: GridRow) => {
+                                const { 1: i } = gridRow;
+                                return <>{yn(i.bfd)}</>;
+                              },
+                            },
+                          ]
+                        : []),
+                    ]}
+                    tableProps={{
+                      size: 'small',
+                      'aria-label': t('ospf.interfaces'),
+                    }}
+                    rowKey={(nativeRow, _gridIndex) => {
+                      const gridRow = nativeRow as unknown as GridRow;
+                      const { 0: name } = gridRow;
+                      return name;
+                    }}
+                    rowProps={(nativeRow, _gridIndex) => {
+                      const gridRow = nativeRow as unknown as GridRow;
+                      const { 0: name } = gridRow;
+                      return { role: 'row', 'data-testid': `ospf-if-${name}` };
+                    }}
+                    cellProps={(_nativeRow, column, _gridIndex) => {
+                      switch (column.key) {
+                        case '0':
+                          return { dir: 'ltr' };
+                        case '1':
+                          return { dir: 'ltr' };
+                        case '2':
+                          return { dir: 'ltr' };
+                        case '3':
+                          return {};
+                        case '4':
+                          return {};
+                        default:
+                          return {};
+                      }
+                    }}
+                    emptyContent={null}
+                  />
+                );
+              })()}
             </Box>
           )}
         </Paper>

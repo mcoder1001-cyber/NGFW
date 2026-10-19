@@ -1,16 +1,14 @@
+import { ReactGeereedMaterial } from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgLinearProgress as LinearProgress,
+  PgPaper as Paper,
+  PgStack as Stack,
+  PgTab as Tab,
+  PgTabs as Tabs,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { LiveState } from './LiveState';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -45,26 +43,104 @@ function Interfaces({ proto }: { proto: TabKey }) {
       {rows.length === 0 ? (
         <Typography color="text.secondary">{t('isisRip.empty')}</Typography>
       ) : (
-        <Table size="small" aria-label={t('isisRip.interfaces')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('isisRip.interface')}</TableCell>
-              <TableCell>{t('isisRip.passive')}</TableCell>
-              {proto === 'isis' && <TableCell>{t('isisRip.metric')}</TableCell>}
-              {proto === 'isis' && <TableCell>{t('isisRip.circuit')}</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map(([name, i]) => (
-              <TableRow key={name} data-testid={`${proto}-if-${name}`}>
-                <TableCell dir="ltr">{interfaceLabel(name)}</TableCell>
-                <TableCell>{i.passive ? t('yes') : t('no')}</TableCell>
-                {proto === 'isis' && <TableCell dir="ltr">{i.metric ?? t('none')}</TableCell>}
-                {proto === 'isis' && <TableCell dir="ltr">{i.circuitType ?? t('none')}</TableCell>}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        (() => {
+          const gridItems = rows;
+          type GridRow = (typeof gridItems)[number];
+          return (
+            <ReactGeereedMaterial
+              hideFilterBuilderComponent
+              noFormWrapper
+              embedded
+              memoEnable={false}
+              hidePagination
+              hideToolbar
+              search={false}
+              exportToCSV={false}
+              sortable={false}
+              footer={false}
+              items={gridItems}
+              columns={[
+                {
+                  key: '0',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('isisRip.interface')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 0: name } = gridRow;
+                    return <>{interfaceLabel(name)}</>;
+                  },
+                },
+                {
+                  key: '1',
+                  sortable: false,
+                  filterable: false,
+                  headerRenderer: () => <>{t('isisRip.passive')}</>,
+                  renderer: (_value: unknown, gridRow: GridRow) => {
+                    const { 1: i } = gridRow;
+                    return <>{i.passive ? t('yes') : t('no')}</>;
+                  },
+                },
+                ...(proto === 'isis'
+                  ? [
+                      {
+                        key: '2',
+                        sortable: false,
+                        filterable: false,
+                        headerRenderer: () => <>{t('isisRip.metric')}</>,
+                        renderer: (_value: unknown, gridRow: GridRow) => {
+                          const { 1: i } = gridRow;
+                          return <>{i.metric ?? t('none')}</>;
+                        },
+                      },
+                    ]
+                  : []),
+                ...(proto === 'isis'
+                  ? [
+                      {
+                        key: '3',
+                        sortable: false,
+                        filterable: false,
+                        headerRenderer: () => <>{t('isisRip.circuit')}</>,
+                        renderer: (_value: unknown, gridRow: GridRow) => {
+                          const { 1: i } = gridRow;
+                          return <>{i.circuitType ?? t('none')}</>;
+                        },
+                      },
+                    ]
+                  : []),
+              ]}
+              tableProps={{
+                size: 'small',
+                'aria-label': t('isisRip.interfaces'),
+              }}
+              rowKey={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const { 0: name } = gridRow;
+                return name;
+              }}
+              rowProps={(nativeRow, _gridIndex) => {
+                const gridRow = nativeRow as unknown as GridRow;
+                const { 0: name } = gridRow;
+                return { role: 'row', 'data-testid': `${proto}-if-${name}` };
+              }}
+              cellProps={(_nativeRow, column, _gridIndex) => {
+                switch (column.key) {
+                  case '0':
+                    return { dir: 'ltr' };
+                  case '1':
+                    return {};
+                  case '2':
+                    return { dir: 'ltr' };
+                  case '3':
+                    return { dir: 'ltr' };
+                  default:
+                    return {};
+                }
+              }}
+              emptyContent={null}
+            />
+          );
+        })()
       )}
       {proto !== 'isis' && (
         <>

@@ -1,18 +1,6 @@
-import AddIcon from '@mui/icons-material/Add';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+import { PgAddIcon as AddIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgAlert as Alert, PgBox as Box, PgChip as Chip, PgDialog as Dialog, PgDialogActions as DialogActions, PgDialogContent as DialogContent, PgDialogContentText as DialogContentText, PgDialogTitle as DialogTitle, PgPaper as Paper, PgStack as Stack, PgTooltip as Tooltip, PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
 import { StatusChip, UI_KIT_NS, useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useQueryClient } from '@tanstack/react-query';
@@ -362,7 +350,7 @@ export function InterfacesPage() {
           refetchInterval={STATE_POLL_MS}
           initialPageSize={25}
           onRowClick={(p) => setSelected(p.row.item.name)}
-          sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+          sx={{ '& [data-rowindex]': { cursor: 'pointer' } }}
         />
       </Paper>
       <InterfaceDrawer name={selected} onClose={() => setSelected(null)} rates={rates} />

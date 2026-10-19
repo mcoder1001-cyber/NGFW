@@ -5,19 +5,17 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-if (process.env.VITE_NGFW_DEV_ROUTES === '1') {
-  console.log('check-no-dev-routes: skipped (VITE_NGFW_DEV_ROUTES=1 build)');
-  process.exit(0);
-}
+const includeDev = process.env.VITE_NGFW_DEV_ROUTES === '1';
 // Optional argument: the dist directory to check (default apps/web/dist).
 const dist = process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+const PREVIEW_NEEDLES = ['OFFLINE_UI_PREVIEW_MARKER', 'UI PREVIEW · Sample data', 'offline-preview.invalid'];
 const NEEDLES = ['dev/schema-form', 'dev/data-grid', 'dev/stream', 'dev:nav.', 'nav:devSchemaForm', 'SchemaFormDemoPage', 'DataGridDemoPage', 'StreamDemoPage', 'Developer demo'];
 const files = ['index.html', ...readdirSync(join(dist, 'assets')).filter((f) => /\.(js|css|html)$/.test(f)).map((f) => `assets/${f}`)];
 const hits = [];
 for (const f of files) {
-  if (/DemoPage/.test(f)) hits.push(`${f}: demo chunk emitted`);
+  if (!includeDev && /DemoPage/.test(f)) hits.push(`${f}: demo chunk emitted`);
   const text = readFileSync(join(dist, f), 'utf8');
-  for (const n of NEEDLES) if (text.includes(n)) hits.push(`${f}: contains "${n}"`);
+  for (const n of [...(includeDev ? [] : NEEDLES), ...PREVIEW_NEEDLES]) if (text.includes(n)) hits.push(`${f}: contains "${n}"`);
 }
 if (hits.length > 0) {
   console.error('check-no-dev-routes: FAIL — developer demo routes leaked into the production build');

@@ -1,0 +1,47 @@
+.ngfw-common-shell {
+  display: flex;
+  block-size: 100dvh;
+  overflow: hidden;
+}
+.ngfw-content-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+.ngfw-page-canvas {
+  flex: 1;
+  min-block-size: 0;
+  overflow: auto;
+  padding: 16px 16px 20px;
+  outline: none;
+  background-repeat: no-repeat;
+}
+.ngfw-page-header {
+  margin-block-end: 24px;
+  padding-block-end: 16px;
+  border-block-end: 1px solid var(--mui-palette-divider, rgba(128, 128, 128, 0.15));
+}
+.ngfw-skip-link {
+  position: absolute;
+  inset-inline-start: 8px;
+  top: -200px;
+  z-index: 1500;
+  background: Canvas;
+  color: CanvasText;
+  padding: 8px;
+}
+.ngfw-skip-link:focus {
+  top: 8px;
+}
+@media (max-width: 600px) {
+  .ngfw-page-canvas {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ngfw-common-shell * {
+    transition-duration: 0ms !important;
+  }
+}

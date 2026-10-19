@@ -1,18 +1,19 @@
-import Chip from '@mui/material/Chip';
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import {
+  ReactGeereedMaterial,
+  type GeereedTablePassthrough,
+} from '@amnafzar/common-ui-lib/geereed';
+import {
+  PgBox as Box,
+  PgChip as Chip,
+  PgDivider as Divider,
+  PgPaper as Paper,
+  PgTypography as Typography,
+} from '@amnafzar/common-ui-lib/primitives';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_VRF } from '../nat44-ed-sessions/model';
 import { useCandidateNat } from '../nat44-ed-sessions/queries';
-import { driftUnder, NS } from './model';
 import type { Subtree } from './model';
+import { driftUnder, NS } from './model';
 import { useDrift } from './queries';
 import { SubtreeForm } from './SubtreeForm';
 
@@ -54,33 +55,66 @@ export function Nat66Tab() {
         {t('nat66.mappings')}
       </Typography>
       <Paper variant="outlined">
-        <Table size="small" aria-label={t('nat66.mappings')}>
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('field.local.title')}</TableCell>
-              <TableCell>{t('field.external.title')}</TableCell>
-              <TableCell>{t('field.vrf.title')}</TableCell>
-              <TableCell>{t('col.status')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {candidate.isSuccess && maps.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4}>{t('nat66.empty')}</TableCell>
-              </TableRow>
-            )}
-            {maps.map((m, i) => (
-              <TableRow key={`${String(m['local'])}|${i}`}>
-                <TableCell dir="ltr">{String(m['local'] ?? '')}</TableCell>
-                <TableCell dir="ltr">{String(m['external'] ?? '')}</TableCell>
-                <TableCell>{typeof m['vrf'] === 'string' ? m['vrf'] : DEFAULT_VRF}</TableCell>
-                <TableCell>
+        <ReactGeereedMaterial
+          tableProps={{ size: 'small', 'aria-label': t('nat66.mappings') }}
+          columns={[
+            {
+              key: 'local',
+              headerRenderer: () => t('field.local.title'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'external',
+              headerRenderer: () => t('field.external.title'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'vrf',
+              headerRenderer: () => t('field.vrf.title'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+            {
+              key: 'status',
+              headerRenderer: () => t('col.status'),
+              filterable: false,
+              renderer: (value) => <>{value}</>,
+            },
+          ]}
+          items={[
+            ...(maps.map((m, i) => ({
+              id: `${String(m['local'])}|${i}`,
+              local: String(m['local'] ?? ''),
+              external: String(m['external'] ?? ''),
+              vrf: typeof m['vrf'] === 'string' ? m['vrf'] : DEFAULT_VRF,
+              status: (
+                <>
                   <DriftChip />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </>
+              ),
+              cellProps: { local: { dir: 'ltr' }, external: { dir: 'ltr' } } satisfies Record<
+                string,
+                NonNullable<ReturnType<NonNullable<GeereedTablePassthrough['cellProps']>>>
+              >,
+            })) ?? []),
+          ]}
+          rowKey={(item) => item.id}
+          rowProps={(item) => item.rowProps ?? {}}
+          cellProps={(item, column) => item.cellProps?.[column.key] ?? {}}
+          emptyContent={candidate.isSuccess && maps.length === 0 ? t('nat66.empty') : null}
+          noFormWrapper
+          embedded
+          hideToolbar
+          hidePagination
+          hideFilterBuilderComponent
+          search={false}
+          sortable={false}
+          exportToCSV={false}
+          footer={false}
+          memoEnable={false}
+        />
       </Paper>
     </Box>
   );

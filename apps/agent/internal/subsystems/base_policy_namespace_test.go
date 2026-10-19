@@ -33,13 +33,12 @@ func TestBasePolicyNamespaceCorroboration(t *testing.T) {
 	for _, tc := range []struct {
 		name, namespace, status, want string
 		apiError, cliError            error
-		apiRetval, cliRetval          int32
+		cliRetval                     int32
 		wantCLI, wantError            bool
 	}{
 		{name: "valid root", namespace: ""},
 		{name: "valid named", namespace: "other\x00\x00", want: "other"},
 		{name: "API transport failure", apiError: errors.New("disconnected"), wantError: true},
-		{name: "API negative retval", apiRetval: -1, wantError: true},
 		{name: "garbage confirmed unset", namespace: "\xb1\x96\x02}", status: unset, wantCLI: true},
 		{name: "garbage confirmed named", namespace: "\xff", status: "lcp default netns 'other'\n", wantCLI: true, wantError: true},
 		{name: "missing status", namespace: "\xff", status: "lcp lcp-sync off\n", wantCLI: true, wantError: true},
@@ -51,6 +50,7 @@ func TestBasePolicyNamespaceCorroboration(t *testing.T) {
 		{name: "oversize", namespace: "\xff", status: unset + strings.Repeat("x", maxLCPNamespaceStatus), wantCLI: true, wantError: true},
 		{name: "NUL", namespace: "\xff", status: unset + "\x00", wantCLI: true, wantError: true},
 		{name: "escape", namespace: "\xff", status: unset + "\x1b", wantCLI: true, wantError: true},
+		{name: "C1 control", namespace: "\xff", status: unset + "\u0085", wantCLI: true, wantError: true},
 		{name: "embedded CR", namespace: "\xff", status: unset + "x\ry", wantCLI: true, wantError: true},
 		{name: "invalid utf8", namespace: "\xff", status: unset + "\xff", wantCLI: true, wantError: true},
 		{name: "CLI transport failure", namespace: "\xff", cliError: errors.New("disconnected"), wantCLI: true, wantError: true},
@@ -59,7 +59,7 @@ func TestBasePolicyNamespaceCorroboration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			client := ifacetest.New()
 			client.On("lcp_default_ns_get", func(api.Message) ([]api.Message, error) {
-				return []api.Message{&binlcp.LcpDefaultNsGetReply{Netns: tc.namespace, Retval: tc.apiRetval}}, tc.apiError
+				return []api.Message{&binlcp.LcpDefaultNsGetReply{Netns: tc.namespace}}, tc.apiError
 			})
 			calls := 0
 			client.On("cli_inband", func(m api.Message) ([]api.Message, error) {

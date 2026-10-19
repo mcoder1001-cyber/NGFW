@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	binlcp "ngfw/agent/binapi/lcp"
@@ -42,8 +43,8 @@ func confirmUnsetLCPNamespace(output string) error {
 	if len(output) > maxLCPNamespaceStatus || !utf8.ValidString(output) {
 		return errors.New("invalid or oversized LCP status")
 	}
-	for _, b := range []byte(output) {
-		if (b < 0x20 && b != '\n' && b != '\r' && b != '\t') || b == 0x7f {
+	for _, r := range output {
+		if unicode.IsControl(r) && r != '\n' && r != '\r' && r != '\t' {
 			return errors.New("control character in LCP status")
 		}
 	}

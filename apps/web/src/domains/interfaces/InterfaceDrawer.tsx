@@ -18,7 +18,6 @@ import {
   PgStack as Stack,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { StatusChip, useFormatters } from '@ngfw/ui-kit';
 import { StatusChip, useFormatters, useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
@@ -442,7 +441,7 @@ function DrawerBody({
           })()}
         </>
       ) : isSub ? (
-        <Alert severity="info">{t('drawer.subHint', { parent: parentName })}</Alert>
+        <Alert severity="info">{t('drawer.subHint', { parent: label(parentName) })}</Alert>
       ) : (
         <>
           <Typography component="h4" variant="subtitle1" gutterBottom>

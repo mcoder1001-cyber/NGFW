@@ -23,16 +23,14 @@ import {
   PgTooltip as Tooltip,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, useFormatters } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { serviceText } from '../../../product-text';
 import { objectModelWidgets, TagChips, useCandidateObjects } from '../object-model';
 import {
   esc,

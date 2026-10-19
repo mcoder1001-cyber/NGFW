@@ -1,18 +1,6 @@
 import { PgAddIcon as AddIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
-import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
-import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
-import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
-import { PgDialog as Dialog } from '@amnafzar/common-ui-lib/primitives';
-import { PgDialogActions as DialogActions } from '@amnafzar/common-ui-lib/primitives';
-import { PgDialogContent as DialogContent } from '@amnafzar/common-ui-lib/primitives';
-import { PgDialogContentText as DialogContentText } from '@amnafzar/common-ui-lib/primitives';
-import { PgDialogTitle as DialogTitle } from '@amnafzar/common-ui-lib/primitives';
-import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
-import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
-import { PgText as TextField } from '@amnafzar/common-ui-lib/forms';
-import { PgTooltip as Tooltip } from '@amnafzar/common-ui-lib/primitives';
-import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlert as Alert, PgBox as Box, PgChip as Chip, PgDialog as Dialog, PgDialogActions as DialogActions, PgDialogContent as DialogContent, PgDialogContentText as DialogContentText, PgDialogTitle as DialogTitle, PgPaper as Paper, PgStack as Stack, PgTooltip as Tooltip, PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
+import { PgButton as Button, PgText as TextField } from '@amnafzar/common-ui-lib/forms';
 import { StatusChip, UI_KIT_NS, useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useQueryClient } from '@tanstack/react-query';
@@ -138,7 +126,7 @@ export function InterfacesPage() {
         const next = data.observationErrors ?? [];
         return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
       });
-      return pageOf(data.items.map(toRow), req);
+      return pageOf(interfaceRows(data.items), req);
     },
     [qc],
   );
@@ -361,7 +349,7 @@ export function InterfacesPage() {
           fetchPage={fetchPage}
           refetchInterval={STATE_POLL_MS}
           initialPageSize={25}
-          onRowClick={(p) => setSelected(p.row.name)}
+          onRowClick={(p) => setSelected(p.row.item.name)}
           sx={{ '& [data-rowindex]': { cursor: 'pointer' } }}
         />
       </Paper>

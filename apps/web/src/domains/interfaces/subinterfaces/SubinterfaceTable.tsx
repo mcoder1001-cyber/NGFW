@@ -8,7 +8,6 @@ import {
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
 import type { Theme } from '@amnafzar/common-ui-lib/styles';
-import { StatusChip } from '@ngfw/ui-kit';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -107,8 +106,7 @@ export function SubinterfaceTable({
                   headerRenderer: () => <>{t('col.name')}</>,
                   renderer: (_value: unknown, gridRow: GridRow) => {
                     const { 0: id } = gridRow;
-                    const name = `${parent}.${id}`;
-                    return <>{name}</>;
+                    return <>{`${label(parent)}.${id}`}</>;
                   },
                 },
                 {
@@ -224,7 +222,7 @@ export function SubinterfaceTable({
               ]}
               tableProps={{
                 size: 'small',
-                'aria-label': t('tableLabel', { parent }),
+                'aria-label': t('tableLabel', { parent: label(parent) }),
                 sx: CELLS,
               }}
               rowKey={(nativeRow, _gridIndex) => {

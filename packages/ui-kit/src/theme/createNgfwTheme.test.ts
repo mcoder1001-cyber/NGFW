@@ -15,6 +15,7 @@ describe('createNgfwTheme', () => {
 
   it.each(['light', 'dark'] as const)('%s includes the shared component theme', (mode) => {
     const theme = createNgfwTheme(mode);
+    expect(theme.spacing(1)).toBe('8px');
     expect(theme.palette.gradient.canvas).toContain('gradient');
     expect(theme.palette.gradient.primary).toContain('gradient');
     expect(theme.palette.neutral.surface).toBeTruthy();

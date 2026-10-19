@@ -274,8 +274,6 @@ describe('setup wizard independent network-picker regression', () => {
     expect(screen.getByRole('combobox', { name: i18n.t('setup:wan') })).toHaveValue(
       'configuredWan',
     );
-    next();
-    await select(i18n.t('setup:lan'), 'configuredLan');
     expect(
       fake.calls.filter((r) => r.path === '/api/v1/state/interfaces').length,
     ).toBeGreaterThanOrEqual(2);

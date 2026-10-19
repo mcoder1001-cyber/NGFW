@@ -1,12 +1,6 @@
 import { PgRefreshIcon as RefreshIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgAlert as Alert } from '@amnafzar/common-ui-lib/primitives';
+import { PgAlert as Alert, PgBox as Box, PgChip as Chip, PgPaper as Paper, PgStack as Stack, PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
 import { PgButton as Button } from '@amnafzar/common-ui-lib/forms';
-import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
-import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
-import { PgPaper as Paper } from '@amnafzar/common-ui-lib/primitives';
-import { PgStack as Stack } from '@amnafzar/common-ui-lib/primitives';
-import { PgTypography as Typography } from '@amnafzar/common-ui-lib/primitives';
-import { StatusChip } from '@ngfw/ui-kit';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';

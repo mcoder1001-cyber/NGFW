@@ -8,7 +8,6 @@ import {
 import { useInterfaceLabel } from '@ngfw/ui-kit';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTopic } from '@ngfw/ui-kit/ws';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -111,7 +110,7 @@ export function BfdRedistributionPage() {
                 headerRenderer: () => <>{t(sessionColumns[1])}</>,
                 renderer: (_value: unknown, gridRow: GridRow) => {
                   const s = gridRow;
-                  return <>{s.interface}</>;
+                  return <>{interfaceLabel(s.interface)}</>;
                 },
               },
               {

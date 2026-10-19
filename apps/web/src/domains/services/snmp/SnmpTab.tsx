@@ -589,6 +589,8 @@ function Traps({ cfg, readOnly, onSave }: EditProps) {
             ]}
             rowKey={(item) => {
               const { r } = item as (typeof nativeRows)[number];
+              // Protocol identifiers form a stable row key, not translated UI text.
+              // eslint-disable-next-line i18next/no-literal-string
               return `${r.address}:${r.port ?? 162}:${r.version ?? 'v2c'}`;
             }}
             cellProps={(_item, column) => {

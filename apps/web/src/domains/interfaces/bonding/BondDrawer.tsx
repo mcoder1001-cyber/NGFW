@@ -20,7 +20,6 @@ import {
   PgStack as Stack,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { StatusChip } from '@ngfw/ui-kit';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
@@ -210,7 +209,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
       {live &&
         (() => {
           const gridItems = [
-            [t('live.vppName'), live.vppName],
+            [t('live.vppName'), interfaceLabel(live.vppName)],
             [t('live.swIfIndex'), String(live.swIfIndex)],
             [
               t('col.mode'),
@@ -368,7 +367,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
                 headerRenderer: () => <>{t('members.interface')}</>,
                 renderer: (_value: unknown, gridRow: GridRow) => {
                   const { 0: m } = gridRow;
-                  return <>{m}</>;
+                  return <>{interfaceLabel(m)}</>;
                 },
               },
               {
@@ -449,7 +448,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
                     <>
                       <IconButton
                         size="small"
-                        aria-label={t('members.remove', { name: m })}
+                        aria-label={t('members.remove', { name: interfaceLabel(m) })}
                         disabled={readOnly || patch.isPending}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -515,7 +514,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
         <DialogTitle>
           {memberDialog
             ? t(memberDialog.value ? 'members.editTitle' : 'members.addTitle', {
-                name: memberDialog.name,
+                name: interfaceLabel(memberDialog.name),
                 bond: name,
               })
             : ''}

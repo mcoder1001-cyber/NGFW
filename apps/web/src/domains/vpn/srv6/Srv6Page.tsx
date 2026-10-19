@@ -243,7 +243,7 @@ function LocalSidsPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | unde
               const iface = r.config?.interface ?? r.state?.interface ?? null;
               const nh = r.config?.nextHop ?? r.state?.nextHop ?? null;
               const lookup = r.config?.lookupVrf ?? r.state?.lookupVrf ?? null;
-              const target = [iface, nh ? `via ${nh}` : null, lookup ? `→ ${lookup}` : null]
+              const target = [iface ? interfaceLabel(iface) : iface, nh ? `via ${nh}` : null, lookup ? `→ ${lookup}` : null]
                 .filter((x) => x !== null)
                 .join(' ');
               return <>{target || '—'}</>;
@@ -985,9 +985,11 @@ function SteeringPanel({ cfg, state }: { cfg: Srv6View; state: Srv6State | undef
               const s = r.state;
               const what = c
                 ? c.type === 'l2'
-                  ? c.interface
+                  ? interfaceLabel(c.interface)
                   : c.prefix
-                : (s?.interface ?? s?.prefix ?? '');
+                : s?.interface
+                  ? interfaceLabel(s.interface)
+                  : (s?.prefix ?? '');
               return <>{what}</>;
             },
           },

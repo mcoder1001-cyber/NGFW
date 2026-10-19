@@ -374,7 +374,7 @@ export function SetupWizardPage() {
       {step === 3 && configureWan && (interfaces.isFetching || routes.isFetching) && (
         <Typography>{t('loadingInterfaces')}</Typography>
       )}
-      {(step === 3 || step === 4) && interfacesUnavailable && (
+      {step === 3 && configureWan && interfacesUnavailable && (
         <Alert severity="warning">
           {t('interfacesFailed')}
           <Button onClick={() => void interfaces.refetch()}>{t('retryInterfaces')}</Button>

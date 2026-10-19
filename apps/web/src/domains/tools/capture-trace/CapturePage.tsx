@@ -287,7 +287,7 @@ export function CapturePage() {
               ...((q.data?.captures ?? []).map((c) => ({
                 id: c.id,
                 state: t(`state.${c.state}`, { defaultValue: c.state }),
-                interface: c.interface,
+                interface: interfaceLabel(c.interface),
                 packets: c.packets,
                 size: c.size,
                 actions: (

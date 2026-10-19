@@ -295,7 +295,7 @@ export function PbrPage() {
                         <Stack>
                           {paths.map((p, i) => (
                             <Box key={i} component="span" dir="ltr" sx={MONO}>
-                              {pathText(p, (k, o) => t(k, o ?? {}))}
+                              {pathText({ ...p, ...(p.interface ? { interface: interfaceLabel(p.interface) } : {}) }, (k, o) => t(k, o ?? {}))}
                             </Box>
                           ))}
                         </Stack>
@@ -479,7 +479,7 @@ export function PbrPage() {
                     return (
                       <>
                         <Box component="span" dir="ltr" sx={MONO}>
-                          {a.interface}
+                          {interfaceLabel(a.interface)}
                         </Box>
                       </>
                     );
@@ -532,7 +532,7 @@ export function PbrPage() {
                           size="small"
                           aria-label={t('pbr.detach', {
                             policy: a.policy,
-                            interface: a.interface,
+                            interface: interfaceLabel(a.interface),
                           })}
                           disabled={readOnly || patch.isPending}
                           onClick={() => void deleteAttachment(key)}

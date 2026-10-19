@@ -91,7 +91,7 @@ export function LiveState({ proto }: { proto: TabKey }) {
               filterable: false,
               headerRenderer: () => <>{t(`isisRip.live.${c}`)}</>,
               renderer: (_value: unknown, row: Observed['rows'][number]) => (
-                <>{String(row[c] ?? t('none'))}</>
+                <>{c === 'interface' ? interfaceLabel(String(row[c] ?? t('none'))) : String(row[c] ?? t('none'))}</>
               ),
             }))}
             cellProps={() => ({ dir: 'ltr' })}

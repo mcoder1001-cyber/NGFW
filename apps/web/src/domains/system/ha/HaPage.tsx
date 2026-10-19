@@ -23,7 +23,6 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { domainSchemas } from '../../../schema/registry';
 import { PageHeader } from '../../../shell/PageHeader';
-import { clusterPanels } from './clusterPanels';
 import { NS } from './locale';
 import {
   useCandidateHa,
@@ -174,7 +173,7 @@ function VrrpTab() {
                 ...(entries.map(([name, r]) => ({
                   id: name,
                   column0: name,
-                  column1: r.interface,
+                  column1: interfaceLabel(r.interface),
                   column2: r.vrId,
                   column3: r.addressFamily ?? DEFAULT_FAMILY,
                   column4: r.priority ?? 100,

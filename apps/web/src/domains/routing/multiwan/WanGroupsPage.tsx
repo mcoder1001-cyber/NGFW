@@ -11,13 +11,11 @@ import {
   PgTableContainer as TableContainer,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, StatusChip } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import { StatusChip } from '@ngfw/ui-kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { useWanState, type WanGroupState } from './queries';
 

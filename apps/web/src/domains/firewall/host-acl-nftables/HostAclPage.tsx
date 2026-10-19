@@ -26,9 +26,8 @@ import {
   PgTooltip as Tooltip,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, useFormatters } from '@ngfw/ui-kit';
 import { ExpiryChip } from '../ExpiryChip'; // F-rule-expiry
-import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -37,7 +36,6 @@ import { ApiError } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
-import { ExpiryChip } from '../ExpiryChip'; // F-rule-expiry
 import { objectModelWidgets } from '../object-model';
 import {
   attachmentSchema,
@@ -240,6 +238,7 @@ function ListsPanel({
   state: HostAclState | undefined;
 }) {
   const { t } = useTranslation(NS);
+  const interfaceLabel = useInterfaceLabel();
   const fmt = useFormatters();
   const perms = usePermissions();
   const readOnly = !perms.editConfig;
@@ -430,6 +429,7 @@ function ListsPanel({
                   items={[
                     ...(rulesOf(list).map(({ rule, index }) =>
                       renderRuleRow({
+                        interfaceLabel,
                         key: `${rule.sequence}-${index}`,
                         list: name,
                         rule: rule,
@@ -508,6 +508,7 @@ function ListsPanel({
 }
 
 function renderRuleRow({
+  interfaceLabel,
   key,
   t,
   fmt,
@@ -517,6 +518,7 @@ function renderRuleRow({
   onEdit,
   onDelete,
 }: {
+  interfaceLabel: (name: string) => string;
   key: string;
   t: ReturnType<typeof useTranslation>['t'];
   fmt: ReturnType<typeof useFormatters>;
@@ -556,7 +558,7 @@ function renderRuleRow({
         <Code>{serviceText(rule.service)}</Code>
       </>
     ),
-    interface: rule.interface ? <Code>{rule.interface}</Code> : '*',
+    interface: rule.interface ? <Code>{interfaceLabel(rule.interface)}</Code> : '*',
     log: rule.log ? t('yes') : t('no'),
     enabled: rule.enabled ? t('yes') : t('no'),
     description: rule.description,

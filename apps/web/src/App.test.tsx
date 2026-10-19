@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEV_ROUTES } from './build-flags';
 import i18n from './i18n';
 import { App } from './App';
-import { buildNav, BUILT_DOMAINS, domainPath, isCollapsible } from './nav/nav';
+import { buildNav, BUILT_DOMAINS, isCollapsible } from './nav/nav';
 import { buildRoutes, createTestRouter, type RouteOptions } from './router';
 import { domains } from './schema/registry';
 import { installFakeApi, resetSession, signIn } from './test-api';

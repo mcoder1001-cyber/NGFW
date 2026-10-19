@@ -23,14 +23,12 @@ import {
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
 import type { Theme } from '@amnafzar/common-ui-lib/styles';
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import { StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { serviceText } from '../../../product-text';
 import { createMergePatch } from '../../interfaces/model';
 import { useCandidateInterfaces } from '../../interfaces/queries';
 import { AttachmentDialog, type AttachmentTarget } from './AttachmentDialog';
@@ -938,7 +936,7 @@ export function AttachmentsTab() {
                 headerRenderer: () => <>{t('col.interface')}</>,
                 sortable: false,
                 filterable: false,
-                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{r.name}</>,
+                renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => <>{interfaceLabel(r.name)}</>,
               },
               {
                 key: 'ingress',
@@ -1011,7 +1009,7 @@ export function AttachmentsTab() {
                 renderer: (_value: unknown, { r }: (typeof nativeRows)[number]) => (
                   <>
                     {renderRowActions({
-                      name: r.name,
+                      name: interfaceLabel(r.name),
                       disabled: ed.readOnly || ed.patch.isPending,
                       onEdit: () => setTarget({ name: r.name, cfg: r.cfg, editing: true }),
                       onRemove: () => void ed.remove(qosPath(INTERFACES, r.name)),

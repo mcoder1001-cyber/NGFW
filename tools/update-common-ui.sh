@@ -14,6 +14,7 @@ trap 'rm -rf "$stage"' EXIT
 (cd "$source_dir" && npm pack --ignore-scripts --pack-destination "$stage" >/dev/null)
 tar -xzf "$stage"/*.tgz -C "$stage"
 node -e 'const p=require(process.argv[1]); if(p.name!=="@amnafzar/common-ui-lib" || !p.exports?.["./theme"] || !p.exports?.["./grid"]) process.exit(1)' "$stage/package/package.json"
+rm -rf "$repo/.yalc/@amnafzar/common-ui-lib"
 mkdir -p "$repo/.yalc/@amnafzar/common-ui-lib"
 cp -R "$stage/package/." "$repo/.yalc/@amnafzar/common-ui-lib/"
 (cd "$repo" && pnpm install --no-frozen-lockfile --prefer-offline)

@@ -118,7 +118,7 @@ export function OspfPage() {
                       headerRenderer: () => <>{t(`ospf.${NEIGHBOR_COLUMNS[2]}`)}</>,
                       renderer: (_value: unknown, gridRow: GridRow) => {
                         const n = gridRow;
-                        return <>{n.interface ?? '—'}</>;
+                        return <>{interfaceLabel(n.interface ?? '—')}</>;
                       },
                     },
                     {
@@ -290,7 +290,7 @@ export function OspfPage() {
                         headerRenderer: () => <>{t('ospf.interface')}</>,
                         renderer: (_value: unknown, gridRow: GridRow) => {
                           const { 0: name } = gridRow;
-                          return <>{name}</>;
+                          return <>{interfaceLabel(name)}</>;
                         },
                       },
                       {

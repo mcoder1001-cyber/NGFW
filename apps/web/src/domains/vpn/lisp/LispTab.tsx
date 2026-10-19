@@ -8,15 +8,13 @@ import {
   PgTabs as Tabs,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, StatusChip } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import { StatusChip } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { serviceText } from '../../../product-text';
 import { problemFor } from '../../interfaces/InterfaceDrawer';
 import {
   LISP_POINTER,
@@ -45,8 +43,8 @@ export function LispTab() {
   const schema = useMemo(() => sectionSchema(section), [section]);
   const value = useMemo(() => sectionValue(section, candidate.data), [section, candidate.data]);
   const rows = useMemo(
-    () => statusRows(section, candidate.data, state.data ?? null),
-    [section, candidate.data, state.data],
+    () => statusRows(section, candidate.data, state.data ?? null, interfaceLabel),
+    [section, candidate.data, state.data, interfaceLabel],
   );
 
   return (

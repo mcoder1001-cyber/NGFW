@@ -16,7 +16,6 @@ import { PageHeader } from '../../../shell/PageHeader';
 import { NS, registerIgpLocale } from '../ospf/locale';
 import { ProtocolForm } from '../ospf/ProtocolForm';
 import { useCandidateRouting, useRunningRouting } from '../ospf/queries';
-import { LiveState } from './LiveState';
 
 registerIgpLocale();
 
@@ -68,7 +67,7 @@ function Interfaces({ proto }: { proto: TabKey }) {
                   headerRenderer: () => <>{t('isisRip.interface')}</>,
                   renderer: (_value: unknown, gridRow: GridRow) => {
                     const { 0: name } = gridRow;
-                    return <>{name}</>;
+                    return <>{interfaceLabel(name)}</>;
                   },
                 },
                 {

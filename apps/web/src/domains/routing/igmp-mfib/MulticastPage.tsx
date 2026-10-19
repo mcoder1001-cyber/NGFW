@@ -16,7 +16,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { multicastKeys, useMroutes, useMulticastGroups, usePimNeighbors } from './queries';
 
@@ -90,7 +89,7 @@ export function MulticastPage() {
                       headerRenderer: () => <>{t('groups.col.interface')}</>,
                       renderer: (_value: unknown, gridRow: GridRow) => {
                         const g = gridRow;
-                        return <>{g.interface}</>;
+                        return <>{interfaceLabel(g.interface)}</>;
                       },
                     },
                     {
@@ -206,7 +205,7 @@ export function MulticastPage() {
                       headerRenderer: () => <>{t('mroutes.col.accept')}</>,
                       renderer: (_value: unknown, gridRow: GridRow) => {
                         const m = gridRow;
-                        return <>{m.accept}</>;
+                        return <>{interfaceLabel(m.accept)}</>;
                       },
                     },
                     {
@@ -216,7 +215,7 @@ export function MulticastPage() {
                       headerRenderer: () => <>{t('mroutes.col.forward')}</>,
                       renderer: (_value: unknown, gridRow: GridRow) => {
                         const m = gridRow;
-                        return <>{m.forward.join(', ')}</>;
+                        return <>{m.forward.map(interfaceLabel).join(', ')}</>;
                       },
                     },
                   ]}
@@ -286,7 +285,7 @@ export function MulticastPage() {
                       headerRenderer: () => <>{t('pim.col.interface')}</>,
                       renderer: (_value: unknown, gridRow: GridRow) => {
                         const n = gridRow;
-                        return <>{n.interface}</>;
+                        return <>{interfaceLabel(n.interface)}</>;
                       },
                     },
                     {

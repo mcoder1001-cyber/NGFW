@@ -19,7 +19,6 @@ import {
   PgTooltip as Tooltip,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { StatusChip } from '@ngfw/ui-kit';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
@@ -124,7 +123,7 @@ export function MirroringPage() {
                     headerRenderer: () => <>{t('mirror.col.source')}</>,
                     renderer: (_value: unknown, gridRow: GridRow) => {
                       const r = gridRow;
-                      return <>{r.source}</>;
+                      return <>{interfaceLabel(r.source)}</>;
                     },
                   },
                   {
@@ -134,7 +133,7 @@ export function MirroringPage() {
                     headerRenderer: () => <>{t('mirror.col.destination')}</>,
                     renderer: (_value: unknown, gridRow: GridRow) => {
                       const r = gridRow;
-                      return <>{r.destination}</>;
+                      return <>{interfaceLabel(r.destination)}</>;
                     },
                   },
                   {
@@ -196,7 +195,7 @@ export function MirroringPage() {
                         <>
                           <IconButton
                             size="small"
-                            aria-label={`${t('edit')} ${r.source} → ${r.destination}`}
+                            aria-label={`${t('edit')} ${interfaceLabel(r.source)} → ${interfaceLabel(r.destination)}`}
                             disabled={!perms.editConfig}
                             onClick={() => setEditing({ source: r.source, index: r.index })}
                           >
@@ -204,7 +203,7 @@ export function MirroringPage() {
                           </IconButton>
                           <IconButton
                             size="small"
-                            aria-label={`${t('remove')} ${r.source} → ${r.destination}`}
+                            aria-label={`${t('remove')} ${interfaceLabel(r.source)} → ${interfaceLabel(r.destination)}`}
                             disabled={!perms.editConfig || patch.isPending}
                             onClick={() => remove(r)}
                           >

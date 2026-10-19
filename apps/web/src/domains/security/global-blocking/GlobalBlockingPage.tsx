@@ -29,9 +29,8 @@ import {
   PgTooltip as Tooltip,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { useInterfaceLabel } from '@ngfw/ui-kit';
+import { useInterfaceLabel, useFormatters } from '@ngfw/ui-kit';
 import { serviceText } from '../../../product-text';
-import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
@@ -40,7 +39,6 @@ import { api } from '../../../api';
 import { ApiError, call } from '../../../api-problem';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { serviceText } from '../../../product-text';
 import { PageHeader } from '../../../shell/PageHeader';
 import { readText } from '../../firewall/acl/ImportDialog';
 import { localizeSchema } from '../../firewall/host-acl-nftables/model';
@@ -80,6 +78,7 @@ type Dlg =
  * normal commit applies them. URL lists with a refresh interval are re-downloaded by the box on schedule.
  */
 export function GlobalBlockingPage() {
+  const interfaceLabel = useInterfaceLabel();
   const { t } = useTranslation(NS);
   const fmt = useFormatters();
   const perms = usePermissions();
@@ -211,6 +210,7 @@ export function GlobalBlockingPage() {
               ...(s.lists.map((l) =>
                 renderListRow({
                   key: l.name,
+                  interfaceLabel,
                   l: l,
                   readOnly: readOnly,
                   onEdit: () => setDlg(dialogFor(EDIT, l.name)),
@@ -268,6 +268,7 @@ export function GlobalBlockingPage() {
 }
 
 function renderListRow({
+  interfaceLabel,
   key,
   t,
   fmt,
@@ -279,6 +280,7 @@ function renderListRow({
   onExport,
   onDelete,
 }: {
+  interfaceLabel: (name: string) => string;
   key: string;
   t: ReturnType<typeof useTranslation>['t'];
   fmt: ReturnType<typeof useFormatters>;

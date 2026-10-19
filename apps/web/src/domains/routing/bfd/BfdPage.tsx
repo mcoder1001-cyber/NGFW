@@ -80,7 +80,7 @@ function Sessions() {
                     headerRenderer: () => <>{t('bfd.interface')}</>,
                     renderer: (_value: unknown, gridRow: GridRow) => {
                       const s = gridRow;
-                      return <>{s.interface}</>;
+                      return <>{interfaceLabel(s.interface)}</>;
                     },
                   },
                   {

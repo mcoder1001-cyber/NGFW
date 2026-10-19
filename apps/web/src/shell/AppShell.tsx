@@ -1,25 +1,12 @@
-import { PgSettingsIcon as SettingsIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgDarkModeIcon as DarkModeIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgLightModeIcon as LightModeIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgDashboardIcon as DashboardIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgRouterIcon as RouterIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgShieldIcon as ShieldIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgLanIcon as LanIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgVpnKeyIcon as VpnKeyIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgBuildIcon as BuildIcon } from '@amnafzar/common-ui-lib/icons';
-import { PgBox as Box } from '@amnafzar/common-ui-lib/primitives';
-import { PgChip as Chip } from '@amnafzar/common-ui-lib/primitives';
-import { PgDrawer as Drawer } from '@amnafzar/common-ui-lib/primitives';
-import { PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
-import { useMediaQuery as useMediaQuery } from '@amnafzar/common-ui-lib/styles';
-import { useTheme } from '@amnafzar/common-ui-lib/styles';
+import { PgSettingsIcon as SettingsIcon, PgDarkModeIcon as DarkModeIcon, PgLightModeIcon as LightModeIcon, PgDashboardIcon as DashboardIcon, PgRouterIcon as RouterIcon, PgShieldIcon as ShieldIcon, PgLanIcon as LanIcon, PgVpnKeyIcon as VpnKeyIcon, PgBuildIcon as BuildIcon } from '@amnafzar/common-ui-lib/icons';
+import { PgBox as Box, PgChip as Chip, PgDrawer as Drawer, PgLinearProgress as LinearProgress } from '@amnafzar/common-ui-lib/primitives';
+import { useMediaQuery as useMediaQuery, useTheme } from '@amnafzar/common-ui-lib/styles';
 import { PgGlobalAppBar, PgBreadcrumb, PgIconButton, Sidenav } from '@amnafzar/common-ui-lib/shell';
 import { UI_KIT_NS } from '@ngfw/ui-kit';
 import { useWsStatus } from '@ngfw/ui-kit/ws';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation } from 'react-router';
-import { Link, Outlet, useLocation } from 'react-router';
 import { DEV_ROUTES } from '../build-flags';
 import { buildNav, currentNavPath, isCollapsible } from '../nav/nav';
 import { domains } from '../schema/registry';
@@ -35,6 +22,9 @@ const icons = {
   dashboard: DashboardIcon,
   interfaces: RouterIcon,
   routing: LanIcon,
+  objects: ShieldIcon,
+  "dynamic-routing": LanIcon,
+  "routing-objects": LanIcon,
   firewall: ShieldIcon,
   vpn: VpnKeyIcon,
   services: RouterIcon,

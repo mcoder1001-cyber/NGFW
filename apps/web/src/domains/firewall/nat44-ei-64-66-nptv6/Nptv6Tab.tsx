@@ -80,7 +80,7 @@ export function Nptv6Tab() {
             items={[
               ...(state.data.bindings.map((b) => ({
                 id: `${b.interface}|${b.internal}`,
-                interface: b.interface,
+                interface: interfaceLabel(b.interface),
                 internal: b.internal,
                 external: b.external,
                 description: b.description ?? '',

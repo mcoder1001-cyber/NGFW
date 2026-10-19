@@ -149,11 +149,11 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
     return entriesOf(candidate.data, kind).filter(
       ([name, e]) =>
         !q ||
-        `${name} ${summary(kind, e)} ${tagsOf(e).join(' ')} ${'description' in e ? (e.description ?? '') : ''}`
+        `${name} ${summary(kind, e, interfaceLabel)} ${tagsOf(e).join(' ')} ${'description' in e ? (e.description ?? '') : ''}`
           .toLowerCase()
           .includes(q),
     );
-  }, [candidate.data, kind, filter]);
+  }, [candidate.data, kind, filter, interfaceLabel]);
   const runningOf = (name: string) =>
     ((running.data?.[kind] ?? {}) as Record<string, AnyEntry>)[name];
 
@@ -249,7 +249,7 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
                       textAlign: 'start',
                     }}
                   >
-                    {summary(kind, entry) || '—'}
+                    {summary(kind, entry, interfaceLabel) || '—'}
                   </Box>
                 ),
             },

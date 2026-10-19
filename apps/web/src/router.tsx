@@ -5,7 +5,6 @@ import { BUILT_DOMAINS, domainPath } from './nav/nav';
 import { domains } from './schema/registry';
 import { AutoBlockRedirect } from './domains/security/AutoBlockRedirect';
 import { RequireAuth } from './auth/RequireAuth';
-import { LoginPage } from './pages/LoginPage';
 import { AppShell } from './shell/AppShell';
 import { NotFoundPage } from './shell/NotFoundPage';
 import { RouteErrorPage } from './shell/RouteErrorPage';
@@ -45,7 +44,7 @@ const SHELL_DOMAINS: ReadonlySet<string> = new Set(['vpn', 'services']);
 /** Route table: domain routes come from the schema's root keys; dev demos exist only in dev builds. */
 export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): RouteObject[] {
   return [
-    { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
+    { path: '/login', lazy: lazyPage(() => import('./pages/LoginPage'), 'LoginPage'), errorElement: <RouteErrorPage /> },
     {
       path: '/',
       element: (

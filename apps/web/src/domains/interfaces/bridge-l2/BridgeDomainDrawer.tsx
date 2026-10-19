@@ -17,7 +17,6 @@ import {
   PgTooltip as Tooltip,
   PgTypography as Typography,
 } from '@amnafzar/common-ui-lib/primitives';
-import { StatusChip } from '@ngfw/ui-kit';
 import { StatusChip, useInterfaceLabel } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';

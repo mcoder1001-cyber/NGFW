@@ -1,3 +1,4 @@
+import '@amnafzar/common-ui-lib/theme';
 import { GlobalTheme } from '@amnafzar/common-ui-lib/theme';
 import { createTheme, type Direction, type PaletteMode, type Theme } from '@mui/material/styles';
 
@@ -64,7 +65,7 @@ export function createNgfwTheme(
   return createTheme(sharedTheme, {
     direction,
     cssVariables: false,
-    spacing: 8,
+    spacing: createTheme({ spacing: 8 }).spacing,
     shape: { borderRadius: 6 },
     typography: {
       fontFamily: FONT_FAMILY,

@@ -24,7 +24,15 @@ UNIT_DIRECTORIES = ('deploy/systemd', 'deploy/vpp', 'deploy/upgrade', 'deploy/su
 UNIT_DESTINATION = 'usr/lib/systemd/system/'
 SCRIPTS = ('preinst', 'prerm', 'postinst', 'postrm')
 TOOLS = ('dh_installsystemd', 'dh_installdeb')
-DEPENDENCY_KEYS = ('Requires', 'Requisite', 'BindsTo')
+# [Unit] settings whose explicit stop or restart propagates from the named unit to the
+# configuring unit (systemd.unit(5): Requires=, Requisite=, BindsTo= "this unit will be
+# stopped (or restarted) if one of the other units is explicitly stopped (or restarted)";
+# PartOf= "limited to stopping and restarting"). Wants=, After= and Before= never do.
+DEPENDENCY_KEYS = ('Requires', 'Requisite', 'BindsTo', 'PartOf')
+# [Install] setting that adds the same edge, from each named unit to the shipped unit,
+# once the shipped unit is enabled (a <name>.requires/ symlink, as deploy/upgrade/provision
+# and ngfw-upgrade create for ngfw-upgrade-prepare.service).
+INSTALL_REQUIRED_BY = 'RequiredBy'
 
 
 def missing_tools():
@@ -92,23 +100,56 @@ def maintscript_units(package):
     return sorted(name for name, _ in shipped_units(package) if '@' not in name)
 
 
-def unit_dependencies(text):
-    """Units named by Requires=/Requisite=/BindsTo= lines: an explicit stop of one stops the unit."""
-    names = set()
-    for line in text.splitlines():
-        key, separator, value = line.strip().partition('=')
-        if separator and key in DEPENDENCY_KEYS:
-            names.update(value.split())
+def unit_settings(text):
+    """[(section, key, value)] for every assignment of a unit file or drop-in, in file order;
+    comment and blank lines are skipped and the section is None before the first header."""
+    settings, section = [], None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line[0] in '#;':
+            continue
+        if line.startswith('[') and line.endswith(']'):
+            section = line[1:-1]
+            continue
+        key, separator, value = line.partition('=')
+        if separator:
+            settings.append((section, key.strip(), value.strip()))
+    return settings
+
+
+def unit_setting(text, key, section='Unit'):
+    """The unit names a space-separated list setting accumulates, in order; an empty
+    assignment resets the list as systemd does."""
+    names = []
+    for found_section, found_key, value in unit_settings(text):
+        if found_section == section and found_key == key:
+            names = names + value.split() if value else []
     return names
 
 
-def stop_propagation_closure(start):
+def unit_dependencies(text):
+    """Units named by the [Unit] dependency settings whose explicit stop or restart propagates
+    to the configuring unit (DEPENDENCY_KEYS)."""
+    names = set()
+    for key in DEPENDENCY_KEYS:
+        names.update(unit_setting(text, key))
+    return names
+
+
+def stop_propagation_closure(start, enabled=False, overrides=None):
     """Every unit whose explicit stop (or restart) propagates to `start` through the shipped
-    unit files and drop-ins (systemd.unit(5) Requires=), excluding `start` itself."""
+    unit files and drop-ins (systemd.unit(5) Requires=), excluding `start` itself. With
+    `enabled`, the [Install] RequiredBy= edges of the shipped units count as well, as they do
+    once those units are enabled. `overrides` ({unit name: text}) replaces shipped unit texts,
+    for negative controls."""
     edges = {}
     for package in packages():
         for name, path in shipped_units(package):
-            edges.setdefault(name, set()).update(unit_dependencies(path.read_text()))
+            text = (overrides or {}).get(name) or path.read_text()
+            edges.setdefault(name, set()).update(unit_dependencies(text))
+            if enabled:
+                for dependent in unit_setting(text, INSTALL_REQUIRED_BY, 'Install'):
+                    edges.setdefault(dependent, set()).add(name)
         for target, path in shipped_dropins(package):
             edges.setdefault(target, set()).update(unit_dependencies(path.read_text()))
     closure, frontier = set(), [start]

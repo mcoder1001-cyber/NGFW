@@ -30,6 +30,24 @@ agent and API). That stop was in the incoming package's preinst, so the first
 upgrade onto D-253 packages is already free of it; on an appliance upgraded
 earlier, check `systemctl is-active apply-executor.socket ngfw-ra-openfile.socket
 ngfw-ra-namespace-broker.socket` and start them (or reboot) if they are inactive.
+Since D-254 `ngfw-firstboot.service` pulls `postgresql.service`,
+`valkey-server.service` and `nftables.service` in with `Wants=` instead of
+`Requires=` (the A/B snapshot unit `ngfw-upgrade-prepare.service` likewise wants
+PostgreSQL), so an explicit restart of one of them, whether by an operator
+(`systemctl restart postgresql.service`) or by the daemon's own package upgrade
+(the Ubuntu `valkey-server` postinst restarts and the `nftables` postinst
+try-restarts their units), no longer restarts firstboot and, through
+`Requires=ngfw-firstboot.service`, VPP, the agent and the API. A restart of
+`nftables.service` still restarts the agent and the API, which require the base
+firewall; apply a changed base policy with `systemctl reload nftables.service`.
+The new unit text is read at the next `systemctl daemon-reload`
+(`deploy/deploy-hosts.sh` runs one after APT) or reboot; until then the running
+manager keeps the previous `Requires=`. On a fresh appliance the first boot still
+needs all three active: `firstboot.sh` refuses to provision otherwise, keeps the
+bootstrap credentials and VPP, agent and API stay blocked until the retry
+succeeds. On a provisioned appliance VPP and the agent no longer wait for
+PostgreSQL or Valkey to be active at boot; the API fails and retries on its own
+until the database is up.
 `ngfw-web` has no maintainer script: after upgrading it, test the configuration
 (`nginx -t`) and reload `nginx.service`, otherwise a changed site file
 (`/etc/ngfw/nginx.conf`) stays unapplied until the next restart;

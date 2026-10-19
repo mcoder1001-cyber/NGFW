@@ -160,7 +160,10 @@ preinst, which stopped `vpp.service` for about nine seconds through
 `Requires=ngfw-firstboot.service` (observed on appliance 37 on 2026-10-13 and
 2026-10-19) and left `apply-executor.socket`, `ngfw-ra-openfile.socket` and
 `ngfw-ra-namespace-broker.socket` stopped, which this script does not restart;
-see [package upgrades](upgrade.md). Dependencies requiring
+see [package upgrades](upgrade.md). The script's `systemctl daemon-reload` after
+APT also makes a changed unit text effective, such as D-254's `Wants=` on
+`ngfw-firstboot.service`, after which an OS update that restarts Valkey or
+nftables no longer restarts VPP. Dependencies requiring
 changes must be reviewed separately through the appropriate package workflow.
 
 Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`

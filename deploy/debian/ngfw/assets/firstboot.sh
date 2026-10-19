@@ -9,6 +9,13 @@ if [[ -e /var/lib/ngfw/firstboot-complete ]]; then
   [[ ! -e /etc/ngfw/bootstrap.env ]] || rm -- /etc/ngfw/bootstrap.env
   exit 0
 fi
+# D-254: the unit pulls these in with Wants= and orders itself after them (After=),
+# so an explicit restart of one of them no longer propagates to VPP; the first boot
+# therefore checks them itself and fails closed. One unit per call: with several
+# names `systemctl is-active` succeeds when any one of them is active.
+for UNIT in postgresql.service valkey-server.service nftables.service; do
+  systemctl --quiet is-active "$UNIT" || { echo "first boot requires an active $UNIT" >&2; exit 1; }
+done
 [[ -f /etc/ngfw/bootstrap.env && ! -L /etc/ngfw/bootstrap.env ]] || { echo 'missing bootstrap.env' >&2; exit 1; }
 [[ $(stat -c '%u:%a' /etc/ngfw/bootstrap.env) == 0:600 ]] || { echo 'bootstrap.env must be root-owned 0600' >&2; exit 1; }
 export NGFW_BOOTSTRAP_ADMIN_USER=${NGFW_BOOTSTRAP_ADMIN_USER:-admin}

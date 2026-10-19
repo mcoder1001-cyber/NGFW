@@ -1,6 +1,12 @@
 [Unit]
 Description=NGFW initial appliance provisioning
-Requires=postgresql.service valkey-server.service nftables.service
+# D-254: Wants=, not Requires=. The first boot needs PostgreSQL, Valkey and the base
+# firewall up before it runs: Wants= pulls them in, After= orders them, and
+# firstboot.sh refuses to provision while one of them is not active. Requires=
+# would also restart this unit, and through vpp.service's Requires= on it the data
+# plane, the agent and the API, whenever one of them is explicitly restarted (the
+# valkey-server and nftables packages do that in their own upgrade postinst).
+Wants=postgresql.service valkey-server.service nftables.service
 After=postgresql.service valkey-server.service nftables.service
 Before=vpp.service ngfw-agent.service ngfw-api.service nginx.service
 

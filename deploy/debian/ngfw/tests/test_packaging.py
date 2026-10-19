@@ -377,15 +377,21 @@ class MaintainerScripts(unittest.TestCase):
                 self.assertEqual(len(calls.get('deb-systemd-invoke', [])), 1)
 
     def test_upgrade_never_stops_a_unit_vpp_requires(self):
-        # vpp.service carries Requires=ngfw-firstboot.service (assets/vpp-firstboot.conf); through
-        # ngfw-firstboot.service -> nftables.service -> ngfw-firewall-bootstrap.service further Requires=
-        # links follow. An explicit stop of any of them stops VPP, the agent and the API
-        # (systemd.unit(5), Requires=): the 2026-10-13 and 2026-10-19 upgrades of appliance 37 restarted
-        # VPP for about nine seconds this way.
+        # vpp.service carries Requires=ngfw-firstboot.service (assets/vpp-firstboot.conf). An explicit
+        # stop of that unit stops VPP, the agent and the API (systemd.unit(5), Requires=): the
+        # 2026-10-13 and 2026-10-19 upgrades of appliance 37 restarted VPP for about nine seconds this
+        # way. Before D-254 the closure went on through firstboot's Requires= to nftables.service,
+        # ngfw-firewall-bootstrap.service, postgresql.service and valkey-server.service; now the
+        # provisioning oneshot is the only unit whose stop reaches VPP (ngfw-upgrade-prepare.service
+        # joins it on A/B images, where it is linked into ngfw-firstboot.service.requires/).
         guarded = MAINTAINER.stop_propagation_closure('vpp.service')
         shipped = {unit for package in self.packaged for unit in MAINTAINER.maintscript_units(package)}
-        self.assertEqual(guarded & shipped, PROVISIONING_UNITS)
-        self.assertLessEqual({'nftables.service', 'postgresql.service', 'valkey-server.service'}, guarded)
+        self.assertEqual(guarded, {'ngfw-firstboot.service'})
+        self.assertEqual(MAINTAINER.stop_propagation_closure('vpp.service', enabled=True),
+                         {'ngfw-firstboot.service', 'ngfw-upgrade-prepare.service'})
+        self.assertLessEqual(guarded, shipped)
+        for daemon in ('nftables.service', 'postgresql.service', 'valkey-server.service'):
+            self.assertNotIn(daemon, MAINTAINER.stop_propagation_closure('vpp.service', enabled=True))
         for package in self.packaged:
             with self.subTest(package=package):
                 for script, arguments, calls in self.upgrade_calls(package):

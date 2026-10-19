@@ -424,3 +424,42 @@ The one-time first upgrade from pre-D-253 packages (appliance 37 runs `0.1.0~dev
 is expected to be outage-free too, because the stop lived in the incoming package's preinst; record
 (a)–(c) for it as well, and first check whether the three sockets are still inactive from the earlier
 upgrades.
+
+## First-boot gate without restart propagation (D-254) — 2026-10-19
+
+`ngfw-firstboot.service` now wants (not requires) `postgresql.service`, `valkey-server.service`
+and `nftables.service`, `ngfw-upgrade-prepare.service` wants `postgresql.service`, and
+`firstboot.sh` refuses a fresh first boot unless each of the three is active (task
+`firstboot-wants-deps-20261019`). Proven host-independently: `test_firstboot.FirstbootDependencies`
+and `test_packaging.MaintainerScripts` derive, from the shipped units and drop-ins, that the only
+unit whose explicit stop reaches `vpp.service` is `ngfw-firstboot.service` (plus
+`ngfw-upgrade-prepare.service` on A/B images), with a negative control on the previous unit text;
+`test_firstboot.Firstboot` runs the script's gate against fixture commands (each inactive daemon
+refuses before any database or file work, credentials kept; a provisioned appliance never
+queries). The dependency graph of appliance 37 was inspected read-only (`systemctl show -p
+RequiredBy`) and matches the pre-D-254 closure. Laboratory acceptance is **NOT RUN** (this session
+was not allowed to start a disposable systemd instance; the shared dev host's VPP and appliance 37
+were not restarted). On a disposable appliance or VM running D-254 packages record:
+(a) after `systemctl daemon-reload`, `systemctl show -p RequiredBy postgresql.service
+valkey-server.service nftables.service` names no `ngfw-firstboot.service` (WantedBy= does) and
+`systemctl show -p RequiredBy ngfw-firstboot.service` still names `vpp.service ngfw-agent.service
+ngfw-api.service`;
+(b) `systemctl restart valkey-server.service` and `systemctl restart postgresql.service`: the
+`InvocationID` and `ActiveEnterTimestamp` of `vpp.service`, `ngfw-agent.service`,
+`ngfw-api.service` and `ngfw-firstboot.service` are unchanged, the journal shows no new
+`firstboot.sh` run and the forwarding check of the window passes without a gap; the same on the
+pre-D-254 unit text restarts all four (the positive control);
+(c) `systemctl restart nftables.service` restarts `ngfw-agent.service` and `ngfw-api.service`
+only, `vpp.service` keeps its `InvocationID`;
+(d) fresh install with `valkey-server.service` masked (then with `postgresql.service`, then
+`nftables.service`): `ngfw-firstboot.service` fails with `first boot requires an active
+<unit>` before any `psql` line in the journal, `/etc/ngfw/bootstrap.env` is kept,
+`vpp.service`, `ngfw-agent.service` and `ngfw-api.service` are not started; after unmasking and
+`systemctl start ngfw-firstboot.service` the boot completes in the order firewall-bootstrap,
+nftables, PostgreSQL/Valkey, firstboot, VPP, agent, API, nginx;
+(e) reboot of the provisioned appliance with `postgresql.service` masked: VPP and the agent come
+up, the API restarts until PostgreSQL is unmasked, firstboot stays `active (exited)` without a
+second `firstboot.sh` run.
+`deploy/debian/ngfw/tests/lab/firstboot-propagation.sh` renders stand-in units carrying the shipped
+dependency lines for a disposable systemd instance and runs (b)–(e) against them; it was written
+for this acceptance and has not been executed.

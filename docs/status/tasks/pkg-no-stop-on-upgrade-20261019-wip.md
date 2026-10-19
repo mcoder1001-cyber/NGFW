@@ -5,7 +5,7 @@ Branch: `claude/musing-ramanujan-bd8fe0` (cut from `origin/main` `cb148aafb`), w
 Envelope: [pkg-no-stop-on-upgrade-20261019-envelope.md](pkg-no-stop-on-upgrade-20261019-envelope.md).
 Decision: D-253 in `docs/decisions/LOG.md`.
 Origin: `docs/status/tasks/deploy-host-37-20261019-wip.md` (PR #244), follow-up 3.
-PR: opened after checkpoint 2 (see below).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/246 (open; hosted gates and independent review pending; not to be merged by this task).
 
 ## Checkpoints
 

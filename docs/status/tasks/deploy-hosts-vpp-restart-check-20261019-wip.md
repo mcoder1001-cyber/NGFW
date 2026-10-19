@@ -15,7 +15,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 |---|---|---|
 | 0 | `72c6a7e21` | envelope and this file |
 | 1 | `8340771f6` | remote install script unit-state records and comparison, fixtures, docs, D-254, this file |
-| 2 | (this commit) | PR link, runs B and C verbatim/summary; product tree unchanged |
+| 2 | `57ba7dea7` | PR link, runs B and C verbatim/summary; product tree unchanged |
+| 3 | (this commit) | hosted receipts for the product tree; product tree unchanged |
 
 ## Owned files
 
@@ -144,6 +145,8 @@ test_watched_units_must_be_unchanged_by_the_upgrade (test_deploy_hosts.DeployHos
 Ran 34 tests in 746.437s
 OK
 ```
+
+Hosted, on the product tree `8340771f6` (PR #247 head at opening): mandatory quick gate [39233622449](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233622449) success; packaging fixture gate [39233622470](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233622470) and [39233511351](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233511351) success. The same two workflows re-run on the docs-only `57ba7dea7` (in progress when this was written).
 
 ## Current failure
 

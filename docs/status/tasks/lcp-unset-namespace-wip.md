@@ -1,10 +1,13 @@
 # LCP unset namespace work in progress
 
-Branch codex/fix-lcp-unset-namespace; local/base 4c8d1b247c6b. Remote publication pending.
-Owned files are declared in the envelope.
+Branch codex/fix-lcp-unset-namespace. Deployed source base 4c8d1b247c6b; prior local checkpoint 2952fe42b. Published plan checkpoint dd07c24f908e109c8efcd159f880439155b1d6ee on the same GitHub branch via authorized connector; CLI push lacks credentials.
+Owned files: see task envelope.
 
-Observed: appliance VPP CLI reports unset; binary API returns uninitialized invalid bytes; basepolicy namespace guard rejects commit before any data-plane mutation. Previous clear-and-retry workaround was transient.
+Completed: basepolicy malformed namespace read now requires independently corroborated exact unset status via generated fixed read-only CliInband. Existing API validity/error behavior preserved. Nineteen table-driven regression cases cover fail-closed behavior, command identity and context. Independent implementation review APPROVE (read-only; test execution not yet verified).
 
-Completed: isolated deployed-source worktree; generated CLI API binding checked; independent read-only design review approved. Temporary local Go 1.26.0 toolchain download in progress, checksum obtained from official go.dev release metadata.
-Tests: none yet. Remaining: implement corroboration and negative tests, test/build, independent implementation review, publish checkpoint, back up and deploy agent only, verify namespace errors no longer occur without applying the user's staged credential/firewall changes.
-Next command: implement apps/agent/internal/subsystems/base_policy_namespace.go.
+Tests: not yet executed. Official Go1.26.0 archive download remains in progress; expected SHA256 aac1b08a0fb0c4e0a7c1555beb7b59180b05dfc5a3d62e40e9de90cd42f88235. No production binary deployed. No VPP restart, namespace policy change or user draft modification.
+
+Additional observed restart prerequisite: existing API omits NGFW_AGENT_OWNER, so disabled auto-block writes an empty cache which old agent refuses on startup. Before agent replacement, preserve the cache, explicitly configure the API's existing ngfw owner, and initialize only an observed empty cache with that same owner. No new owner or privileges.
+
+Remaining: format/test/build, publish tested checkpoint, back up and deploy matching agent binary, verify malformed namespace no longer blocks projection. Preserve the user's staged credential/firewall changes; do not apply them merely to test this repair.
+Next command: /tmp/ngfw-lcp-toolchain/go/bin/go test ./internal/subsystems -run TestBasePolicy -count=1 (from apps/agent, when download completes).

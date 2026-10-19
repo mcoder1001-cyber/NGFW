@@ -47,6 +47,12 @@ The user was asked whether tester cables/link settings are being changed and to 
 
 PR250 remains unmerged. Current observed published repair checkpoint is `cc1656787d3c9a8b6d851ced2dca8501209e1aff`; local full Turbo35tasks passed including API823 and web694tests. Full agent vet, lint and race suites passed; the developer continues the remaining complete quick gate and hosted run39246565687. Do not claim the final complete gate until it actually passes. GitHub main remainscb148aafb with green last mainCI.
 
+## Second tester follow-up
+
+User confirmed cable/tester settings were being changed, then said traffic was now being sent. Fresh configured-port sampling11:51:39→11:52:33 UTC (54seconds) again showed zero RX/TX/drop/error deltas on5/6/9/11. Independent all-port hardware and VPP sampling11:52:04→11:52:32 UTC (28seconds) found no increasing packet counters on any of17 physical data ports. Hardware and software counters agree; no alternate high-volume ingress was discovered.
+
+At the first all-port sample, only5/6/7/8 had10Gbps carrier. During the repeat,7/8 lost link; final carrier was up only on5/6. Ports9/11 remained down. Ports7/8/10 have small historic RX totals17/15/18, not evidence of a current tester stream. The user was asked which web-displayed pair is under test. Do not equate chassis printed numbers to PCI-derived web labels without verification, and do not reconfigure other pairs on that assumption. L2 mappings remain5↔6 and9↔11. Root/independent reviewer performed only show/sampling commands, with no counter reset, packet trace or mutation.
+
 ## Actual packet evidence and outstanding work
 
 User tester is ready; root announced activation and requested traffic start. At11:24:17 UTC, deltas relative to precommit were:

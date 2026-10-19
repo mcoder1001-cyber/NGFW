@@ -151,8 +151,21 @@ concurrent run changed it. Install only `main` builds outside explicit review.
 Before installation the script records the raw IPv4/IPv6 default routes and
 installed versions, then simulates APT. Any proposed dependency/VPP change or removal is
 rejected. The real APT call forbids downloads and removals and preserves existing
-configuration files. It makes no VPP restart request. Dependencies requiring
-changes must be reviewed separately through the appropriate package workflow.
+configuration files. It makes no VPP restart request, and it checks that none
+happened: immediately before the real APT call (after the backups and the
+staged-bytes recheck) the script records `vpp.service`, `nftables.service` and
+the agent's sockets `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`ngfw-ra-namespace-broker.socket` to `unit-state-before.txt` in the recovery
+directory: one line per unit with `LoadState`, `ActiveState`,
+`ActiveEnterTimestampMonotonic` and, for services, `NRestarts`, read from the
+keyed `systemctl show` output (the `--value` form prints the properties in
+systemd's own order, so the keys are picked by name; a socket has no
+`NRestarts` and gets `-`). The comparison is part of the health checks below.
+A socket that is already inactive at that point is a recorded warning naming
+`systemctl start <socket>`, not a refusal: an earlier upgrade with packages
+built before D-253 left it so, this upgrade did not cause it and the script
+does not repair it (D-254). Dependencies requiring changes must be reviewed
+separately through the appropriate package workflow.
 
 Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`
 and `/var/lib/ngfw`, and makes and inspects a PostgreSQL custom-format dump.
@@ -196,7 +209,23 @@ agent/API/nginx/VPP service individually and requires the counters to be
 unchanged. A daemon that crashes between the restart and the end of that
 window is reported with its before/after counters even if it is momentarily
 active again; a crash later than the window is outside this check, and nginx
-and VPP are only required to be active. On any failure the service status of
+is only required to be active. VPP must be active *and unchanged*: after the
+counter comparison the five watched units are read again into
+`unit-state-after.txt`, and every line must equal `unit-state-before.txt`. A
+changed activation timestamp or restart counter of `vpp.service` (a stop and
+a new start, or an automatic restart after a crash) or of `nftables.service`, a
+socket that stopped listening, or any other difference fails the run: the
+message prints the differing before/after lines, a unit-specific hint (VPP:
+the data plane was interrupted, see `journalctl -u vpp.service -u
+ngfw-firstboot.service`; a stopped socket: `systemctl start <socket>`) and the
+two record files, and the fleet stops. Packages built before D-253 stopped
+`ngfw-firstboot.service` in their preinst, and `Requires=` propagated that stop
+to VPP and nftables, which the agent/API restart then brought back: about nine
+seconds of data-plane outage that this script never requested and, before this
+check, never noticed (appliance 37, 2026-10-13 and 2026-10-19); the same
+preinst left the three sockets stopped. A socket that was inactive before and
+after the upgrade is reported as a warning again at the end and does not fail
+the run. On any failure the service status of
 agent/API is saved to `service-status.txt` in the recovery directory. A host
 left crash-looping may still pass the next preflight's single service check
 while the unit is momentarily active; repair the unit by hand before
@@ -254,7 +283,10 @@ default route, a changed IPv4/IPv6 gateway, a crash-looping agent, mixed
 installed versions, a rollback under the override, an installed version that
 changes between preflight and the locked install, hostile preflight output,
 multipath next-hop swaps, device/metric-only route changes, a crash-looping
-API, the `build-info.json` provenance path and the private deployment lock,
+API, an unchanged VPP/nftables/socket record, a VPP activated anew and a VPP
+restarted after a crash (both with the record files named), a socket stopped
+by the upgrade and a socket already stopped before it (warning only), the
+`build-info.json` provenance path and the private deployment lock,
 remote children that drain their standard input (with a negative control for the
 former `bash -s` launcher), nginx validation and reload failures, a host without
 a default route with and without the flag (and the flag with two hosts),

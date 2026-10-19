@@ -12,6 +12,21 @@ real upgrade of an initialized appliance with it, including the nginx reload tak
 no-default-route path on a management-only appliance and recovery from a failed step, is
 NOT RUN; record it here when a disposable appliance is available.
 
+Update 2026-10-19 (task `deploy-hosts-vpp-restart-check-20261019`, D-254): the script now records
+`vpp.service`, `nftables.service`, `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`ngfw-ra-namespace-broker.socket` (`LoadState`, `ActiveState`, `ActiveEnterTimestampMonotonic`,
+`NRestarts`) to `unit-state-before.txt` immediately before `apt-get install` and to
+`unit-state-after.txt` after the stability window, and fails on any difference; a socket that was
+already inactive before the upgrade is a warning, not a failure. Proven by the host-independent
+fixtures only (unchanged record, VPP activated anew, VPP restarted after a crash, socket stopped by
+the upgrade, socket already stopped). NOT RUN on a real appliance: on the first upgrade onto D-253
+packages (appliance 37 runs the pre-D-253 build `0.1.0~dev+git695.cb148aafb288`; its three sockets
+may still be inactive from the 2026-10-19 upgrade, which the run reports as a warning and which
+`systemctl start` repairs) keep both record files and the run's stderr; the files are expected to be
+identical, which is also D-253's acceptance (a). A real pre-D-253 upgrade would have shown VPP's
+changed activation timestamp; that negative control is not required and is not reproducible without
+deliberately building pre-D-253 packages.
+
 ## Current dual-host acceptance checkpoint — 2026-10-11
 
 The four board rows `P12-fib-proof`, `F-ospf-host`, `F-nat46-host` and

@@ -403,3 +403,24 @@ PR #241 (`claude/agent-allifs-unbound-nics`, task `agent-allifs-unbound-nics`) m
 (d) release — releasing a VPP-bound NIC before the start-up apply is APPLIED, our `_gb.*` binding is gone from it, it is admin-down and another owner's ACLs on it are untouched;
 (e) agent restart — stop and start the agent with an unbound row, a released row and a live entry: the start-up resync is APPLIED with zero changes and the auto-block cache is replayed.
 The unchanged complete local and hosted quick gates remain mandatory before merge. PR #238's deferred case (e) ("known agent defect, tech-debt") describes the pre-fix state; once #241 is merged it is reworded to this target state and points here.
+
+## Package upgrade without a VPP restart (D-253) — 2026-10-19
+
+`deploy/debian/ngfw/debian/rules` now passes `--no-stop-on-upgrade` to `dh_installsystemd`, so a
+package upgrade stops, starts or restarts no unit (task `pkg-no-stop-on-upgrade-20261019`). This is
+proven host-independently: the real `dh_installsystemd`/`dh_installdeb` generate the maintainer
+scripts from a private copy of the packaging and the scripts run against recording fakes
+(`deploy/debian/ngfw/tests/maintainer_scripts.py`, `test_packaging.MaintainerScripts`,
+`test_firstboot.FirstbootUpgrade`), and the built package set was inspected with `dpkg-deb -e`.
+Laboratory acceptance is **NOT RUN**; on a disposable appliance that already runs D-253 packages,
+upgrade it with `deploy/deploy-hosts.sh -p …` to a later D-253 build and record:
+(a) `systemctl show -p ActiveEnterTimestamp,NRestarts vpp.service nftables.service` unchanged across
+the run and no `Stopping ngfw-firstboot.service` / `vpp.service` lines in the journal;
+(b) `journalctl -u ngfw-firstboot.service` shows no new `firstboot.sh` run and the unit stays
+`active (exited)`; (c) `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`ngfw-ra-namespace-broker.socket` are active after the run; (d) agent and API report the new version
+after the script's restart, and the data-plane forwarding check of the window passes without a gap.
+The one-time first upgrade from pre-D-253 packages (appliance 37 runs `0.1.0~dev+git695.cb148aafb288`)
+is expected to be outage-free too, because the stop lived in the incoming package's preinst; record
+(a)–(c) for it as well, and first check whether the three sockets are still inactive from the earlier
+upgrades.

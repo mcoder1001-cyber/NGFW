@@ -10,6 +10,8 @@ on:
       - 'deploy/deploy-hosts.sh'
       - 'deploy/apt/**'
       - 'deploy/systemd/ngfw-*'
+      - 'deploy/support-bundle/*.service'
+      - 'deploy/upgrade/*.service'
       - 'deploy/vpp/**'
       - 'scripts/publish-apt.sh'
       - 'scripts/10-install-runtime.sh'
@@ -27,6 +29,8 @@ on:
       - 'deploy/deploy-hosts.sh'
       - 'deploy/apt/**'
       - 'deploy/systemd/ngfw-*'
+      - 'deploy/support-bundle/*.service'
+      - 'deploy/upgrade/*.service'
       - 'deploy/vpp/**'
       - 'scripts/publish-apt.sh'
       - 'scripts/10-install-runtime.sh'
@@ -58,11 +62,15 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22.23.2'
+      - name: Install debhelper on the disposable runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes debhelper
       - name: Verify fixture tools
         shell: bash
         run: |
           set -euo pipefail
-          for tool in python3 node make bash openssl dpkg-deb gpg gpgv gpgconf gpg-agent flock realpath sync; do
+          for tool in python3 node make bash openssl dpkg-deb dh_installsystemd dh_installdeb gpg gpgv gpgconf gpg-agent flock realpath sync; do
             command -v "$tool" >/dev/null
           done
       - name: Verify strict gate exit policy

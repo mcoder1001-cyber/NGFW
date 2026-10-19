@@ -12,6 +12,24 @@ Losing the secret key makes existing encrypted secrets unreadable.
 Upgrade the matching-version `ngfw-meta` package and its management packages
 through APT. The meta dependency pins the exact verified product VPP version.
 Maintainer scripts preserve configuration/data and do not start/restart VPP.
+Since D-253 they also neither stop nor start any `ngfw` unit on upgrade
+(`dh_installsystemd --no-start --no-stop-on-upgrade`; the packages ship no preinst,
+and prerm stops the shipped units only on `apt-get remove`): the running agent and
+API keep executing the previous version until the operator restarts them, the
+sockets `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`ngfw-ra-namespace-broker.socket` keep listening, and the completed provisioning
+oneshots `ngfw-firstboot.service` and `ngfw-firewall-bootstrap.service` keep their
+`active (exited)` state, so `vpp.service` and `nftables.service`, which require
+them, are not touched and `firstboot.sh` does not run again. Restart agent and API
+after the upgrade (`systemctl restart ngfw-agent.service ngfw-api.service`, which
+`deploy/deploy-hosts.sh` does); until then the previous version keeps serving.
+Packages built before D-253 stopped every unit they ship in their preinst, which
+stopped VPP for about nine seconds through `Requires=ngfw-firstboot.service` and
+left the three sockets stopped until a reboot (`deploy-hosts.sh` restarts only
+agent and API). That stop was in the incoming package's preinst, so the first
+upgrade onto D-253 packages is already free of it; on an appliance upgraded
+earlier, check `systemctl is-active apply-executor.socket ngfw-ra-openfile.socket
+ngfw-ra-namespace-broker.socket` and start them (or reboot) if they are inactive.
 `ngfw-web` has no maintainer script: after upgrading it, test the configuration
 (`nginx -t`) and reload `nginx.service`, otherwise a changed site file
 (`/etc/ngfw/nginx.conf`) stays unapplied until the next restart;

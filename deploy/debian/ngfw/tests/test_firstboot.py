@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Execute firstboot control flow using fixture commands, never a live appliance."""
+import importlib.util
 import os
 import pathlib
 import subprocess
@@ -7,6 +8,9 @@ import tempfile
 import unittest
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1]
+SCRIPTS_SPEC = importlib.util.spec_from_file_location('maintainer_scripts', SOURCE / 'tests/maintainer_scripts.py')
+MAINTAINER = importlib.util.module_from_spec(SCRIPTS_SPEC)
+SCRIPTS_SPEC.loader.exec_module(MAINTAINER)
 
 
 class Firstboot(unittest.TestCase):
@@ -161,6 +165,47 @@ class Firstboot(unittest.TestCase):
             self.assertEqual(settings, (root / 'etc/ngfw/api.env').read_bytes())
             subprocess.run(['bash', str(entry)], env=env, check=True, capture_output=True)
             self.assertEqual('disable ngfw-firstboot.service\n', (root / 'service-commands').read_text())
+
+
+class FirstbootUpgrade(unittest.TestCase):
+    """A package upgrade leaves the completed first boot alone (D-253)."""
+
+    @classmethod
+    def setUpClass(cls):
+        missing = MAINTAINER.missing_tools()
+        if missing:
+            raise unittest.SkipTest('debhelper is required to generate the maintainer scripts; missing: ' + ' '.join(missing))
+        cls.meta = MAINTAINER.generate()['ngfw-meta']
+
+    def test_upgrade_neither_stops_nor_starts_the_firstboot_unit(self):
+        # After a successful first boot ngfw-firstboot.service stays active (exited) and disabled;
+        # vpp.service, ngfw-agent.service and ngfw-api.service require it. An upgrade must not stop it
+        # (that stops the data plane) and must not start or restart it (that re-runs firstboot.sh).
+        # Removing ngfw-meta still stops it: the positive control for the fixture.
+        with tempfile.TemporaryDirectory() as temporary:
+            recorder = MAINTAINER.Recorder(temporary)
+            for script, invocations in MAINTAINER.UPGRADE_PATHS.items():
+                for arguments in invocations:
+                    calls = recorder.run(self.meta[script], *arguments) if script in self.meta else {}
+                    for line in calls.get('deb-systemd-invoke', []):
+                        self.assertNotIn('ngfw-firstboot.service', line, (script, arguments))
+            for section in MAINTAINER.debhelper_sections(self.meta['postinst']):
+                self.assertNotIn('deb-systemd-invoke', section)
+            self.assertIn('ngfw-firstboot.service', MAINTAINER.stopped_units(recorder.run(self.meta['prerm'], 'remove')))
+
+    def test_first_boot_gate_keeps_requires_not_wants(self):
+        # The decision keeps the gate: a fresh appliance runs firstboot before VPP and a failed firstboot
+        # still blocks VPP (Requires= plus After=, not Wants=); the unit stays a WantedBy oneshot that
+        # remains active after it exits, so a later `systemctl restart ngfw-agent` finds it active and
+        # does not run firstboot.sh again.
+        dropin = (SOURCE / 'assets/vpp-firstboot.conf').read_text()
+        self.assertIn('Requires=ngfw-firstboot.service', dropin)
+        self.assertIn('After=ngfw-firstboot.service', dropin)
+        self.assertNotIn('Wants=', dropin)
+        unit = MAINTAINER.locate_unit('stage/usr/lib/systemd/system/ngfw-firstboot.service', 'ngfw-firstboot.service').read_text()
+        for line in ('Type=oneshot', 'RemainAfterExit=yes', 'WantedBy=multi-user.target', 'Before=vpp.service'):
+            self.assertIn(line, unit)
+        self.assertIn('ngfw-firstboot.service', MAINTAINER.stop_propagation_closure('vpp.service'))
 
 
 if __name__ == '__main__':

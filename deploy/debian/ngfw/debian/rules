@@ -24,8 +24,15 @@ override_dh_auto_install:
 override_dh_gencontrol:
 	dh_gencontrol -- -Vngfw:VppVersion=$$(cat stage/VPP_VERSION)
 
+# D-253: a package upgrade changes files on disk and nothing about running units.
+# Without --no-stop-on-upgrade the generated preinst stops every shipped unit on
+# upgrade; stopping the completed provisioning oneshots (ngfw-firstboot.service,
+# ngfw-firewall-bootstrap.service) propagates through Requires= to vpp.service,
+# nftables.service, the agent and the API, and --no-start never brings them
+# back. Units are still stopped on removal (prerm remove); the operator restarts
+# the daemons it chooses (deploy/deploy-hosts.sh restarts agent and API).
 override_dh_installsystemd:
-	dh_installsystemd --no-enable --no-start
+	dh_installsystemd --no-enable --no-start --no-stop-on-upgrade
 
 # CGO_ENABLED=0 Go binaries have compressed DWARF that dwz cannot optimize.
 # Keep dwz processing enabled for all other native package contents.

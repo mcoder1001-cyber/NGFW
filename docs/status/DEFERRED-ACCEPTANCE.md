@@ -12,6 +12,21 @@ real upgrade of an initialized appliance with it, including the nginx reload tak
 no-default-route path on a management-only appliance and recovery from a failed step, is
 NOT RUN; record it here when a disposable appliance is available.
 
+Update 2026-10-19: first real run on the initialized appliance `172.30.126.37`
+(`0.1.0~dev+8eb2f11c4069` → `main` `cb148aafb`, `0.1.0~dev+git695.cb148aafb288`), receipt in
+`docs/status/tasks/deploy-host-37-20261019-wip.md`. Exercised and PASS: preflight, source
+lineage (ancestor), package transfer and remote rechecks, backups and database dump, APT
+simulation guard, package upgrade without any download, agent/API restart with restart
+counters, `nginx -t` plus reload taking effect (new bundle served, nginx not restarted), API
+health, stability window, route comparison, `upgrade-complete`. Also exercised: recovery from a
+failed install step (the first run stopped in APT before dpkg; the host stayed untouched and the
+recovery directory kept the backups and `service-status.txt`). That failure was a real defect:
+apt 3.2.0 refuses `--no-download` for local archives, fixed on the follow-up branch (hide the
+repositories instead). Still NOT RUN: the `--allow-no-default-route` path, `--allow-divergent`,
+login/browser acceptance and backup restore. Observed, not caused by the tool: `ngfw-meta`'s
+prerm stops `ngfw-firstboot.service` on upgrade and `vpp.service` requires it on this host, so
+VPP restarted (≈9 s); packaging follow-up recorded in the receipt.
+
 ## Current dual-host acceptance checkpoint — 2026-10-11
 
 The four board rows `P12-fib-proof`, `F-ospf-host`, `F-nat46-host` and

@@ -4,7 +4,7 @@ import { useMediaQuery as useMediaQuery, useTheme } from '@amnafzar/common-ui-li
 import { PgGlobalAppBar, PgBreadcrumb, PgIconButton, Sidenav } from '@amnafzar/common-ui-lib/shell';
 import { UI_KIT_NS } from '@ngfw/ui-kit';
 import { useWsStatus } from '@ngfw/ui-kit/ws';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation } from 'react-router';
 import { DEV_ROUTES } from '../build-flags';
@@ -14,9 +14,11 @@ import { ConfirmBanner } from '../config/ConfirmBanner';
 import { PendingChangeBar, SyncBanner } from '../config/PendingChangeBar';
 import { LicenseBanner } from '../domains/system/licensing/LicenseBanner'; // wave-BC: F-licensing (unanchored)
 import { useUiSettings } from '../settings/UiSettings';
-import { SettingsPopover } from './SettingsPopover';
 import { UserMenu } from './UserMenu';
 import '../common-ui.css';
+
+const SettingsPopover = lazy(() => import('./SettingsPopover').then(({ SettingsPopover }) => ({ default: SettingsPopover })));
+
 
 const icons = {
   dashboard: DashboardIcon,
@@ -157,13 +159,17 @@ export function AppShell({ devRoutes = DEV_ROUTES }: { devRoutes?: boolean }) {
           breadcrumb={<PgBreadcrumb items={breadcrumb} aria-label={t('menu.pageLocation')} />}
           actions={actions}
         />
-        <SettingsPopover anchorEl={settingsAnchor} onClose={() => setSettingsAnchor(null)} />
+        {settingsAnchor && (
+          <Suspense fallback={null}>
+            <SettingsPopover anchorEl={settingsAnchor} onClose={() => setSettingsAnchor(null)} />
+          </Suspense>
+        )}
         <Box
           component="main"
           id="main"
           tabIndex={-1}
           className="ngfw-page-canvas"
-          sx={{ backgroundImage: theme.palette.gradient.canvas }}
+          sx={{ background: theme.palette.gradient.canvas }}
         >
           <ConfirmBanner />
           <SyncBanner />

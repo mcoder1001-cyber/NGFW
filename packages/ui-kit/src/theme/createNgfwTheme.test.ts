@@ -1,3 +1,4 @@
+import { GlobalTheme } from '@amnafzar/common-ui-lib/theme';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from './contrast.js';
 import { createNgfwTheme, NGFW_STATUS_COLOURS, NGFW_STATUSES } from './createNgfwTheme.js';
@@ -16,8 +17,8 @@ describe('createNgfwTheme', () => {
   it.each(['light', 'dark'] as const)('%s includes the shared component theme', (mode) => {
     const theme = createNgfwTheme(mode);
     expect(theme.spacing(1)).toBe('8px');
-    expect(theme.palette.gradient.canvas).toContain('gradient');
-    expect(theme.palette.gradient.primary).toContain('gradient');
+    const shared = mode === 'dark' ? GlobalTheme.darkTheme : GlobalTheme.theme;
+    expect(theme.palette.gradient).toEqual(shared.palette.gradient);
     expect(theme.palette.neutral.surface).toBeTruthy();
     expect(theme.ngfw.status.up).toBe(NGFW_STATUS_COLOURS[mode].up);
   });

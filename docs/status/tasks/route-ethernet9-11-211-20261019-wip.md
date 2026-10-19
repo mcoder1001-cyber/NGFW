@@ -3,7 +3,7 @@
 Branch: `codex/route-ethernet9-11-211-20261019`; worktree `/root/.codex/worktrees/b538/NGFW`.
 Owned files: this status and its adjacent task envelope; no product code changed in this worktree.
 Base: `cb148aafb288301f9fe18eb064a4fc9610ad1698`.
-Initial local/remote operational checkpoint: `cb83f65014dc9d1e7c544d34a6563d84f78abc6e`, successful GitHub push verified with `git ls-remote`.
+Initial local/remote operational checkpoint: `cb83f65014dc9d1e7c544d34a6563d84f78abc6e`. Confirmed-configuration local/remote checkpoint: `f3a1c5956ee6c09758a28c4c4f0e45e415bdd3af`. Both successful GitHub pushes verified with `git ls-remote`.
 Current source checkpoint: `git rev-parse HEAD`; publish every subsequent documentation checkpoint and verify the remote SHA.
 
 ## Current requested scope and result
@@ -29,7 +29,7 @@ Before staging, revision3 had17 enabled physical dataplane ports in default VRF 
 
 Reused the strict reviewed PR249 approach on the installed source base cb148aafb in a separate developer branch `codex/repair-211-lcp-20261019`. Product source SHA `98e5525c0b183586984557e673c95de2649f0f58`; documentation checkpoint `b02d077af414fe703cddbee41d3ee335f02980cb`. PR250: https://github.com/mcoder1001-cyber/NGFW/pull/250 (draft, not merged).
 
-Independent source review APPROVE. Focused subsystem tests PASS (0.113s), subsystem vet PASS, all19 strict corroboration cases PASS with race (1.099s). Go1.26.0 static stripped build succeeded. Generated sources/modules checked unchanged. An initial race command overlapped generation and failed on a missing generated file; author is rerunning after generation, without changing tests or checks. The complete unchanged local and hosted quick gates are still running; no full-gate pass or merge is claimed.
+Independent source review APPROVE. Focused subsystem tests PASS (0.113s), subsystem vet PASS, all19 strict corroboration cases PASS with race (1.099s). Go1.26.0 static stripped build succeeded. Generated sources/modules checked unchanged. An initial race command overlapped generation and failed on a missing generated file. After generation completed, the full focused subsystem package race command passed (1.311s), without changing tests or checks. The complete unchanged local and hosted quick gates are still running; no full-gate pass or merge is claimed.
 
 Installed only the corrected agent binary, SHA256 `86a65b51dfbd5da268533ebbaae3c5b2b2143549547a7ce9f1176c083b499f5c`. Original SHA256 `4ca376e628686eb0b51ad480461f4fcd5150b00a62cf0ed270ac4f8384a5d6d1`. Root-private rollback material on211: `/root/ngfw-route9-11-repair-20261019/ngfw-agent.before` and `agent-state.before.tar.gz`; receipt hashes and before/after VPP process evidence are beside them. Staging is `/root/ngfw-route9-11-staging`.
 
@@ -43,7 +43,7 @@ User tester is ready; root announced activation and requested traffic start. At1
 - Ethernet9 RX1/TX1; Ethernet11 RX1/TX1.
 - New drops, errors and RX misses: zero on all four ports.
 
-These few frames show initial forwarding evidence, not a sustained tester run or complete endpoint reception proof. Observe actual tester traffic in both directions before claiming complete packet acceptance. Do not reset existing counters; historic drops predate activation. Root-private API snapshots, short-lived session, and command helpers are in `/root/.cache/ngfw-route9-11-211`; never publish the session or full protected snapshots.
+A later independent VPP counter read found total RX/TX: port5=12/2, port6=12/1, port9=27/2, port11=16/2. Compared with precommit, this is forwarded traffic in all four directions: 5→6=1 frame, 6→5=2 frames, 9→11=2 frames, 11→9=2 frames. Historical drops stayed11/10/25/14. All services remain active, VPP PID167929/NRestarts0 unchanged. These few frames show initial forwarding evidence, not a sustained tester run or complete endpoint reception proof. Observe actual tester traffic in both directions before claiming complete packet acceptance. Do not reset existing counters; historic drops predate activation. Root-private API snapshots, short-lived session, and command helpers are in `/root/.cache/ngfw-route9-11-211`; never publish the session or full protected snapshots.
 
 Layer3 addressing remains unspecified. Proposed lab addresses were not accepted. Keep both L2 pairs active for the user test; remove the relevant reciprocal cross-connects before applying later requested L3 addresses/routes.
 

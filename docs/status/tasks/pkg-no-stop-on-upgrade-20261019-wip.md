@@ -103,8 +103,9 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 - `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_firstboot.py -v`:
   `Ran 9 tests in 19.775s — OK` (9 = 7 existing + 2 new).
 - `python3 -m unittest discover -s deploy/debian/ngfw/tests -v` (whole suite) on `3da09a6fb`:
-  `Ran 132 tests in 680.446s — OK`, no skips (132 = 125 on `origin/main` + 7 new). The same run on
-  `07887dd71` is recorded below when it finishes (only the environment handling of the fixture differs).
+  `Ran 132 tests in 680.446s — OK`, no skips (132 = 125 on `origin/main` + 7 new); on `07887dd71` (the
+  commit the package set was built from; later commits touch only this file):
+  `Ran 132 tests in 676.872s — OK`, no skips.
 - Inside the package build (`dh_auto_test`, see below): test_packaging 22 OK, test_system_identity
   12 OK, test_firstboot 9 OK, test_base_policy 3 OK, test_pppoe_assets 4 OK.
 
@@ -131,9 +132,11 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 
 ## Remaining
 
-- Record the whole-suite result on `07887dd71`; open the PR against `main` (link at the top); request
-  independent review; do not merge; upgrade no host. Laboratory acceptance stays NOT RUN
-  (`docs/status/DEFERRED-ACCEPTANCE.md`).
+- Nothing in code. PR #246 is open (link at the top); the hosted gates were pending when this file was
+  last updated (`gh pr checks 246`); independent review and the merge belong to the manager; no host is
+  upgraded by this task. Laboratory acceptance stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
+  The app's PR bar could not be bound to #246 from this session (repository match refused), so CI is read
+  with `gh pr checks`, not watched automatically.
 
 ## Follow-ups for the manager (not done here)
 
@@ -152,5 +155,5 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 ## Exact next command
 
 ```sh
-cd /root/NGFW/.claude/worktrees/musing-ramanujan-bd8fe0 && gh pr create --base main --head claude/musing-ramanujan-bd8fe0 --title 'fix(packaging): never stop units on package upgrade (D-253)' --body-file <pr-body>
+gh pr checks 246   # then: independent review per prompts/REVIEW-PROMPT.md; merge only after the complete hosted quick gate is green
 ```

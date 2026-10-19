@@ -437,9 +437,17 @@ unit whose explicit stop reaches `vpp.service` is `ngfw-firstboot.service` (plus
 `test_firstboot.Firstboot` runs the script's gate against fixture commands (each inactive daemon
 refuses before any database or file work, credentials kept; a provisioned appliance never
 queries). The dependency graph of appliance 37 was inspected read-only (`systemctl show -p
-RequiredBy`) and matches the pre-D-254 closure. Laboratory acceptance is **NOT RUN** (this session
-was not allowed to start a disposable systemd instance; the shared dev host's VPP and appliance 37
-were not restarted). On a disposable appliance or VM running D-254 packages record:
+RequiredBy`) and matches the pre-D-254 closure. The propagation itself was observed on 2026-10-19
+in a disposable instance of the dependency graph: `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh
+--manager user` installs throwaway `ngfwlab-*` stand-in units (the shipped dependency lines, sleep
+daemons, the same gate) into root's `systemctl --user` manager on the dev host, boots them, restarts
+Valkey, PostgreSQL and nftables and compares `InvocationID`s; with the previous `Requires=` text each
+restart restarted firstboot (re-executing the script, exit 0 on the marker), VPP, agent and API, with
+the D-254 text only the restarted daemon changed (nftables: plus agent and API, never VPP), the first
+boot kept its order, failed closed on each missing daemon and the provisioned reboot skipped the
+gate (36 checks, 0 mismatches in each mode; output in the task's WIP note). Laboratory acceptance on
+real units is **NOT RUN** (the shared dev host's VPP and appliance 37 were not restarted). On a
+disposable appliance or VM running D-254 packages record:
 (a) after `systemctl daemon-reload`, `systemctl show -p RequiredBy postgresql.service
 valkey-server.service nftables.service` names no `ngfw-firstboot.service` (WantedBy= does) and
 `systemctl show -p RequiredBy ngfw-firstboot.service` still names `vpp.service ngfw-agent.service
@@ -460,6 +468,5 @@ nftables, PostgreSQL/Valkey, firstboot, VPP, agent, API, nginx;
 (e) reboot of the provisioned appliance with `postgresql.service` masked: VPP and the agent come
 up, the API restarts until PostgreSQL is unmasked, firstboot stays `active (exited)` without a
 second `firstboot.sh` run.
-`deploy/debian/ngfw/tests/lab/firstboot-propagation.sh` renders stand-in units carrying the shipped
-dependency lines for a disposable systemd instance and runs (b)–(e) against them; it was written
-for this acceptance and has not been executed.
+`firstboot-propagation.sh --manager system` (with `NGFW_LAB_DISPOSABLE=1`, on a disposable VM only)
+runs the same stand-in scenario under a system manager; the real-unit records (a)–(e) above remain.

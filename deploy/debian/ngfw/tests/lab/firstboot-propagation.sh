@@ -162,19 +162,24 @@ reset_lab() {
   rm -f "$LAB"/fail-* "$LOG"
 }
 log_order() { awk '{print $2 (NF>2 ? " " $3 : "")}' "$LOG" | tr '\n' ',' ; }
-states() { local unit; for unit in "${ALL_UNITS[@]}"; do printf '%s=%s ' "${unit#ngfwlab-}" "$(ctl is-active "$unit" || true)"; done; }
+states() { local unit; for unit in "${ALL_UNITS[@]}"; do printf '%s=%s\n' "${unit#ngfwlab-}" "$(ctl is-active "$unit" || true)"; done; }
+inactive_count() { states | grep -c -v -- '=active$' || true; }
 FAILURES=0
 expect() { # expect <label> <observed> <expected>
   if [[ $2 == "$3" ]]; then printf 'OK   %s: %s\n' "$1" "$2"; else printf 'FAIL %s: observed [%s] expected [%s]\n' "$1" "$2" "$3"; FAILURES=$((FAILURES + 1)); fi
 }
+firstboot_invocations() { grep -c 'firstboot \(run\|skip\|refuse\)' "$LOG" || true; }
 restart_and_report() { # restart_and_report <name> <expected changed set for $EXPECT>
   local snapshot; snapshot=$(mktemp); invocations > "$snapshot"
-  local runs_before; runs_before=$(grep -c 'firstboot run' "$LOG" || true)
+  local runs_before invocations_before; runs_before=$(grep -c 'firstboot run' "$LOG" || true); invocations_before=$(firstboot_invocations)
   ctl restart "ngfwlab-$1.service"
   sleep 1
   local changed; changed=$(changed_since "$snapshot"); rm -f "$snapshot"
   expect "restart $1 -> restarted units" "$changed" "$2"
-  expect "restart $1 -> firstboot.sh runs" "$(( $(grep -c 'firstboot run' "$LOG" || true) - runs_before ))" 0
+  # A propagated restart re-executes firstboot.sh, which exits 0 on the completion marker: an
+  # invocation without a provisioning run.
+  expect "restart $1 -> firstboot.sh invocations" "$(( $(firstboot_invocations) - invocations_before ))" "$([[ $2 == *ngfw-firstboot* ]] && echo 1 || echo 0)"
+  expect "restart $1 -> firstboot.sh provisioning runs" "$(( $(grep -c 'firstboot run' "$LOG" || true) - runs_before ))" 0
 }
 
 render
@@ -194,7 +199,7 @@ for name in vpp ngfw-agent ngfw-api nginx; do
   expect "$name after firstboot" "$([[ ${order#*firstboot run} == *"start $name"* ]] && echo yes || echo no)" yes
 done
 expect "vpp before agent before api" "$([[ ${order#*start vpp} == *"start ngfw-agent"*"start ngfw-api"* ]] && echo yes || echo no)" yes
-expect "all active after the first boot" "$(states | grep -c -v -- '=active' || true)" 0
+expect "all active after the first boot" "$(inactive_count)" 0
 echo "== explicit restarts on the freshly booted appliance"
 if [[ $EXPECT == d254 ]]; then
   restart_and_report valkey-server 'ngfwlab-valkey-server.service '
@@ -216,7 +221,7 @@ for name in "${GATED[@]}"; do
   rm -f "$LAB/fail-$name"
   ctl reset-failed "${ALL_UNITS[@]}" >/dev/null 2>&1 || true
   ctl start "ngfwlab-$name.service" ngfwlab-ngfw-firstboot.service ngfwlab-boot.target
-  expect "$name back -> boot completes" "$(states | grep -c -v -- '=active' || true)" 0
+  expect "$name back -> boot completes" "$(inactive_count)" 0
 done
 echo "== provisioned appliance: reboot with the marker, then an explicit Valkey restart"
 reset_lab

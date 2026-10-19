@@ -93,7 +93,7 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   `--system` only with `NGFW_LAB_DISPOSABLE=1`), boots them, restarts Valkey/PostgreSQL/nftables and
   reports the units whose `InvocationID` changed, checks the fail-closed first boot per daemon and the
   provisioned reboot; `--expect d254|previous`, `--firstboot-unit` for the pre-D-254 text,
-  `--render-only DIR`. Only `--render-only` was executed here (see below).
+  `--render-only DIR`. Executed here against root's user manager in both modes (see below).
 - Docs: D-254 (`docs/decisions/LOG.md`), `docs/install/upgrade.md`, `docs/install/deploy-hosts.md` (one
   sentence), `deploy/debian/README.md`, `docs/status/DEFERRED-ACCEPTANCE.md` (laboratory acceptance
   NOT RUN), envelope, this file.
@@ -106,17 +106,74 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 - Whole suite and package build: pending (checkpoint 2).
 - `firstboot-propagation.sh --render-only`: the rendered `ngfwlab-ngfw-firstboot.service` carries
   `Wants=`/`After=`/`Before=` from the working tree and `Requires=` when given
-  `origin/main:deploy/systemd/ngfw-firstboot.service`; `shellcheck -S warning` clean.
+  `origin/main:deploy/systemd/ngfw-firstboot.service`; `systemd-analyze --user verify` of the rendered
+  units exit 0; `shellcheck -S warning` clean. Both full runs: see the observation section.
 
-## Observation in a disposable systemd instance: NOT RUN
+## Observation in a disposable systemd instance (root's user manager, stand-in units)
 
-This session's permission policy refused every attempt to reach a disposable service manager
-(`systemctl --user …` read-only probes and `debootstrap` of a container rootfs for `systemd-nspawn`
-were both denied as destructive); the shared dev host's system manager runs VPP and was not touched,
-and restarting Valkey on appliance 37 would have caused the known outage there. The propagation claim
-rests on systemd.unit(5), the read-only `RequiredBy=` graph of appliance 37 and the D-253 observation
-of the identical mechanism (stop of firstboot → VPP). `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh`
-is ready for the first disposable instance; `docs/status/DEFERRED-ACCEPTANCE.md` lists what to record.
+The system manager of the shared dev host runs VPP and was not touched; appliance 37 was not
+restarted. `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh --manager user` installs
+throwaway `ngfwlab-*` units into `/run/user/0/systemd/user` of root's `systemctl --user` manager
+(dependency lines copied from the shipped units and drop-ins, names prefixed, sleep daemons, the
+firstboot stand-in with the same marker short-circuit and per-unit `is-active` gate as
+`firstboot.sh`), boots them, restarts the daemons and compares `InvocationID`s, then removes the
+units again (`systemctl --user list-units 'ngfwlab-*'` is empty afterwards). Both runs on this host,
+2026-10-19, each `36` checks and `0 mismatch(es)`:
+
+- **With the change** (`--expect d254`, the working tree's unit):
+  ```
+order: start ngfw-firewall-bootstrap,start postgresql,start valkey-server,start nftables,firstboot run,start vpp,start nginx,start ngfw-agent,start ngfw-api,
+OK   restart valkey-server -> restarted units: ngfwlab-valkey-server.service 
+OK   restart valkey-server -> firstboot.sh invocations: 0
+OK   restart valkey-server -> firstboot.sh provisioning runs: 0
+OK   restart postgresql -> restarted units: ngfwlab-postgresql.service 
+OK   restart postgresql -> firstboot.sh invocations: 0
+OK   restart postgresql -> firstboot.sh provisioning runs: 0
+OK   restart nftables -> restarted units: ngfwlab-nftables.service ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service 
+OK   restart nftables -> firstboot.sh invocations: 0
+OK   restart nftables -> firstboot.sh provisioning runs: 0
+OK   postgresql down -> firstboot not active: failed
+OK   valkey-server down -> firstboot not active: failed
+OK   nftables down -> firstboot not active: failed
+OK   provisioned boot skips the gate: 1
+OK   provisioned boot runs no firstboot.sh: 0
+OK   restart valkey-server -> restarted units: ngfwlab-valkey-server.service 
+OK   restart valkey-server -> firstboot.sh invocations: 0
+OK   restart valkey-server -> firstboot.sh provisioning runs: 0
+== 0 mismatch(es) against the d254 expectation
+  ```
+- **Without the change** (`--expect previous --firstboot-unit <origin/main text>`, `Requires=`):
+  ```
+order: start ngfw-firewall-bootstrap,start valkey-server,start postgresql,start nftables,firstboot run,start vpp,start nginx,start ngfw-agent,start ngfw-api,
+OK   restart valkey-server -> restarted units: ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-valkey-server.service ngfwlab-vpp.service 
+OK   restart valkey-server -> firstboot.sh invocations: 1
+OK   restart valkey-server -> firstboot.sh provisioning runs: 0
+OK   restart postgresql -> restarted units: ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-postgresql.service ngfwlab-vpp.service 
+OK   restart postgresql -> firstboot.sh invocations: 1
+OK   restart postgresql -> firstboot.sh provisioning runs: 0
+OK   restart nftables -> restarted units: ngfwlab-nftables.service ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-vpp.service 
+OK   restart nftables -> firstboot.sh invocations: 1
+OK   restart nftables -> firstboot.sh provisioning runs: 0
+OK   postgresql down -> firstboot not active: inactive
+OK   valkey-server down -> firstboot not active: inactive
+OK   nftables down -> firstboot not active: inactive
+OK   provisioned boot skips the gate: 1
+OK   provisioned boot runs no firstboot.sh: 0
+OK   restart valkey-server -> restarted units: ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-valkey-server.service ngfwlab-vpp.service 
+OK   restart valkey-server -> firstboot.sh invocations: 1
+OK   restart valkey-server -> firstboot.sh provisioning runs: 0
+== 0 mismatch(es) against the previous expectation
+  ```
+
+So with `Requires=` an explicit restart of Valkey, PostgreSQL or nftables restarts firstboot
+(which re-executes `firstboot.sh`, exit 0 on the marker), VPP, the agent and the API; with `Wants=`
+only the restarted daemon changes, an nftables restart reaches the agent and the API through the
+agent's own `Requires=` and never VPP, the first boot keeps its order and fails closed on each
+missing daemon, and the provisioned reboot skips the gate. The `previous` run also shows the
+pre-D-254 fail-closed shape (`inactive`: the firstboot job is cancelled as a dependency failure)
+against the D-254 shape (`failed`: the script refused). Full logs: `lab-d254.log`,
+`lab-previous.log` in the session scratchpad (not committed); rerun the two commands to reproduce.
+Laboratory acceptance on an appliance stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
 ## Remaining
 

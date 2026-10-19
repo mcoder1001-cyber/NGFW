@@ -13,8 +13,9 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 
 | checkpoint | SHA | content |
 |---|---|---|
-| 1 | first commit of this branch (`git log --oneline origin/main..`) | rules flag, fixture module, tests, CI debhelper step, docs, D-253, envelope, this file |
-| 2 | second commit | built-package evidence below, PR link |
+| 1 | `3da09a6fb` | rules flag, fixture module, tests, CI debhelper step, docs, D-253, envelope, this file |
+| 1b | `07887dd71` | the fixture strips `DH_*` from the environment of its nested debhelper calls (inside `dpkg-buildpackage`, `dh` exports `DH_INTERNAL_OPTIONS`/`DH_INTERNAL_OVERRIDE` to override targets); this is the commit the package set below was built from |
+| 2 | the commit carrying this version of this file | built-package evidence, whole-suite result, PR link |
 
 ## Investigation (2026-10-19)
 
@@ -101,15 +102,38 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   `Ran 22 tests in 2.847s — OK` (22 = 17 existing + 5 new).
 - `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_firstboot.py -v`:
   `Ran 9 tests in 19.775s — OK` (9 = 7 existing + 2 new).
-- `python3 -m unittest discover -s deploy/debian/ngfw/tests -v` (whole suite): running at
-  checkpoint 1; result recorded in checkpoint 2.
-- Package build and `dpkg-deb -e` inspection: checkpoint 2.
+- `python3 -m unittest discover -s deploy/debian/ngfw/tests -v` (whole suite) on `3da09a6fb`:
+  `Ran 132 tests in 680.446s — OK`, no skips (132 = 125 on `origin/main` + 7 new). The same run on
+  `07887dd71` is recorded below when it finishes (only the environment handling of the fixture differs).
+- Inside the package build (`dh_auto_test`, see below): test_packaging 22 OK, test_system_identity
+  12 OK, test_firstboot 9 OK, test_base_policy 3 OK, test_pppoe_assets 4 OK.
+
+## Built package set (checkpoint 2)
+
+- Source `07887dd71` (this branch, full history, count 697); verified VPP output
+  `/root/Documents/Codex/2026-10-04/debian-latest/outputs/NGFW-Debian-latest-development/VPP-26.06-release+ngfw3-amd64`
+  (`deploy/vpp/verify.sh --require-files … --install-gate` passed inside `prepare.sh`, umask 022).
+- Commands (as `deploy-hosts.sh -b` runs them): `GOMAXPROCS=4 tools/heavy.sh deploy/debian/ngfw/prepare.sh <VPP>
+  /var/tmp/ngfw-build-no-stop-on-upgrade-20261019/pkgsrc`, then `dpkg-buildpackage -us -uc -b` in `pkgsrc`;
+  exit 0; packages `0.1.0~dev+git697.07887dd71432` (agent/api `amd64`, meta/web `all`) in
+  `/var/tmp/ngfw-build-no-stop-on-upgrade-20261019/` (retained for review; not deployed anywhere).
+- `dpkg-deb -e` of the four packages:
+  - **no package ships a `preinst`** (before: `ngfw-agent`, `ngfw-api`, `ngfw-meta` each had one with
+    `[ "$1" = upgrade ] … deb-systemd-invoke stop <every shipped unit>`);
+  - `prerm` of `ngfw-agent`/`ngfw-api`/`ngfw-meta`: only
+    `if [ -z "$DPKG_ROOT" ] && [ "$1" = remove ] && [ -d /run/systemd/system ]; then deb-systemd-invoke stop <shipped units>`
+    — ngfw-meta: `'ngfw-firewall-bootstrap.service' 'ngfw-firstboot.service'`; ngfw-agent: the eight
+    non-template units; ngfw-api: `'ngfw-api.service'`;
+  - `postinst`: no `deb-systemd-invoke` anywhere (hand-written part unchanged, then the
+    `deb-systemd-helper … update-state` blocks of `--no-enable`);
+  - `postrm`: unchanged (`systemctl --system daemon-reload` on `remove`, `deb-systemd-helper purge` on `purge`);
+  - `ngfw-web`: still no maintainer scripts (conffiles, control, md5sums).
 
 ## Remaining
 
-- Build the package set from this commit (`prepare.sh` + `dpkg-buildpackage -us -uc -b`, as
-  `deploy-hosts.sh -b` does) and record the generated maintainer scripts.
-- Open the PR against `main`; request independent review; do not merge; upgrade no host.
+- Record the whole-suite result on `07887dd71`; open the PR against `main` (link at the top); request
+  independent review; do not merge; upgrade no host. Laboratory acceptance stays NOT RUN
+  (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
 ## Follow-ups for the manager (not done here)
 
@@ -128,5 +152,5 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 ## Exact next command
 
 ```sh
-cd /root/NGFW/.claude/worktrees/musing-ramanujan-bd8fe0 && GOMAXPROCS=4 tools/heavy.sh deploy/debian/ngfw/prepare.sh /root/Documents/Codex/2026-10-04/debian-latest/outputs/NGFW-Debian-latest-development/VPP-26.06-release+ngfw3-amd64 /var/tmp/ngfw-build-no-stop-on-upgrade-20261019/pkgsrc && cd /var/tmp/ngfw-build-no-stop-on-upgrade-20261019/pkgsrc && GOMAXPROCS=4 /root/NGFW/.claude/worktrees/musing-ramanujan-bd8fe0/tools/heavy.sh dpkg-buildpackage -us -uc -b
+cd /root/NGFW/.claude/worktrees/musing-ramanujan-bd8fe0 && gh pr create --base main --head claude/musing-ramanujan-bd8fe0 --title 'fix(packaging): never stop units on package upgrade (D-253)' --body-file <pr-body>
 ```

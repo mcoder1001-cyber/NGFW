@@ -1,5 +1,5 @@
 import { useTopic } from '@ngfw/ui-kit/ws';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 /** One `iface.counters` entry as the API relays it (StreamStats; 64-bit counters are decimal strings, D-039). */
 export interface WsCounter {
@@ -39,7 +39,10 @@ export const HISTORY = 30;
  * Rates from two consecutive absolute samples. A counter that went backwards (VPP restart, interface re-created)
  * yields no rate for that step instead of a negative or absurd one.
  */
-export function stepRates(prev: Sample | undefined, cur: Sample): Omit<Rate, 'history'> | undefined {
+export function stepRates(
+  prev: Sample | undefined,
+  cur: Sample,
+): Omit<Rate, 'history'> | undefined {
   if (!prev) return undefined;
   const dt = (cur.at - prev.at) / 1000;
   if (dt <= 0) return undefined;
@@ -49,10 +52,16 @@ export function stepRates(prev: Sample | undefined, cur: Sample): Omit<Rate, 'hi
 }
 
 export function sampleOf(c: WsCounter, at: number): Sample {
-  return { at, rxB: Number(c.rxBytes), txB: Number(c.txBytes), rxP: Number(c.rxPackets), txP: Number(c.txPackets) };
+  return {
+    at,
+    rxB: Number(c.rxBytes),
+    txB: Number(c.txBytes),
+    rxP: Number(c.rxPackets),
+    txP: Number(c.txPackets),
+  };
 }
 
-/** Folds one WS batch into the per-interface rate table (pure; keyed by VPP interface name). */
+/** Folds one WS batch into the rate table, updating the caller-owned sample map (keyed by VPP name). */
 export function foldRates(
   last: Map<string, Sample>,
   rates: Map<string, Rate>,
@@ -74,16 +83,21 @@ export function foldRates(
 
 /** Live rates of every interface from the WS `iface.counters` topic (subscribed while the screen is mounted). */
 export function useIfaceRates(): { rates: Map<string, Rate>; status: string } {
-  const last = useRef(new Map<string, Sample>());
-  const [rates, setRates] = useState(() => new Map<string, Rate>());
+  const [state, setState] = useState(() => ({
+    last: new Map<string, Sample>(),
+    rates: new Map<string, Rate>(),
+  }));
   const topic = useTopic<WsCountersData>('iface.counters', {
     onBatch: (batch) => {
-      setRates((prev) => {
-        let r = prev;
-        for (const m of batch) r = foldRates(last.current, r, m.data, m.ts);
-        return r;
+      setState((prev) => {
+        // React may replay this updater. Keep samples and rates in one snapshot
+        // and mutate only a private copy so a replay sees the same baseline.
+        const last = new Map(prev.last);
+        let rates = prev.rates;
+        for (const m of batch) rates = foldRates(last, rates, m.data, m.ts);
+        return { last, rates };
       });
     },
   });
-  return { rates, status: topic.status };
+  return { rates: state.rates, status: topic.status };
 }

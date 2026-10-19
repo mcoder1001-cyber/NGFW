@@ -1,9 +1,10 @@
-# WIP: deploy-host-37-20261019 — upgrade 172.30.126.37 to main
+# WIP: deploy-host-37-20261019 — upgrade 172.30.126.37 (and 172.30.110.211) to main
 
 Branch: `claude/machine-172-30-126-37-update-c90ed0` (cut from `origin/main` `cb148aafb`).
 PR: https://github.com/mcoder1001-cyber/NGFW/pull/244 (open; quick gate and independent review pending).
 Owner request (2026-10-19): "ماشین 172.30.126.37 را بروزرسانی کن" — bring the appliance
-`root@172.30.126.37` to the current integrated `main` product.
+`root@172.30.126.37` to the current integrated `main` product; then (same day) "روی
+172.30.110.211 هم بروزرسانی کن" — the same build on `root@172.30.110.211`.
 Owned files: `docs/status/tasks/deploy-host-37-20261019-wip.md`, `deploy/deploy-hosts.sh`
 (one APT-argument fix, below), `docs/install/deploy-hosts.md` (matching paragraph).
 
@@ -95,6 +96,26 @@ Read-only checks over SSH at 07:57–08:00 UTC:
   data-plane outage and needs a maintenance window.
 - Not run: login/browser acceptance, dataplane forwarding tests, backup restore.
 
+## Host 211 (172.30.110.211) — same packages, fixed script, 08:50 UTC
+
+- Baseline (read-only): the same `0.1.0~dev+8eb2f11c4069`, VPP `26.06-release+ngfw3`,
+  agent/API/VPP active since 2026-10-14 15:10, nginx since 2026-10-13, `NRestarts` 0, no failed
+  unit, route `default via 172.30.110.1 dev enp4s0`, `/etc/vpp/startup.conf` SHA256
+  `889f9a6f…cc32`, 222 GiB free, `vpp.service` also `Requires=ngfw-firstboot.service` (plus
+  `ngfw-hardware-211-bind.service`), 17 physical interfaces up, hand-modified
+  `/usr/share/ngfw/web/index.html` as on host 37.
+- `deploy/deploy-hosts.sh -p /var/tmp/ngfw-build-main-cb148aafb-20261019/packages 172.30.110.211`:
+  preflight OK, lineage ancestor, recovery directory `/root/ngfw-deploy/run.ll5PvD5Y`, APT
+  `Need to get 0 B/48.7 MB`, four packages upgraded, health and stability window passed,
+  `upgrade-complete` written; script exit 0, 26 s wall time (08:50:18 → 08:50:44).
+- After: all four packages `0.1.0~dev+git695.cb148aafb288`; agent/API/nginx/VPP active,
+  `NRestarts` 0, nginx reloaded only (still active since 2026-10-13); `dpkg --audit` empty; no
+  failed unit; `nginx -t` OK; HTTPS `/` 200 serving `assets/index-BnO7SXiT.js`, `index.html`
+  MD5 equals the package's; API health ok; CLI `ngfw cb148aafb288`; route and `startup.conf`
+  unchanged; no agent/API/nginx journal errors. VPP restarted through the same
+  `ngfw-meta.prerm` → `ngfw-firstboot.service` → `Requires=` chain (SIGTERM 08:50:29, started
+  08:50:35, ≈6 s); all 17 physical interfaces are up again.
+
 ## Host-independent checks on this branch (`c48ea7e19`)
 
 - `bash -n deploy/deploy-hosts.sh` OK; `shellcheck --external-sources deploy/deploy-hosts.sh` clean.
@@ -110,4 +131,4 @@ Read-only checks over SSH at 07:57–08:00 UTC:
 
 ## Exact next command
 
-None for the upgrade (complete). For the branch: read PR #244 checks (`gh pr checks 244`), fix real failures, obtain an independent review, then merge sequentially.
+None for the upgrades (both complete). For the branch: read PR #244 checks (`gh pr checks 244`), fix real failures, obtain an independent review, then merge sequentially.

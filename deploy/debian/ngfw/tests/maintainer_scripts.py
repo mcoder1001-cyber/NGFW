@@ -140,7 +140,11 @@ def generate(arguments=None):
             unit_directory.mkdir(parents=True)
             for name, path in shipped_units(package):
                 shutil.copyfile(path, unit_directory / name)
-        env = {**os.environ, 'LC_ALL': 'C.UTF-8', 'DH_QUIET': '1'}
+        # Inside dpkg-buildpackage dh exports DH_INTERNAL_OPTIONS/DH_INTERNAL_OVERRIDE to its
+        # override targets; a nested debhelper call would inherit them (-a/-i/-p restrict the
+        # packages it processes), so the fixture runs with debhelper's defaults only.
+        env = {key: value for key, value in os.environ.items() if not key.startswith('DH_')}
+        env.update(LC_ALL='C.UTF-8', DH_QUIET='1')
         for command in (['dh_installsystemd', *arguments], ['dh_installdeb']):
             result = subprocess.run(command, cwd=tree, env=env, capture_output=True, text=True)
             if result.returncode != 0:

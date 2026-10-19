@@ -1,13 +1,13 @@
-# Interfaces live rates checkpoint
-Branch: codex/interfaces-live-rates; base/local parent 493ecc1dfd55eecd129f4623491b1a6a32ebe104. Remote publication pending.
-Owned files: rates.ts, rates.test.tsx and interfaces-live-rates status documents.
-Reproduced: StrictMode regression loses all rates before fix (1 failed, 1 passed).
-Implemented: keep samples and rates in a single state snapshot; copy samples inside updater before folding, making updater replay safe.
-Tests: rates + model = 9 passing. Typecheck pending completion. Independent review requested.
-Browser before fix: Ethernet5 SVG stuck on four points across several minutes while REST counters advanced.
-Remaining: live browser verification, lint/build/quick gate, publish checkpoint.
-Next command: pnpm --filter @ngfw/web lint
-No main merge authorized by passing CI yet.
+# Interfaces live rates — verified local fix
 
-Verification update: typecheck, web lint (487 files) and tools/ci.sh check --base HEAD passed. Independent reviewer diagnose_contracts APPROVE. Browser after fix: RX/TX changed between observations and Ethernet5 history grew to 20 then 30 points; screenshot /tmp/ngfw-interface-rates.jpg. Local5174 now serves this worktree with existing verified TLS settings for appliance211; no appliance changes.
-Full quick gate blocked: tool installation needs sudo password (golangci-lint/gitleaks and other prerequisites); no main merge. Production web build pending.
+Branch: codex/interfaces-live-rates
+Worktree: /home/mohammad/ngfw-worktrees/original-rebase
+Local product commit: e06fae305; published equivalent product commit: 39ad0ed24274a066fa1bcd389bdeaeefa967fe61.
+Owned files: apps/web/src/domains/interfaces/rates.ts, rates.test.tsx and task status documents.
+
+Reproduced StrictMode updater replay discarding samples: regression failed before fix. Combined immutable state snapshots fix replay without changing backend contracts.
+Validation: 9 focused tests PASS; web typecheck PASS; lint PASS; check gate PASS; production build PASS, 599.8 kB budget PASS, no-dev-routes PASS. Independent review APPROVE.
+Live verification: local5174 against appliance211 remains logged in; RX/TX change and trend grows from20 to30 samples, replacing previous frozen4 samples. Screenshot /tmp/ngfw-interface-rates.jpg. Server session56741 runs this worktree with verified certificate/servername configuration.
+
+Complete quick gate blocked by missing tools requiring sudo installation; no main merge or appliance deployment. Common-ui memo comparator separately fixed/tested on its own branch, but Interfaces disables that memoization; not needed or integrated here.
+Recovery: run pnpm --filter @ngfw/web exec vitest run src/domains/interfaces/rates.test.tsx src/domains/interfaces/model.test.ts. Next integration step: complete unchanged quick CI in provisioned environment before merge.

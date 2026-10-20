@@ -1,8 +1,10 @@
 # WIP: firstboot-wants-deps-20261019 — a daemon restart no longer restarts VPP through firstboot
 
 Branch: `claude/trusting-jackson-71c8da` (worktree `/root/NGFW/.claude/worktrees/trusting-jackson-71c8da`),
-cut from PR #246's head `9cabd7f47` (`claude/musing-ramanujan-bd8fe0`, D-253), itself cut from
-`origin/main` `cb148aafb`. Stacked on PR #246: after #246 merges, `git rebase --onto origin/main 9cabd7f47`.
+now one product commit on top of `origin/main` `921f82388` (#246, D-253, squash-merged 2026-10-20). It was
+cut from PR #246's head `9cabd7f47` and rebased twice (onto #246's fixed head `ad0bc5027`/`cb1991a30`, then
+onto main); the reviewed pre-rebase checkpoints `935ee0e29..0cdba6b0b` stay resolvable as
+`refs/archive/firstboot-wants-deps-20261019-prerebase` (pushed).
 Envelope: [firstboot-wants-deps-20261019-envelope.md](firstboot-wants-deps-20261019-envelope.md).
 Decision: D-255 in `docs/decisions/LOG.md`. Origin: follow-up 1 of
 [pkg-no-stop-on-upgrade-20261019-wip.md](pkg-no-stop-on-upgrade-20261019-wip.md) (D-253, PR #246).
@@ -21,7 +23,9 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 3 | `17eb3556f` | decision renumbered D-254 → D-255 everywhere on this branch (PR #247 already claims D-254 and merges first; manager instruction 2026-10-20); the inherited D-253 line untouched |
 | 3b | `cf9ad2e58` | hosted fixture failure traced to #246's `setUpClass` fixtures |
 | 4 | `8cf7f6085` | independent review (APPROVE WITH CHANGES, no MAJOR) findings 1–3 and NITs: `pg_isready` gate + test, lab model with the PostgreSQL wrapper/cluster pair and job-settle, README nftables exception, "withheld" wording with the nftables/VPP case, API-requires-agent sentence, prepare-unit comment, user-manager description, enabled closure guarded in test_packaging; PR body patched |
-| 4b | the commit carrying this version of this file | this file: checkpoint 4 evidence and the review findings |
+| 4b | `0cdba6b0b` | this file: checkpoint 4 evidence and the review findings (last pre-rebase head, archived) |
+| 5 | `531e04a1c` | checkpoints 1–4b squashed into one commit and rebased onto #246's fixed head (`ad0bc5027`, then `cb1991a30`) and, after #246 merged, onto `origin/main` `921f82388`; conflicts in `maintainer_scripts.py`, `test_packaging.py`, `LOG.md` and `deploy-hosts.md` resolved by re-applying this task's changes onto #246's final fixture (its closure always counts `[Install] RequiredBy=` and the A/B `.requires/` links, so `closure('vpp.service')` is `{ngfw-firstboot.service, ngfw-upgrade-prepare.service}` and `VPP_GUARDED_UNITS` is that set; the `enabled=` switch is gone); #246's new upgrade.md sentence on nftables restarts narrowed to agent and API |
+| 5b | the commit carrying this version of this file | this file: rebase evidence, unprivileged run, whole suite and hosted run ids of `531e04a1c` |
 
 ## Investigation (2026-10-19)
 
@@ -219,6 +223,22 @@ firstboot as a dependency failure with `Requires=` (`inactive`) and is refused b
 `lab-previous.log` in the session scratchpad (not committed); rerun the two commands to reproduce.
 Laboratory acceptance on real units stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
+## Rebase onto main and hosted checks (checkpoint 5)
+
+- `python3 -m unittest discover -s deploy/debian/ngfw/tests -v` on `531e04a1c` (main-based tree):
+  `Ran 141 tests in 725.431s — OK`, no skips (141 = 134 on main after #246 + 7 of this task).
+- Unprivileged, as the hosted runner (`PYTHONPATH=deploy/debian/ngfw/tests unshare -U python3 -m unittest
+  test_firstboot test_packaging.MaintainerScripts`, uid 65534): `Ran 23 tests in 28.024s — OK` — this task's
+  gate and dependency tests need no root, and #246's root-free `generate()` works under them.
+- `git diff --stat origin/main`: 14 files, 920 insertions, 29 deletions; `git rev-list --count origin/main..HEAD` = 1.
+- Hosted checks on `531e04a1c` (PR #248): Packaging fixture gate runs 39372847761 (push) and 39372852011
+  (pull_request) **pass**; Offline artifact and pinned installer fixtures run 39372847799 **pass**;
+  Mandatory quick gate run 39372852153 pending when this was written. The docs-only commit carrying this
+  file re-triggers them; the final head's run ids are reported in chat and in the PR.
+- The lab observations of checkpoint 4 were not repeated after the rebase: the lab script, the unit
+  texts and `firstboot.sh` are byte-identical to `0cdba6b0b` (only the fixture module and the tests were
+  merged with #246's version).
+
 ## Built package set (checkpoint 2)
 
 - Source `072128365` (this branch, full history, count 702); verified VPP output
@@ -252,23 +272,16 @@ NITs: API requires the agent (upgrade.md); prepare-unit comment ("when a snapsho
 
 ## Remaining
 
-- Hosted packaging-fixture gate: PR #248 inherits PR #246's failure (run 39236809650: the fixture's
-  `dh_installdeb` fails with `chown(0, 0, debian/ngfw-agent/DEBIAN/postinst): Operation not permitted` on
-  the non-root hosted runner; that fixture is #246's `MAINTAINER.generate()`, which this task's new tests do
-  not call: `Firstboot.test_fresh_boot_*` run the script against fixture commands and
-  `FirstbootDependencies` only parses unit texts). Confirmed from the job log (job 118007855952, head
-  `a99580bad`): the only errors are `ERROR: setUpClass (test_firstboot.FirstbootUpgrade)` and
-  `ERROR: setUpClass (test_packaging.MaintainerScripts)`, both `dh_installdeb failed (25)` on that chown;
-  `Packaging fixtures: 132 run, 0 failures, 2 errors, 0 skipped` — the 132 include this task's seven new
-  tests. Once #246 publishes its fix, rebase this branch onto its
-  new head (or onto `main` after #246 merges), push and wait for both hosted checks on #248 (manager
-  instruction 2026-10-20).
-- Otherwise nothing in code. PR #248 is open (link at the top); hosted gates, independent review and the merge belong
-  to the manager; after #246 merges, rebase with `git rebase --onto origin/main 9cabd7f47`. No host is upgraded
+- The hosted packaging-fixture failure PR #248 inherited from PR #246 (run 39236809650, job 118007855952 on
+  `a99580bad`: `dh_installdeb` `chown(0, 0, …): Operation not permitted` in #246's `MAINTAINER.generate()`,
+  `132 run, 0 failures, 2 errors`) is gone since the rebase onto #246's root-free fixture (now in main);
+  see checkpoint 5 for the green runs.
+- Nothing in code. PR #248 is open (link at the top); hosted gates, independent review and the merge belong
+  to the manager; the branch is rebased onto main (checkpoint 5). No host is upgraded
   by this task. Laboratory acceptance on real units stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
 ## Exact next command
 
 ```sh
-gh pr checks 248   # then: independent review per prompts/REVIEW-PROMPT.md; merge only after #246 and the complete hosted quick gate
+gh pr checks 248   # both hosted checks green on the final head; merge is the manager's (D-112 squash onto main)
 ```

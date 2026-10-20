@@ -17,7 +17,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 1 | `8340771f6` | remote install script unit-state records and comparison, fixtures, docs, D-254, this file |
 | 2 | `57ba7dea7` | PR link, runs B and C verbatim/summary; product tree unchanged |
 | 3 | `f4d085c9b` | hosted receipts for the product tree; product tree unchanged |
-| 4 | (this commit) | the manager's review minors (below), fixture modes, docs/D-254 wording, this file |
+| 4 | `b149e3852` | the manager's review minors (below), fixture modes, docs/D-254 wording, this file |
+| 5 | (this commit) | runs D–F and hosted receipts for `b149e3852`; product tree unchanged |
 
 ## Owned files
 
@@ -170,7 +171,9 @@ OK
 Hosted, on the product tree `8340771f6` (PR #247 head at opening): mandatory quick gate [39233622449](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233622449) success; packaging fixture gate [39233622470](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233622470) and [39233511351](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233511351) success. The same two workflows re-run on the docs-only `57ba7dea7` (in progress when this was written).
 
 - Run D (checkpoint 4, targeted `… -k watched_units -k test_success_uses -k nginx_is_validated -k postinstall_failures`): `Ran 4 tests in 435.247s` / `OK`.
-- Runs E/F (checkpoint 4: full `-p test_deploy_hosts.py`, then the whole suite): pending.
+- Run E (checkpoint 4, `b149e3852`, full `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v`): `Ran 34 tests in 917.278s` / `OK`.
+- Run F (same tree, whole suite `python3 -m unittest discover -s deploy/debian/ngfw/tests -v`, run after E): `Ran 126 tests in 986.626s` / `OK`, no skips.
+- Hosted, on `b149e3852`: CI gate (mandatory quick) [39372093452](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372093452) success; packaging fixture gate [39372093451](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372093451) and [39372087398](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372087398) success.
 
 ## Current failure
 

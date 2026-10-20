@@ -6023,7 +6023,7 @@ tasks:
     owner: root manager
     started: '2026-10-19'
     finished: '2026-10-20'
-    notes: apt 3.2.0 refuses --no-download for local archives; both APT calls hide the repositories instead. Both hosts upgraded 8eb2f11c4069 -> git695.cb148aafb288 (VPP restarted 6-9 s through the pre-D-253 preinst stop). Review APPROVE WITH CHANGES, applied.
+    notes: apt 3.2.0 refuses --no-download for local archives; both APT calls hide the repositories instead. Both hosts upgraded 8eb2f11c4069 -> git695.cb148aafb288 on 2026-10-19 (VPP restarted 6-9 s through the pre-D-253 preinst stop); host 211 upgraded again on 2026-10-20 to git702.a094258eadd7 with no VPP restart (D-253/D-254 verified on a real appliance). Review APPROVE WITH CHANGES, applied.
     worker_status: completed; session finished
     completion_evidence: PR244 head af5c5a61c5d2e46b45f76f7f28e2636c48c61c3e; merge e7377927f; hosted quick 39372836816 and packaging PASS; main CI covered by 5593e5ab2 run 39376212024 SUCCESS
   - id: vpp-tests-mkdeb-umask-20261019

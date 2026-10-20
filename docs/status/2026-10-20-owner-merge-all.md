@@ -40,7 +40,18 @@ when idle and a safe base-firewall re-render after upgrades (D-253 consequences)
 Deployment: the first build from `main` `3fc333cde` failed in `dh_auto_test` (fixed by #253, above);
 packages built from `main` `a094258ea` (`deploy/deploy-hosts.sh -b -r main`, verified VPP
 `26.06-release+ngfw3` output, no `NGFW_VPP_IN_TESTS` needed after #245);
-host 172.30.110.211: DEPLOY_211_RESULT. Host 172.30.126.37 stays on `0.1.0~dev+git695.cb148aafb288`
+host 172.30.110.211 upgraded 06:58:36–06:59:05 UTC (29 s) from `0.1.0~dev+git695.cb148aafb288` to
+`0.1.0~dev+git702.a094258eadd7` with the merged tool (recovery directory `/root/ngfw-deploy/run.Zgw6upaC`,
+`unit-state-before/after.txt` identical apart from timestamps, `upgrade-complete` written, `Need to get 0 B`).
+**No VPP restart**: `vpp.service` active since 06:39:57 UTC (the owner's D-256 start-up apply, `startup.conf`
+sha256 `92985d0c…`, unchanged by the upgrade), `nftables` and `ngfw-firstboot` active since 2026-10-19, the new
+packages ship no preinst and stop nothing on upgrade (D-253 verified on a real appliance by D-254's check).
+Agent/API restarted once by the tool (`NRestarts` 0), nginx reloaded only, HTTPS `/` 200, API health ok, CLI
+`a094258eadd7`, `dpkg --audit` empty, no failed unit, 17 physical interfaces up, no journal errors. The tool
+warned that `apply-executor.socket`, `ngfw-ra-openfile.socket` and `ngfw-ra-namespace-broker.socket` were
+inactive before and after the upgrade (left stopped by the pre-D-253 preinst on 2026-10-19); the operator
+started them after the run as the warning instructs (all three active; `apply-executor.service` stays
+socket-activated and idle). Not run: login/browser acceptance, forwarding tests, backup restore. Host 172.30.126.37 stays on `0.1.0~dev+git695.cb148aafb288`
 (not requested).
 
 No installed service outside the two lab appliances, no startup configuration and no privilege

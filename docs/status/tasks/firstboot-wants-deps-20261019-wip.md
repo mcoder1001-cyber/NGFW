@@ -213,7 +213,11 @@ Laboratory acceptance on an appliance stays NOT RUN (`docs/status/DEFERRED-ACCEP
   `dh_installdeb` fails with `chown(0, 0, debian/ngfw-agent/DEBIAN/postinst): Operation not permitted` on
   the non-root hosted runner; that fixture is #246's `MAINTAINER.generate()`, which this task's new tests do
   not call: `Firstboot.test_fresh_boot_*` run the script against fixture commands and
-  `FirstbootDependencies` only parses unit texts). Once #246 publishes its fix, rebase this branch onto its
+  `FirstbootDependencies` only parses unit texts). Confirmed from the job log (job 118007855952, head
+  `a99580bad`): the only errors are `ERROR: setUpClass (test_firstboot.FirstbootUpgrade)` and
+  `ERROR: setUpClass (test_packaging.MaintainerScripts)`, both `dh_installdeb failed (25)` on that chown;
+  `Packaging fixtures: 132 run, 0 failures, 2 errors, 0 skipped` — the 132 include this task's seven new
+  tests. Once #246 publishes its fix, rebase this branch onto its
   new head (or onto `main` after #246 merges), push and wait for both hosted checks on #248 (manager
   instruction 2026-10-20).
 - Otherwise nothing in code. PR #248 is open (link at the top); hosted gates, independent review and the merge belong

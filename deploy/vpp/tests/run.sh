@@ -164,6 +164,9 @@ O="$T/out"; mkdir -p "$O"
 mkdeb() {  # mkdeb <package> <version> <file>
   local d="$T/pkg/$1"; mkdir -p "$d/DEBIAN"
   printf 'Package: %s\nVersion: %s\nArchitecture: amd64\nMaintainer: t <t@t>\nDescription: test\n' "$1" "$2" >"$d/DEBIAN/control"
+  # Fixture modes must not inherit the caller's umask: deploy-hosts.sh runs verify.sh under umask 077 and
+  # dpkg-deb refuses a DEBIAN directory outside 0755..0775 ("control directory has bad permissions 700").
+  chmod 0755 "$d" "$d/DEBIAN"; chmod 0644 "$d/DEBIAN/control"
   dpkg-deb --root-owner-group -Zgzip --build "$d" "$O/$3" >/dev/null
 }
 mkout() {  # mkout <version> <patches-json> <variant> <demo:true|false>

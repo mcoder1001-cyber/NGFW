@@ -6026,3 +6026,24 @@ tasks:
     notes: Approval record PR #252 (review round 1 BLOCK with 6 MAJOR, round 2 APPROVE, minors fixed); owner accepted the corrected 25-35 s figure; apply 06:39:50-06:41:28 UTC COMMITTED, forwarding gap ~22 s, all checks passed under the owner's TRex traffic (tx-error 0 on six ports over 93 s). Open follow-ups - running dataplane domain commit (admin login); pointer in PR #251's wip after that PR merges.
     worker_status: completed; session finished
     completion_evidence: PR252 head 2150f1046 merge 7442c6a5f (quick gate pass); apply work dir /var/lib/ngfw/startup-apply/20261020-063950-212602 COMMITTED (live sha256 92985d0c…); checks in docs/status/tasks/apply-211-vpp-startup-20261020-wip.md; results branch claude/apply-211-results-20261020
+  - id: machine-211-small-packet-limit
+    title: 'Appliance 211: characterise the 64-byte packet ceiling of the X710 ports (per card), evaluate the dpdk start-up options the renderer does not expose'
+    prompt: docs/status/tasks/machine-211-small-packet-limit-envelope.md
+    template: ''
+    stage: S5
+    deps: [P10]
+    priority: 2
+    est_hours: 4
+    state: running
+    parked_on: ''
+    wbs: []
+    scope: Read-only measurement on 172.30.110.211 under the owner's TRex test (xstats and runtime deltas per port, per card, per worker); no-multi-seg / no-tx-checksum-offload / enable-mbuf-fast-free / num-tx-desc / buffers default data-size evaluated against the VPP 26.06 and DPDK 26.03 sources; recommendation and the experiments that separate a per-card ceiling from a host-side (VT-d) ceiling; a renderer change only if justified
+    files_owned: docs/status/tasks/machine-211-small-packet-limit* plan/tasks.yaml(this row)
+    branch: claude/zen-knuth-454f68
+    worktree: /root/NGFW/.claude/worktrees/zen-knuth-454f68
+    owner: root manager (session started by the owner's session after D-256)
+    started: '2026-10-20'
+    finished: ''
+    notes: 'Measured 2026-10-20 07:38 UTC (50 s window) - the 4-port 02:00.x card is capped as a whole at 10.4 Mpps in / 8.4 out (2.6 / 2.1 per port whatever the offered rate), the 2-port x4 03:00.x card at 7.3 / 7.2 with 6.8 % rx_missed; VPP workers 31-35 % busy; PCIe < 10 % used; all three cards translate through one VT-d unit (dmar1, IOMMU on by kernel default). The unexposed dpdk options give i40e vector TX (CPU only) and cost MTU 9000 or 9.4 GiB of buffers - no renderer change justified. Waiting for the owner: stop the f2/f3 stream, then one pair per card (re-cable to 01:00.x), then IMIX / 512 B; the total forwarded tells per-card (A) from host-side (B).'
+    worker_status: live in session zen-knuth-454f68; measurement and write-up done; waiting for the owner's experiments
+    completion_evidence: ''

@@ -1,0 +1,327 @@
+1792487858.309857949
+## IF
+enp1s0f0np0                       1      up          9000/0/0/0     
+enp1s0f1np1                       2      up          9000/0/0/0     
+enp1s0f2np2                       3      up          9000/0/0/0     
+enp1s0f3np3                       4      up          9000/0/0/0     
+enp2s0f0np0                       5      up          9000/0/0/0     rx packets           10525724650
+                                                                    tx packets           10246841948
+                                                                    drops                         26
+                                                                    rx-miss                826816307
+                                                                    tx-error              1459671206
+enp2s0f1np1                       6      up          9000/0/0/0     rx packets           10246841963
+                                                                    tx packets           10525724648
+                                                                    rx-miss                822650326
+                                                                    tx-error              1459017949
+enp2s0f2np2                       7      up          9000/0/0/0     rx packets           10197935932
+                                                                    tx packets           10190723426
+                                                                    drops                         22
+                                                                    rx-miss               1736074351
+                                                                    tx-error              1464622639
+enp2s0f3np3                       8      up          9000/0/0/0     rx packets           10190723438
+                                                                    tx packets           10197935921
+                                                                    rx-miss               1743436906
+                                                                    tx-error              1471747400
+enp3s0f0np0                       9      up          9000/0/0/0     rx packets           23238641774
+                                                                    tx packets           23341774893
+                                                                    drops                       4189
+                                                                    rx-miss               1182978624
+                                                                    tx-error               452462930
+enp3s0f1np1                       10     up          9000/0/0/0     rx packets           23341774901
+                                                                    tx packets           23238637592
+                                                                    rx-miss               1182862541
+                                                                    tx-error               452981270
+enp3s0f2np2                       11     up          9000/0/0/0     
+enp3s0f3np3                       12     up          9000/0/0/0     
+## XS enp1s0f0np0
+## XS enp1s0f1np1
+## XS enp1s0f2np2
+## XS enp1s0f3np3
+## XS enp2s0f0np0
+    extended stats:
+      rx_good_packets                            10525731830
+      tx_good_packets                             8787177415
+      rx_good_bytes                            1791510746340
+      tx_good_bytes                            1659607878224
+      rx_missed_errors                             826816307
+      rx_unicast_packets                         11352904139
+      rx_broadcast_packets                                 2
+      rx_dropped_packets                           822984495
+      rx_unknown_protocol_packets                 1939985055
+      tx_unicast_packets                          8787177346
+      tx_broadcast_packets                                 2
+      mac_local_errors                                     9
+      mac_remote_errors                                    7
+      rx_size_64_packets                         10545013092
+      rx_size_1024_to_1522_packets                 807891073
+      tx_size_64_packets                          7998613881
+      tx_size_1024_to_1522_packets                 788563513
+## XS enp2s0f1np1
+    extended stats:
+      rx_good_packets                            10246850980
+      tx_good_packets                             9066714647
+      rx_good_bytes                            1774788927416
+      tx_good_bytes                            1676380754036
+      rx_missed_errors                             822650976
+      rx_unicast_packets                         11069853130
+      rx_broadcast_packets                                 2
+      rx_dropped_packets                           818833463
+      rx_unknown_protocol_packets                 1661085081
+      tx_unicast_packets                          9066714534
+      tx_broadcast_packets                                 2
+      mac_local_errors                                     7
+      mac_remote_errors                                    4
+      rx_size_64_packets                         10261960534
+      rx_size_1024_to_1522_packets                 807892688
+      tx_size_64_packets                          8278150666
+      tx_size_1024_to_1522_packets                 788563959
+## XS enp2s0f2np2
+    extended stats:
+      rx_good_packets                            10197946962
+      tx_good_packets                             8726110337
+      rx_good_bytes                            1771669297884
+      tx_good_bytes                            1655734051072
+      rx_missed_errors                            1736074776
+      rx_unicast_packets                         11934413954
+      rx_broadcast_packets                                 2
+      rx_dropped_packets                          1731573454
+      rx_unknown_protocol_packets                 1612905915
+      tx_unicast_packets                          8726110270
+      tx_broadcast_packets                                 2
+      mac_local_errors                                    10
+      mac_remote_errors                                    8
+      rx_size_64_packets                         11126697289
+      rx_size_1024_to_1522_packets                 807716712
+      tx_size_64_packets                          7937692905
+      tx_size_1024_to_1522_packets                 788417411
+## XS enp2s0f3np3
+    extended stats:
+      rx_good_packets                            10190735895
+      tx_good_packets                             8726199349
+      rx_good_bytes                            1771252215484
+      tx_good_bytes                            1655728468204
+      rx_missed_errors                            1743437387
+      rx_unicast_packets                         11934560565
+      rx_broadcast_packets                                 2
+      rx_dropped_packets                          1738934278
+      rx_unknown_protocol_packets                 1605691700
+      tx_unicast_packets                          8726199279
+      tx_broadcast_packets                                 2
+      mac_local_errors                                     8
+      mac_remote_errors                                    6
+      rx_size_64_packets                         11126833436
+      rx_size_1024_to_1522_packets                 807727181
+      tx_size_64_packets                          7937789525
+      tx_size_1024_to_1522_packets                 788409806
+## XS enp3s0f0np0
+    extended stats:
+      rx_good_packets                            23238655745
+      tx_good_packets                            22889325126
+      rx_good_bytes                            2885248086484
+      tx_good_bytes                            2850588625556
+      rx_missed_errors                            1182978624
+      rx_unicast_packets                         24434587619
+      rx_broadcast_packets                                 2
+      rx_dropped_packets                          1179352844
+      rx_unknown_protocol_packets                 1780398300
+      tx_unicast_packets                         22889325058
+      tx_broadcast_packets                                 2
+      mac_local_errors                                     7
+      mac_remote_errors                                    5
+      rx_size_64_packets                         23394726411
+      rx_size_1024_to_1522_packets                1039861252
+      tx_size_64_packets                         21860614040
+      tx_size_1024_to_1522_packets                1028711069
+## XS enp3s0f1np1
+    extended stats:
+      rx_good_packets                            23341790266
+      tx_good_packets                            22785670999
+      rx_good_bytes                            2891443727364
+      tx_good_bytes                            2844371098264
+      rx_missed_errors                            1182864229
+      rx_unicast_packets                         24537317552
+      rx_broadcast_packets                                 2
+      rx_dropped_packets                          1179173583
+      rx_unknown_protocol_packets                 1883307495
+      tx_unicast_packets                         22785670939
+      tx_broadcast_packets                                 2
+      mac_local_errors                                    10
+      mac_remote_errors                                    6
+      rx_size_64_packets                         23497461686
+      rx_size_1024_to_1522_packets                1039855878
+      tx_size_64_packets                         21756958715
+      tx_size_1024_to_1522_packets                1028712264
+## XS enp3s0f2np2
+## XS enp3s0f3np3
+## RUNTIME
+Thread 0 vpp_main (lcore 16)
+Time 5361.6, 10.000000 sec internal node vector rate 0.00 loops/sec 500125.40
+  vector rates in 0.0000e0, out 0.0000e0, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+api-rx-from-ring               "any wait"                0               0          411930          3.97e4            0.00
+dhcp-client-process            "any wait"                0               0               5          4.34e3            0.00
+dpdk-process                   "any wait"                0               0           44717          1.98e5            0.00
+fib-walk                       "any wait"                0               0            2681          7.91e3            0.00
+ip4-full-reassembly-expire-wal "any wait"                0               0          107173          6.95e3            0.00
+ip4-sv-reassembly-expire-walk  "any wait"                0               0             536          5.67e3            0.00
+ip6-full-reassembly-expire-wal "any wait"                0               0          107173          5.92e3            0.00
+ip6-mld-process                "any wait"                0               0            5361          3.76e3            0.00
+ip6-ra-process                 "any wait"                0               0            5361          2.99e3            0.00
+ip6-sv-reassembly-expire-walk  "any wait"                0               0             536          5.66e3            0.00
+sasc-session-expiry            "suspended"               0               0            5361          8.05e3            0.00
+    events pending, 
+sflow-process-samples          "any wait"                0               0            5361          3.78e3            0.00
+statseg-collector-process      "suspended"               0               0             536          5.25e6            0.00
+unix-cli-new-session           "any wait"                0               0              22          2.16e3            0.00
+unix-cli-process-0              "running"               16               0              33          1.28e6            0.00
+vpe-link-state-process        "event wait"               0               0              16          1.46e4            0.00
+wg-timer-manager               "any wait"                0               0          534480          5.12e3            0.00
+---------------
+Thread 1 vpp_wk_0 (lcore 2)
+Time 5361.6, 10.000000 sec internal node vector rate 2.04 loops/sec 3263325.67
+  vector rates in 1.2684e6, out 1.1599e6, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+dpdk-input                       polling       22196299143      6801082433               0          6.42e2             .31
+enp2s0f0np0-output               active          134622601       631777646               0          1.34e1            4.69
+enp2s0f0np0-tx                   active          134622601       515525259               0          1.38e2            3.83
+enp2s0f1np1-output               active          146810394       673328987               0          1.39e1            4.59
+enp2s0f1np1-tx                   active          146810394       556391779               0          1.25e2            3.79
+enp2s0f2np2-output               active          121313578       567601746               0          1.43e1            4.68
+enp2s0f2np2-tx                   active          121313578       451883670               0          1.54e2            3.72
+enp2s0f3np3-output               active          121805440       568714953               0          1.80e1            4.67
+enp2s0f3np3-tx                   active          121805440       451872404               0          1.57e2            3.71
+enp3s0f0np0-output               active          596543725      2187415998               0          1.48e1            3.67
+enp3s0f0np0-tx                   active          596543725      2130027298               0          6.38e1            3.57
+enp3s0f1np1-output               active          586276533      2172243103               0          1.47e1            3.71
+enp3s0f1np1-tx                   active          586276533      2113641129               0          6.24e1            3.61
+ethernet-input                   active         1707372271      6801082433               0          5.89e1            3.98
+l2-input                         active         1310657045      6801082433               0          3.11e1            5.19
+l2-output                        active         1310657045      6801082433               0          1.57e1            5.19
+---------------
+Thread 2 vpp_wk_1 (lcore 4)
+Time 5361.6, 10.000000 sec internal node vector rate 2.02 loops/sec 3309576.30
+  vector rates in 1.2516e6, out 1.1489e6, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+dpdk-input                       polling       22208103029      6710894940               0          6.55e2             .30
+enp2s0f0np0-output               active          133593039       623441448               0          1.37e1            4.67
+enp2s0f0np0-tx                   active          133593039       512735668               0          1.40e2            3.84
+enp2s0f1np1-output               active          145587684       664376416               0          1.42e1            4.56
+enp2s0f1np1-tx                   active          145587684       553046732               0          1.27e2            3.80
+enp2s0f2np2-output               active          120225012       560117357               0          1.33e1            4.66
+enp2s0f2np2-tx                   active          120225012       449947479               0          1.57e2            3.74
+enp2s0f3np3-output               active          120788827       561158779               0          1.35e1            4.65
+enp2s0f3np3-tx                   active          120788827       449918863               0          1.56e2            3.72
+enp3s0f0np0-output               active          590701747      2158309175               0          1.50e1            3.65
+enp3s0f0np0-tx                   active          590701747      2104004914               0          6.41e1            3.56
+enp3s0f1np1-output               active          581121484      2143491765               0          1.50e1            3.69
+enp3s0f1np1-tx                   active          581121484      2090522537               0          6.26e1            3.60
+ethernet-input                   active         1692017793      6710894940               0          5.89e1            3.97
+l2-input                         active         1301185038      6710894940               0          3.15e1            5.16
+l2-output                        active         1301185038      6710894940               0          1.53e1            5.16
+---------------
+Thread 3 vpp_wk_2 (lcore 6)
+Time 5361.6, 10.000000 sec internal node vector rate 2.02 loops/sec 3320414.79
+  vector rates in 1.2511e6, out 1.1487e6, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+dpdk-input                       polling       22341778175      6708332040               0          6.53e2             .30
+enp2s0f0np0-output               active          133694444       623204141               0          1.35e1            4.66
+enp2s0f0np0-tx                   active          133694444       512641717               0          1.40e2            3.83
+enp2s0f1np1-output               active          145738497       664105565               0          1.39e1            4.56
+enp2s0f1np1-tx                   active          145738497       552935720               0          1.26e2            3.79
+enp2s0f2np2-output               active          120512615       559900721               0          1.32e1            4.65
+enp2s0f2np2-tx                   active          120512615       449890802               0          1.55e2            3.73
+enp2s0f3np3-output               active          121028132       560922726               0          2.16e1            4.63
+enp2s0f3np3-tx                   active          121028132       449855058               0          1.55e2            3.72
+enp3s0f0np0-output               active          590401841      2157412061               0          1.46e1            3.65
+enp3s0f0np0-tx                   active          590401841      2103807545               0          6.39e1            3.56
+enp3s0f1np1-output               active          580853553      2142786826               0          1.50e1            3.69
+enp3s0f1np1-tx                   active          580853553      2089825652               0          6.30e1            3.60
+ethernet-input                   active         1692229082      6708332040               0          5.92e1            3.96
+l2-input                         active         1301613800      6708332040               0          3.11e1            5.15
+l2-output                        active         1301613800      6708332040               0          1.53e1            5.15
+---------------
+Thread 4 vpp_wk_3 (lcore 8)
+Time 5361.6, 10.000000 sec internal node vector rate 2.03 loops/sec 3366585.25
+  vector rates in 1.2512e6, out 1.1488e6, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+dpdk-input                       polling       22263363920      6708587310               0          6.52e2             .30
+enp2s0f0np0-output               active          133140065       623248399               0          1.38e1            4.68
+enp2s0f0np0-tx                   active          133140065       512675835               0          1.40e2            3.85
+enp2s0f1np1-output               active          145141740       664094621               0          1.40e1            4.58
+enp2s0f1np1-tx                   active          145141740       552965533               0          1.27e2            3.81
+enp2s0f2np2-output               active          119786981       559968500               0          1.34e1            4.67
+enp2s0f2np2-tx                   active          119786981       449905236               0          1.57e2            3.76
+enp2s0f3np3-output               active          120321083       560918548               0          1.36e1            4.66
+enp2s0f3np3-tx                   active          120321083       449858788               0          1.57e2            3.74
+enp3s0f0np0-output               active          589085925      2157421420               0          1.50e1            3.66
+enp3s0f0np0-tx                   active          589085925      2104077317               0          6.39e1            3.57
+enp3s0f1np1-output               active          578505553      2142935822               0          1.54e1            3.70
+enp3s0f1np1-tx                   active          578505553      2090294577               0          6.32e1            3.61
+ethernet-input                   active         1685981347      6708587310               0          6.02e1            3.98
+l2-input                         active         1293896064      6708587310               0          3.15e1            5.18
+l2-output                        active         1293896064      6708587310               0          1.72e1            5.18
+---------------
+Thread 5 vpp_wk_4 (lcore 10)
+Time 5361.6, 10.000000 sec internal node vector rate 2.02 loops/sec 3401009.56
+  vector rates in 1.2516e6, out 1.1487e6, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+dpdk-input                       polling       21965627967      6710715573               0          6.48e2             .31
+enp2s0f0np0-output               active          133367728       623445303               0          1.35e1            4.67
+enp2s0f0np0-tx                   active          133367728       512748647               0          1.39e2            3.84
+enp2s0f1np1-output               active          145402921       664293539               0          1.41e1            4.57
+enp2s0f1np1-tx                   active          145402921       553045887               0          1.26e2            3.80
+enp2s0f2np2-output               active          120285848       560105822               0          1.33e1            4.66
+enp2s0f2np2-tx                   active          120285848       449952470               0          1.56e2            3.74
+enp2s0f3np3-output               active          120830839       561101174               0          1.36e1            4.64
+enp2s0f3np3-tx                   active          120830839       449902756               0          1.54e2            3.72
+enp3s0f0np0-output               active          589759127      2158149261               0          1.49e1            3.66
+enp3s0f0np0-tx                   active          589759127      2105100597               0          6.47e1            3.57
+enp3s0f1np1-output               active          579473003      2143620474               0          1.48e1            3.70
+enp3s0f1np1-tx                   active          579473003      2088506044               0          6.31e1            3.60
+ethernet-input                   active         1689119466      6710715573               0          5.96e1            3.97
+l2-input                         active         1296469967      6710715573               0          3.13e1            5.18
+l2-output                        active         1296469967      6710715573               0          1.52e1            5.18
+---------------
+Thread 6 vpp_wk_5 (lcore 12)
+Time 5361.6, 10.000000 sec internal node vector rate 2.02 loops/sec 3422975.14
+  vector rates in 1.2516e6, out 1.1490e6, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+dpdk-input                       polling       22266367549      6710584664               0          6.51e2             .30
+enp2s0f0np0-output               active          132780107       623420206               0          1.35e1            4.70
+enp2s0f0np0-tx                   active          132780107       512730234               0          1.42e2            3.86
+enp2s0f1np1-output               active          144776186       664309992               0          1.40e1            4.59
+enp2s0f1np1-tx                   active          144776186       553052408               0          1.27e2            3.82
+enp2s0f2np2-output               active          119517921       560095520               0          1.33e1            4.69
+enp2s0f2np2-tx                   active          119517921       449939889               0          1.58e2            3.76
+enp2s0f3np3-output               active          120018340       561107425               0          1.34e1            4.68
+enp2s0f3np3-tx                   active          120018340       449903401               0          1.56e2            3.75
+enp3s0f0np0-output               active          588953274      2158149107               0          1.48e1            3.66
+enp3s0f0np0-tx                   active          588953274      2104317350               0          6.41e1            3.57
+enp3s0f1np1-output               active          579549238      2143502414               0          1.48e1            3.70
+enp3s0f1np1-tx                   active          579549238      2090562490               0          6.35e1            3.61
+ethernet-input                   active         1685595066      6710584664               0          5.97e1            3.98
+l2-input                         active         1298911723      6710584664               0          3.19e1            5.17
+l2-output                        active         1298911723      6710584664               0          1.52e1            5.17
+---------------
+Thread 7 vpp_wk_6 (lcore 14)
+Time 5361.6, 10.000000 sec internal node vector rate 2.02 loops/sec 3696828.21
+  vector rates in 1.2512e6, out 1.1486e6, drop 0.0000e0, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+dpdk-input                       polling       23378130462      6708723532               0          6.46e2             .29
+enp2s0f0np0-output               active          132714484       623219345               0          1.40e1            4.70
+enp2s0f0np0-tx                   active          132714484       512639921               0          1.41e2            3.86
+enp2s0f1np1-output               active          144742676       664158203               0          1.48e1            4.59
+enp2s0f1np1-tx                   active          144742676       552973624               0          1.27e2            3.82
+enp2s0f2np2-output               active          119602600       559914574               0          1.32e1            4.68
+enp2s0f2np2-tx                   active          119602600       449898622               0          1.57e2            3.76
+enp2s0f3np3-output               active          120171883       560968267               0          1.34e1            4.67
+enp2s0f3np3-tx                   active          120171883       449868963               0          1.56e2            3.74
+enp3s0f0np0-output               active          588968601      2157635245               0          1.51e1            3.66
+enp3s0f0np0-tx                   active          588968601      2104122255               0          6.28e1            3.57
+enp3s0f1np1-output               active          579253206      2142827898               0          1.51e1            3.70
+enp3s0f1np1-tx                   active          579253206      2089095926               0          6.27e1            3.61
+ethernet-input                   active         1685453450      6708723532               0          5.79e1            3.98
+l2-input                         active         1299056639      6708723532               0          3.30e1            5.16
+l2-output                        active         1299056639      6708723532               0          1.55e1            5.16
+## END
+1792487858.345588606

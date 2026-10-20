@@ -109,3 +109,24 @@ MDD consequence. The current 211 document produces 17 such warnings; the propose
 - Upstream: the shared-TX-queue → MDD behaviour deserves a VPP/DPDK report (not filed here).
 - The renderer still picks worker CPUs by number when `corelist` is absent; it does not know HT
   siblings or hybrid cores. The 211 document uses an explicit corelist instead.
+
+## 2026-10-20 after the apply (verified from this session, read-only)
+
+The permanent file is live: `/etc/vpp/startup.conf` sha256 `92985d0c…`, `main-core 16`,
+`corelist-workers 2,4,6,8,10,12,14`, every TX queue of the 12 X710 ports `shared no`, no MDD event
+since the restart, `vpp`/`ngfw-agent`/`ngfw-api` active, `/etc/ngfw/dataplane-performance.json`
+= `{"cores":[16,2,4,6,8,10,12,14]}` (apply work dir `/var/lib/ngfw/startup-apply/20261020-063950-212602`,
+session "Apply the 211 VPP start-up tuning"). The API's running dataplane document still holds the
+old 9-worker values until an admin commits the new one (separate session, needs the admin login).
+
+**New limit seen at the higher generator rate** (64-byte UDP, ≈3–4 Mpps per direction per port, 5 s
+windows): the NICs drop, VPP does not. Workers: ≈2.1 Mpps in each, `dpdk-input` 0.78 vectors per
+call (mostly idle polling). `02:00.x` card (x8, NVM 9.56): `rx_missed` ≈1.8 %, **TX** failure ≈22 %,
+spread evenly over all seven TX queues (`…-tx` 1.006 M of 1.30 M vectors per thread) — the NIC's TX
+path cannot drain tiny bursts (VPP hands 1–3 packets per doorbell). `03:00.x` card (x4, NVM 6.80):
+no TX loss, **RX** `rx_missed` ≈11.5 % (459 kpps) — the x4 link / DMA path. No pause frames
+(no flow-control xstats). Both cards top out around 3–4 Mpps per port for 64-byte frames, ≈25 % of
+the 14.88 Mpps line rate; at IMIX sizes (≈350 B average) 10G line rate is ≈3.5 Mpps per port, so this
+mostly matters for minimum-size tests. Not tuned here: i40e vector TX would need `no-multi-seg` and
+no checksum offload (and 9216-byte buffers for MTU 9000), which the renderer does not expose.
+Suggested next tests: IMIX / 512 B frames; the second pair on the idle `01:00.x` card.

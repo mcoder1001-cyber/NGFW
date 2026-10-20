@@ -384,21 +384,23 @@ class MaintainerScripts(unittest.TestCase):
         # ngfw-firewall-bootstrap.service, postgresql.service and valkey-server.service; now the
         # provisioning oneshot is the only unit whose stop reaches VPP (ngfw-upgrade-prepare.service
         # joins it on A/B images, where it is linked into ngfw-firstboot.service.requires/).
-        guarded = MAINTAINER.stop_propagation_closure('vpp.service')
+        guarded = MAINTAINER.stop_propagation_closure('vpp.service', enabled=True)
         shipped = {unit for package in self.packaged for unit in MAINTAINER.maintscript_units(package)}
-        self.assertEqual(guarded, {'ngfw-firstboot.service'})
-        self.assertEqual(MAINTAINER.stop_propagation_closure('vpp.service', enabled=True),
-                         {'ngfw-firstboot.service', 'ngfw-upgrade-prepare.service'})
+        self.assertEqual(MAINTAINER.stop_propagation_closure('vpp.service'), {'ngfw-firstboot.service'})
+        self.assertEqual(guarded, {'ngfw-firstboot.service', 'ngfw-upgrade-prepare.service'})
         self.assertLessEqual(guarded, shipped)
         for daemon in ('nftables.service', 'postgresql.service', 'valkey-server.service'):
-            self.assertNotIn(daemon, MAINTAINER.stop_propagation_closure('vpp.service', enabled=True))
+            self.assertNotIn(daemon, guarded)
         for package in self.packaged:
             with self.subTest(package=package):
                 for script, arguments, calls in self.upgrade_calls(package):
                     self.assertEqual(MAINTAINER.stopped_units(calls) & guarded, set(), (script, arguments))
-        with tempfile.TemporaryDirectory() as temporary:  # not vacuous: removing ngfw-meta does stop them
-            calls = MAINTAINER.Recorder(temporary).run(self.generated['ngfw-meta']['prerm'], 'remove')
-            self.assertEqual(MAINTAINER.stopped_units(calls), PROVISIONING_UNITS)
+        with tempfile.TemporaryDirectory() as temporary:  # not vacuous: removing the packages does stop them
+            recorder = MAINTAINER.Recorder(temporary)
+            self.assertEqual(MAINTAINER.stopped_units(recorder.run(self.generated['ngfw-meta']['prerm'], 'remove')),
+                             PROVISIONING_UNITS)
+            self.assertIn('ngfw-upgrade-prepare.service',
+                          MAINTAINER.stopped_units(recorder.run(self.generated['ngfw-agent']['prerm'], 'remove')))
 
     def test_rules_without_the_flag_would_stop_the_provisioning_units_on_upgrade(self):
         # Negative control: the same fixture with the pre-D-253 arguments reproduces the stop, whichever

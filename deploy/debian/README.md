@@ -10,8 +10,9 @@ started on installation, are neither stopped nor restarted on upgrade (D-253:
 `dh_installsystemd --no-start --no-stop-on-upgrade`; the operator restarts agent
 and API), are stopped only on removal, and require the successful firstboot marker.
 `ngfw-firstboot.service` wants (never requires) PostgreSQL, Valkey and nftables and
-checks them itself on a fresh appliance (D-255), so their explicit restart does not
-propagate to VPP, the agent or the API.
+checks them itself on a fresh appliance (D-255), so an explicit restart of PostgreSQL
+or Valkey no longer propagates to VPP, the agent or the API; an nftables restart still
+restarts the agent (which requires the base firewall) and with it the API, never VPP.
 
 Remaining before release: firstboot database/migrations/bootstrap, nginx TLS and
 WebSocket configuration, base nftables policy, signed APT publication and clean

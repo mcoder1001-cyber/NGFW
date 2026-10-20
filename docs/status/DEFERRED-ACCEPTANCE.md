@@ -429,7 +429,8 @@ upgrades.
 
 `ngfw-firstboot.service` now wants (not requires) `postgresql.service`, `valkey-server.service`
 and `nftables.service`, `ngfw-upgrade-prepare.service` wants `postgresql.service`, and
-`firstboot.sh` refuses a fresh first boot unless each of the three is active (task
+`firstboot.sh` refuses a fresh first boot unless each of the three is active and the PostgreSQL
+cluster answers `pg_isready` (Debian's `postgresql.service` is an `ExecStart=/bin/true` wrapper; task
 `firstboot-wants-deps-20261019`). Proven host-independently: `test_firstboot.FirstbootDependencies`
 and `test_packaging.MaintainerScripts` derive, from the shipped units and drop-ins, that the only
 unit whose explicit stop reaches `vpp.service` is `ngfw-firstboot.service` (plus
@@ -437,17 +438,20 @@ unit whose explicit stop reaches `vpp.service` is `ngfw-firstboot.service` (plus
 `test_firstboot.Firstboot` runs the script's gate against fixture commands (each inactive daemon
 refuses before any database or file work, credentials kept; a provisioned appliance never
 queries). The dependency graph of appliance 37 was inspected read-only (`systemctl show -p
-RequiredBy`) and matches the pre-D-255 closure. The propagation itself was observed on 2026-10-19
-in a disposable instance of the dependency graph: `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh
---manager user` installs throwaway `ngfwlab-*` stand-in units (the shipped dependency lines, sleep
-daemons, the same gate) into root's `systemctl --user` manager on the dev host, boots them, restarts
-Valkey, PostgreSQL and nftables and compares `InvocationID`s; with the previous `Requires=` text each
-restart restarted firstboot (re-executing the script, exit 0 on the marker), VPP, agent and API, with
-the D-255 text only the restarted daemon changed (nftables: plus agent and API, never VPP), the first
-boot kept its order, failed closed on each missing daemon and the provisioned reboot skipped the
-gate (36 checks, 0 mismatches in each mode; output in the task's WIP note). Laboratory acceptance on
-real units is **NOT RUN** (the shared dev host's VPP and appliance 37 were not restarted). On a
-disposable appliance or VM running D-255 packages record:
+RequiredBy`) and matches the pre-D-255 closure. The propagation itself was observed on 2026-10-19/20
+with throwaway `ngfwlab-*` stand-in units under `/run/user/0/systemd/user` in root's persistent
+`systemctl --user` manager on the shared dev host (not a disposable instance; the system manager and
+VPP were untouched): `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh --manager user` renders the
+shipped dependency lines onto sleep daemons, Debian's PostgreSQL wrapper-plus-cluster pair and the same
+gate, boots them, restarts Valkey, PostgreSQL (wrapper and cluster) and nftables and compares
+`InvocationID`s; with the previous `Requires=` text each restart restarted firstboot (re-executing the
+script, exit 0 on the marker), VPP, agent and API, with the D-255 text only the restarted daemon
+changed (nftables: plus agent and API, never VPP; the cluster alone: nothing else), the first boot
+kept its order, failed closed on each missing daemon including a failed cluster behind the active
+wrapper, and the provisioned reboot skipped the gate (41 checks, 0 mismatches in each mode; output
+in the task's WIP note). Laboratory acceptance on real units is **NOT RUN** (the shared dev host's
+VPP and appliance 37 were not restarted). On a disposable appliance or VM running D-255 packages
+record:
 (a) after `systemctl daemon-reload`, `systemctl show -p RequiredBy postgresql.service
 valkey-server.service nftables.service` names no `ngfw-firstboot.service` (WantedBy= does) and
 `systemctl show -p RequiredBy ngfw-firstboot.service` still names `vpp.service ngfw-agent.service
@@ -467,6 +471,12 @@ only, `vpp.service` keeps its `InvocationID`;
 nftables, PostgreSQL/Valkey, firstboot, VPP, agent, API, nginx;
 (e) reboot of the provisioned appliance with `postgresql.service` masked: VPP and the agent come
 up, the API restarts until PostgreSQL is unmasked, firstboot stays `active (exited)` without a
-second `firstboot.sh` run.
+second `firstboot.sh` run;
+(f) fresh install with a cluster that fails to start (a broken `postgresql.conf`): `postgresql.service`
+is `active (exited)` regardless, `ngfw-firstboot.service` fails with `first boot requires a PostgreSQL
+cluster accepting connections` after the three unit queries and before any `psql` line in the
+journal, `/etc/ngfw/bootstrap.env` is kept, VPP, agent and API are not started; after repairing the
+configuration and `systemctl start postgresql@<version>-main.service ngfw-firstboot.service` the boot
+completes.
 `firstboot-propagation.sh --manager system` (with `NGFW_LAB_DISPOSABLE=1`, on a disposable VM only)
-runs the same stand-in scenario under a system manager; the real-unit records (a)–(e) above remain.
+runs the same stand-in scenario under a system manager; the real-unit records (a)–(f) above remain.

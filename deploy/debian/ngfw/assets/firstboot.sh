@@ -16,6 +16,10 @@ fi
 for UNIT in postgresql.service valkey-server.service nftables.service; do
   systemctl --quiet is-active "$UNIT" || { echo "first boot requires an active $UNIT" >&2; exit 1; }
 done
+# postgresql.service is only a wrapper on Debian (ExecStart=/bin/true; the cluster runs
+# in postgresql@<version>-main.service and the wrapper stays active when it fails), so
+# ask the server itself; the psql calls below would also stop on a cluster that is down.
+runuser -u postgres -- pg_isready -q || { echo 'first boot requires a PostgreSQL cluster accepting connections' >&2; exit 1; }
 [[ -f /etc/ngfw/bootstrap.env && ! -L /etc/ngfw/bootstrap.env ]] || { echo 'missing bootstrap.env' >&2; exit 1; }
 [[ $(stat -c '%u:%a' /etc/ngfw/bootstrap.env) == 0:600 ]] || { echo 'bootstrap.env must be root-owned 0600' >&2; exit 1; }
 export NGFW_BOOTSTRAP_ADMIN_USER=${NGFW_BOOTSTRAP_ADMIN_USER:-admin}

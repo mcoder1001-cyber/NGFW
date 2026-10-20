@@ -13,6 +13,8 @@ MAINTAINER = importlib.util.module_from_spec(SCRIPTS_SPEC)
 SCRIPTS_SPEC.loader.exec_module(MAINTAINER)
 # The daemons the first boot needs up before it runs (D-255: Wants= + After= in the unit, is-active in the script).
 GATED_UNITS = ('postgresql.service', 'valkey-server.service', 'nftables.service')
+# The PostgreSQL gate itself: the unit is only a wrapper on Debian, the cluster answers pg_isready.
+PG_ISREADY = '-u postgres -- pg_isready -q'
 
 
 class Firstboot(unittest.TestCase):
@@ -31,6 +33,7 @@ class Firstboot(unittest.TestCase):
             file.write_text('#!/usr/bin/env bash\nset -eu\n' + script + '\n')
             file.chmod(0o755)
         command('bin/runuser', '''echo "$*" >> "$FIXTURE_ROOT/runuser-commands"
+if [[ "$*" == *pg_isready* ]]; then [[ ${FAIL_STAGE:-} != cluster ]]; exit 0; fi
 if [[ "$*" == *psql* ]]; then cat >/dev/null; exit 0; fi
 [[ ${FAIL_STAGE:-} != db ]]''')
         command('bin/chown', ':')
@@ -152,7 +155,7 @@ echo "$*" >> "$FIXTURE_ROOT/service-commands"''')
             self.assertFalse((root / 'var/lib/ngfw/firstboot-complete').exists())
 
     def test_failures_retain_credentials_and_do_not_publish_completion(self):
-        for stage in ['db', 'tls', 'startup', 'nginx']:
+        for stage in ['cluster', 'db', 'tls', 'startup', 'nginx']:
             with self.subTest(stage=stage), tempfile.TemporaryDirectory() as directory:
                 root, credentials, entry, env = self.fixture(directory)
                 env['FAIL_STAGE'] = stage
@@ -182,8 +185,8 @@ echo "$*" >> "$FIXTURE_ROOT/service-commands"''')
     def test_fresh_boot_refuses_an_inactive_dependency_before_provisioning(self):
         # D-255: the unit pulls PostgreSQL, Valkey and nftables in with Wants= (an explicit
         # restart of one of them must not propagate to VPP), so the script keeps the first boot
-        # fail-closed itself: an inactive dependency stops it before any database, key or file
-        # work, credentials stay for the retry and no unit state is changed.
+        # fail-closed itself: an inactive dependency stops it before pg_isready and any database,
+        # key or file work, credentials stay for the retry and no unit state is changed.
         for unit in GATED_UNITS:
             with self.subTest(unit=unit), tempfile.TemporaryDirectory() as directory:
                 root, credentials, entry, env = self.fixture(directory)
@@ -209,9 +212,31 @@ echo "$*" >> "$FIXTURE_ROOT/service-commands"''')
             subprocess.run(['bash', str(entry)], env=env, check=True, capture_output=True)
             self.assertEqual((root / 'service-queries').read_text().splitlines(),
                              ['--quiet is-active ' + name for name in GATED_UNITS])
-            self.assertTrue((root / 'runuser-commands').exists())
+            commands = (root / 'runuser-commands').read_text().splitlines()
+            self.assertEqual(commands[0], PG_ISREADY)
+            self.assertIn('psql', commands[1])
             self.assertTrue((root / 'var/lib/ngfw/firstboot-complete').exists())
             self.assertFalse(credentials.exists())
+
+    def test_fresh_boot_refuses_a_cluster_that_does_not_accept_connections(self):
+        # On Debian postgresql.service is an ExecStart=/bin/true wrapper and the cluster runs in
+        # postgresql@<version>-main.service, so an active wrapper proves nothing: pg_isready (as
+        # postgres, over the socket) is the PostgreSQL gate, after the unit queries and before the
+        # first psql; the psql calls would stop on a down cluster too, pg_isready names the cause.
+        with tempfile.TemporaryDirectory() as directory:
+            root, credentials, entry, env = self.fixture(directory)
+            env['FAIL_STAGE'] = 'cluster'
+            result = subprocess.run(['bash', str(entry)], env=env, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('first boot requires a PostgreSQL cluster accepting connections', result.stderr)
+            self.assertTrue(credentials.exists())
+            self.assertFalse((root / 'var/lib/ngfw/firstboot-complete').exists())
+            self.assertFalse((root / 'var/lib/ngfw/secret.key').exists())
+            self.assertFalse((root / 'etc/ngfw/api.env').exists())
+            self.assertFalse((root / 'service-commands').exists())
+            self.assertEqual((root / 'service-queries').read_text().splitlines(),
+                             ['--quiet is-active ' + name for name in GATED_UNITS])
+            self.assertEqual((root / 'runuser-commands').read_text().splitlines(), [PG_ISREADY])
 
 
 class FirstbootUpgrade(unittest.TestCase):

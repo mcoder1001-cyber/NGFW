@@ -6005,3 +6005,108 @@ tasks:
     notes: Panel R1 APPROVE WITH CHANGES (0 MAJOR), R2 APPROVE, R6 APPROVE; seven minor findings fixed; web tests 694 pass; local and hosted quick PASS.
     worker_status: completed; session finished
     completion_evidence: PR239 head 5ede38427b09f5c9ed28b24c96578722a378031e; merge 9598807d169137b9b423e56c09ef5bbcc0150ae8; hosted quick PASS; main CI gate SUCCESS on 9598807d1
+  - id: deploy-host-37-20261019
+    title: 'Operator upgrade of appliances 37 and 211 to main; deploy-hosts.sh APT fix'
+    prompt: docs/status/tasks/deploy-host-37-20261019-wip.md
+    template: ''
+    stage: S5
+    deps: [deploy-hosts-minors-20261017]
+    priority: 1
+    est_hours: 4
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Owner request 2026-10-19 (update 172.30.126.37, then 172.30.110.211); first real appliance runs of the upgrade tool
+    files_owned: deploy/deploy-hosts.sh deploy/debian/ngfw/tests/test_deploy_hosts.py docs/install/deploy-hosts.md docs/status/tasks/deploy-host-37-20261019* docs/status/DEFERRED-ACCEPTANCE.md
+    branch: claude/machine-172-30-126-37-update-c90ed0
+    worktree: ''
+    owner: root manager
+    started: '2026-10-19'
+    finished: '2026-10-20'
+    notes: apt 3.2.0 refuses --no-download for local archives; both APT calls hide the repositories instead. Both hosts upgraded 8eb2f11c4069 -> git695.cb148aafb288 (VPP restarted 6-9 s through the pre-D-253 preinst stop). Review APPROVE WITH CHANGES, applied.
+    worker_status: completed; session finished
+    completion_evidence: PR244 head af5c5a61c5d2e46b45f76f7f28e2636c48c61c3e; merge e7377927f; hosted quick 39372836816 and packaging PASS; main CI covered by 5593e5ab2 run 39376212024 SUCCESS
+  - id: vpp-tests-mkdeb-umask-20261019
+    title: 'VPP test fixture: mkdeb independent of the caller umask'
+    prompt: docs/status/tasks/vpp-tests-mkdeb-umask-20261019-wip.md
+    template: ''
+    stage: S5
+    deps: []
+    priority: 2
+    est_hours: 1
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up of the 2026-10-19 deploy (deploy-hosts.sh sets umask 077; tests 61/62/69 failed); test-only
+    files_owned: deploy/vpp/tests/run.sh docs/status/tasks/vpp-tests-mkdeb-umask-20261019*
+    branch: fix/vpp-tests-mkdeb-umask-20261019
+    worktree: ''
+    owner: root manager
+    started: '2026-10-19'
+    finished: '2026-10-20'
+    notes: Review APPROVE; pre-existing MINOR left as follow-up (dpkg-deb exit code unchecked in the fixture).
+    worker_status: completed; session finished
+    completion_evidence: PR245 head 3031bddc12103d741caf1863eb0d0d54ca163f42; merge 457431dc6; hosted quick 39226762416 PASS; main CI gate 39369652569 SUCCESS
+  - id: pkg-no-stop-on-upgrade-20261019
+    title: 'Packaging: never stop units on package upgrade (D-253)'
+    prompt: docs/status/tasks/pkg-no-stop-on-upgrade-20261019-envelope.md
+    template: ''
+    stage: S5
+    deps: []
+    priority: 1
+    est_hours: 4
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up of the 2026-10-19 deploy (VPP restarted on every upgrade through the preinst stop of ngfw-firstboot.service)
+    files_owned: deploy/debian/ngfw/debian/rules deploy/debian/ngfw/tests/maintainer_scripts.py deploy/debian/ngfw/tests/test_packaging.py deploy/debian/ngfw/tests/test_firstboot.py .github/workflows/packaging-fixtures.yml docs/install/upgrade.md docs/status/tasks/pkg-no-stop-on-upgrade-20261019*
+    branch: claude/musing-ramanujan-bd8fe0
+    worktree: ''
+    owner: root manager
+    started: '2026-10-19'
+    finished: '2026-10-20'
+    notes: D-253. Review APPROVE WITH CHANGES (apply-executor keeps old code until stopped idle; base firewall policy re-renders at next boot; A/B upgrade-prepare link modelled; rollback caveat), fixes verified APPROVE. Hosted fixture now runs unprivileged.
+    worker_status: completed; session finished
+    completion_evidence: PR246 head cb1991a305abf8b5215dbf11623147311809d157 (product head ad0bc5027); merge 921f82388; hosted quick 39370580383 and packaging 39370580418 PASS; main CI gate 39372695645 SUCCESS
+  - id: firstboot-wants-deps-20261019
+    title: 'systemd: firstboot wants, not requires, PostgreSQL/Valkey/nftables (D-255)'
+    prompt: docs/status/tasks/firstboot-wants-deps-20261019-envelope.md
+    template: ''
+    stage: S5
+    deps: [pkg-no-stop-on-upgrade-20261019]
+    priority: 1
+    est_hours: 4
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up of D-253 — a PostgreSQL/Valkey restart must not propagate to VPP through ngfw-firstboot.service
+    files_owned: deploy/systemd/ngfw-firstboot.service deploy/upgrade/ngfw-upgrade-prepare.service deploy/debian/ngfw/assets/firstboot.sh deploy/debian/ngfw/tests/lab/firstboot-propagation.sh deploy/debian/README.md docs/status/tasks/firstboot-wants-deps-20261019*
+    branch: claude/trusting-jackson-71c8da
+    worktree: ''
+    owner: root manager
+    started: '2026-10-19'
+    finished: '2026-10-20'
+    notes: D-255 (renumbered from D-254). Review APPROVE WITH CHANGES (pg_isready gate, README nftables exception, withheld-vs-wait wording), applied. Lab propagation acceptance on a real appliance NOT RUN.
+    worker_status: completed; session finished
+    completion_evidence: PR248 head 9017df479f4e57df749c0b5edff0b9287b11fa6f; merge 5593e5ab2; hosted quick 39374120967 and packaging 39374120991 PASS; main CI gate 39376212024 SUCCESS
+  - id: deploy-hosts-vpp-restart-check-20261019
+    title: 'Deploy helper: fail the run when the APT step restarted VPP (D-254)'
+    prompt: docs/status/tasks/deploy-hosts-vpp-restart-check-20261019-envelope.md
+    template: ''
+    stage: S5
+    deps: [pkg-no-stop-on-upgrade-20261019, deploy-host-37-20261019]
+    priority: 1
+    est_hours: 4
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Follow-up of D-253 — the operator tool verifies the no-stop contract on every upgrade
+    files_owned: deploy/deploy-hosts.sh deploy/debian/ngfw/tests/test_deploy_hosts.py docs/install/deploy-hosts.md docs/status/tasks/deploy-hosts-vpp-restart-check-20261019*
+    branch: claude/gifted-cartwright-6b6380
+    worktree: ''
+    owner: root manager
+    started: '2026-10-19'
+    finished: '2026-10-20'
+    notes: D-254. Review APPROVE; four minors applied (socket warning wording, after-record on failure paths, not-found sockets as warning, merge-order evidence).
+    worker_status: completed; session finished
+    completion_evidence: PR247 head a94c109a733532c9fe1333cacad9f1fb35d7bc6f; merge 3fc333cde; hosted quick 39378808375 and packaging 39378804624/39378808404 PASS; main CI gate 39380738314 RESULT_3FC

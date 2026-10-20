@@ -5,7 +5,7 @@ Branch: `claude/gifted-cartwright-6b6380` (cut from `origin/main` `cb148aafb`), 
 Envelope: [deploy-hosts-vpp-restart-check-20261019-envelope.md](deploy-hosts-vpp-restart-check-20261019-envelope.md).
 Origin: follow-up 3 of `pkg-no-stop-on-upgrade-20261019-wip.md` (PR #246, D-253); receipt
 `deploy-host-37-20261019-wip.md` (PR #244).
-PR: https://github.com/mcoder1001-cyber/NGFW/pull/247 (open against `main`; hosted gates and independent review pending; not to be merged by this task).
+PR: https://github.com/mcoder1001-cyber/NGFW/pull/247 — MERGED 2026-10-20 06:30 UTC as `3fc333cde` (squash of `a94c109a7`, the product tree the manager reviewed and both local and hosted gates passed on; the merged tree is byte-identical to `a94c109a7`). Checkpoint 7 (this file only) was pushed after the merge and is carried to `main` by the closeout PR.
 
 ## Checkpoints
 
@@ -19,7 +19,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 3 | `f4d085c9b` | hosted receipts for the product tree; product tree unchanged |
 | 4 | `b149e3852` | the manager's review minors (below), fixture modes, docs/D-254 wording, this file |
 | 5 | `b9f5fca50` | runs D–F and hosted receipts for `b149e3852`; product tree unchanged |
-| 6 | (this commit) | merge of `origin/main` `5593e5ab2` (#245, #246, #244, #248); conflicts in the three prose files only, resolved by keeping both sides; this file |
+| 6 | `a94c109a7` | merge of `origin/main` `5593e5ab2` (#245, #246, #244, #248); conflicts in the three prose files only, resolved by keeping both sides; this file |
+| 7 | `7e74dd231` (branch only) | runs G–I and hosted receipts for `a94c109a7`; product tree unchanged; pushed after the merge, so carried to `main` by the closeout PR |
 
 ## Owned files
 
@@ -183,7 +184,8 @@ Hosted, on the product tree `8340771f6` (PR #247 head at opening): mandatory qui
 - Run F (same tree, whole suite `python3 -m unittest discover -s deploy/debian/ngfw/tests -v`, run after E): `Ran 126 tests in 986.626s` / `OK`, no skips.
 - Hosted, on `b149e3852`: CI gate (mandatory quick) [39372093452](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372093452) success; packaging fixture gate [39372093451](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372093451) and [39372087398](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372087398) success.
 
-- Merged tree (checkpoint 6): `bash -n` OK, `shellcheck --external-sources` clean; run G (targeted) pending; runs H/I (full `-p test_deploy_hosts.py`, whole suite) pending; hosted checks pending.
+- Merged tree (checkpoint 6, `a94c109a7`): `bash -n` OK, `shellcheck --external-sources` clean, the extracted remote install script `shellcheck -s bash` clean. Run G (targeted, as D): `Ran 4 tests in 411.157s` / `OK`. Run H (full `-p test_deploy_hosts.py`): `Ran 34 tests in 860.456s` / `OK`. Run I (whole suite, after H): `Ran 142 tests in 904.064s` / `OK`, no skips (142 = 141 on `origin/main` `5593e5ab2` + 1 new).
+- Hosted, on `a94c109a7`: CI gate (mandatory quick) [39378808375](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39378808375) success; packaging fixture gate [39378808404](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39378808404) and [39378804624](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39378804624) success; provisioning fixture gate [39378804670](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39378804670) success.
 
 ## Current failure
 
@@ -191,4 +193,4 @@ None.
 
 ## Exact next command
 
-None for the developer: all four gates are green locally and PR #247 is open. For the manager: read `gh pr checks 247` (mandatory quick gate + packaging fixtures), request the panel review (R1, R2, R7, R8 per `prompts/REVIEW-PROMPT.md`), and when merging after #244/#246 re-merge the two prose paragraphs named under *Merge note*.
+None: PR #247 is merged (`3fc333cde`); this closeout PR only carries the final status lines above. Laboratory acceptance of the check stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).

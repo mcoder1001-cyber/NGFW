@@ -380,7 +380,7 @@ class MaintainerScripts(unittest.TestCase):
         # vpp.service carries Requires=ngfw-firstboot.service (assets/vpp-firstboot.conf). An explicit
         # stop of that unit stops VPP, the agent and the API (systemd.unit(5), Requires=): the
         # 2026-10-13 and 2026-10-19 upgrades of appliance 37 restarted VPP for about nine seconds this
-        # way. Before D-254 the closure went on through firstboot's Requires= to nftables.service,
+        # way. Before D-255 the closure went on through firstboot's Requires= to nftables.service,
         # ngfw-firewall-bootstrap.service, postgresql.service and valkey-server.service; now the
         # provisioning oneshot is the only unit whose stop reaches VPP (ngfw-upgrade-prepare.service
         # joins it on A/B images, where it is linked into ngfw-firstboot.service.requires/).

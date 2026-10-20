@@ -30,7 +30,7 @@ agent and API). That stop was in the incoming package's preinst, so the first
 upgrade onto D-253 packages is already free of it; on an appliance upgraded
 earlier, check `systemctl is-active apply-executor.socket ngfw-ra-openfile.socket
 ngfw-ra-namespace-broker.socket` and start them (or reboot) if they are inactive.
-Since D-254 `ngfw-firstboot.service` pulls `postgresql.service`,
+Since D-255 `ngfw-firstboot.service` pulls `postgresql.service`,
 `valkey-server.service` and `nftables.service` in with `Wants=` instead of
 `Requires=` (the A/B snapshot unit `ngfw-upgrade-prepare.service` likewise wants
 PostgreSQL), so an explicit restart of one of them, whether by an operator

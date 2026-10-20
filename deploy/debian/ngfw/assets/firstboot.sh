@@ -9,7 +9,7 @@ if [[ -e /var/lib/ngfw/firstboot-complete ]]; then
   [[ ! -e /etc/ngfw/bootstrap.env ]] || rm -- /etc/ngfw/bootstrap.env
   exit 0
 fi
-# D-254: the unit pulls these in with Wants= and orders itself after them (After=),
+# D-255: the unit pulls these in with Wants= and orders itself after them (After=),
 # so an explicit restart of one of them no longer propagates to VPP; the first boot
 # therefore checks them itself and fails closed. One unit per call: with several
 # names `systemctl is-active` succeeds when any one of them is active.

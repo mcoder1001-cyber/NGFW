@@ -4,7 +4,7 @@ Branch: `claude/trusting-jackson-71c8da` (worktree `/root/NGFW/.claude/worktrees
 cut from PR #246's head `9cabd7f47` (`claude/musing-ramanujan-bd8fe0`, D-253), itself cut from
 `origin/main` `cb148aafb`. Stacked on PR #246: after #246 merges, `git rebase --onto origin/main 9cabd7f47`.
 Envelope: [firstboot-wants-deps-20261019-envelope.md](firstboot-wants-deps-20261019-envelope.md).
-Decision: D-254 in `docs/decisions/LOG.md`. Origin: follow-up 1 of
+Decision: D-255 in `docs/decisions/LOG.md`. Origin: follow-up 1 of
 [pkg-no-stop-on-upgrade-20261019-wip.md](pkg-no-stop-on-upgrade-20261019-wip.md) (D-253, PR #246).
 PR: https://github.com/mcoder1001-cyber/NGFW/pull/248 (open against `main`, stacked on #246; hosted gates and
 independent review pending; not to be merged by this task).
@@ -15,9 +15,10 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 
 | checkpoint | SHA | content |
 |---|---|---|
-| 1 | `935ee0e29` | units, script gate, fixture helpers, tests, lab script, docs, D-254, envelope, this file |
+| 1 | `935ee0e29` | units, script gate, fixture helpers, tests, lab script, docs, D-255, envelope, this file |
 | 1b | `072128365` | lab script fixes (per-line states, invocation count), both user-manager observations recorded; the commit the package set was built from |
-| 2 | the commit carrying this version of this file | whole-suite result, built package set and `dpkg-deb` inspection, PR #248 link |
+| 2 | `a99580bad` | whole-suite result, built package set and `dpkg-deb` inspection, PR #248 link |
+| 3 | the commit carrying this version of this file | decision renumbered D-254 → D-255 everywhere on this branch (PR #247 already claims D-254 and merges first; manager instruction 2026-10-20); the inherited D-253 line untouched |
 
 ## Investigation (2026-10-19)
 
@@ -59,7 +60,7 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   (`/var/lib/dpkg/info/systemd.triggers`: catalog, binfmt.d, sysctl.d, libc-upgrade). The new unit
   text therefore takes effect at `deploy/deploy-hosts.sh`'s `systemctl daemon-reload` after APT, at
   an operator's daemon-reload, or at reboot; documented in `docs/install/upgrade.md`.
-- **Options weighed** (full text in D-254): (a) `Wants=` + `After=` for all three plus an explicit
+- **Options weighed** (full text in D-255): (a) `Wants=` + `After=` for all three plus an explicit
   per-unit `is-active` gate in `firstboot.sh` (selected); (b) `Wants=` for PostgreSQL/Valkey only;
   (c) `Wants=` without a script gate; (d) `ConditionPathExists=!marker` with `Requires=`; (e) a gate
   target; (f) documentation only.
@@ -67,7 +68,7 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 ## Completed code (checkpoint 1)
 
 - `deploy/systemd/ngfw-firstboot.service`: `Wants=postgresql.service valkey-server.service nftables.service`
-  (was `Requires=`); `After=`, `Before=`, `[Service]` and `[Install]` unchanged; comment names D-254.
+  (was `Requires=`); `After=`, `Before=`, `[Service]` and `[Install]` unchanged; comment names D-255.
 - `deploy/upgrade/ngfw-upgrade-prepare.service`: `Wants=postgresql.service` (was `Requires=`); `After=`,
   `Before=`, the condition and `[Install] RequiredBy=` unchanged.
 - `deploy/debian/ngfw/assets/firstboot.sh`: after the completion-marker short-circuit and before the
@@ -82,7 +83,7 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   queries separately, `runuser` calls are recorded; `Firstboot`: each inactive daemon refuses before any
   database or file work (credentials kept, no unit state change), the three queries come one per unit in
   order before the first database command, a provisioned appliance never queries;
-  `FirstbootDependencies` (D-254): `Wants=` = `After=` = the three, `Before=` = VPP/agent/API/nginx, no
+  `FirstbootDependencies` (D-255): `Wants=` = `After=` = the three, `Before=` = VPP/agent/API/nginx, no
   propagating key, `WantedBy=multi-user.target`; VPP drop-in, agent and API keep `Requires=`/`After=` on
   firstboot and the marker condition; `closure('vpp.service') == {ngfw-firstboot.service}`,
   `enabled=True` adds `ngfw-upgrade-prepare.service`, PostgreSQL/Valkey reach none of VPP, agent, API,
@@ -95,9 +96,9 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   `ngfwlab-*` units from the shipped unit texts for a disposable systemd instance (`--user` by default,
   `--system` only with `NGFW_LAB_DISPOSABLE=1`), boots them, restarts Valkey/PostgreSQL/nftables and
   reports the units whose `InvocationID` changed, checks the fail-closed first boot per daemon and the
-  provisioned reboot; `--expect d254|previous`, `--firstboot-unit` for the pre-D-254 text,
+  provisioned reboot; `--expect d255|previous`, `--firstboot-unit` for the pre-D-255 text,
   `--render-only DIR`. Executed here against root's user manager in both modes (see below).
-- Docs: D-254 (`docs/decisions/LOG.md`), `docs/install/upgrade.md`, `docs/install/deploy-hosts.md` (one
+- Docs: D-255 (`docs/decisions/LOG.md`), `docs/install/upgrade.md`, `docs/install/deploy-hosts.md` (one
   sentence), `deploy/debian/README.md`, `docs/status/DEFERRED-ACCEPTANCE.md` (laboratory acceptance
   NOT RUN), envelope, this file.
 
@@ -127,7 +128,7 @@ firstboot stand-in with the same marker short-circuit and per-unit `is-active` g
 units again (`systemctl --user list-units 'ngfwlab-*'` is empty afterwards). Both runs on this host,
 2026-10-19, each `36` checks and `0 mismatch(es)`:
 
-- **With the change** (`--expect d254`, the working tree's unit):
+- **With the change** (`--expect d255`, the working tree's unit):
   ```
 order: start ngfw-firewall-bootstrap,start postgresql,start valkey-server,start nftables,firstboot run,start vpp,start nginx,start ngfw-agent,start ngfw-api,
 OK   restart valkey-server -> restarted units: ngfwlab-valkey-server.service 
@@ -147,7 +148,7 @@ OK   provisioned boot runs no firstboot.sh: 0
 OK   restart valkey-server -> restarted units: ngfwlab-valkey-server.service 
 OK   restart valkey-server -> firstboot.sh invocations: 0
 OK   restart valkey-server -> firstboot.sh provisioning runs: 0
-== 0 mismatch(es) against the d254 expectation
+== 0 mismatch(es) against the d255 expectation
   ```
 - **Without the change** (`--expect previous --firstboot-unit <origin/main text>`, `Requires=`):
   ```
@@ -177,8 +178,8 @@ So with `Requires=` an explicit restart of Valkey, PostgreSQL or nftables restar
 only the restarted daemon changes, an nftables restart reaches the agent and the API through the
 agent's own `Requires=` and never VPP, the first boot keeps its order and fails closed on each
 missing daemon, and the provisioned reboot skips the gate. The `previous` run also shows the
-pre-D-254 fail-closed shape (`inactive`: the firstboot job is cancelled as a dependency failure)
-against the D-254 shape (`failed`: the script refused). Full logs: `lab-d254.log`,
+pre-D-255 fail-closed shape (`inactive`: the firstboot job is cancelled as a dependency failure)
+against the D-255 shape (`failed`: the script refused). Full logs: `lab-d255.log`,
 `lab-previous.log` in the session scratchpad (not committed); rerun the two commands to reproduce.
 Laboratory acceptance on an appliance stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
@@ -208,7 +209,14 @@ Laboratory acceptance on an appliance stays NOT RUN (`docs/status/DEFERRED-ACCEP
 
 ## Remaining
 
-- Nothing in code. PR #248 is open (link at the top); hosted gates, independent review and the merge belong
+- Hosted packaging-fixture gate: PR #248 inherits PR #246's failure (run 39236809650: the fixture's
+  `dh_installdeb` fails with `chown(0, 0, debian/ngfw-agent/DEBIAN/postinst): Operation not permitted` on
+  the non-root hosted runner; that fixture is #246's `MAINTAINER.generate()`, which this task's new tests do
+  not call: `Firstboot.test_fresh_boot_*` run the script against fixture commands and
+  `FirstbootDependencies` only parses unit texts). Once #246 publishes its fix, rebase this branch onto its
+  new head (or onto `main` after #246 merges), push and wait for both hosted checks on #248 (manager
+  instruction 2026-10-20).
+- Otherwise nothing in code. PR #248 is open (link at the top); hosted gates, independent review and the merge belong
   to the manager; after #246 merges, rebase with `git rebase --onto origin/main 9cabd7f47`. No host is upgraded
   by this task. Laboratory acceptance on real units stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 

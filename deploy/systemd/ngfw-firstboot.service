@@ -1,6 +1,6 @@
 [Unit]
 Description=NGFW initial appliance provisioning
-# D-254: Wants=, not Requires=. The first boot needs PostgreSQL, Valkey and the base
+# D-255: Wants=, not Requires=. The first boot needs PostgreSQL, Valkey and the base
 # firewall up before it runs: Wants= pulls them in, After= orders them, and
 # firstboot.sh refuses to provision while one of them is not active. Requires=
 # would also restart this unit, and through vpp.service's Requires= on it the data

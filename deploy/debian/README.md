@@ -10,7 +10,7 @@ started on installation, are neither stopped nor restarted on upgrade (D-253:
 `dh_installsystemd --no-start --no-stop-on-upgrade`; the operator restarts agent
 and API), are stopped only on removal, and require the successful firstboot marker.
 `ngfw-firstboot.service` wants (never requires) PostgreSQL, Valkey and nftables and
-checks them itself on a fresh appliance (D-254), so their explicit restart does not
+checks them itself on a fresh appliance (D-255), so their explicit restart does not
 propagate to VPP, the agent or the API.
 
 Remaining before release: firstboot database/migrations/bootstrap, nginx TLS and

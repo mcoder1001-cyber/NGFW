@@ -425,7 +425,7 @@ is expected to be outage-free too, because the stop lived in the incoming packag
 (a)–(c) for it as well, and first check whether the three sockets are still inactive from the earlier
 upgrades.
 
-## First-boot gate without restart propagation (D-254) — 2026-10-19
+## First-boot gate without restart propagation (D-255) — 2026-10-19
 
 `ngfw-firstboot.service` now wants (not requires) `postgresql.service`, `valkey-server.service`
 and `nftables.service`, `ngfw-upgrade-prepare.service` wants `postgresql.service`, and
@@ -437,17 +437,17 @@ unit whose explicit stop reaches `vpp.service` is `ngfw-firstboot.service` (plus
 `test_firstboot.Firstboot` runs the script's gate against fixture commands (each inactive daemon
 refuses before any database or file work, credentials kept; a provisioned appliance never
 queries). The dependency graph of appliance 37 was inspected read-only (`systemctl show -p
-RequiredBy`) and matches the pre-D-254 closure. The propagation itself was observed on 2026-10-19
+RequiredBy`) and matches the pre-D-255 closure. The propagation itself was observed on 2026-10-19
 in a disposable instance of the dependency graph: `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh
 --manager user` installs throwaway `ngfwlab-*` stand-in units (the shipped dependency lines, sleep
 daemons, the same gate) into root's `systemctl --user` manager on the dev host, boots them, restarts
 Valkey, PostgreSQL and nftables and compares `InvocationID`s; with the previous `Requires=` text each
 restart restarted firstboot (re-executing the script, exit 0 on the marker), VPP, agent and API, with
-the D-254 text only the restarted daemon changed (nftables: plus agent and API, never VPP), the first
+the D-255 text only the restarted daemon changed (nftables: plus agent and API, never VPP), the first
 boot kept its order, failed closed on each missing daemon and the provisioned reboot skipped the
 gate (36 checks, 0 mismatches in each mode; output in the task's WIP note). Laboratory acceptance on
 real units is **NOT RUN** (the shared dev host's VPP and appliance 37 were not restarted). On a
-disposable appliance or VM running D-254 packages record:
+disposable appliance or VM running D-255 packages record:
 (a) after `systemctl daemon-reload`, `systemctl show -p RequiredBy postgresql.service
 valkey-server.service nftables.service` names no `ngfw-firstboot.service` (WantedBy= does) and
 `systemctl show -p RequiredBy ngfw-firstboot.service` still names `vpp.service ngfw-agent.service
@@ -456,7 +456,7 @@ ngfw-api.service`;
 `InvocationID` and `ActiveEnterTimestamp` of `vpp.service`, `ngfw-agent.service`,
 `ngfw-api.service` and `ngfw-firstboot.service` are unchanged, the journal shows no new
 `firstboot.sh` run and the forwarding check of the window passes without a gap; the same on the
-pre-D-254 unit text restarts all four (the positive control);
+pre-D-255 unit text restarts all four (the positive control);
 (c) `systemctl restart nftables.service` restarts `ngfw-agent.service` and `ngfw-api.service`
 only, `vpp.service` keeps its `InvocationID`;
 (d) fresh install with `valkey-server.service` masked (then with `postgresql.service`, then

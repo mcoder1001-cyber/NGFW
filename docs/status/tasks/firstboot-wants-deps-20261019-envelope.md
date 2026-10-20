@@ -36,4 +36,4 @@ Owned files: `deploy/systemd/ngfw-firstboot.service`, `deploy/upgrade/ngfw-upgra
 `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh` (new), `deploy/debian/README.md`,
 `docs/install/upgrade.md`, `docs/install/deploy-hosts.md` (one sentence),
 `docs/status/DEFERRED-ACCEPTANCE.md` (one section), `docs/decisions/LOG.md` (one appended line,
-D-254), `docs/status/tasks/firstboot-wants-deps-20261019-*.md`.
+D-255), `docs/status/tasks/firstboot-wants-deps-20261019-*.md`.

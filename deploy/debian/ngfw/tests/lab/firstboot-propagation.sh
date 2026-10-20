@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Observe D-254 in a DISPOSABLE systemd instance: stand-in units named ngfwlab-* carry the
+# Observe D-255 in a DISPOSABLE systemd instance: stand-in units named ngfwlab-* carry the
 # shipped [Unit] dependency lines of ngfw-firstboot.service, the vpp.service and
 # nftables.service drop-ins, ngfw-firewall-bootstrap.service, ngfw-agent.service and
 # ngfw-api.service; PostgreSQL, Valkey, VPP, agent, API and nginx are sleep daemons, the
@@ -8,16 +8,16 @@
 # a manager whose units matter: the shared dev host runs VPP under the system manager.
 #
 # usage: firstboot-propagation.sh [--manager user|system] [--firstboot-unit FILE]
-#                                 [--expect d254|previous] [--render-only DIR] [--keep]
+#                                 [--expect d255|previous] [--render-only DIR] [--keep]
 #   --manager user      (default) the calling user's `systemctl --user` manager; units go
 #                       to $XDG_RUNTIME_DIR/systemd/user and vanish at logout or reboot.
 #   --manager system    /run/systemd/system of a disposable VM or container; refused
 #                       unless NGFW_LAB_DISPOSABLE=1 is set.
 #   --firstboot-unit F  the ngfw-firstboot.service text to model (default: the repository's);
-#                       the pre-D-254 text is the positive control:
+#                       the pre-D-255 text is the positive control:
 #                       git show origin/main:deploy/systemd/ngfw-firstboot.service > /tmp/previous
-#   --expect d254       (default) exit 1 unless the observations match D-254;
-#   --expect previous   exit 1 unless they match the pre-D-254 propagation (Requires=).
+#   --expect d255       (default) exit 1 unless the observations match D-255;
+#   --expect previous   exit 1 unless they match the pre-D-255 propagation (Requires=).
 #   --render-only DIR   only write the stand-in units and the driver script into DIR.
 #   --keep              leave the units installed afterwards.
 set -euo pipefail
@@ -25,7 +25,7 @@ export LC_ALL=C
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../../../.." && pwd)
 UNITS=$ROOT/deploy/systemd
 ASSETS=$ROOT/deploy/debian/ngfw/assets
-MANAGER=user FIRSTBOOT_UNIT=$UNITS/ngfw-firstboot.service EXPECT=d254 RENDER_ONLY='' KEEP=''
+MANAGER=user FIRSTBOOT_UNIT=$UNITS/ngfw-firstboot.service EXPECT=d255 RENDER_ONLY='' KEEP=''
 while (($#)); do
   case $1 in
     --manager) MANAGER=$2; shift 2;;
@@ -37,7 +37,7 @@ while (($#)); do
   esac
 done
 [[ $MANAGER == user || $MANAGER == system ]] || { echo 'manager must be user or system' >&2; exit 2; }
-[[ $EXPECT == d254 || $EXPECT == previous ]] || { echo 'expect must be d254 or previous' >&2; exit 2; }
+[[ $EXPECT == d255 || $EXPECT == previous ]] || { echo 'expect must be d255 or previous' >&2; exit 2; }
 if [[ $MANAGER == system && -z $RENDER_ONLY && ${NGFW_LAB_DISPOSABLE:-} != 1 ]]; then
   echo 'refusing the system manager without NGFW_LAB_DISPOSABLE=1 (disposable VM or container only)' >&2; exit 2
 fi
@@ -109,7 +109,7 @@ SH
   cat > "$LAB/firstboot" <<SH
 #!/bin/sh
 # ngfwlab firstboot stand-in: the marker short-circuit and the per-unit is-active gate of
-# deploy/debian/ngfw/assets/firstboot.sh (D-254), then a logged "run" instead of provisioning.
+# deploy/debian/ngfw/assets/firstboot.sh (D-255), then a logged "run" instead of provisioning.
 set -eu
 LAB=$LAB
 log() { echo "\$(date +%s.%N) \$*" >> "\$LAB/log"; }
@@ -142,7 +142,7 @@ ExecStart=$LAB/stand-in nftables oneshot" "$ASSETS/nftables-ngfw.conf"
   write_unit ngfw-firewall-bootstrap "early firewall oneshot" "Type=oneshot
 RemainAfterExit=yes
 ExecStart=$LAB/stand-in ngfw-firewall-bootstrap oneshot" "$UNITS/ngfw-firewall-bootstrap.service"
-  write_unit ngfw-firstboot "firstboot oneshot with the D-254 gate" "Type=oneshot
+  write_unit ngfw-firstboot "firstboot oneshot with the D-255 gate" "Type=oneshot
 RemainAfterExit=yes
 ExecStart=$LAB/firstboot" "$FIRSTBOOT_UNIT"
   # What multi-user.target pulls in on an appliance: the enabled daemons and the enabled firstboot;
@@ -201,7 +201,7 @@ done
 expect "vpp before agent before api" "$([[ ${order#*start vpp} == *"start ngfw-agent"*"start ngfw-api"* ]] && echo yes || echo no)" yes
 expect "all active after the first boot" "$(inactive_count)" 0
 echo "== explicit restarts on the freshly booted appliance"
-if [[ $EXPECT == d254 ]]; then
+if [[ $EXPECT == d255 ]]; then
   restart_and_report valkey-server 'ngfwlab-valkey-server.service '
   restart_and_report postgresql 'ngfwlab-postgresql.service '
   restart_and_report nftables 'ngfwlab-nftables.service ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service '
@@ -215,7 +215,7 @@ for name in "${GATED[@]}"; do
   reset_lab; rm -f "$LAB/firstboot-complete"; : > "$LAB/fail-$name"
   ctl start ngfwlab-boot.target >/dev/null 2>&1 || true
   sleep 1
-  expect "$name down -> firstboot not active" "$(ctl is-active ngfwlab-ngfw-firstboot.service || true)" "$([[ $EXPECT == d254 ]] && echo failed || echo inactive)"
+  expect "$name down -> firstboot not active" "$(ctl is-active ngfwlab-ngfw-firstboot.service || true)" "$([[ $EXPECT == d255 ]] && echo failed || echo inactive)"
   expect "$name down -> marker absent" "$([[ -e $LAB/firstboot-complete ]] && echo present || echo absent)" absent
   expect "$name down -> vpp, agent, api not started" "$(for unit in vpp ngfw-agent ngfw-api; do ctl is-active "ngfwlab-$unit.service" || true; done | tr '\n' ' ')" 'inactive inactive inactive '
   rm -f "$LAB/fail-$name"
@@ -228,7 +228,7 @@ reset_lab
 ctl start ngfwlab-boot.target
 expect "provisioned boot skips the gate" "$(grep -c 'firstboot skip' "$LOG" || true)" 1
 expect "provisioned boot runs no firstboot.sh" "$(grep -c 'firstboot run' "$LOG" || true)" 0
-if [[ $EXPECT == d254 ]]; then
+if [[ $EXPECT == d255 ]]; then
   restart_and_report valkey-server 'ngfwlab-valkey-server.service '
 else
   restart_and_report valkey-server 'ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-valkey-server.service ngfwlab-vpp.service '

@@ -11,7 +11,7 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1]
 SCRIPTS_SPEC = importlib.util.spec_from_file_location('maintainer_scripts', SOURCE / 'tests/maintainer_scripts.py')
 MAINTAINER = importlib.util.module_from_spec(SCRIPTS_SPEC)
 SCRIPTS_SPEC.loader.exec_module(MAINTAINER)
-# The daemons the first boot needs up before it runs (D-254: Wants= + After= in the unit, is-active in the script).
+# The daemons the first boot needs up before it runs (D-255: Wants= + After= in the unit, is-active in the script).
 GATED_UNITS = ('postgresql.service', 'valkey-server.service', 'nftables.service')
 
 
@@ -37,7 +37,7 @@ if [[ "$*" == *psql* ]]; then cat >/dev/null; exit 0; fi
         command('bin/openssl', '''if [[ ${FAIL_STAGE:-} == random && "$*" == "rand -hex 32" ]]; then exit 1; fi; exec /usr/bin/openssl "$@"''')
         command('bin/install', '''args=(); while (( $# )); do case $1 in -o|-g) shift 2;; *) args+=("$1"); shift;; esac; done; /usr/bin/install "${args[@]}"''')
         command('bin/stat', '''if [[ "$*" == *secret.key* ]]; then echo 32:600:ngfw; elif [[ "$*" == *bootstrap.env* || "$*" == *api.env* ]]; then echo 0:600; else /usr/bin/stat "$@"; fi''')
-        # `systemctl --quiet is-active <unit>` (the D-254 first-boot gate) is recorded separately and
+        # `systemctl --quiet is-active <unit>` (the D-255 first-boot gate) is recorded separately and
         # fails for the units named in INACTIVE_UNITS; every other systemctl call is a state change.
         command('bin/systemctl', '''if [[ $1 == --quiet && $2 == is-active ]]; then
   echo "$*" >> "$FIXTURE_ROOT/service-queries"
@@ -88,7 +88,7 @@ echo "$*" >> "$FIXTURE_ROOT/service-commands"''')
             subprocess.run(['bash', str(entry)], env=env, check=True, capture_output=True)
             self.assertFalse(credentials.exists())
             self.assertFalse((root / 'service-commands').exists())
-            # D-254: a provisioned appliance never gates on the daemons (no is-active query).
+            # D-255: a provisioned appliance never gates on the daemons (no is-active query).
             self.assertFalse((root / 'service-queries').exists())
             self.assertFalse((root / 'runuser-commands').exists())
 
@@ -180,7 +180,7 @@ echo "$*" >> "$FIXTURE_ROOT/service-commands"''')
             self.assertEqual('disable ngfw-firstboot.service\n', (root / 'service-commands').read_text())
 
     def test_fresh_boot_refuses_an_inactive_dependency_before_provisioning(self):
-        # D-254: the unit pulls PostgreSQL, Valkey and nftables in with Wants= (an explicit
+        # D-255: the unit pulls PostgreSQL, Valkey and nftables in with Wants= (an explicit
         # restart of one of them must not propagate to VPP), so the script keeps the first boot
         # fail-closed itself: an inactive dependency stops it before any database, key or file
         # work, credentials stay for the retry and no unit state is changed.
@@ -256,7 +256,7 @@ class FirstbootUpgrade(unittest.TestCase):
 
 
 class FirstbootDependencies(unittest.TestCase):
-    """How ngfw-firstboot.service depends on PostgreSQL, Valkey and nftables (D-254)."""
+    """How ngfw-firstboot.service depends on PostgreSQL, Valkey and nftables (D-255)."""
 
     def unit(self, name):
         return MAINTAINER.locate_unit('stage/usr/lib/systemd/system/' + name, name).read_text()
@@ -292,7 +292,7 @@ class FirstbootDependencies(unittest.TestCase):
 
     def test_explicit_restart_of_a_daemon_no_longer_reaches_vpp(self):
         # systemd.unit(5): only Requires=/Requisite=/BindsTo=/PartOf= propagate an explicit stop
-        # or restart. Before D-254 the closure of vpp.service held nftables, firewall-bootstrap,
+        # or restart. Before D-255 the closure of vpp.service held nftables, firewall-bootstrap,
         # postgresql and valkey-server through firstboot's Requires=; the valkey-server and
         # nftables packages restart their units in their own upgrade postinst, and
         # `systemctl restart postgresql` is routine. Now only the provisioning oneshots reach VPP.
@@ -308,7 +308,7 @@ class FirstbootDependencies(unittest.TestCase):
             reached = MAINTAINER.stop_propagation_closure(consumer, enabled=True)
             self.assertNotIn('postgresql.service', reached, consumer)
             self.assertNotIn('valkey-server.service', reached, consumer)
-        # Negative control: the pre-D-254 unit text (Requires=) puts all four back into VPP's closure.
+        # Negative control: the pre-D-255 unit text (Requires=) puts all four back into VPP's closure.
         unit = self.unit('ngfw-firstboot.service')
         self.assertEqual(unit.count('\nWants='), 1)
         previous = {'ngfw-firstboot.service': unit.replace('\nWants=', '\nRequires=')}

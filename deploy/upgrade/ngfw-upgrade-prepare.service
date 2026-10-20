@@ -1,7 +1,7 @@
 [Unit]
 Description=NGFW upgrade pre-migration database snapshot
 After=postgresql.service
-# D-254: Wants=, not Requires=: a restart of PostgreSQL must not restart this oneshot and,
+# D-255: Wants=, not Requires=: a restart of PostgreSQL must not restart this oneshot and,
 # through the .requires links on ngfw-firstboot.service and ngfw-api.service, VPP; the
 # snapshot fails on its own when PostgreSQL is down and then blocks firstboot and the API.
 Wants=postgresql.service

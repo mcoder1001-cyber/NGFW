@@ -161,8 +161,9 @@ unit as it was: VPP, nftables, the sockets and the completed provisioning
 oneshots keep running, and only the explicit agent/API restart below changes
 service state. Packages built before D-253 stopped every unit they ship in their
 preinst, which stopped `vpp.service` for about nine seconds through
-`Requires=ngfw-firstboot.service` (observed on appliance 37 on 2026-10-13 and
-2026-10-19) and left `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`Requires=ngfw-firstboot.service` (observed on appliances 37 and 211 on 2026-10-13 and
+2026-10-19; `ngfw-meta` ships that drop-in on every appliance, and if dpkg fails
+after such a stop VPP stays down until manual recovery: check `vpp.service` first) and left `apply-executor.socket`, `ngfw-ra-openfile.socket` and
 `ngfw-ra-namespace-broker.socket` stopped, which this script does not restart.
 The script also does not stop `apply-executor.service` (the running executor keeps
 the previous `apply-executor.py` until an operator stops it while no start-up

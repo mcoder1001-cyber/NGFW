@@ -35,8 +35,9 @@ Owned files: `docs/status/tasks/deploy-host-37-20261019-wip.md`, `deploy/deploy-
   control directories with mode 0700, which `dpkg-deb --build` refuses
   ("control directory has bad permissions 700"), so tests 61/62/69 report
   "package set != VERSION VPP_PACKAGES". Reproduced with `umask 077` alone; `LC_ALL=C` is not
-  involved. The variable only skips `tests/run.sh` (already passed standalone); every output
-  check and the install gate still ran. Follow-up: make the fixture umask-safe (test-only fix).
+  involved. The variable skips `tests/run.sh` (already passed standalone) and verify.sh's
+  shellcheck of its four scripts (`verify.sh:98`, clean on this tree); every output check and
+  the install gate still ran. Follow-up: make the fixture umask-safe (test-only fix; PR #245).
 - Result: `0.1.0~dev+git695.cb148aafb288` (agent/api amd64, meta/web all), `build-info.json`
   `{source_commit cb148aafb288…1698, source_count 695, vpp_manifest_sha256 aeea8136…1054}`,
   packaging tests in `dh_auto_test` all OK, every packaged file group/other-readable (dh_fixperms),
@@ -84,16 +85,21 @@ Read-only checks over SSH at 07:57–08:00 UTC:
   (`585fedd5…02dc`); no agent/API/nginx journal errors since the upgrade; the only failed unit
   is still the pre-existing `systemd-networkd-wait-online.service`.
 - **VPP was restarted** (07:56:48 SIGTERM → 07:56:58 started; ≈9 s data-plane gap), although
-  the script itself only restarts agent/API. Journal order: dpkg's `ngfw-meta.prerm` runs
-  `deb-systemd-invoke stop ngfw-firewall-bootstrap.service ngfw-firstboot.service`; on this host
-  `vpp.service` carries `Requires=ngfw-firstboot.service` (plus the hardware-37 bind and
+  the script itself only restarts agent/API. Journal order: the incoming `ngfw-meta` package's
+  maintainer script (dh_installsystemd's upgrade stop, generated without `--no-stop-on-upgrade`)
+  runs `deb-systemd-invoke stop ngfw-firewall-bootstrap.service ngfw-firstboot.service`; `ngfw-meta`
+  itself ships the drop-in `deploy/debian/ngfw/assets/vpp-firstboot.conf`
+  (`/usr/lib/systemd/system/vpp.service.d/`) that gives `vpp.service`
+  `Requires=ngfw-firstboot.service` on every appliance (host 37 adds the hardware-37 bind and
   dataplane-performance drop-ins), so systemd stopped VPP and, through `Requires=vpp.service`,
-  the agent; the script's restart brought everything back. VPP is up with the same 7 physical
+  the agent; the script's restart brought everything back. This is therefore a property of
+  every package upgrade with the current packaging, not of this host; had dpkg failed after
+  that stop, VPP would have stayed down until manual recovery. VPP is up with the same 7 physical
   interfaces up (`enp10s0`, `enp11s0`, `enp13s0`–`enp17s0`) and the agent reconciled its dynamic
   sources. The same VPP restart was recorded for the 2026-10-13 upgrade. Follow-up (product):
-  stop `ngfw-meta` from stopping provisioning oneshots on upgrade (`--no-stop-on-upgrade`) or
-  drop the `Requires=` coupling; until then every package upgrade on such hosts is a short
-  data-plane outage and needs a maintenance window.
+  stop the packages from stopping provisioning oneshots on upgrade (`--no-stop-on-upgrade`,
+  PR #246 / D-253) or drop the `Requires=` coupling; until then every package upgrade is a
+  short data-plane outage and needs a maintenance window.
 - Not run: login/browser acceptance, dataplane forwarding tests, backup restore.
 
 ## Host 211 (172.30.110.211) — same packages, fixed script, 08:50 UTC
@@ -113,8 +119,8 @@ Read-only checks over SSH at 07:57–08:00 UTC:
   failed unit; `nginx -t` OK; HTTPS `/` 200 serving `assets/index-BnO7SXiT.js`, `index.html`
   MD5 equals the package's; API health ok; CLI `ngfw cb148aafb288`; route and `startup.conf`
   unchanged; no agent/API/nginx journal errors. VPP restarted through the same
-  `ngfw-meta.prerm` → `ngfw-firstboot.service` → `Requires=` chain (SIGTERM 08:50:29, started
-  08:50:35, ≈6 s); all 17 physical interfaces are up again.
+  maintainer-script stop → `ngfw-firstboot.service` → `Requires=` chain (SIGTERM 08:50:29,
+  started 08:50:35, ≈6 s); all 17 physical interfaces are up again.
 
 ## Host-independent checks on this branch (`c48ea7e19`)
 
@@ -127,7 +133,10 @@ Read-only checks over SSH at 07:57–08:00 UTC:
 1. Merge the APT fix (PR from this branch) after independent review and the quick gate.
 2. Test-only fix: make `deploy/vpp/tests/run.sh`'s `mkdeb` umask-safe so `deploy-hosts.sh -b`
    no longer needs `NGFW_VPP_IN_TESTS=1`.
-3. Packaging decision: VPP restart on every `ngfw-meta` upgrade (above).
+3. Packaging decision: VPP restart on every package upgrade (above; PR #246 / D-253).
+4. `deploy/debian/bundle/install.py:173` still passes `--no-download` with absolute paths
+   (asserted by `test_install.py:141`); apt 3 refuses that too, so the bundle installer is
+   probably broken on Ubuntu 26.04 (review R8 of PR #244). Not changed here.
 
 ## Exact next command
 

@@ -4,8 +4,9 @@ Branch `claude/zen-knuth-454f68` (base origin/main 2a6d1611c), PR #257 (first ch
 Board row `machine-211-small-packet-limit`. Predecessors: `machine-211-vpp-tuning-wip.md` (PR #251, the shared-TX-queue /
 MDD diagnosis) and `apply-211-vpp-startup-20261020-wip.md` (D-256, the start-up file live since 2026-10-20 06:39 UTC).
 
-Status 2026-10-20 ≈08:00 UTC: **measured and explained per card; no product change made** (verdict below); waiting for the
-owner's experiments (§5) to tell a per-card hardware ceiling from a host-side (IOMMU) ceiling. Nothing on the appliance was
+Status 2026-10-20 ≈09:30 UTC: **measured and explained per card; no product change made** (verdict below); the owner's
+1/2/3/4-interface result (§2b) shows a collapse when the fourth busy interface joins; configurations C1–C5 (§2b) tell a
+per-card hardware ceiling from a host-side (IOMMU) ceiling. Nothing on the appliance was
 changed by this task: every command was `vppctl show …`, `lspci`, `/sys`, `dmesg`; no counter was cleared.
 
 ## 1. Finding in one paragraph
@@ -96,6 +97,54 @@ sign of heavy per-packet work.)
 | buffers | `buffers-per-numa 1048576`, data size 2048, element 2496 B (`vlib_buffer_alloc_size`: 128 B rte_mbuf + 256 B vlib_buffer_t + 2048, rounded to 64 and `|= 64`), arena `buffers-numa-0` 1249 × 2 MB pages; hugepages 7680 × 2 MB = 15 GiB reserved, 6354 free; no 1 GB pages |
 | IOMMU | `CONFIG_INTEL_IOMMU_DEFAULT_ON=y`, `CONFIG_INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON=y`, `CONFIG_IOMMU_DEFAULT_DMA_LAZY=y`, no `intel_iommu=`/`iommu=` on the command line; `iommu: Default domain type: Translated`; groups of the X710 functions `DMA-FQ`; **one VT-d unit `dmar1` (cap `d2008c40660462`: SLLPS supports 2 MB and 1 GB second-level pages) serves every PCIe root port** (00:01.0, 00:01.1, 00:06.0, the PCH ports); `dmar0` serves only the iGPU |
 | DMA-active buffer set | 17 ports × 7 RX queues × 2048 descriptors = **243 712 buffers (≈600 MB) pinned in RX rings** plus up to 17 × 8 × 2048 in TX rings, spread over the 2.5 GiB arena — every descriptor refill, packet write and TX data read is an IOMMU translation of a different 2 MB page |
+
+### 2b. The owner's 1/2/3/4-interface test (reported ≈09:20 UTC) and the 09:17 window
+
+The owner reports (relayed by the manager session, verbatim): «از یک واسط شبکه ۷.۵ میلیون پکت تونستم بفرستم از ۲ تا
+حدود ۱۵ و از ۳ حدود ۲۲ و ۴ تا بیشتر کم شد» — one TRex interface ≈7.5 Mpps, two ≈15, three ≈22, **four: the total
+went down**. Which appliance ports the four interfaces were, and whether each stream was one-directional, is not
+known yet (asked). What the counters say about that period (`sample-b` 07:39:12 → `sample-c` 09:17:38, 5906 s,
+cumulative xstats):
+
+| port | `rx_unicast` | `rx_good` | `rx_missed` | miss % | `tx_good` | average offered |
+|---|---|---|---|---|---|---|
+| enp2s0f0np0 | 6.31 G | 5.61 G | 0.71 G | 11.2 | 4.36 G | 1.07 Mpps |
+| enp2s0f1np1 | 6.03 G | 5.32 G | 0.71 G | 11.8 | 4.64 G | 1.02 Mpps |
+| enp2s0f2np2 | 5.82 G | 4.89 G | 0.93 G | 16.0 | 3.93 G | 0.99 Mpps |
+| enp2s0f3np3 | 5.82 G | 4.88 G | 0.94 G | 16.1 | 3.93 G | 0.99 Mpps |
+| enp3s0f0np0 | 17.32 G | 16.44 G | 0.88 G | 5.1 | 16.14 G | 2.93 Mpps |
+| enp3s0f1np1 | 17.42 G | 16.55 G | 0.88 G | 5.0 | 16.03 G | 2.95 Mpps |
+
+So the heavy single-interface runs went through the **03:00.x pair (the x4 card)**: ≈7.5 Mpps in on one port and out on
+its partner is ≈15 M packet-DMAs/s on that card, the same ≈14.5–15 M at which it lost 6.8 % in the 07:38 window
+(3.9 + 3.9 bidirectional). The 02:00.x ports lost 11–16 % on RX and ≈18 % on TX over the period, i.e. they were driven
+into the same regime as in §2 during part of it.
+
+At 09:17:38–09:17:58 UTC (`sample-c/d`, 20 s) the test was at a low rate: 0.727 Mpps on every one of the six ports,
+**zero** `rx_missed`, **zero** `tx-error`; workers at 1.25 Mpps in each, `dpdk-input` 4.29 M calls/s with 0.15 packets
+per call (empty polls are counted, so the loop runs at ≈230 ns when idle). Nothing was lost at that rate, as in the apply
+session's 1 Mpps window.
+
+**What 7.5 / 15 / 22 / "less with four" means.** The numbers are not a fixed per-card budget being shared: three busy
+interfaces forwarded ≈22 Mpps (≈44 M packet-DMAs/s), yet the four-port state of §2 forwarded ≈10.4 Mpps in / 8.4 out
+on the 02:00.x card. That is a **collapse** when the fourth interface joins, not a saturation — the signature of a
+resource that thrashes beyond a threshold (a descriptor cache in the card, or the IOMMU's translation caches on the
+host), not of a bandwidth or CPU limit. The drop with four interfaces is **not** the TX rings filling or the cost of
+dropping: in the four-port window the workers were 31–35 % busy, a dropped packet costs the `-tx` node at most ≈175
+clocks, and the card simultaneously failed to write received packets into memory (`rx_missed` with > 1 900 free RX
+descriptors per queue), which no CPU-side effect can produce. Ring-full is the symptom (the card stops draining), not
+the cause.
+
+What decides per-card vs host-side is **the same four busy interfaces placed differently**, at the same per-port rate
+(the 7.5 Mpps the owner used, or the highest TRex sustains), each configuration held ≥ 30 s while I measure:
+
+| config | TRex → appliance ports | what it shows |
+|---|---|---|
+| C1 | enp2s0f0np0 only | per-port ceiling on the x8 card (compare 7.5 on the x4 pair) |
+| C2 | enp2s0f0np0 + enp2s0f2np2 | two busy ports, one card, one per pair |
+| C3 | C2 + enp2s0f1np1 | three busy ports, one card (expected ≈22 total if the owner's three were on one card) |
+| C4 | C3 + enp2s0f3np3 | four busy ports on **one** card — the collapse of §2? |
+| C5 | enp2s0f0np0 + enp2s0f2np2 + enp3s0f0np0 + enp3s0f1np1 | four busy ports over **two** cards at the same total load: no collapse → per card (A); collapse → host side (B) |
 
 ## 3. What limits the cards — two candidates, and how to tell them apart
 

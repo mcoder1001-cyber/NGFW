@@ -29,15 +29,16 @@ print(f"interval {dt:.1f} s")
 print(f"{'port':12} {'rx_unicast(offered)':>19} {'rx_good':>10} {'rx_missed':>10} {'miss%':>6} | {'vpp tx att':>10} {'tx_good':>10} {'tx-error':>10} {'txfail%':>7}  (Mpps)")
 tot={}
 for p in xsA:
-    a,b=xsA[p],xsB[p]; d=lambda k:(b[k]-a[k])/dt/1e6
-    ia,ib=ifA[p],ifB[p]; di=lambda k:(ib.get(k,0)-ia.get(k,0))/dt/1e6
+    a,b=xsA[p],xsB[p]; d=lambda k:(b.get(k,0)-a.get(k,0))/dt/1e6
+    if 'rx_unicast_packets' not in b and 'tx_good_packets' not in b: continue  # idle port, no xstats
+    ia,ib=ifA.get(p,{}),ifB.get(p,{}); di=lambda k:(ib.get(k,0)-ia.get(k,0))/dt/1e6
     off=d('rx_unicast_packets'); miss=d('rx_missed_errors'); good=d('rx_good_packets')
     txatt=di('tx packets'); txg=d('tx_good_packets'); txe=di('tx-error')
     print(f"{p:12} {off:19.3f} {good:10.3f} {miss:10.3f} {100*miss/off if off else 0:6.1f} | {txatt:10.3f} {txg:10.3f} {txe:10.3f} {100*txe/txatt if txatt else 0:7.1f}")
     chip=p[:5]; c=tot.setdefault(chip,[0,0,0,0,0,0]); 
     for i,v in enumerate((off,good,miss,txatt,txg,txe)): c[i]+=v
 for chip,c in tot.items():
-    print(f"{chip+' total':12} {c[0]:19.3f} {c[1]:10.3f} {c[2]:10.3f} {100*c[2]/c[0]:6.1f} | {c[3]:10.3f} {c[4]:10.3f} {c[5]:10.3f} {100*c[5]/c[3]:7.1f}")
+    print(f"{chip+' total':12} {c[0]:19.3f} {c[1]:10.3f} {c[2]:10.3f} {100*c[2]/c[0] if c[0] else 0:6.1f} | {c[3]:10.3f} {c[4]:10.3f} {c[5]:10.3f} {100*c[5]/c[3] if c[3] else 0:7.1f}")
 print()
 print("per-thread node deltas (calls/s, vectors/s, vectors/call):")
 nodes=['dpdk-input','ethernet-input','l2-input','l2-output']

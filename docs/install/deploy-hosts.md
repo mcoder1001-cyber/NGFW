@@ -164,7 +164,10 @@ The script also does not stop `apply-executor.service` (the running executor kee
 the previous `apply-executor.py` until an operator stops it while no start-up
 apply runs) and does not re-render the base firewall policy (applies at the next
 reboot; never restart nftables or firewall-bootstrap for it); see
-[package upgrades](upgrade.md). Dependencies requiring
+[package upgrades](upgrade.md). The script's `systemctl daemon-reload` after
+APT also makes a changed unit text effective, such as D-255's `Wants=` on
+`ngfw-firstboot.service`, after which an OS update that restarts Valkey or
+nftables no longer restarts VPP. Dependencies requiring
 changes must be reviewed separately through the appropriate package workflow.
 
 Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`

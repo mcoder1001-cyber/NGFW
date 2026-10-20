@@ -343,7 +343,54 @@ flock -n 9 || { echo 'another NGFW deployment is in progress' >&2; exit 1; }
 for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
   systemctl is-active --quiet "$service"
 done
-trap 'rc=$?; if (( rc )); then systemctl status --no-pager --lines=50 ngfw-agent.service ngfw-api.service > "$BACKUP/service-status.txt" 2>&1 || true; echo "upgrade failed; preserve $BACKUP for manual recovery; no automatic rollback attempted" >&2; fi' EXIT
+# D-253: a package upgrade must leave every unit this script does not restart
+# exactly as it found it. Packages built before D-253 stopped the provisioning
+# oneshots in their preinst, which stopped vpp.service and nftables.service
+# through Requires= (the agent/API restart below brought them back: a data-plane
+# outage this script never asked for), and left the agent's three sockets
+# stopped. Record the data-plane units and the sockets immediately before the
+# install and compare after the stability window. systemctl prints -p values in
+# its own property order, not the requested one, so the keyed output is read by
+# name; socket units have no NRestarts (recorded as -).
+WATCHED_UNITS=(vpp.service nftables.service apply-executor.socket ngfw-ra-openfile.socket ngfw-ra-namespace-broker.socket)
+unit_states() {
+  local unit shown line load state entered restarts
+  for unit in "${WATCHED_UNITS[@]}"; do
+    load='' state='' entered='' restarts=-
+    shown=$(systemctl show -p ActiveEnterTimestampMonotonic,NRestarts,ActiveState,LoadState "$unit") || { echo "cannot read the state of $unit" >&2; exit 1; }
+    while IFS= read -r line; do
+      case $line in
+        LoadState=*) load=${line#*=} ;;
+        ActiveState=*) state=${line#*=} ;;
+        ActiveEnterTimestampMonotonic=*) entered=${line#*=} ;;
+        NRestarts=*) restarts=${line#*=} ;;
+      esac
+    done <<<"$shown"
+    [[ $load =~ ^[a-z-]+$ && $state =~ ^[a-z-]+$ && $entered =~ ^[0-9]+$ && $restarts =~ ^([0-9]+|-)$ ]] || { echo "unexpected systemctl output for $unit" >&2; exit 1; }
+    echo "$unit LoadState=$load ActiveState=$state ActiveEnterTimestampMonotonic=$entered NRestarts=$restarts"
+  done
+}
+# A socket that is not active before the upgrade (an earlier upgrade with
+# pre-D-253 packages left it stopped, or the installed packages predate it:
+# LoadState=not-found) is reported, not refused, and is never a failure
+# whatever it does afterwards: the upgrade did not cause its state and this
+# script does not repair it. The operator starts it after this run completes;
+# started during the run it would show up as a change below (reported, not
+# failed).
+warn_stopped_sockets() {
+  local unit state
+  while read -r unit state; do
+    [[ $unit == *.socket && " $state " != *' ActiveState=active '* ]] || continue
+    if [[ " $state " == *' LoadState=not-found '* ]]; then
+      echo "WARNING: $unit does not exist $2 the upgrade ($state): the installed packages predate it; this script does not start it" >&2
+    else
+      echo "WARNING: $unit is not active $2 the upgrade ($state); this script does not start it; after this run completes: systemctl start $unit" >&2
+    fi
+  done <<<"$1"
+}
+# On any failure keep the watched units' state (unit-state-after.txt, unless the
+# run already wrote it) and the status of the daemons and the data-plane units.
+trap 'rc=$?; if (( rc )); then [[ -e $BACKUP/unit-state-after.txt ]] || ( unit_states ) > "$BACKUP/unit-state-after.txt" 2>/dev/null || true; systemctl status --no-pager --lines=50 ngfw-agent.service ngfw-api.service vpp.service nftables.service > "$BACKUP/service-status.txt" 2>&1 || true; echo "upgrade failed; preserve $BACKUP for manual recovery; no automatic rollback attempted" >&2; fi' EXIT
 cd "$DIR"
 actual=$(sha256sum SHA256SUMS); [[ ${actual%% *} == "$EXPECTED_SUMS" ]]
 [[ $(verify_packages "$DIR") == "$VERSION" ]]
@@ -433,6 +480,9 @@ pg_restore --list "$BACKUP/preupgrade-ngfw.dump" >/dev/null
 # Recheck the private staged bytes after backups, immediately before installation.
 actual=$(sha256sum SHA256SUMS); [[ ${actual%% *} == "$EXPECTED_SUMS" ]]
 [[ $(verify_packages "$DIR") == "$VERSION" ]]
+units_before=$(unit_states)
+printf '%s\n' "$units_before" > "$BACKUP/unit-state-before.txt"
+warn_stopped_sockets "$units_before" before
 echo 'installing packages'
 DEBIAN_FRONTEND=noninteractive apt-get "${apt_args[@]}" "${downgrade_args[@]}" install ./ngfw-*.deb
 systemctl daemon-reload
@@ -471,9 +521,46 @@ for ((attempt=0; attempt<30; attempt++)); do
 done
 [[ $healthy == 1 ]] || { echo 'API health failed' >&2; exit 1; }
 # Stability window after API health (RestartSec=3): a crash later than this is
-# outside the check; nginx and VPP are only required to be active.
+# outside the check; nginx is only required to be active, VPP, nftables and the
+# sockets must also be unchanged (below).
 sleep 10
 restarts_after=$(restart_counts)
+# Record the watched units before any check that can stop the run, so the
+# record exists whenever the run fails from here on (the EXIT trap writes it
+# for earlier failures). A socket that was not active before the upgrade is
+# never a failure: a start during the run, or a unit the new packages add, is
+# reported as a warning.
+units_after=$(unit_states)
+printf '%s\n' "$units_after" > "$BACKUP/unit-state-after.txt"
+mapfile -t units_before_lines <<<"$units_before"
+mapfile -t units_after_lines <<<"$units_after"
+changed=0
+for ((i = 0; i < ${#units_before_lines[@]}; i = i + 1)); do
+  before=${units_before_lines[i]} after=${units_after_lines[i]}
+  [[ $before != "$after" ]] || continue
+  unit=${before%% *}
+  if [[ $unit == *.socket && " $before " != *' ActiveState=active '* ]]; then
+    echo "WARNING: $unit was not active before the upgrade and changed during it (before: ${before#* }; after: ${after#* }); not a failure: the packages did not stop it" >&2
+    continue
+  fi
+  if (( ! changed )); then
+    changed=1
+    printf 'a unit this script does not restart changed during the upgrade; the packages must leave it as it was (D-253); records: %s/unit-state-before.txt and unit-state-after.txt\n' "$BACKUP" >&2
+  fi
+  printf 'before: %s\nafter:  %s\n' "$before" "$after" >&2
+  case $unit in
+    vpp.service)
+      if [[ " $after " == *' ActiveState=active '* ]]; then
+        echo 'VPP was stopped and started, or restarted, during the upgrade: the data plane was interrupted. Packages built before D-253 did this through their preinst and Requires=ngfw-firstboot.service; a crash, a start-up apply or another actor is possible too: see journalctl -u vpp.service -u ngfw-firstboot.service' >&2
+      else
+        echo 'vpp.service is not active after the upgrade: the data plane is down; see journalctl -u vpp.service -u ngfw-firstboot.service' >&2
+      fi ;;
+    nftables.service) echo 'nftables.service changed during the upgrade (stopped, or restarted with the ruleset reloaded); see journalctl -u nftables.service -u ngfw-firewall-bootstrap.service' >&2 ;;
+    *.socket) [[ " $after " == *' ActiveState=active '* ]] || echo "$unit is no longer listening after the upgrade; start it: systemctl start $unit" >&2 ;;
+  esac
+done
+(( ! changed )) || exit 1
+warn_stopped_sockets "$units_after" after
 for service in ngfw-agent.service ngfw-api.service nginx.service vpp.service; do
   systemctl is-active --quiet "$service"
 done

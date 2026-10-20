@@ -27,7 +27,7 @@ covered by `5593e5ab2` CI gate 39376212024 SUCCESS (+ packaging 39376212020); `3
 CI gate 39380738314 CANCELLED by the owner's docs merge #252 (`7442c6a5f`, same concurrency group;
 packaging 39380738149 SUCCESS); `a094258ea` (after #253): packaging 39383224493 SUCCESS, CI gate 39383224486 CANCELLED by the owner's
 docs merge #254 (`2a6d1611c`, same concurrency group); the product tree of `a094258ea` is verified by
-`2a6d1611c` CI gate 39385320740: RESULT_2A6.
+`2a6d1611c` CI gate 39385320740 SUCCESS.
 
 Fixes during the queue: #246's new maintainer-script fixture ran `dh_installdeb` as root only
 (hosted runner EPERM) → fixture honours `Rules-Requires-Root: no`; #247 and #248 both claimed

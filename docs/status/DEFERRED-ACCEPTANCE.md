@@ -23,9 +23,12 @@ the upgrade, socket already stopped). NOT RUN on a real appliance: on the first 
 packages (appliance 37 runs the pre-D-253 build `0.1.0~dev+git695.cb148aafb288`; its three sockets
 may still be inactive from the 2026-10-19 upgrade, which the run reports as a warning and which
 `systemctl start` repairs) keep both record files and the run's stderr; the files are expected to be
-identical, which is also D-253's acceptance (a). A real pre-D-253 upgrade would have shown VPP's
-changed activation timestamp; that negative control is not required and is not reproducible without
-deliberately building pre-D-253 packages.
+identical, which is also D-253's acceptance (a). Every build of `main` before PR #246 merges is a
+pre-D-253 build (the `ngfw-meta` and `ngfw-agent` preinst scripts of the set in
+`/var/tmp/ngfw-build-main-cb148aafb-20261019` stop units on upgrade), so upgrading an appliance with one
+of them is the negative control: VPP's activation timestamp changes and the sockets stop. It costs
+about nine seconds of data-plane outage and a maintenance window and is not required; if such an
+upgrade happens anyway before #246 merges, keep its record files and stderr as the negative receipt.
 
 ## Current dual-host acceptance checkpoint — 2026-10-11
 

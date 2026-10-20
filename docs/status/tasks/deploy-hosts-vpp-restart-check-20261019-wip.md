@@ -16,7 +16,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 0 | `72c6a7e21` | envelope and this file |
 | 1 | `8340771f6` | remote install script unit-state records and comparison, fixtures, docs, D-254, this file |
 | 2 | `57ba7dea7` | PR link, runs B and C verbatim/summary; product tree unchanged |
-| 3 | (this commit) | hosted receipts for the product tree; product tree unchanged |
+| 3 | `f4d085c9b` | hosted receipts for the product tree; product tree unchanged |
+| 4 | (this commit) | the manager's review minors (below), fixture modes, docs/D-254 wording, this file |
 
 ## Owned files
 
@@ -88,7 +89,27 @@ Extra local check (not a gate): the remote install script extracted from its quo
 
 None; the full gates and the PR remain (below).
 
+## Review (2026-10-20)
+
+The manager's independent review of `f4d085c9b` returned APPROVE (no MAJOR) with minors, all closed
+in checkpoint 4: (1) the pre-install warning now says the start command is for *after this run
+completes*, and a socket that was not active before the upgrade is never a failure whatever it does
+afterwards (started by hand during the run, or a unit the new packages add: reported as
+`WARNING: … changed during it … not a failure`); (2) `unit-state-after.txt` is written right after
+the second counter read, before the `is-active` loop and the counter comparison, and on any earlier
+failure by the EXIT trap (`( unit_states ) > … || true`, the subshell so the helper's `exit 1` cannot
+cut the trap short), whose `systemctl status` now also covers `vpp.service` and `nftables.service`;
+the VPP hint distinguishes "stopped and started, or restarted" (pre-D-253 preinst, or another actor
+such as a crash or a start-up apply) from "not active after the upgrade"; (3) a socket whose
+before-record is `LoadState=not-found` (installed packages older than `db46e75ae`, 2026-10-07) gets
+its own warning and falls under the never-a-failure rule above; (4) wording: merge order and the
+negative control (every current `main` build is pre-D-253). Extras: fixture modes `nftables-restart`,
+`vpp-stopped`, `show-fails`, `show-garbage`, `socket-started`, `socket-absent`, the trap-written record
+on a `health` failure; the stale "nginx and VPP are only required to be active" comment reworded.
+
 ## Merge note
+
+Merge order (manager, 2026-10-20): after PR #246 (D-253); this branch keeps D-254.
 
 PR #244 (`apt_args`: repositories hidden instead of `--no-download`) and PR #246 (D-253 docs)
 touch the same `docs/install/deploy-hosts.md` paragraph and the same `DEFERRED-ACCEPTANCE.md`
@@ -147,6 +168,9 @@ OK
 ```
 
 Hosted, on the product tree `8340771f6` (PR #247 head at opening): mandatory quick gate [39233622449](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233622449) success; packaging fixture gate [39233622470](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233622470) and [39233511351](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39233511351) success. The same two workflows re-run on the docs-only `57ba7dea7` (in progress when this was written).
+
+- Run D (checkpoint 4, targeted `… -k watched_units -k test_success_uses -k nginx_is_validated -k postinstall_failures`): `Ran 4 tests in 435.247s` / `OK`.
+- Runs E/F (checkpoint 4: full `-p test_deploy_hosts.py`, then the whole suite): pending.
 
 ## Current failure
 

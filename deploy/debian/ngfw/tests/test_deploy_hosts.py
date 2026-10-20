@@ -252,20 +252,31 @@ elif name == 'systemctl':
         assert args[1:3] == ['-p', 'ActiveEnterTimestampMonotonic,NRestarts,ActiveState,LoadState'] and len(args) == 4, args
         unit = args[3]
         installed = (root / 'installed').exists()
+        if failure == 'show-fails': sys.exit(1)
+        if failure == 'show-garbage': print('ActiveState=active\nActiveEnterTimestampMonotonic=soon'); sys.exit(0)
         entered = {'vpp.service': 100, 'nftables.service': 200, 'apply-executor.socket': 300,
                    'ngfw-ra-openfile.socket': 400, 'ngfw-ra-namespace-broker.socket': 500}[unit]
-        state, restarts = 'active', 0
+        load, state, restarts = 'loaded', 'active', 0
         if unit == 'vpp.service' and installed:
             # vpp-restart: activated anew (the pre-D-253 preinst stop and the Requires= pull-up);
             # vpp-crash: an automatic restart counted, the stamp alone left unchanged here so
-            # the counter difference is what the comparison sees.
+            # the counter difference is what the comparison sees; vpp-stopped: left stopped.
             if failure == 'vpp-restart': entered = 9100
             if failure == 'vpp-crash': restarts = 1
+            if failure == 'vpp-stopped': state = 'inactive'
+        if unit == 'nftables.service' and installed and failure == 'nftables-restart': entered = 9200
         # socket-stopped: the upgrade left the socket stopped; socket-preinactive: it was
-        # already stopped before the upgrade (an earlier pre-D-253 upgrade) and stays so.
-        if unit == 'apply-executor.socket' and (failure == 'socket-preinactive' or failure == 'socket-stopped' and installed):
-            state = 'inactive'
-        lines = ['LoadState=loaded', 'ActiveState=' + state, 'ActiveEnterTimestampMonotonic=%d' % entered]
+        # already stopped before the upgrade (an earlier pre-D-253 upgrade) and stays so;
+        # socket-started: stopped before, started by hand during the run; socket-absent: the
+        # installed packages predate the unit (not-found), the new ones ship it unstarted.
+        if unit == 'apply-executor.socket':
+            if failure in ('socket-preinactive', 'socket-started') and not installed or failure == 'socket-preinactive':
+                state = 'inactive'
+            if failure == 'socket-stopped' and installed: state = 'inactive'
+            if failure == 'socket-absent':
+                state, entered = 'inactive', 0
+                if not installed: load = 'not-found'
+        lines = ['LoadState=' + load, 'ActiveState=' + state, 'ActiveEnterTimestampMonotonic=%d' % entered]
         if unit.endswith('.service'): lines.append('NRestarts=%d' % restarts)
         print('\n'.join(lines))
         sys.exit(0)
@@ -893,7 +904,8 @@ exec {sys.executable} "$@"
         self.assertLess(log.index('pg_restore '), log.index(show))
         self.assertLess(log.index(show), log.rindex('apt-get '))
         self.assertLess(log.rindex("'NRestarts', '--value'"), log.rindex(show))
-        self.assertLess(log.rindex("systemctl ['is-active'"), log.rindex(show))
+        # The after-record precedes the service checks, so it exists whenever they fail.
+        self.assertLess(log.rindex(show), log.rindex("systemctl ['is-active'"))
         self.assertLess(log.rindex(show), log.rindex("ip ['-4', 'route', 'show', 'default']"))
         # A VPP that was activated anew (the pre-D-253 preinst stop and the Requires= pull-up)
         # or that crashed and was restarted automatically fails the run with the before/after
@@ -909,7 +921,7 @@ exec {sys.executable} "$@"
                 self.assertIn('before: vpp.service LoadState=loaded ActiveState=active ActiveEnterTimestampMonotonic=100 NRestarts=0\n'
                               'after:  vpp.service LoadState=loaded ActiveState=active ' + after + '\n', result.stderr)
                 self.assertEqual(result.stderr.count('\nbefore: '), 1)
-                self.assertIn('VPP restarted during the upgrade: the data plane was interrupted; see journalctl -u vpp.service -u ngfw-firstboot.service', result.stderr)
+                self.assertIn('VPP was stopped and started, or restarted, during the upgrade: the data plane was interrupted. Packages built before D-253 did this through their preinst and Requires=ngfw-firstboot.service; a crash, a start-up apply or another actor is possible too: see journalctl -u vpp.service -u ngfw-firstboot.service', result.stderr)
                 self.assertIn('inspect /root/ngfw-deploy/run.', result.stderr)
                 self.assertNotIn('second.example', self.log())
                 self.assertTrue((self.root / 'installed').exists())
@@ -918,6 +930,45 @@ exec {sys.executable} "$@"
                 self.assertEqual((run / 'unit-state-after.txt').read_text(), UNIT_STATE.replace('vpp.service LoadState=loaded ActiveState=active ActiveEnterTimestampMonotonic=100 NRestarts=0', 'vpp.service LoadState=loaded ActiveState=active ' + after))
                 self.assertTrue((run / 'service-status.txt').is_file())
                 self.assertFalse((run / 'upgrade-complete').exists())
+        # A VPP left stopped, and a changed nftables, fail with their own hints.
+        for failure, line, hint in (
+                ('vpp-stopped', 'after:  vpp.service LoadState=loaded ActiveState=inactive ActiveEnterTimestampMonotonic=100 NRestarts=0', 'vpp.service is not active after the upgrade: the data plane is down; see journalctl -u vpp.service -u ngfw-firstboot.service'),
+                ('nftables-restart', 'after:  nftables.service LoadState=loaded ActiveState=active ActiveEnterTimestampMonotonic=9200 NRestarts=0', 'nftables.service changed during the upgrade (stopped, or restarted with the ruleset reloaded); see journalctl -u nftables.service -u ngfw-firewall-bootstrap.service')):
+            with self.subTest(failure=failure):
+                self.reset_host()
+                result = self.deploy('first.example', 'second.example', failure=failure)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(line + '\n' + hint + '\n', result.stderr)
+                self.assertEqual(result.stderr.count('\nbefore: '), 1)
+                self.assertNotIn('VPP was stopped and started', result.stderr)
+                self.assertNotIn('second.example', self.log())
+                self.assertFalse((self.runs()[0] / 'upgrade-complete').exists())
+        # systemctl show failing or printing something unexpected stops the run before the
+        # install; the EXIT trap's own attempt at the record fails quietly.
+        for failure, message in (('show-fails', 'cannot read the state of vpp.service'), ('show-garbage', 'unexpected systemctl output for vpp.service')):
+            with self.subTest(failure=failure):
+                self.reset_host()
+                result = self.deploy('first.example', 'second.example', failure=failure)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(message, result.stderr)
+                self.assertIn('inspect /root/ngfw-deploy/run.', result.stderr)
+                self.assertFalse((self.root / 'installed').exists())
+                self.assertNotIn('second.example', self.log())
+                run = self.runs()[0]
+                self.assertFalse((run / 'unit-state-before.txt').exists())
+                self.assertTrue((run / 'service-status.txt').is_file())
+                self.assertEqual((run / 'unit-state-after.txt').read_text(), '')
+        # A failure after the install but before the after-record (API health) still leaves the
+        # record, written by the EXIT trap, and the status of VPP and nftables.
+        self.reset_host()
+        result = self.deploy(failure='health')
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        run = self.runs()[0]
+        self.assertEqual((run / 'unit-state-before.txt').read_text(), UNIT_STATE)
+        self.assertEqual((run / 'unit-state-after.txt').read_text(), UNIT_STATE)
+        self.assertTrue((run / 'service-status.txt').is_file())
+        self.assertEqual(self.log().count(UNIT_SHOW % 'vpp.service'), 2)
+        self.assertIn("systemctl ['status', '--no-pager', '--lines=50', 'ngfw-agent.service', 'ngfw-api.service', 'vpp.service', 'nftables.service']", self.log())
         # A socket the upgrade stopped (the pre-D-253 agent preinst) fails the run and names the
         # start command; nothing is said about VPP.
         self.reset_host()
@@ -927,27 +978,47 @@ exec {sys.executable} "$@"
                       'after:  apply-executor.socket LoadState=loaded ActiveState=inactive ActiveEnterTimestampMonotonic=300 NRestarts=-\n'
                       'apply-executor.socket is no longer listening after the upgrade; start it: systemctl start apply-executor.socket\n', result.stderr)
         self.assertEqual(result.stderr.count('\nbefore: '), 1)
-        self.assertNotIn('VPP restarted', result.stderr)
+        self.assertNotIn('VPP was stopped', result.stderr)
         self.assertNotIn('WARNING', result.stderr)
         self.assertIn('inspect /root/ngfw-deploy/run.', result.stderr)
         self.assertNotIn('second.example', self.log())
         self.assertFalse((self.runs()[0] / 'upgrade-complete').exists())
-        # A socket that was already stopped before the upgrade is a recorded warning before and
-        # after, never a refusal or a failure: the upgrade did not cause it and the tool does not
-        # repair it. It must still be unchanged afterwards.
-        self.reset_host()
-        result = self.deploy(failure='socket-preinactive')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('WARNING: apply-executor.socket is not active before the upgrade (LoadState=loaded ActiveState=inactive ActiveEnterTimestampMonotonic=300 NRestarts=-); this script does not start it; start it by hand: systemctl start apply-executor.socket', result.stderr)
-        self.assertIn('WARNING: apply-executor.socket is not active after the upgrade (LoadState=loaded ActiveState=inactive ActiveEnterTimestampMonotonic=300 NRestarts=-); this script does not start it; start it by hand: systemctl start apply-executor.socket', result.stderr)
-        self.assertEqual(result.stderr.count('WARNING: apply-executor.socket'), 2)
-        self.assertNotIn('ngfw-ra-openfile.socket is not active', result.stderr)
-        inactive = UNIT_STATE.replace('apply-executor.socket LoadState=loaded ActiveState=active', 'apply-executor.socket LoadState=loaded ActiveState=inactive')
-        run = self.runs()[0]
-        self.assertEqual((run / 'unit-state-before.txt').read_text(), inactive)
-        self.assertEqual((run / 'unit-state-after.txt').read_text(), inactive)
-        self.assertTrue((run / 'upgrade-complete').is_file())
-        self.assertFalse((run / 'service-status.txt').exists())
+        # A socket that was not active before the upgrade is a recorded warning, never a refusal
+        # or a failure, whatever it does afterwards: still stopped (warned again, with the start
+        # command for after the run), started by hand during the run, or absent before because
+        # the installed packages predate it and shipped unstarted by the new ones.
+        stopped = 'apply-executor.socket LoadState=loaded ActiveState=inactive ActiveEnterTimestampMonotonic=300 NRestarts=-'
+        absent = 'apply-executor.socket LoadState=not-found ActiveState=inactive ActiveEnterTimestampMonotonic=0 NRestarts=-'
+        shipped = 'apply-executor.socket LoadState=loaded ActiveState=inactive ActiveEnterTimestampMonotonic=0 NRestarts=-'
+        active = 'apply-executor.socket LoadState=loaded ActiveState=active ActiveEnterTimestampMonotonic=300 NRestarts=-'
+        for failure, before, after, warnings in (
+                ('socket-preinactive', stopped, stopped, 2),
+                ('socket-started', stopped, active, 2),
+                ('socket-absent', absent, shipped, 3)):
+            with self.subTest(failure=failure):
+                self.reset_host()
+                result = self.deploy(failure=failure)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr.count('WARNING: apply-executor.socket'), warnings)
+                self.assertNotIn('ngfw-ra-openfile.socket', result.stderr)
+                self.assertNotIn('\nbefore: ', result.stderr)
+                if failure == 'socket-absent':
+                    self.assertIn('WARNING: apply-executor.socket does not exist before the upgrade (' + absent.split(' ', 1)[1] + '): the installed packages predate it; this script does not start it', result.stderr)
+                else:
+                    self.assertIn('WARNING: apply-executor.socket is not active before the upgrade (' + stopped.split(' ', 1)[1] + '); this script does not start it; after this run completes: systemctl start apply-executor.socket', result.stderr)
+                if failure == 'socket-preinactive':
+                    self.assertNotIn('changed during it', result.stderr)
+                else:
+                    self.assertIn('WARNING: apply-executor.socket was not active before the upgrade and changed during it (before: ' + before.split(' ', 1)[1] + '; after: ' + after.split(' ', 1)[1] + '); not a failure: the packages did not stop it', result.stderr)
+                if failure == 'socket-started':
+                    self.assertNotIn('after the upgrade', result.stderr)
+                else:
+                    self.assertIn('WARNING: apply-executor.socket is not active after the upgrade (' + after.split(' ', 1)[1] + '); this script does not start it; after this run completes: systemctl start apply-executor.socket', result.stderr)
+                run = self.runs()[0]
+                self.assertEqual((run / 'unit-state-before.txt').read_text(), UNIT_STATE.replace(active, before))
+                self.assertEqual((run / 'unit-state-after.txt').read_text(), UNIT_STATE.replace(active, after))
+                self.assertTrue((run / 'upgrade-complete').is_file())
+                self.assertFalse((run / 'service-status.txt').exists())
 
     def build_fixture(self):
         repo = self.root / 'repo'

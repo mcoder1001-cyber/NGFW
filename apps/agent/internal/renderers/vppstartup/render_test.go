@@ -357,6 +357,40 @@ func TestWarnings(t *testing.T) {
 	}
 }
 
+// TestSharedTxQueueWarning: fewer TX queues than VPP threads (main + workers) make threads share
+// queues, which is slow and kills the queue on X710 NVM 9.x NICs (i40e MDD, host 211 2026-10-20).
+func TestSharedTxQueueWarning(t *testing.T) {
+	shared := func(w string) bool { return strings.Contains(w, "share TX queues") }
+	// main + 2 workers = 3 threads: the default 2 queues and the device's 1 queue are shared
+	_, m, err := Generate(parseDoc(t, `{"dataplane":{"workers":2,"corelist":[2,3],"mainCore":1,"hugepagesGb":2,"txQueues":2,"devices":{"0000:04:00.0":{"name":"wan","txQueues":1}},"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`), ngfwA(t), DefaultSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, w := range m.Warnings {
+		if shared(w) {
+			got = append(got, w)
+		}
+	}
+	if len(got) != 2 || !strings.HasPrefix(got[0], "dataplane.txQueues: 2 TX queues for 3 VPP threads (main + 2 workers)") ||
+		!strings.HasPrefix(got[1], "dataplane.devices.0000:04:00.0.txQueues: 1 TX queues for 3 VPP threads") || !strings.Contains(got[1], "at least 3") {
+		t.Errorf("warnings = %q", m.Warnings)
+	}
+	// one queue per thread (or VPP's default, which is one per thread): no warning
+	for _, doc := range []string{
+		`{"dataplane":{"workers":2,"corelist":[2,3],"mainCore":1,"hugepagesGb":2,"txQueues":3,"devices":{"0000:04:00.0":{"name":"wan","txQueues":3}},"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`,
+		`{"dataplane":{"workers":2,"corelist":[2,3],"mainCore":1,"hugepagesGb":2,"devices":{"0000:04:00.0":{"name":"wan"}},"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`,
+	} {
+		_, m, err = Generate(parseDoc(t, doc), ngfwA(t), DefaultSettings())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if slices.ContainsFunc(m.Warnings, shared) {
+			t.Errorf("warnings = %q", m.Warnings)
+		}
+	}
+}
+
 func TestCPUList(t *testing.T) {
 	if got := FormatCPUList([]uint32{8, 3, 2, 6, 7, 2}); got != "2-3,6-8" {
 		t.Error(got)

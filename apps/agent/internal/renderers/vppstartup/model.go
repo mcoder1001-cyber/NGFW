@@ -275,10 +275,36 @@ func BuildModel(dp *ngfwv1.DataplaneConfig, host Host) (*Model, error) {
 		}
 	}
 
+	warnSharedTxQueues(dp, m)
+
 	if err := checkHugepages(dp, host, m); err != nil {
 		return nil, err
 	}
 	return m, nil
+}
+
+// warnSharedTxQueues: VPP gives every thread (main + workers) its own TX queue only when the
+// device has at least that many; with fewer, dpdk/device/init.c maps thread t to queue
+// t % n_tx_queues and the threads share the queue under a spinlock. A queue shared by two
+// transmitting workers is serialised and, on Intel X710 (i40e) NICs with NVM 9.x firmware,
+// triggers a Malicious Driver Detection event after which the queue stays dead and every packet
+// sent on it is dropped as `Tx packet drops (dpdk tx failure)` (172.30.110.211, 2026-10-19/20:
+// 23 % of all test traffic). A warning, not an error: some NICs have fewer queues (igc: 4) and
+// VPP clamps the count to the hardware maximum. Unset txQueues is VPP's default of one queue
+// per thread and needs no warning.
+func warnSharedTxQueues(dp *ngfwv1.DataplaneConfig, m *Model) {
+	threads := uint32(len(corelistOf(m))) + 1 //nolint:gosec // ≤ 257
+	warn := func(path string, q uint32) {
+		m.Warnings = append(m.Warnings, fmt.Sprintf("%s: %d TX queues for %d VPP threads (main + %d workers): threads share TX queues (thread t uses queue t mod %d); a queue shared by two transmitting workers is serialised and dies on Intel X710 NVM 9.x firmware (i40e Malicious Driver Detection, host 211 2026-10-20); set txQueues to at least %d where the NIC allows it", path, q, threads, threads-1, q, threads))
+	}
+	if q := dp.GetTxQueues(); q > 0 && q < threads {
+		warn("dataplane.txQueues", q)
+	}
+	for _, d := range m.Devices {
+		if d.TxQueues > 0 && d.TxQueues < threads {
+			warn("dataplane.devices."+d.PCI+".txQueues", d.TxQueues)
+		}
+	}
 }
 
 func corelistOf(m *Model) []uint32 {

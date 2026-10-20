@@ -1,0 +1,160 @@
+{
+  "dataplane": {
+    "devices": {
+      "0000:01:00.0": {
+        "name": "enp1s0f0np0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:01:00.1": {
+        "name": "enp1s0f1np1",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:01:00.2": {
+        "name": "enp1s0f2np2",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:01:00.3": {
+        "name": "enp1s0f3np3",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:02:00.0": {
+        "name": "enp2s0f0np0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:02:00.1": {
+        "name": "enp2s0f1np1",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:02:00.2": {
+        "name": "enp2s0f2np2",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:02:00.3": {
+        "name": "enp2s0f3np3",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:03:00.0": {
+        "name": "enp3s0f0np0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:03:00.1": {
+        "name": "enp3s0f1np1",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:03:00.2": {
+        "name": "enp3s0f2np2",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:03:00.3": {
+        "name": "enp3s0f3np3",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 7,
+        "txQueues": 8
+      },
+      "0000:05:00.0": {
+        "name": "enp5s0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 4,
+        "txQueues": 4
+      },
+      "0000:06:00.0": {
+        "name": "enp6s0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 4,
+        "txQueues": 4
+      },
+      "0000:07:00.0": {
+        "name": "enp7s0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 4,
+        "txQueues": 4
+      },
+      "0000:08:00.0": {
+        "name": "enp8s0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 4,
+        "txQueues": 4
+      },
+      "0000:09:00.0": {
+        "name": "enp9s0",
+        "rxDesc": 2048,
+        "txDesc": 2048,
+        "rxQueues": 4,
+        "txQueues": 4
+      }
+    },
+    "workers": 7,
+    "corelist": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12,
+      14
+    ],
+    "mainCore": 16,
+    "hugepagesGb": 15,
+    "pciWhitelist": [
+      "0000:01:00.0",
+      "0000:01:00.1",
+      "0000:01:00.2",
+      "0000:01:00.3",
+      "0000:02:00.0",
+      "0000:02:00.1",
+      "0000:02:00.2",
+      "0000:02:00.3",
+      "0000:03:00.0",
+      "0000:03:00.1",
+      "0000:03:00.2",
+      "0000:03:00.3",
+      "0000:05:00.0",
+      "0000:06:00.0",
+      "0000:07:00.0",
+      "0000:08:00.0",
+      "0000:09:00.0"
+    ],
+    "managementPci": [
+      "0000:04:00.0"
+    ],
+    "buffersPerNuma": 1048576
+  }
+}

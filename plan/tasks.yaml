@@ -6006,23 +6006,23 @@ tasks:
     worker_status: completed; session finished
     completion_evidence: PR239 head 5ede38427b09f5c9ed28b24c96578722a378031e; merge 9598807d169137b9b423e56c09ef5bbcc0150ae8; hosted quick PASS; main CI gate SUCCESS on 9598807d1
   - id: apply-211-vpp-startup-20261020
-    title: 'Appliance 211: apply the permanent VPP start-up file (7 P-core workers, 8 TX queues, no shared queue)'
-    prompt: docs/decisions/PENDING-211-vpp-startup-tuning.md
+    title: 'Appliance 211: apply the permanent VPP start-up file (7 P-core workers, 8 TX queues, no shared X710 queue)'
+    prompt: docs/status/tasks/apply-211-vpp-startup-20261020-envelope.md
     template: ''
     stage: S5
     deps: [P10]
     priority: 1
     est_hours: 2
-    state: running
-    parked_on: ''
+    state: parked
+    parked_on: PENDING-211-vpp-startup-tuning
     wbs: []
-    scope: Manager apply step (D-088, D-256) of the machine-211-vpp-tuning diagnosis (PR #251) on 172.30.110.211; product-mode apply-startup.sh, one VPP restart after the owner confirms the ~9 s outage
-    files_owned: docs/decisions/PENDING-211-vpp-startup-tuning.md docs/status/tasks/apply-211-vpp-startup-20261020*
+    scope: Manager apply step (D-088 procedure, D-256) of the machine-211-vpp-tuning diagnosis (PR #251) on 172.30.110.211; product-mode apply-startup.sh, one restart of VPP + agent + API (~25-35 s without forwarding) after the owner confirms it
+    files_owned: docs/decisions/PENDING-211-vpp-startup-tuning.md docs/status/tasks/apply-211-vpp-startup-20261020* LOG.md row D-256
     branch: claude/magical-cartwright-cda9e2
-    worktree: ''
+    worktree: /root/NGFW/.claude/worktrees/magical-cartwright-cda9e2
     owner: root manager
     started: '2026-10-20'
     finished: ''
-    notes: 2026-10-20 prepared; rendering 92985d0c reproduced with origin/main's generator; document copied to the host (/root/machine-211-vpp-tuning-dataplane.json); the host dry run and the apply are blocked on the owner's outage confirmation and on a host-write permission for this session (auto mode denied the dry run)
-    worker_status: awaiting owner confirmation
+    notes: 2026-10-20 approval record PR #252 (review round 1 BLOCK, 6 MAJOR fixed in round 2); rendering 92985d0c reproduced with origin/main's generator and by the host dry run (exit 3 only at the TD-17 gate); document on the host /root/machine-211-vpp-tuning-dataplane.json; owner said yes to a 9 s figure, the corrected 25-35 s figure (VPP + agent + API) was sent back; apply waits for that answer and for PR #252 on main
+    worker_status: manager session live (claude/magical-cartwright-cda9e2); parked on the owner's answer to the corrected outage figure
     completion_evidence: ''

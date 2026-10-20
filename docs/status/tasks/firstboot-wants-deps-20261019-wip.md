@@ -18,7 +18,10 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 1 | `935ee0e29` | units, script gate, fixture helpers, tests, lab script, docs, D-255, envelope, this file |
 | 1b | `072128365` | lab script fixes (per-line states, invocation count), both user-manager observations recorded; the commit the package set was built from |
 | 2 | `a99580bad` | whole-suite result, built package set and `dpkg-deb` inspection, PR #248 link |
-| 3 | the commit carrying this version of this file | decision renumbered D-254 → D-255 everywhere on this branch (PR #247 already claims D-254 and merges first; manager instruction 2026-10-20); the inherited D-253 line untouched |
+| 3 | `17eb3556f` | decision renumbered D-254 → D-255 everywhere on this branch (PR #247 already claims D-254 and merges first; manager instruction 2026-10-20); the inherited D-253 line untouched |
+| 3b | `cf9ad2e58` | hosted fixture failure traced to #246's `setUpClass` fixtures |
+| 4 | `8cf7f6085` | independent review (APPROVE WITH CHANGES, no MAJOR) findings 1–3 and NITs: `pg_isready` gate + test, lab model with the PostgreSQL wrapper/cluster pair and job-settle, README nftables exception, "withheld" wording with the nftables/VPP case, API-requires-agent sentence, prepare-unit comment, user-manager description, enabled closure guarded in test_packaging; PR body patched |
+| 4b | the commit carrying this version of this file | this file: checkpoint 4 evidence and the review findings |
 
 ## Investigation (2026-10-19)
 
@@ -72,17 +75,22 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 - `deploy/upgrade/ngfw-upgrade-prepare.service`: `Wants=postgresql.service` (was `Requires=`); `After=`,
   `Before=`, the condition and `[Install] RequiredBy=` unchanged.
 - `deploy/debian/ngfw/assets/firstboot.sh`: after the completion-marker short-circuit and before the
-  bootstrap.env checks, one `systemctl --quiet is-active <unit>` per gated unit; an inactive one exits 1
-  with `first boot requires an active <unit>` (credentials kept, nothing provisioned). One unit per
-  call because `is-active` with several names succeeds when any one is active.
+  bootstrap.env checks, one `systemctl --quiet is-active <unit>` per gated unit, then (checkpoint 4,
+  review finding 1) `runuser -u postgres -- pg_isready -q`; an inactive unit exits 1 with `first boot
+  requires an active <unit>`, a cluster not accepting connections with `first boot requires a PostgreSQL
+  cluster accepting connections` (credentials kept, nothing provisioned). One unit per call because
+  `is-active` with several names succeeds when any one is active; pg_isready because Debian's
+  `postgresql.service` is an `ExecStart=/bin/true` wrapper that stays active when the
+  `postgresql@<version>-main.service` cluster fails (the psql calls would stop there too).
 - `deploy/debian/ngfw/tests/maintainer_scripts.py`: section-aware `unit_settings()`/`unit_setting()`
   (empty assignment resets a list, comments skipped), `DEPENDENCY_KEYS` + `PartOf`,
   `stop_propagation_closure(start, enabled=False, overrides=None)` (install-time `RequiredBy=` edges;
   text overrides for negative controls).
 - `test_firstboot.py`: fixture `systemctl` answers `--quiet is-active` from `INACTIVE_UNITS` and records
-  queries separately, `runuser` calls are recorded; `Firstboot`: each inactive daemon refuses before any
-  database or file work (credentials kept, no unit state change), the three queries come one per unit in
-  order before the first database command, a provisioned appliance never queries;
+  queries separately, `runuser` calls are recorded; `Firstboot`: each inactive daemon refuses before pg_isready and any
+  database or file work (credentials kept, no unit state change), a cluster that does not accept
+  connections refuses after the three queries and before the first psql, the three queries come one per
+  unit in order and pg_isready precedes the first database command, a provisioned appliance never queries;
   `FirstbootDependencies` (D-255): `Wants=` = `After=` = the three, `Before=` = VPP/agent/API/nginx, no
   propagating key, `WantedBy=multi-user.target`; VPP drop-in, agent and API keep `Requires=`/`After=` on
   firstboot and the marker condition; `closure('vpp.service') == {ngfw-firstboot.service}`,
@@ -91,13 +99,16 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   `ngfw-upgrade-prepare.service` wants PostgreSQL and keeps its `RequiredBy=`; the helper sees exactly
   the four propagating keys and section boundaries.
 - `test_packaging.py`: `test_upgrade_never_stops_a_unit_vpp_requires` asserts the new closure
-  (`{ngfw-firstboot.service}`, `+ ngfw-upgrade-prepare.service` enabled, no daemon).
+  (`{ngfw-firstboot.service}`, `+ ngfw-upgrade-prepare.service` enabled, no daemon) and guards the
+  enabled closure against every upgrade path (removal of `ngfw-agent` stops the prepare unit: not vacuous).
 - `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh` (new, not run by unittest): renders stand-in
-  `ngfwlab-*` units from the shipped unit texts for a disposable systemd instance (`--user` by default,
-  `--system` only with `NGFW_LAB_DISPOSABLE=1`), boots them, restarts Valkey/PostgreSQL/nftables and
-  reports the units whose `InvocationID` changed, checks the fail-closed first boot per daemon and the
-  provisioned reboot; `--expect d255|previous`, `--firstboot-unit` for the pre-D-255 text,
-  `--render-only DIR`. Executed here against root's user manager in both modes (see below).
+  `ngfwlab-*` units from the shipped unit texts for a systemd manager (`--user` by default, `--system`
+  only with `NGFW_LAB_DISPOSABLE=1`), with Debian's PostgreSQL wrapper-plus-cluster pair, boots them,
+  restarts Valkey, the PostgreSQL wrapper, the cluster alone and nftables and reports the units whose
+  `InvocationID` changed once the job queue is empty (no `sleep`), checks the fail-closed first boot per
+  daemon (a failed cluster behind the active wrapper included) and the provisioned reboot;
+  `--expect d255|previous`, `--firstboot-unit` for the pre-D-255 text, `--render-only DIR`. Executed
+  here in root's user manager in both modes (see below).
 - Docs: D-255 (`docs/decisions/LOG.md`), `docs/install/upgrade.md`, `docs/install/deploy-hosts.md` (one
   sentence), `deploy/debian/README.md`, `docs/status/DEFERRED-ACCEPTANCE.md` (laboratory acceptance
   NOT RUN), envelope, this file.
@@ -105,7 +116,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 ## Actual test results
 
 - `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_firstboot.py`: `Ran 16 tests in 22.069s — OK`
-  (16 = 9 on PR #246 + 2 gate tests + 5 dependency tests).
+  (16 = 9 on PR #246 + 2 gate tests + 5 dependency tests); after checkpoint 4 (pg_isready test added):
+  `Ran 17 tests in 25.208s — OK`, test_packaging `Ran 22 tests in 3.189s — OK`.
 - `… -p test_packaging.py`: `Ran 22 tests in 2.803s — OK`. `… -p test_base_policy.py`: `Ran 3 tests — OK`.
 - `python3 -m unittest discover -s deploy/debian/ngfw/tests -v` (whole suite, tree of `935ee0e29` plus the
   lab-script and docs edits of `072128365`, no test input changed): `Ran 139 tests in 675.392s — OK`, no
@@ -117,32 +129,43 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   `origin/main:deploy/systemd/ngfw-firstboot.service`; `systemd-analyze --user verify` of the rendered
   units exit 0; `shellcheck -S warning` clean. Both full runs: see the observation section.
 
-## Observation in a disposable systemd instance (root's user manager, stand-in units)
+## Observation with stand-in units in root's user manager on the dev host
 
-The system manager of the shared dev host runs VPP and was not touched; appliance 37 was not
-restarted. `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh --manager user` installs
-throwaway `ngfwlab-*` units into `/run/user/0/systemd/user` of root's `systemctl --user` manager
-(dependency lines copied from the shipped units and drop-ins, names prefixed, sleep daemons, the
-firstboot stand-in with the same marker short-circuit and per-unit `is-active` gate as
-`firstboot.sh`), boots them, restarts the daemons and compares `InvocationID`s, then removes the
-units again (`systemctl --user list-units 'ngfwlab-*'` is empty afterwards). Both runs on this host,
-2026-10-19, each `36` checks and `0 mismatch(es)`:
+Not a disposable instance: the units are throwaway `ngfwlab-*` units under `/run/user/0/systemd/user`
+in root's persistent `systemctl --user` manager on the shared dev host; the system manager, VPP and
+appliance 37 were not touched, and `systemctl --user list-units 'ngfwlab-*'` is empty afterwards.
+`deploy/debian/ngfw/tests/lab/firstboot-propagation.sh --manager user` renders the shipped dependency
+lines onto sleep daemons, Debian's PostgreSQL pair (an always-succeeding wrapper oneshot and a cluster
+daemon `PartOf=`/`Before=` it; the cluster unit's state stands in for `pg_isready`) and the same
+marker short-circuit and per-unit gate as `firstboot.sh`, boots them, restarts the daemons and compares
+`InvocationID`s after the manager's job queue is empty. Both runs on this host, 2026-10-20 (checkpoint
+4 model), each `41` checks and `0 mismatch(es)`:
 
 - **With the change** (`--expect d255`, the working tree's unit):
   ```
-order: start ngfw-firewall-bootstrap,start postgresql,start valkey-server,start nftables,firstboot run,start vpp,start nginx,start ngfw-agent,start ngfw-api,
+order: start postgresql-cluster,start valkey-server,start ngfw-firewall-bootstrap,start postgresql,start nftables,firstboot run,start vpp,start nginx,start ngfw-agent,start ngfw-api,
 OK   restart valkey-server -> restarted units: ngfwlab-valkey-server.service 
 OK   restart valkey-server -> firstboot.sh invocations: 0
 OK   restart valkey-server -> firstboot.sh provisioning runs: 0
-OK   restart postgresql -> restarted units: ngfwlab-postgresql.service 
+OK   restart postgresql -> restarted units: ngfwlab-postgresql-cluster.service ngfwlab-postgresql.service 
 OK   restart postgresql -> firstboot.sh invocations: 0
 OK   restart postgresql -> firstboot.sh provisioning runs: 0
+OK   restart postgresql-cluster -> restarted units: ngfwlab-postgresql-cluster.service 
+OK   restart postgresql-cluster -> firstboot.sh invocations: 0
+OK   restart postgresql-cluster -> firstboot.sh provisioning runs: 0
 OK   restart nftables -> restarted units: ngfwlab-nftables.service ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service 
 OK   restart nftables -> firstboot.sh invocations: 0
 OK   restart nftables -> firstboot.sh provisioning runs: 0
-OK   postgresql down -> firstboot not active: failed
+OK   postgresql-cluster down -> postgresql wrapper active regardless: active
+OK   postgresql-cluster down -> firstboot not active: failed
+OK   postgresql-cluster down -> marker absent: absent
+OK   postgresql-cluster down -> vpp, agent, api not started: inactive inactive inactive 
 OK   valkey-server down -> firstboot not active: failed
+OK   valkey-server down -> marker absent: absent
+OK   valkey-server down -> vpp, agent, api not started: inactive inactive inactive 
 OK   nftables down -> firstboot not active: failed
+OK   nftables down -> marker absent: absent
+OK   nftables down -> vpp, agent, api not started: inactive inactive inactive 
 OK   provisioned boot skips the gate: 1
 OK   provisioned boot runs no firstboot.sh: 0
 OK   restart valkey-server -> restarted units: ngfwlab-valkey-server.service 
@@ -152,19 +175,29 @@ OK   restart valkey-server -> firstboot.sh provisioning runs: 0
   ```
 - **Without the change** (`--expect previous --firstboot-unit <origin/main text>`, `Requires=`):
   ```
-order: start ngfw-firewall-bootstrap,start valkey-server,start postgresql,start nftables,firstboot run,start vpp,start nginx,start ngfw-agent,start ngfw-api,
+order: start ngfw-firewall-bootstrap,start postgresql-cluster,start valkey-server,start postgresql,start nftables,firstboot run,start vpp,start nginx,start ngfw-agent,start ngfw-api,
 OK   restart valkey-server -> restarted units: ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-valkey-server.service ngfwlab-vpp.service 
 OK   restart valkey-server -> firstboot.sh invocations: 1
 OK   restart valkey-server -> firstboot.sh provisioning runs: 0
-OK   restart postgresql -> restarted units: ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-postgresql.service ngfwlab-vpp.service 
+OK   restart postgresql -> restarted units: ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-postgresql-cluster.service ngfwlab-postgresql.service ngfwlab-vpp.service 
 OK   restart postgresql -> firstboot.sh invocations: 1
 OK   restart postgresql -> firstboot.sh provisioning runs: 0
+OK   restart postgresql-cluster -> restarted units: ngfwlab-postgresql-cluster.service 
+OK   restart postgresql-cluster -> firstboot.sh invocations: 0
+OK   restart postgresql-cluster -> firstboot.sh provisioning runs: 0
 OK   restart nftables -> restarted units: ngfwlab-nftables.service ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-vpp.service 
 OK   restart nftables -> firstboot.sh invocations: 1
 OK   restart nftables -> firstboot.sh provisioning runs: 0
-OK   postgresql down -> firstboot not active: inactive
+OK   postgresql-cluster down -> postgresql wrapper active regardless: active
+OK   postgresql-cluster down -> firstboot not active: failed
+OK   postgresql-cluster down -> marker absent: absent
+OK   postgresql-cluster down -> vpp, agent, api not started: inactive inactive inactive 
 OK   valkey-server down -> firstboot not active: inactive
+OK   valkey-server down -> marker absent: absent
+OK   valkey-server down -> vpp, agent, api not started: inactive inactive inactive 
 OK   nftables down -> firstboot not active: inactive
+OK   nftables down -> marker absent: absent
+OK   nftables down -> vpp, agent, api not started: inactive inactive inactive 
 OK   provisioned boot skips the gate: 1
 OK   provisioned boot runs no firstboot.sh: 0
 OK   restart valkey-server -> restarted units: ngfwlab-ngfw-agent.service ngfwlab-ngfw-api.service ngfwlab-ngfw-firstboot.service ngfwlab-valkey-server.service ngfwlab-vpp.service 
@@ -173,15 +206,18 @@ OK   restart valkey-server -> firstboot.sh provisioning runs: 0
 == 0 mismatch(es) against the previous expectation
   ```
 
-So with `Requires=` an explicit restart of Valkey, PostgreSQL or nftables restarts firstboot
-(which re-executes `firstboot.sh`, exit 0 on the marker), VPP, the agent and the API; with `Wants=`
-only the restarted daemon changes, an nftables restart reaches the agent and the API through the
-agent's own `Requires=` and never VPP, the first boot keeps its order and fails closed on each
-missing daemon, and the provisioned reboot skips the gate. The `previous` run also shows the
-pre-D-255 fail-closed shape (`inactive`: the firstboot job is cancelled as a dependency failure)
-against the D-255 shape (`failed`: the script refused). Full logs: `lab-d255.log`,
+So with `Requires=` an explicit restart of Valkey, PostgreSQL (the wrapper, which `PartOf=` carries to
+the cluster) or nftables restarts firstboot (which re-executes `firstboot.sh`, exit 0 on the marker),
+VPP, the agent and the API; with `Wants=` only the restarted daemon changes, an nftables restart
+reaches the agent and the API through the agent's own `Requires=` and never VPP, and a restart of the
+cluster alone (`postgresql@<version>-main.service`, what `pg_ctlcluster` delegates to) reaches nothing
+else in either text. The first boot keeps its order and fails closed on each missing daemon; a failed
+cluster leaves the wrapper `active` in both texts, so firstboot runs and its PostgreSQL gate refuses
+(`failed`: `pg_isready` now, the first `psql` before), while a failed Valkey or nftables cancels
+firstboot as a dependency failure with `Requires=` (`inactive`) and is refused by the script with
+`Wants=` (`failed`). The provisioned reboot skips the gate. Full logs: `lab-d255.log`,
 `lab-previous.log` in the session scratchpad (not committed); rerun the two commands to reproduce.
-Laboratory acceptance on an appliance stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
+Laboratory acceptance on real units stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
 
 ## Built package set (checkpoint 2)
 
@@ -206,6 +242,13 @@ Laboratory acceptance on an appliance stays NOT RUN (`docs/status/DEFERRED-ACCEP
   - maintainer scripts as D-253 left them: no `preinst`; `ngfw-meta` `prerm` carries one
     `deb-systemd-invoke stop 'ngfw-firewall-bootstrap.service' 'ngfw-firstboot.service'` on `remove` only;
     `postinst` without `deb-systemd-invoke`.
+
+## Review findings (2026-10-20, APPROVE WITH CHANGES, no MAJOR)
+
+1. `is-active postgresql.service` passes with a failed cluster (wrapper unit) → `pg_isready` added to the gate, test `test_fresh_boot_refuses_a_cluster_that_does_not_accept_connections`, acceptance case (f), lab model with the wrapper/cluster pair.
+2. README claimed no propagation for nftables → limited to PostgreSQL/Valkey with the nftables exception.
+3. "no longer wait" → "still ordered after, no longer withheld", plus the provisioned-appliance nftables/VPP case, in `upgrade.md` and the D-255 row.
+NITs: API requires the agent (upgrade.md); prepare-unit comment ("when a snapshot is due"); the observation is root's persistent `--user` manager with throwaway units, not a disposable instance (LOG, DEFERRED, this file); `sleep 1` replaced by waiting for an empty job queue; `test_packaging` guards the enabled closure.
 
 ## Remaining
 

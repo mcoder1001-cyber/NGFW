@@ -12,7 +12,24 @@ real upgrade of an initialized appliance with it, including the nginx reload tak
 no-default-route path on a management-only appliance and recovery from a failed step, is
 NOT RUN; record it here when a disposable appliance is available.
 
-Update 2026-10-19 (task `deploy-hosts-vpp-restart-check-20261019`, D-254): the script now records
+Update 2026-10-19: first real run on the initialized appliance `172.30.126.37`
+(`0.1.0~dev+8eb2f11c4069` → `main` `cb148aafb`, `0.1.0~dev+git695.cb148aafb288`), receipt in
+`docs/status/tasks/deploy-host-37-20261019-wip.md`. Exercised and PASS: preflight, source
+lineage (ancestor), package transfer and remote rechecks, backups and database dump, APT
+simulation guard, package upgrade without any download, agent/API restart with restart
+counters, `nginx -t` plus reload taking effect (new bundle served, nginx not restarted), API
+health, stability window, route comparison, `upgrade-complete`; the same run on
+`172.30.110.211` (26 s, same result). Also exercised: a failure of the APT step before dpkg
+ran (the first host-37 run; the host stayed untouched, the recovery directory kept the
+backups and `service-status.txt`). That failure was a real defect: apt 3.2.0 refuses
+`--no-download` for local archives, fixed in PR #244 (hide the repositories instead).
+Still NOT RUN: recovery after a partial dpkg or maintainer-script failure, the
+`--allow-no-default-route` path, `--allow-divergent`, login/browser acceptance and backup
+restore. Observed on both hosts: the packages' maintainer scripts stop
+`ngfw-firstboot.service` on upgrade and `ngfw-meta`'s own drop-in makes `vpp.service`
+require it on every appliance, so VPP restarted (6–9 s); packaging fix in PR #246 (D-253).
+
+Update 2026-10-20 (task `deploy-hosts-vpp-restart-check-20261019`, D-254, PR #247): the script now records
 `vpp.service`, `nftables.service`, `apply-executor.socket`, `ngfw-ra-openfile.socket` and
 `ngfw-ra-namespace-broker.socket` (`LoadState`, `ActiveState`, `ActiveEnterTimestampMonotonic`,
 `NRestarts`) to `unit-state-before.txt` immediately before `apt-get install` and to
@@ -20,15 +37,15 @@ Update 2026-10-19 (task `deploy-hosts-vpp-restart-check-20261019`, D-254): the s
 already inactive before the upgrade is a warning, not a failure. Proven by the host-independent
 fixtures only (unchanged record, VPP activated anew, VPP restarted after a crash, socket stopped by
 the upgrade, socket already stopped). NOT RUN on a real appliance: on the first upgrade onto D-253
-packages (appliance 37 runs the pre-D-253 build `0.1.0~dev+git695.cb148aafb288`; its three sockets
-may still be inactive from the 2026-10-19 upgrade, which the run reports as a warning and which
+packages (appliances 37 and 211 run the pre-D-253 build `0.1.0~dev+git695.cb148aafb288`; their three
+sockets may still be inactive from the 2026-10-19 upgrades, which the run reports as a warning and which
 `systemctl start` repairs) keep both record files and the run's stderr; the files are expected to be
-identical, which is also D-253's acceptance (a). Every build of `main` before PR #246 merges is a
-pre-D-253 build (the `ngfw-meta` and `ngfw-agent` preinst scripts of the set in
-`/var/tmp/ngfw-build-main-cb148aafb-20261019` stop units on upgrade), so upgrading an appliance with one
-of them is the negative control: VPP's activation timestamp changes and the sockets stop. It costs
-about nine seconds of data-plane outage and a maintenance window and is not required; if such an
-upgrade happens anyway before #246 merges, keep its record files and stderr as the negative receipt.
+identical, which is also D-253's acceptance (a). Every build of `main` up to `e7377927f` (before
+PR #246 merged on 2026-10-20) is a pre-D-253 build (the `ngfw-meta` and `ngfw-agent` preinst scripts
+of the set in `/var/tmp/ngfw-build-main-cb148aafb-20261019` stop units on upgrade), so upgrading an
+appliance with one of them is the negative control: VPP's activation timestamp changes and the
+sockets stop. It costs about nine seconds of data-plane outage and a maintenance window and is not
+required; if such an upgrade happens anyway, keep its record files and stderr as the negative receipt.
 
 ## Current dual-host acceptance checkpoint — 2026-10-11
 
@@ -421,3 +438,85 @@ PR #241 (`claude/agent-allifs-unbound-nics`, task `agent-allifs-unbound-nics`) m
 (d) release — releasing a VPP-bound NIC before the start-up apply is APPLIED, our `_gb.*` binding is gone from it, it is admin-down and another owner's ACLs on it are untouched;
 (e) agent restart — stop and start the agent with an unbound row, a released row and a live entry: the start-up resync is APPLIED with zero changes and the auto-block cache is replayed.
 The unchanged complete local and hosted quick gates remain mandatory before merge. PR #238's deferred case (e) ("known agent defect, tech-debt") describes the pre-fix state; once #241 is merged it is reworded to this target state and points here.
+
+## Package upgrade without a VPP restart (D-253) — 2026-10-19
+
+`deploy/debian/ngfw/debian/rules` now passes `--no-stop-on-upgrade` to `dh_installsystemd`, so a
+package upgrade stops, starts or restarts no unit (task `pkg-no-stop-on-upgrade-20261019`). This is
+proven host-independently: the real `dh_installsystemd`/`dh_installdeb` generate the maintainer
+scripts from a private copy of the packaging and the scripts run against recording fakes
+(`deploy/debian/ngfw/tests/maintainer_scripts.py`, `test_packaging.MaintainerScripts`,
+`test_firstboot.FirstbootUpgrade`), and the built package set was inspected with `dpkg-deb -e`.
+Laboratory acceptance is **NOT RUN**; on a disposable appliance that already runs D-253 packages,
+upgrade it with `deploy/deploy-hosts.sh -p …` to a later D-253 build and record:
+(a) `systemctl show -p ActiveEnterTimestamp,NRestarts vpp.service nftables.service` unchanged across
+the run and no `Stopping ngfw-firstboot.service` / `vpp.service` lines in the journal;
+(b) `journalctl -u ngfw-firstboot.service` shows no new `firstboot.sh` run and the unit stays
+`active (exited)`; (c) `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`ngfw-ra-namespace-broker.socket` are active after the run; (d) agent and API report the new version
+after the script's restart, and the data-plane forwarding check of the window passes without a gap;
+(e) `apply-executor.service` still runs the previous executor after the upgrade, and after
+`systemctl stop apply-executor.service` (no apply running) the API's next start-up apply request is
+served by the new code with the socket never inactive; (f) `/etc/nftables.d/ngfw-base.nft` is
+unchanged by the upgrade and re-rendered only at the next reboot; on an A/B-provisioned appliance
+also (g) `ngfw-upgrade-prepare.service` keeps its state across the run.
+The one-time first upgrade from pre-D-253 packages (appliance 37 runs `0.1.0~dev+git695.cb148aafb288`)
+is expected to be outage-free too, because the stop lived in the incoming package's preinst; record
+(a)–(c) for it as well, and first check whether the three sockets are still inactive from the earlier
+upgrades.
+
+## First-boot gate without restart propagation (D-255) — 2026-10-19
+
+`ngfw-firstboot.service` now wants (not requires) `postgresql.service`, `valkey-server.service`
+and `nftables.service`, `ngfw-upgrade-prepare.service` wants `postgresql.service`, and
+`firstboot.sh` refuses a fresh first boot unless each of the three is active and the PostgreSQL
+cluster answers `pg_isready` (Debian's `postgresql.service` is an `ExecStart=/bin/true` wrapper; task
+`firstboot-wants-deps-20261019`). Proven host-independently: `test_firstboot.FirstbootDependencies`
+and `test_packaging.MaintainerScripts` derive, from the shipped units and drop-ins, that the only
+unit whose explicit stop reaches `vpp.service` is `ngfw-firstboot.service` (plus
+`ngfw-upgrade-prepare.service` on A/B images), with a negative control on the previous unit text;
+`test_firstboot.Firstboot` runs the script's gate against fixture commands (each inactive daemon
+refuses before any database or file work, credentials kept; a provisioned appliance never
+queries). The dependency graph of appliance 37 was inspected read-only (`systemctl show -p
+RequiredBy`) and matches the pre-D-255 closure. The propagation itself was observed on 2026-10-19/20
+with throwaway `ngfwlab-*` stand-in units under `/run/user/0/systemd/user` in root's persistent
+`systemctl --user` manager on the shared dev host (not a disposable instance; the system manager and
+VPP were untouched): `deploy/debian/ngfw/tests/lab/firstboot-propagation.sh --manager user` renders the
+shipped dependency lines onto sleep daemons, Debian's PostgreSQL wrapper-plus-cluster pair and the same
+gate, boots them, restarts Valkey, PostgreSQL (wrapper and cluster) and nftables and compares
+`InvocationID`s; with the previous `Requires=` text each restart restarted firstboot (re-executing the
+script, exit 0 on the marker), VPP, agent and API, with the D-255 text only the restarted daemon
+changed (nftables: plus agent and API, never VPP; the cluster alone: nothing else), the first boot
+kept its order, failed closed on each missing daemon including a failed cluster behind the active
+wrapper, and the provisioned reboot skipped the gate (41 checks, 0 mismatches in each mode; output
+in the task's WIP note). Laboratory acceptance on real units is **NOT RUN** (the shared dev host's
+VPP and appliance 37 were not restarted). On a disposable appliance or VM running D-255 packages
+record:
+(a) after `systemctl daemon-reload`, `systemctl show -p RequiredBy postgresql.service
+valkey-server.service nftables.service` names no `ngfw-firstboot.service` (WantedBy= does) and
+`systemctl show -p RequiredBy ngfw-firstboot.service` still names `vpp.service ngfw-agent.service
+ngfw-api.service`;
+(b) `systemctl restart valkey-server.service` and `systemctl restart postgresql.service`: the
+`InvocationID` and `ActiveEnterTimestamp` of `vpp.service`, `ngfw-agent.service`,
+`ngfw-api.service` and `ngfw-firstboot.service` are unchanged, the journal shows no new
+`firstboot.sh` run and the forwarding check of the window passes without a gap; the same on the
+pre-D-255 unit text restarts all four (the positive control);
+(c) `systemctl restart nftables.service` restarts `ngfw-agent.service` and `ngfw-api.service`
+only, `vpp.service` keeps its `InvocationID`;
+(d) fresh install with `valkey-server.service` masked (then with `postgresql.service`, then
+`nftables.service`): `ngfw-firstboot.service` fails with `first boot requires an active
+<unit>` before any `psql` line in the journal, `/etc/ngfw/bootstrap.env` is kept,
+`vpp.service`, `ngfw-agent.service` and `ngfw-api.service` are not started; after unmasking and
+`systemctl start ngfw-firstboot.service` the boot completes in the order firewall-bootstrap,
+nftables, PostgreSQL/Valkey, firstboot, VPP, agent, API, nginx;
+(e) reboot of the provisioned appliance with `postgresql.service` masked: VPP and the agent come
+up, the API restarts until PostgreSQL is unmasked, firstboot stays `active (exited)` without a
+second `firstboot.sh` run;
+(f) fresh install with a cluster that fails to start (a broken `postgresql.conf`): `postgresql.service`
+is `active (exited)` regardless, `ngfw-firstboot.service` fails with `first boot requires a PostgreSQL
+cluster accepting connections` after the three unit queries and before any `psql` line in the
+journal, `/etc/ngfw/bootstrap.env` is kept, VPP, agent and API are not started; after repairing the
+configuration and `systemctl start postgresql@<version>-main.service ngfw-firstboot.service` the boot
+completes.
+`firstboot-propagation.sh --manager system` (with `NGFW_LAB_DISPOSABLE=1`, on a disposable VM only)
+runs the same stand-in scenario under a system manager; the real-unit records (a)–(f) above remain.

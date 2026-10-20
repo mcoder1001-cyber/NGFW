@@ -6,7 +6,13 @@ The `stage/` payload must be prepared from the repository build and a verified
 product VPP manifest; missing inputs stop the build. Maintainer scripts do not
 fetch code, overwrite daemon configuration or start VPP. Debhelper-generated
 remove/purge handling preserves application data. Services are not enabled or
-started on installation, and require the successful firstboot marker.
+started on installation, are neither stopped nor restarted on upgrade (D-253:
+`dh_installsystemd --no-start --no-stop-on-upgrade`; the operator restarts agent
+and API), are stopped only on removal, and require the successful firstboot marker.
+`ngfw-firstboot.service` wants (never requires) PostgreSQL, Valkey and nftables and
+checks them itself on a fresh appliance (D-255), so an explicit restart of PostgreSQL
+or Valkey no longer propagates to VPP, the agent or the API; an nftables restart still
+restarts the agent (which requires the base firewall) and with it the API, never VPP.
 
 Remaining before release: firstboot database/migrations/bootstrap, nginx TLS and
 WebSocket configuration, base nftables policy, signed APT publication and clean

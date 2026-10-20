@@ -150,8 +150,29 @@ concurrent run changed it. Install only `main` builds outside explicit review.
 
 Before installation the script records the raw IPv4/IPv6 default routes and
 installed versions, then simulates APT. Any proposed dependency/VPP change or removal is
-rejected. The real APT call forbids downloads and removals and preserves existing
-configuration files. It makes no VPP restart request, and it checks that none
+rejected. The real APT call forbids removals, preserves existing configuration
+files and cannot download: both calls hide every configured repository
+(`Dir::Etc::SourceList` and `Dir::Etc::SourceParts` set to `/dev/null`), so APT
+sees only the staged archives and the installed packages. apt 3 and newer refuse
+`--no-download` for local archives ("Pathname to install is not absolute"),
+which is why the repositories are hidden instead. It makes no VPP restart request. With packages built from
+D-253 on (`dh_installsystemd --no-stop-on-upgrade`) the APT step leaves every
+unit as it was: VPP, nftables, the sockets and the completed provisioning
+oneshots keep running, and only the explicit agent/API restart below changes
+service state. Packages built before D-253 stopped every unit they ship in their
+preinst, which stopped `vpp.service` for about nine seconds through
+`Requires=ngfw-firstboot.service` (observed on appliances 37 and 211 on 2026-10-13 and
+2026-10-19; `ngfw-meta` ships that drop-in on every appliance, and if dpkg fails
+after such a stop VPP stays down until manual recovery: check `vpp.service` first) and left `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`ngfw-ra-namespace-broker.socket` stopped, which this script does not restart.
+The script also does not stop `apply-executor.service` (the running executor keeps
+the previous `apply-executor.py` until an operator stops it while no start-up
+apply runs) and does not re-render the base firewall policy (applies at the next
+reboot; never restart nftables or firewall-bootstrap for it); see
+[package upgrades](upgrade.md). The script's `systemctl daemon-reload` after
+APT also makes a changed unit text effective, such as D-255's `Wants=` on
+`ngfw-firstboot.service`, after which an OS update that restarts Valkey or
+nftables no longer restarts VPP. The script also checks that none of this
 happened: immediately before the real APT call (after the backups and the
 staged-bytes recheck) the script records `vpp.service`, `nftables.service` and
 the agent's sockets `apply-executor.socket`, `ngfw-ra-openfile.socket` and
@@ -167,8 +188,8 @@ packages predate it) is a recorded warning, not a refusal: this upgrade did
 not cause it and the script does not repair it. The warning names
 `systemctl start <socket>` to run after this run completes, because a start
 during the run shows up as a change in the comparison below, reported as a
-warning (D-254). Dependencies requiring changes must be reviewed
-separately through the appropriate package workflow.
+warning (D-254). Dependencies requiring changes must be reviewed separately
+through the appropriate package workflow.
 
 Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`
 and `/var/lib/ngfw`, and makes and inspects a PostgreSQL custom-format dump.
@@ -229,7 +250,7 @@ and the fleet stops. Packages built before D-253 stopped
 `ngfw-firstboot.service` in their preinst, and `Requires=` propagated that stop
 to VPP and nftables, which the agent/API restart then brought back: about nine
 seconds of data-plane outage that this script never requested and, before this
-check, never noticed (appliance 37, 2026-10-13 and 2026-10-19); the same
+check, never noticed (appliances 37 and 211, 2026-10-13 and 2026-10-19); the same
 preinst left the three sockets stopped. A socket that was not active before
 the upgrade never fails the run: a start during the run, or a unit that first
 appears with the new packages, is reported as a warning, and one still
@@ -264,7 +285,7 @@ step rechecks the routes under its lock. With the flag the empty before-state is
 accepted and recorded in `no-default-route.txt` in the recovery directory; the
 before/after comparison still applies, so a default route that appears during
 the upgrade is reported as a change. The upgrade itself needs no default route:
-APT runs with downloads forbidden.
+APT runs without any repository, so it cannot download.
 
 If a step fails, stop and inspect the reported recovery directory, APT plan,
 previous versions, backups and system logs through the console or surviving SSH

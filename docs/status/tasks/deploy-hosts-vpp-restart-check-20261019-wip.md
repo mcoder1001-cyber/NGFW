@@ -18,7 +18,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 2 | `57ba7dea7` | PR link, runs B and C verbatim/summary; product tree unchanged |
 | 3 | `f4d085c9b` | hosted receipts for the product tree; product tree unchanged |
 | 4 | `b149e3852` | the manager's review minors (below), fixture modes, docs/D-254 wording, this file |
-| 5 | (this commit) | runs D–F and hosted receipts for `b149e3852`; product tree unchanged |
+| 5 | `b9f5fca50` | runs D–F and hosted receipts for `b149e3852`; product tree unchanged |
+| 6 | (this commit) | merge of `origin/main` `5593e5ab2` (#245, #246, #244, #248); conflicts in the three prose files only, resolved by keeping both sides; this file |
 
 ## Owned files
 
@@ -110,7 +111,14 @@ on a `health` failure; the stale "nginx and VPP are only required to be active" 
 
 ## Merge note
 
-Merge order (manager, 2026-10-20): after PR #246 (D-253); this branch keeps D-254.
+Merge order (manager, 2026-10-20): after PR #246 (D-253); this branch keeps D-254. #246, #244 and #248
+merged on 2026-10-20 while this PR waited; `b9f5fca50` was then CONFLICTING (GitHub starts no
+pull-request run for a conflicting head), so `origin/main` `5593e5ab2` was merged into the branch
+(checkpoint 6; history kept, no rewrite). The script and the fixtures merged cleanly (#244's
+`apt_args` and its fixture assertions are in); `docs/decisions/LOG.md` (D-253/D-254/D-255 in
+numeric order), `docs/install/deploy-hosts.md` (main's APT paragraph followed by this task's check
+text) and `docs/status/DEFERRED-ACCEPTANCE.md` (the host-37/211 receipt paragraph, then this task's)
+were resolved by hand. The gates were re-run on the merged tree (runs G–I below).
 
 PR #244 (`apt_args`: repositories hidden instead of `--no-download`) and PR #246 (D-253 docs)
 touch the same `docs/install/deploy-hosts.md` paragraph and the same `DEFERRED-ACCEPTANCE.md`
@@ -174,6 +182,8 @@ Hosted, on the product tree `8340771f6` (PR #247 head at opening): mandatory qui
 - Run E (checkpoint 4, `b149e3852`, full `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_deploy_hosts.py -v`): `Ran 34 tests in 917.278s` / `OK`.
 - Run F (same tree, whole suite `python3 -m unittest discover -s deploy/debian/ngfw/tests -v`, run after E): `Ran 126 tests in 986.626s` / `OK`, no skips.
 - Hosted, on `b149e3852`: CI gate (mandatory quick) [39372093452](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372093452) success; packaging fixture gate [39372093451](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372093451) and [39372087398](https://github.com/mcoder1001-cyber/NGFW/actions/runs/39372087398) success.
+
+- Merged tree (checkpoint 6): `bash -n` OK, `shellcheck --external-sources` clean; run G (targeted) pending; runs H/I (full `-p test_deploy_hosts.py`, whole suite) pending; hosted checks pending.
 
 ## Current failure
 

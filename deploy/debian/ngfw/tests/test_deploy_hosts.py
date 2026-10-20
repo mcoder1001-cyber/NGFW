@@ -387,6 +387,10 @@ else: raise AssertionError(args)
         self.assertLess(log.index('pg_restore '), log.rindex('apt-get '))
         self.assertIn('StrictHostKeyChecking=yes', log)
         self.assertNotIn('--allow-downgrades', log)
+        # Both APT calls hide every repository instead of passing --no-download (apt >= 3).
+        self.assertEqual(log.count("'Dir::Etc::SourceList=/dev/null'"), 2)
+        self.assertEqual(log.count("'Dir::Etc::SourceParts=/dev/null'"), 2)
+        self.assertNotIn("'--no-download'", log)
         self.assertIn("systemctl ['restart', 'ngfw-agent.service', 'ngfw-api.service']", log)
         # Restart counters are read after the manual restart and again after a stability window.
         self.assertEqual(log.count("systemctl ['show', '-p', 'NRestarts', '--value', 'ngfw-agent.service']"), 2)

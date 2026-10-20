@@ -1,6 +1,6 @@
 # Host 172.30.110.211 — the 64-byte packet ceiling of the X710 ports (WIP)
 
-Branch `claude/zen-knuth-454f68` (base origin/main 2a6d1611c). Envelope: `machine-211-small-packet-limit-envelope.md`.
+Branch `claude/zen-knuth-454f68` (base origin/main 2a6d1611c), PR #257 (first checkpoint c4dc11982, pushed). Envelope: `machine-211-small-packet-limit-envelope.md`.
 Board row `machine-211-small-packet-limit`. Predecessors: `machine-211-vpp-tuning-wip.md` (PR #251, the shared-TX-queue /
 MDD diagnosis) and `apply-211-vpp-startup-20261020-wip.md` (D-256, the start-up file live since 2026-10-20 06:39 UTC).
 

@@ -6110,3 +6110,24 @@ tasks:
     notes: D-254. Review APPROVE; four minors applied (socket warning wording, after-record on failure paths, not-found sockets as warning, merge-order evidence).
     worker_status: completed; session finished
     completion_evidence: PR247 head a94c109a733532c9fe1333cacad9f1fb35d7bc6f; merge 3fc333cde; hosted quick 39378808375 and packaging 39378804624/39378808404 PASS; main CI gate 39380738314 RESULT_3FC
+  - id: packaging-test-ab-sources-20261020
+    title: 'Packaging tests: stage the A/B upgrade sources for dh_auto_test'
+    prompt: docs/status/2026-10-20-owner-merge-all.md
+    template: ''
+    stage: S5
+    deps: [pkg-no-stop-on-upgrade-20261019]
+    priority: 1
+    est_hours: 1
+    state: merged
+    parked_on: ''
+    wbs: []
+    scope: Build from main 3fc333cde failed in dh_auto_test (requiring_links() read deploy/upgrade through ROOT, absent in the prepared tree); hosted gate runs at the repo root and missed it
+    files_owned: deploy/debian/ngfw/prepare.sh deploy/debian/ngfw/tests/maintainer_scripts.py docs/status/tasks/packaging-test-ab-sources-20261020-review.md
+    branch: fix/packaging-test-ab-sources-20261020
+    worktree: ''
+    owner: root manager
+    started: '2026-10-20'
+    finished: '2026-10-20'
+    notes: Review APPROVE; pre-existing MINOR (hardening drop-ins globbed through ROOT in test_packaging.py:218) left as follow-up.
+    worker_status: completed; session finished
+    completion_evidence: PR253 head b2949d5adc0470ccf6dd2e8719ba8dd78c7bea4d; merge a094258ea; hosted quick, artifact and packaging PASS

@@ -419,7 +419,12 @@ the run and no `Stopping ngfw-firstboot.service` / `vpp.service` lines in the jo
 (b) `journalctl -u ngfw-firstboot.service` shows no new `firstboot.sh` run and the unit stays
 `active (exited)`; (c) `apply-executor.socket`, `ngfw-ra-openfile.socket` and
 `ngfw-ra-namespace-broker.socket` are active after the run; (d) agent and API report the new version
-after the script's restart, and the data-plane forwarding check of the window passes without a gap.
+after the script's restart, and the data-plane forwarding check of the window passes without a gap;
+(e) `apply-executor.service` still runs the previous executor after the upgrade, and after
+`systemctl stop apply-executor.service` (no apply running) the API's next start-up apply request is
+served by the new code with the socket never inactive; (f) `/etc/nftables.d/ngfw-base.nft` is
+unchanged by the upgrade and re-rendered only at the next reboot; on an A/B-provisioned appliance
+also (g) `ngfw-upgrade-prepare.service` keeps its state across the run.
 The one-time first upgrade from pre-D-253 packages (appliance 37 runs `0.1.0~dev+git695.cb148aafb288`)
 is expected to be outage-free too, because the stop lived in the incoming package's preinst; record
 (a)–(c) for it as well, and first check whether the three sockets are still inactive from the earlier

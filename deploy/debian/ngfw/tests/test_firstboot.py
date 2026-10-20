@@ -191,7 +191,8 @@ class FirstbootUpgrade(unittest.TestCase):
                         self.assertNotIn('ngfw-firstboot.service', line, (script, arguments))
             for section in MAINTAINER.debhelper_sections(self.meta['postinst']):
                 self.assertNotIn('deb-systemd-invoke', section)
-            self.assertIn('ngfw-firstboot.service', MAINTAINER.stopped_units(recorder.run(self.meta['prerm'], 'remove')))
+            if 'prerm' in self.meta:  # debhelper 13.31 emits a remove-only stop; 13.14 emits no prerm for -r
+                self.assertIn('ngfw-firstboot.service', MAINTAINER.stopped_units(recorder.run(self.meta['prerm'], 'remove')))
 
     def test_first_boot_gate_keeps_requires_not_wants(self):
         # The decision keeps the gate: a fresh appliance runs firstboot before VPP and a failed firstboot

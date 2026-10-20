@@ -25,6 +25,10 @@ UNIT_DESTINATION = 'usr/lib/systemd/system/'
 SCRIPTS = ('preinst', 'prerm', 'postinst', 'postrm')
 TOOLS = ('dh_installsystemd', 'dh_installdeb')
 DEPENDENCY_KEYS = ('Requires', 'Requisite', 'BindsTo')
+# [Install] keys that, once the unit is enabled, create <target>.requires/ links: the same stop
+# propagation in the other direction. deploy/upgrade/provision and deploy/upgrade/ngfw-upgrade
+# materialise ngfw-upgrade-prepare.service's RequiredBy= as such links on A/B appliances.
+REVERSE_DEPENDENCY_KEYS = ('RequiredBy',)
 
 
 def missing_tools():
@@ -99,25 +103,55 @@ def maintscript_units(package):
     return sorted(name for name, _ in shipped_units(package) if '@' not in name)
 
 
-def unit_dependencies(text):
-    """Units named by Requires=/Requisite=/BindsTo= lines: an explicit stop of one stops the unit."""
+def unit_keys(text, keys):
+    """Unit names listed by the given keys of a unit file or drop-in."""
     names = set()
     for line in text.splitlines():
         key, separator, value = line.strip().partition('=')
-        if separator and key in DEPENDENCY_KEYS:
+        if separator and key in keys:
             names.update(value.split())
     return names
 
 
+def unit_dependencies(text):
+    """Units named by Requires=/Requisite=/BindsTo= lines: an explicit stop of one stops the unit."""
+    return unit_keys(text, DEPENDENCY_KEYS)
+
+
+def requiring_links():
+    """{dependent: {dependency}} for the <dependent>.requires/<dependency> links deploy/upgrade/provision
+    and deploy/upgrade/ngfw-upgrade create on A/B appliances (read from their source, never executed)."""
+    links = {}
+    upgrade = ROOT / 'deploy/upgrade'
+    if not upgrade.is_dir():
+        return links
+    provision = (upgrade / 'provision').read_text()
+    for dependent, names in re.findall(r"\('(\S+)\.requires', \[([^\]]*)\]\)", provision):
+        links.setdefault(dependent, set()).update(re.findall(r"'([^']+)'", names))
+    script = (upgrade / 'ngfw-upgrade').read_text()
+    match = re.search(r"for name in \(([^)]*)\):\s*\n\s*requires = safe_path\(target, 'etc/systemd/system/' \+ name \+ '\.requires'\)"
+                      r".*?link = requires / '([^']+)'", script, re.S)
+    if match:
+        for dependent in re.findall(r"'([^']+)'", match.group(1)):
+            links.setdefault(dependent, set()).add(match.group(2))
+    return links
+
+
 def stop_propagation_closure(start):
     """Every unit whose explicit stop (or restart) propagates to `start` through the shipped
-    unit files and drop-ins (systemd.unit(5) Requires=), excluding `start` itself."""
+    unit files, drop-ins, [Install] RequiredBy= and the A/B .requires/ links (systemd.unit(5)
+    Requires=), excluding `start` itself."""
     edges = {}
     for package in packages():
         for name, path in shipped_units(package):
-            edges.setdefault(name, set()).update(unit_dependencies(path.read_text()))
+            text = path.read_text()
+            edges.setdefault(name, set()).update(unit_dependencies(text))
+            for dependent in unit_keys(text, REVERSE_DEPENDENCY_KEYS):
+                edges.setdefault(dependent, set()).add(name)
         for target, path in shipped_dropins(package):
             edges.setdefault(target, set()).update(unit_dependencies(path.read_text()))
+    for dependent, names in requiring_links().items():
+        edges.setdefault(dependent, set()).update(names)
     closure, frontier = set(), [start]
     while frontier:
         for dependency in edges.get(frontier.pop(), ()):

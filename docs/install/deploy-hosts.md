@@ -159,8 +159,12 @@ service state. Packages built before D-253 stopped every unit they ship in their
 preinst, which stopped `vpp.service` for about nine seconds through
 `Requires=ngfw-firstboot.service` (observed on appliance 37 on 2026-10-13 and
 2026-10-19) and left `apply-executor.socket`, `ngfw-ra-openfile.socket` and
-`ngfw-ra-namespace-broker.socket` stopped, which this script does not restart;
-see [package upgrades](upgrade.md). Dependencies requiring
+`ngfw-ra-namespace-broker.socket` stopped, which this script does not restart.
+The script also does not stop `apply-executor.service` (the running executor keeps
+the previous `apply-executor.py` until an operator stops it while no start-up
+apply runs) and does not re-render the base firewall policy (applies at the next
+reboot; never restart nftables or firewall-bootstrap for it); see
+[package upgrades](upgrade.md). Dependencies requiring
 changes must be reviewed separately through the appropriate package workflow.
 
 Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`

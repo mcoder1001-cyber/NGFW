@@ -16,7 +16,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 1 | `3da09a6fb` | rules flag, fixture module, tests, CI debhelper step, docs, D-253, envelope, this file |
 | 1b | `07887dd71` | the fixture strips `DH_*` from the environment of its nested debhelper calls (inside `dpkg-buildpackage`, `dh` exports `DH_INTERNAL_OPTIONS`/`DH_INTERNAL_OVERRIDE` to override targets); this is the commit the package set below was built from |
 | 2 | `ebf450c8c`, `2abd94eb1`, `9cabd7f47` | built-package evidence, PR link, whole-suite result (docs only) |
-| 4 | the commit carrying this version of this file | hosted-gate fix: the fixture exports `DEB_RULES_REQUIRES_ROOT` like dpkg-buildpackage (below) |
+| 4 | `0ed9b539b` | hosted-gate fix 1: the fixture exports `DEB_RULES_REQUIRES_ROOT` like dpkg-buildpackage (below) |
+| 5 | the commit carrying this version of this file | hosted-gate fix 2 (debhelper 13.14 emits no prerm) and the five review findings (below) |
 
 ## Investigation (2026-10-19)
 
@@ -151,7 +152,40 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
   `unshare -U` (uid 65534, unmapped): 6 OK / 2 OK; forcing `binary-targets` under `unshare -U` reproduces the
   `chown(0, 0, …)` failure (`Invalid argument` there, `Operation not permitted` on the runner). D-253 and the
   product change (`debian/rules`) are untouched by this checkpoint; the built package set above stays valid.
-- Hosted run ids for the fixed head are recorded in the next checkpoint once they finish.
+- Hosted runs on `0ed9b539b`: CI gate 39369582114; Packaging fixture gate 39369576009 and 39369582110 both
+  **failed** again, this time with `KeyError: 'prerm'` in four tests plus the root probe: on the runner's
+  debhelper 13.14.1 (Ubuntu 24.04) `dh_installsystemd` emits the remove-only prerm stop only
+  `unless ($dh{NO_START})`, so with `--no-start` there is **no prerm at all** (and with the old arguments
+  there was a preinst stop but no prerm). debhelper 13.31 (the appliance build host) emits the prerm
+  unconditionally. The upgrade-path assertions passed on 13.14; only the removal positive control broke.
+
+## Checkpoint 5: debhelper 13.14 and the review of `9cabd7f47` (APPROVE WITH CHANGES)
+
+- Tests: the removal control is version-aware (`removal_stops()`): where a prerm exists it must stop
+  exactly the shipped units and only on `remove`; where none exists every package must agree; the negative
+  control (old arguments → stop on an upgrade path, for ngfw-meta and ngfw-agent) keeps the fixture honest
+  on both versions. The unprivileged probe no longer requires a prerm. Verified as root, under `unshare -U`
+  and with the prerm removed from the generated set (simulated 13.14).
+- Finding 3 (MINOR, stop-propagation model): `stop_propagation_closure()` now follows `[Install]
+  RequiredBy=` in reverse and the `<unit>.requires/` links `deploy/upgrade/provision` and
+  `deploy/upgrade/ngfw-upgrade` create (read from their source by `requiring_links()`, asserted to be
+  `{ngfw-api.service, ngfw-firstboot.service} → ngfw-upgrade-prepare.service`). The guarded set is now
+  `{ngfw-firstboot.service, ngfw-firewall-bootstrap.service, ngfw-upgrade-prepare.service}` and the
+  negative control shows the pre-D-253 agent preinst stopping `ngfw-upgrade-prepare.service` too.
+- Finding 1 (MAJOR, `apply-executor.service`): documented in `upgrade.md`, `deploy-hosts.md` and the D-253
+  consequences — the running executor keeps the previous `apply-executor.py`; operator step
+  `systemctl stop apply-executor.service` when no start-up apply runs (socket stays, next request starts
+  the new code); not automated because `KillMode=control-group` would kill a running `apply-startup.sh`.
+  Follow-up 4 below.
+- Finding 2 (MAJOR, base policy): documented in the same places — a changed `render-base-policy.py`
+  applies at the next reboot; nftables/firewall-bootstrap must not be restarted (VPP restart through
+  `ngfw-firstboot.service`'s `Requires=nftables.service`). Follow-up 5 below.
+- Finding 4 (MINOR, rollback caveat): `upgrade.md` states that a pre-D-253 package's preinst stops the
+  units when installed over a D-253 one, and gives the check
+  `grep -n stop /var/lib/dpkg/info/ngfw-*.prerm` for "first upgrade outage-free".
+- Finding 5 (NIT): D-253 names 172.30.126.211 (~6 s) next to host 37 and words the stop as the incoming
+  package's preinst, not `ngfw-meta.prerm`.
+- Acceptance cases (e)–(g) added to `docs/status/DEFERRED-ACCEPTANCE.md`.
 
 ## Remaining
 
@@ -174,6 +208,13 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
    and start them if inactive.
 3. `deploy-hosts.sh` could show `systemctl show -p ActiveEnterTimestamp vpp.service` before and after
    the APT step and fail when it changes, turning "no VPP restart" from a claim into a check.
+4. `deploy-hosts.sh`: stop `apply-executor.service` after the upgrade when (and only when) no start-up
+   apply is running (no child of the executor's MainPID; `KillMode=control-group` would kill
+   `apply-startup.sh`), so the API's next apply uses the new executor without a reboot.
+5. A safe refresh path for the base management firewall policy after an upgrade: re-render
+   `/etc/nftables.d/ngfw-base.nft` from `/etc/ngfw/base-policy.env` (as `firewall-bootstrap.sh` does)
+   and `systemctl reload nftables.service` (the drop-in's `ExecReload=` loads the file), without
+   restarting `nftables.service` or `ngfw-firewall-bootstrap.service`.
 
 ## Exact next command
 

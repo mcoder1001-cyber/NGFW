@@ -23,12 +23,30 @@ oneshots `ngfw-firstboot.service` and `ngfw-firewall-bootstrap.service` keep the
 them, are not touched and `firstboot.sh` does not run again. Restart agent and API
 after the upgrade (`systemctl restart ngfw-agent.service ngfw-api.service`, which
 `deploy/deploy-hosts.sh` does); until then the previous version keeps serving.
+Two things an upgrade no longer does since D-253, because the stop that did them
+was the one restarting VPP: (a) `apply-executor.service`, the socket-activated
+root daemon behind the dataplane start-up apply, keeps running the previous
+`apply-executor.py`. When the upgrade changed that file, stop the service once no
+start-up apply is running: `systemctl stop apply-executor.service` (the socket
+stays active and the API's next request starts the new code; a running apply
+would be killed with it, `KillMode=control-group`). `deploy-hosts.sh` does not do
+this. (b) The base management firewall policy (`/etc/nftables.d/ngfw-base.nft`,
+rendered by `render-base-policy.py` through `ngfw-firewall-bootstrap.service`) is
+not re-rendered: a changed renderer applies at the next reboot. Do not restart
+`nftables.service` or `ngfw-firewall-bootstrap.service` to force it: `ngfw-firstboot.service`
+requires `nftables.service`, so that restarts VPP, the agent and the API.
 Packages built before D-253 stopped every unit they ship in their preinst, which
-stopped VPP for about nine seconds through `Requires=ngfw-firstboot.service` and
-left the three sockets stopped until a reboot (`deploy-hosts.sh` restarts only
+stopped VPP for about nine seconds through `Requires=ngfw-firstboot.service` (on
+A/B appliances also through `ngfw-upgrade-prepare.service`, required by firstboot)
+and left the three sockets stopped until a reboot (`deploy-hosts.sh` restarts only
 agent and API). That stop was in the incoming package's preinst, so the first
-upgrade onto D-253 packages is already free of it; on an appliance upgraded
-earlier, check `systemctl is-active apply-executor.socket ngfw-ra-openfile.socket
+upgrade onto D-253 packages is already free of it where the installed prerm stops
+only on removal; check before the window with
+`grep -n stop /var/lib/dpkg/info/ngfw-*.prerm` (every stop line must carry
+`[ "$1" = remove ]`; packages built with debhelper 13.14 carry none). A rollback to a
+pre-D-253 package runs that package's preinst with `upgrade` and stops the units
+once more. On an appliance upgraded with pre-D-253 packages, check
+`systemctl is-active apply-executor.socket ngfw-ra-openfile.socket
 ngfw-ra-namespace-broker.socket` and start them (or reboot) if they are inactive.
 `ngfw-web` has no maintainer script: after upgrading it, test the configuration
 (`nginx -t`) and reload `nginx.service`, otherwise a changed site file

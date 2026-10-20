@@ -19,6 +19,10 @@ SCRIPTS_SPEC = importlib.util.spec_from_file_location('maintainer_scripts', SOUR
 MAINTAINER = importlib.util.module_from_spec(SCRIPTS_SPEC)
 SCRIPTS_SPEC.loader.exec_module(MAINTAINER)
 PROVISIONING_UNITS = {'ngfw-firstboot.service', 'ngfw-firewall-bootstrap.service'}
+# Shipped units whose explicit stop reaches vpp.service: the two provisioning oneshots of ngfw-meta and,
+# on A/B appliances, ngfw-agent's ngfw-upgrade-prepare.service (RequiredBy=ngfw-firstboot.service,
+# materialised as ngfw-firstboot.service.requires/ by deploy/upgrade/provision and ngfw-upgrade).
+VPP_GUARDED_UNITS = PROVISIONING_UNITS | {'ngfw-upgrade-prepare.service'}
 
 
 class Packaging(unittest.TestCase):
@@ -368,13 +372,29 @@ class MaintainerScripts(unittest.TestCase):
                 for section in MAINTAINER.debhelper_sections(self.generated[package]['postinst']):
                     self.assertNotIn('deb-systemd-invoke', section)
 
-    def test_removal_still_stops_every_shipped_unit(self):
-        # Positive control: the fixture runs the real snippets, and `apt-get remove` still stops the units.
-        for package in self.packaged:
-            with self.subTest(package=package), tempfile.TemporaryDirectory() as temporary:
-                calls = MAINTAINER.Recorder(temporary).run(self.generated[package]['prerm'], 'remove')
-                self.assertEqual(MAINTAINER.stopped_units(calls), set(MAINTAINER.maintscript_units(package)))
-                self.assertEqual(len(calls.get('deb-systemd-invoke', [])), 1)
+    def removal_stops(self, package):
+        """Units `prerm remove` stops. debhelper 13.31 (the appliance build host) emits a remove-only stop
+        for -r with --no-start; debhelper 13.14 (Ubuntu 24.04, the hosted runner) emits no prerm at all.
+        Either way nothing but the shipped units may be named, and the generated prerm must not act on
+        any other dpkg argument (checked by the upgrade-path tests)."""
+        prerm = self.generated[package].get('prerm')
+        if prerm is None:
+            return None
+        with tempfile.TemporaryDirectory() as temporary:
+            calls = MAINTAINER.Recorder(temporary).run(prerm, 'remove')
+        self.assertEqual(len(calls.get('deb-systemd-invoke', [])), 1, calls)
+        return MAINTAINER.stopped_units(calls)
+
+    def test_removal_stops_only_shipped_units_and_consistently_per_debhelper(self):
+        # Positive control where this debhelper emits the remove-only stop: it names exactly the shipped
+        # units. Where it emits no prerm, every package must agree (no mixed semantics in one build); the
+        # negative control below then proves the fixture still runs real snippets.
+        stopped = {package: self.removal_stops(package) for package in self.packaged}
+        self.assertEqual(len({stops is None for stops in stopped.values()}), 1, stopped)
+        for package, stops in stopped.items():
+            with self.subTest(package=package):
+                if stops is not None:
+                    self.assertEqual(stops, set(MAINTAINER.maintscript_units(package)))
 
     def test_upgrade_never_stops_a_unit_vpp_requires(self):
         # vpp.service carries Requires=ngfw-firstboot.service (assets/vpp-firstboot.conf); through
@@ -384,15 +404,22 @@ class MaintainerScripts(unittest.TestCase):
         # VPP for about nine seconds this way.
         guarded = MAINTAINER.stop_propagation_closure('vpp.service')
         shipped = {unit for package in self.packaged for unit in MAINTAINER.maintscript_units(package)}
-        self.assertEqual(guarded & shipped, PROVISIONING_UNITS)
+        self.assertEqual(guarded & shipped, VPP_GUARDED_UNITS)
         self.assertLessEqual({'nftables.service', 'postgresql.service', 'valkey-server.service'}, guarded)
+        # The A/B provisioning links agree with the unit's own RequiredBy= (deploy/upgrade/provision,
+        # deploy/upgrade/ngfw-upgrade); without them the closure would miss ngfw-upgrade-prepare.service.
+        self.assertEqual(MAINTAINER.requiring_links(),
+                         {'ngfw-api.service': {'ngfw-upgrade-prepare.service'},
+                          'ngfw-firstboot.service': {'ngfw-upgrade-prepare.service'}})
         for package in self.packaged:
             with self.subTest(package=package):
                 for script, arguments, calls in self.upgrade_calls(package):
                     self.assertEqual(MAINTAINER.stopped_units(calls) & guarded, set(), (script, arguments))
-        with tempfile.TemporaryDirectory() as temporary:  # not vacuous: removing ngfw-meta does stop them
-            calls = MAINTAINER.Recorder(temporary).run(self.generated['ngfw-meta']['prerm'], 'remove')
-            self.assertEqual(MAINTAINER.stopped_units(calls), PROVISIONING_UNITS)
+        # Not vacuous where a remove-only prerm exists: removing the packages does stop the guarded units.
+        for package, expected in (('ngfw-meta', PROVISIONING_UNITS), ('ngfw-agent', {'ngfw-upgrade-prepare.service'})):
+            stops = self.removal_stops(package)
+            if stops is not None:
+                self.assertEqual(stops & guarded, expected)
 
     def test_fixture_builds_without_root_like_dpkg_buildpackage(self):
         # The hosted runner is unprivileged. debian/control declares Rules-Requires-Root: no, which
@@ -406,7 +433,7 @@ class MaintainerScripts(unittest.TestCase):
                  'module = importlib.util.module_from_spec(spec)\n'
                  'spec.loader.exec_module(module)\n'
                  'generated = module.generate()\n'
-                 'assert generated["ngfw-meta"]["prerm"], generated\n',
+                 'assert generated["ngfw-meta"]["postinst"], generated\n',
                  str(SOURCE / 'tests/maintainer_scripts.py')]
         unprivileged = subprocess.run(['unshare', '-U', 'true'], capture_output=True).returncode == 0
         command = ['unshare', '-U', *probe] if os.geteuid() == 0 and unprivileged else probe
@@ -416,16 +443,21 @@ class MaintainerScripts(unittest.TestCase):
 
     def test_rules_without_the_flag_would_stop_the_provisioning_units_on_upgrade(self):
         # Negative control: the same fixture with the pre-D-253 arguments reproduces the stop, whichever
-        # script this debhelper puts it in, so a lost flag is caught rather than passed vacuously.
+        # script this debhelper puts it in (preinst in 13.31), so a lost flag is caught rather than passed
+        # vacuously; the agent package's stop covered ngfw-upgrade-prepare.service, the third guarded unit.
         previous = MAINTAINER.generate(['--no-enable', '--no-start'])
-        stopped = set()
+        stopped = {}
         with tempfile.TemporaryDirectory() as temporary:
             recorder = MAINTAINER.Recorder(temporary)
-            for script, invocations in MAINTAINER.UPGRADE_PATHS.items():
-                for arguments in invocations:
-                    if script in previous['ngfw-meta']:
-                        stopped |= MAINTAINER.stopped_units(recorder.run(previous['ngfw-meta'][script], *arguments))
-        self.assertEqual(stopped, PROVISIONING_UNITS)
+            for package in ('ngfw-meta', 'ngfw-agent'):
+                stopped[package] = set()
+                for script, invocations in MAINTAINER.UPGRADE_PATHS.items():
+                    for arguments in invocations:
+                        if script in previous[package]:
+                            stopped[package] |= MAINTAINER.stopped_units(recorder.run(previous[package][script], *arguments))
+        self.assertEqual(stopped['ngfw-meta'], PROVISIONING_UNITS)
+        self.assertEqual(stopped['ngfw-agent'], set(MAINTAINER.maintscript_units('ngfw-agent')))
+        self.assertIn('ngfw-upgrade-prepare.service', stopped['ngfw-agent'])
 
 
 if __name__ == '__main__':

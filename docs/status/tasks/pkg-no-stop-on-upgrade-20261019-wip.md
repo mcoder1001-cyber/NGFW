@@ -17,7 +17,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 | 1b | `07887dd71` | the fixture strips `DH_*` from the environment of its nested debhelper calls (inside `dpkg-buildpackage`, `dh` exports `DH_INTERNAL_OPTIONS`/`DH_INTERNAL_OVERRIDE` to override targets); this is the commit the package set below was built from |
 | 2 | `ebf450c8c`, `2abd94eb1`, `9cabd7f47` | built-package evidence, PR link, whole-suite result (docs only) |
 | 4 | `0ed9b539b` | hosted-gate fix 1: the fixture exports `DEB_RULES_REQUIRES_ROOT` like dpkg-buildpackage (below) |
-| 5 | the commit carrying this version of this file | hosted-gate fix 2 (debhelper 13.14 emits no prerm) and the five review findings (below) |
+| 5 | `ad0bc5027` | hosted-gate fix 2 (debhelper 13.14 emits no prerm) and the five review findings (below); **gated head**: CI gate 39370580383 success, Packaging fixture gate 39370580418 and 39370576825 success |
+| 6 | the commit carrying this version of this file | docs only: hosted run ids and whole-suite results; product tree identical to `ad0bc5027` |
 
 ## Investigation (2026-10-19)
 
@@ -186,12 +187,23 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 - Finding 5 (NIT): D-253 names 172.30.126.211 (~6 s) next to host 37 and words the stop as the incoming
   package's preinst, not `ngfw-meta.prerm`.
 - Acceptance cases (e)–(g) added to `docs/status/DEFERRED-ACCEPTANCE.md`.
+- Whole suite `python3 -m unittest discover -s deploy/debian/ngfw/tests -v` on `0ed9b539b`: `Ran 133 tests in
+  715.050s — OK`, no skips; on `ad0bc5027`: `Ran 133 tests in 738.380s — OK`, no skips (133 = 125 on
+  `origin/main` + 8 new).
+- Hosted runs on `ad0bc5027` (all green): Mandatory quick gate
+  https://github.com/mcoder1001-cyber/NGFW/actions/runs/39370580383; Packaging fixture gate
+  https://github.com/mcoder1001-cyber/NGFW/actions/runs/39370580418 (pull_request) and
+  https://github.com/mcoder1001-cyber/NGFW/actions/runs/39370576825 (push). Earlier failures for the
+  record: 39229945362 (`9cabd7f47`, chown as non-root), 39369576009 and 39369582110 (`0ed9b539b`,
+  `KeyError: 'prerm'` on debhelper 13.14); the quick gate passed on `9cabd7f47` (39229945380) and
+  `0ed9b539b` (39369582114).
 
 ## Remaining
 
-- Nothing in code. PR #246 is open (link at the top); the hosted gates were pending when this file was
-  last updated (`gh pr checks 246`); independent review and the merge belong to the manager; no host is
-  upgraded by this task. Laboratory acceptance stays NOT RUN (`docs/status/DEFERRED-ACCEPTANCE.md`).
+- Nothing in code. PR #246 is open (link at the top) with both hosted checks green on `ad0bc5027`; the
+  review findings of `9cabd7f47` are answered above; the merge belongs to the manager (owner's order:
+  #244, #245, #246, #247, #248); no host is upgraded by this task. Laboratory acceptance stays NOT RUN
+  (`docs/status/DEFERRED-ACCEPTANCE.md`).
   The app's PR bar could not be bound to #246 from this session (repository match refused), so CI is read
   with `gh pr checks`, not watched automatically.
 

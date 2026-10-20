@@ -155,8 +155,15 @@ files and cannot download: both calls hide every configured repository
 (`Dir::Etc::SourceList` and `Dir::Etc::SourceParts` set to `/dev/null`), so APT
 sees only the staged archives and the installed packages. apt 3 and newer refuse
 `--no-download` for local archives ("Pathname to install is not absolute"),
-which is why the repositories are hidden instead. It makes no VPP restart request. Dependencies requiring
-changes must be reviewed separately through the appropriate package workflow.
+which is why the repositories are hidden instead. It makes no VPP restart request.
+Dependencies requiring changes must be reviewed separately through the appropriate
+package workflow. Packages built before D-253 (PR #246) stop `ngfw-firstboot.service`
+and `ngfw-firewall-bootstrap.service` from their maintainer scripts on upgrade, and
+`ngfw-meta` ships the drop-in that makes `vpp.service` require the first-boot unit on
+every appliance, so upgrading such packages stops and restarts VPP (6–9 s observed on
+2026-10-19 on both lab appliances) even though this tool asks for no VPP restart. If
+dpkg fails after that stop, VPP stays down until manual recovery: check `vpp.service`
+first.
 
 Backups are mandatory: the script archives `/etc/ngfw`, `/etc/vpp/startup.conf`
 and `/var/lib/ngfw`, and makes and inspects a PostgreSQL custom-format dump.

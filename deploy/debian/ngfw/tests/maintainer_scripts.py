@@ -157,9 +157,15 @@ def requiring_links():
     """{dependent: {dependency}} for the <dependent>.requires/<dependency> links deploy/upgrade/provision
     and deploy/upgrade/ngfw-upgrade create on A/B appliances (read from their source, never executed)."""
     links = {}
-    upgrade = ROOT / 'deploy/upgrade'
-    if not upgrade.is_dir():
-        return links
+    # prepare.sh copies the two sources next to the tests, so dh_auto_test inside the prepared
+    # package tree (where ROOT is meaningless) reads the exact snapshot it builds from; a
+    # repository checkout reads them in place. Missing sources are an error, never an empty
+    # answer, because an empty answer would silently shrink the guarded set.
+    for upgrade in (SOURCE / 'tests/ab-upgrade-sources', ROOT / 'deploy/upgrade'):
+        if (upgrade / 'provision').is_file() and (upgrade / 'ngfw-upgrade').is_file():
+            break
+    else:
+        raise FileNotFoundError('A/B upgrade sources (provision, ngfw-upgrade) not found next to the tests or under deploy/upgrade')
     provision = (upgrade / 'provision').read_text()
     for dependent, names in re.findall(r"\('(\S+)\.requires', \[([^\]]*)\]\)", provision):
         links.setdefault(dependent, set()).update(re.findall(r"'([^']+)'", names))

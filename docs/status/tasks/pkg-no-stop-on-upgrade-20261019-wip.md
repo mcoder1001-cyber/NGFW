@@ -15,7 +15,8 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
 |---|---|---|
 | 1 | `3da09a6fb` | rules flag, fixture module, tests, CI debhelper step, docs, D-253, envelope, this file |
 | 1b | `07887dd71` | the fixture strips `DH_*` from the environment of its nested debhelper calls (inside `dpkg-buildpackage`, `dh` exports `DH_INTERNAL_OPTIONS`/`DH_INTERNAL_OVERRIDE` to override targets); this is the commit the package set below was built from |
-| 2 | the commit carrying this version of this file | built-package evidence, whole-suite result, PR link |
+| 2 | `ebf450c8c`, `2abd94eb1`, `9cabd7f47` | built-package evidence, PR link, whole-suite result (docs only) |
+| 4 | the commit carrying this version of this file | hosted-gate fix: the fixture exports `DEB_RULES_REQUIRES_ROOT` like dpkg-buildpackage (below) |
 
 ## Investigation (2026-10-19)
 
@@ -129,6 +130,28 @@ Each checkpoint is pushed the moment it is committed (local SHA = remote SHA).
     `deb-systemd-helper … update-state` blocks of `--no-enable`);
   - `postrm`: unchanged (`systemctl --system daemon-reload` on `remove`, `deb-systemd-helper purge` on `purge`);
   - `ngfw-web`: still no maintainer scripts (conffiles, control, md5sums).
+
+## Hosted gate failure on `9cabd7f47` and fix (checkpoint 4, 2026-10-20)
+
+- Run https://github.com/mcoder1001-cyber/NGFW/actions/runs/39229945362 ("Packaging fixture gate", head
+  `9cabd7f47`) failed: `setUpClass` of `MaintainerScripts`/`FirstbootUpgrade` errored with
+  `dh_installdeb: error: chown(0, 0, debian/ngfw-agent/DEBIAN/postinst): Operation not permitted`. The hosted
+  runner is unprivileged; locally the suite had run as root, which hid it. Cause: outside dpkg-buildpackage
+  `DEB_RULES_REQUIRES_ROOT` is unset and debhelper then assumes `binary-targets` (root required) and chowns
+  what it installs. The real build never does that: `debian/control` says `Rules-Requires-Root: no`, which
+  dpkg-buildpackage exports as `DEB_RULES_REQUIRES_ROOT=no`, and debhelper skips the chown.
+- Fix (`maintainer_scripts.py`): `rules_requires_root()` reads the field from the source stanza and
+  `generate()` exports it as `DEB_RULES_REQUIRES_ROOT`; for any value other than `no` the two dh commands run
+  under `fakeroot` when the caller is not root (what dpkg-buildpackage does for binary targets), or fail with
+  a clear message when fakeroot is missing. That branch is not exercised (control says `no`).
+- New test `test_fixture_builds_without_root_like_dpkg_buildpackage`: asserts the field is `no` and runs the
+  generator with an unmapped uid (`unshare -U`, when the process is root and user namespaces work) or as the
+  unprivileged user it already is.
+- Verification on 195: `MaintainerScripts` 6 OK and `FirstbootUpgrade` 2 OK as root; the same under
+  `unshare -U` (uid 65534, unmapped): 6 OK / 2 OK; forcing `binary-targets` under `unshare -U` reproduces the
+  `chown(0, 0, …)` failure (`Invalid argument` there, `Operation not permitted` on the runner). D-253 and the
+  product change (`debian/rules`) are untouched by this checkpoint; the built package set above stays valid.
+- Hosted run ids for the fixed head are recorded in the next checkpoint once they finish.
 
 ## Remaining
 

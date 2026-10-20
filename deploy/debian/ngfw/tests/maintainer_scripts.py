@@ -36,6 +36,13 @@ def packages():
     return re.findall(r'^Package: (\S+)$', control, re.M)
 
 
+def rules_requires_root():
+    """The source stanza's Rules-Requires-Root field (deb-src-control(5)); 'binary-targets' when absent."""
+    source_stanza = (SOURCE / 'debian/control').read_text().split('\n\n', 1)[0]
+    match = re.search(r'^Rules-Requires-Root:\s*(.+?)\s*$', source_stanza, re.M)
+    return match.group(1) if match else 'binary-targets'
+
+
 def installsystemd_arguments():
     """The arguments debian/rules passes to dh_installsystemd (one command line)."""
     rules = (SOURCE / 'debian/rules').read_text()
@@ -145,8 +152,18 @@ def generate(arguments=None):
         # packages it processes), so the fixture runs with debhelper's defaults only.
         env = {key: value for key, value in os.environ.items() if not key.startswith('DH_')}
         env.update(LC_ALL='C.UTF-8', DH_QUIET='1')
+        # dpkg-buildpackage exports the control field as DEB_RULES_REQUIRES_ROOT; with 'no' debhelper
+        # does not chown(0, 0) what it installs, so the build (and this fixture) need no root. Any
+        # other value means the binary targets run under fakeroot, which the fixture mirrors.
+        requires_root = rules_requires_root()
+        env['DEB_RULES_REQUIRES_ROOT'] = requires_root
+        prefix = []
+        if requires_root != 'no' and os.geteuid() != 0:
+            if shutil.which('fakeroot') is None:
+                raise RuntimeError('debian/control requires root for binary targets and fakeroot is missing')
+            prefix = ['fakeroot']
         for command in (['dh_installsystemd', *arguments], ['dh_installdeb']):
-            result = subprocess.run(command, cwd=tree, env=env, capture_output=True, text=True)
+            result = subprocess.run(prefix + command, cwd=tree, env=env, capture_output=True, text=True)
             if result.returncode != 0:
                 raise AssertionError(f'{command[0]} failed ({result.returncode}): {result.stderr}')
         generated = {}

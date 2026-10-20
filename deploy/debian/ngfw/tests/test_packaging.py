@@ -394,6 +394,26 @@ class MaintainerScripts(unittest.TestCase):
             calls = MAINTAINER.Recorder(temporary).run(self.generated['ngfw-meta']['prerm'], 'remove')
             self.assertEqual(MAINTAINER.stopped_units(calls), PROVISIONING_UNITS)
 
+    def test_fixture_builds_without_root_like_dpkg_buildpackage(self):
+        # The hosted runner is unprivileged. debian/control declares Rules-Requires-Root: no, which
+        # dpkg-buildpackage exports as DEB_RULES_REQUIRES_ROOT so debhelper skips chown(0, 0); the
+        # fixture exports the same field. Run the generator with an unmapped uid (unshare -U) when
+        # this process is root and user namespaces are available, else as the unprivileged user it is.
+        self.assertEqual(MAINTAINER.rules_requires_root(), 'no')
+        probe = [sys.executable, '-c',
+                 'import importlib.util, sys\n'
+                 'spec = importlib.util.spec_from_file_location("maintainer_scripts", sys.argv[1])\n'
+                 'module = importlib.util.module_from_spec(spec)\n'
+                 'spec.loader.exec_module(module)\n'
+                 'generated = module.generate()\n'
+                 'assert generated["ngfw-meta"]["prerm"], generated\n',
+                 str(SOURCE / 'tests/maintainer_scripts.py')]
+        unprivileged = subprocess.run(['unshare', '-U', 'true'], capture_output=True).returncode == 0
+        command = ['unshare', '-U', *probe] if os.geteuid() == 0 and unprivileged else probe
+        env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'}
+        result = subprocess.run(command, capture_output=True, text=True, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_rules_without_the_flag_would_stop_the_provisioning_units_on_upgrade(self):
         # Negative control: the same fixture with the pre-D-253 arguments reproduces the stop, whichever
         # script this debhelper puts it in, so a lost flag is caught rather than passed vacuously.

@@ -155,6 +155,20 @@ contract now (schema + proto + generated Go/TS + drift guard, `contract(...)` co
 buffer page size (`buffers { page-size 1g }`) with its hugepage prerequisite — a different, better-targeted contract
 change; if it confirms A, the answer is cabling (one pair per card), not a field.
 
+### Cross-check with the manager session's reading (2026-10-20, received after the first checkpoint)
+
+The owner's session reported, from short (0.2 s) samples, a "near-constant 15–30 % TX failure on the 02:00.x ports at
+every offered rate from 0.3 to 4 Mpps per port". The long counters do not support a rate-independent ratio: since the
+restart (06:39:57) until 07:32 UTC enp2s0f0np0 had 333.4 M `tx-error` of 4 021 M `tx packets` = **8.3 % averaged over
+all phases**, against **19.3 % in the 07:38 window at 2.6 Mpps delivered**; and the apply session measured **zero
+`tx-error` on all six ports over 93 s at 0.86–1.0 Mpps per direction** right after the restart (same workers, same
+queues: `apply-211-vpp-startup-20261020-wip.md`, check 8). The failure ratio therefore grows with the rate and vanishes
+below the card's TX ceiling, which is what a per-card ceiling predicts (ratio = 1 − TX ceiling ÷ RX delivered: 1 − 2.1 ÷
+2.6 = 19 %). The same session's earlier zero-loss window under the runtime remap (≈1 Mpps, 6–7 TX queues, cpus 3–9) is the
+same low-rate regime, not evidence that the new worker/queue layout causes the loss. The other observations agree with
+§2: loss evenly over the seven TX queues (`…-tx` ≈ 0.77 × `…-output` on every thread), no pause frames, no MDD,
+continuous rather than bursty, the 03:00.x pair losing on RX instead.
+
 ## 5. Recommendation for the owner and the experiments that settle it
 
 Today's practical ceiling for 64-byte frames: **≈2.6 Mpps per port on a card with four busy ports, ≈3.6 Mpps per port on a
@@ -162,6 +176,15 @@ card with two busy ports** (17 % / 24 % of the 14.88 Mpps line rate), limited by
 by the start-up file. At IMIX (≈350 B average) the same packet ceilings correspond to ≈7–10 Gbps per port, at 512 B to line
 rate (2.35 Mpps). Three experiments, cheapest first — I measure each read-only the same way as §2:
 
+0. **Runtime, reversible, no cabling (suggested by the manager session; needs the owner's approval, manager step in
+   their session):** make one worker poll every RX queue of the first pair, so one TX queue per port carries that pair's
+   whole load in large bursts instead of seven queues in 7-packet bursts:
+   `for q in 0 1 2 3 4 5 6; do vppctl set interface rx-placement enp2s0f0np0 queue $q worker 0; vppctl set interface rx-placement enp2s0f1np1 queue $q worker 0; done`
+   (revert: `… queue $q worker $q`; a VPP restart reverts it too). Worker 0 then carries ≈5.4 Mpps, within its ≈7 Mpps
+   capacity at today's per-packet cost (less with larger vectors). If f0/f1's TX failure and `rx_missed` fall while f2/f3
+   (still seven queues) keep theirs at the same offered rate, the card is sensitive to the number of active queues and the
+   burst size (a per-card DMA-engine effect, hypothesis A); if nothing changes, the limit is per packet regardless of
+   queues (B, or a per-chip packet budget). Measure before/after with §6 at an unchanged TRex rate.
 1. **No cabling, 5 minutes:** stop the enp2s0f2↔f3 stream and offer the other two pairs the highest 64-byte rate TRex can.
    Expected under both hypotheses: enp2s0f0/f1 climb from 2.6 to ≥ 3.6 Mpps delivered per port. The **total** forwarded
    (today ≈17.7 Mpps in, ≈15.6 out) is what matters: it should stay ≈17–18 if the box (B) is the limit, or fall towards

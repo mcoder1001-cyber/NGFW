@@ -6017,7 +6017,7 @@ tasks:
     parked_on: PENDING-211-vpp-startup-tuning
     wbs: []
     scope: Manager apply step (D-088 procedure, D-256) of the machine-211-vpp-tuning diagnosis (PR #251) on 172.30.110.211; product-mode apply-startup.sh, one restart of VPP + agent + API (~25-35 s without forwarding) after the owner confirms it
-    files_owned: docs/decisions/PENDING-211-vpp-startup-tuning.md docs/status/tasks/apply-211-vpp-startup-20261020* LOG.md row D-256
+    files_owned: docs/decisions/PENDING-211-vpp-startup-tuning.md docs/status/tasks/apply-211-vpp-startup-20261020* docs/decisions/LOG.md(D-256-row)
     branch: claude/magical-cartwright-cda9e2
     worktree: /root/NGFW/.claude/worktrees/magical-cartwright-cda9e2
     owner: root manager

@@ -16,7 +16,7 @@ LOG.md D-256 (PR #252). Diagnosis and the dataplane document: task machine-211-v
 | owner confirmation | 2026-10-20, relayed from the owner's session: «وقفهٔ ۹ ثانیه‌ای VPP را می‌پذیرم». The 9 s figure was this task's first estimate; the review showed ≈25–35 s (VPP + agent + API). The corrected figure was sent back; the apply waits for the owner's answer |
 | apply | **not run** |
 | performance cores | `/etc/ngfw/dataplane-performance.json` still `{"cores":[16,2,3,4,5,6,7,8,9,17]}`; `/usr/local/libexec/ngfw-dataplane-performance` applies the governor per CPU (`related_cpus` = the CPU itself on this host, checked for 2, 3, 16, 17). **Never `systemctl restart ngfw-dataplane-performance.service`** (see dependency chain) |
-| running configuration | the API's `dataplane` domain on 211 still holds the 2026-10-14 document (9 workers, corelist 2-9,17, 8 RX queues; revision 2113 via `CommitService.systemCommit`, see `appliance-half-resource-defaults-wip.md` at 7fd2d4297). Committing the new domain needs an administrator login (`ngfw` CLI on the host is not logged in: `ngfw show whoami` → "not logged in"). Follow-up |
+| running configuration | the API's `dataplane` domain on 211 still holds the 2026-10-14 document (9 workers, corelist 2-9,17, 8 RX queues; running revision 3 via `CommitService.systemCommit`, see `appliance-half-resource-defaults-wip.md` at 7fd2d4297 / 0291db553: "Running revision after apply | 3 | 2" for 211 / 37). Committing the new domain needs an administrator login (`ngfw` CLI on the host is not logged in: `ngfw show whoami` → "not logged in"). Follow-up |
 
 ### Why product mode
 Host 211 is an appliance (packages `ngfw-* 0.1.0~dev+git695.cb148aafb288`, installed 2026-10-19 08:50), it has no
@@ -53,7 +53,7 @@ the sum is `601c2cca…` (no plugins block), which is why `--current` must be th
 ### Dry run (host, 2026-10-20 ≈06:05 UTC)
 `/usr/lib/ngfw/apply-startup.sh --mode product --doc /root/machine-211-vpp-tuning-dataplane.json`:
 - generator: management `enp4s0 → 0000:04:00.0 (default route)`, `rendered sha256 92985d0c…`, the same 3 plugin warnings;
-- unified diff: `corelist-workers 2-9,17 → 2,4,6,8,10,12,14`; `num-rx-queues 8 → 7` on the twelve X710 ports; semantic diff: only the corelist line;
+- unified diff: `corelist-workers 2-9,17 → 2,4,6,8,10,12,14`; `num-rx-queues 8 → 7` on the twelve X710 ports; semantic diff: the corelist line plus, per X710 device, a `dpdk > dev 0000:0{1,2,3}:00.x > num-rx-queues 8 → 7` pair (my capture filtered the `dpdk > dev` lines out, so only the corelist pair was visible in it; the gated dry run of step 1 records the full output);
 - 17 PCI devices, all `vfio-pci`; management `enp4s0` pci 0000:04:00.0 driver igc manager ifupdown `172.30.110.211/24` gw `172.30.110.1`, restore plan printed; probe `neigh` passes now; manager session with 172.30.126.195 established;
 - VPP preflight: `local0` present, boot identity `0219e19a-0e2e-4003-bfc9-1e587c34e368/167929/52292665`;
 - gate: `REFUSED: product mode needs --approve-rendering` (expected without the flag; step 2 of the PENDING procedure repeats it with the flag, exit 0 required);

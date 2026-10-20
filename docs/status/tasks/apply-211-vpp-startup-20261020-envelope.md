@@ -6,7 +6,7 @@ of task machine-211-vpp-tuning (PR #251), through the product apply tool, after 
 Started by the owner's session (`ماشین 110.211 ترافیک`) on 2026-10-20. Base origin/main 5593e5ab2. Branch
 `claude/magical-cartwright-cda9e2`, worktree `/root/NGFW/.claude/worktrees/magical-cartwright-cda9e2`.
 
-Owned files: `docs/decisions/PENDING-211-vpp-startup-tuning.md`, `docs/status/tasks/apply-211-vpp-startup-20261020*`,
+Owned files: `docs/decisions/PENDING-211-vpp-startup-tuning.md` (renamed `DEC-256-211-vpp-startup-tuning.md` after the apply), `docs/status/tasks/apply-211-vpp-startup-20261020*`,
 the D-256 row of `docs/decisions/LOG.md`, the board row `apply-211-vpp-startup-20261020`. Not owned:
 `docs/status/tasks/machine-211-vpp-tuning*` (PR #251; a pointer is added there after that PR merges).
 

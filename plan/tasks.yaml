@@ -6013,16 +6013,16 @@ tasks:
     deps: [P10]
     priority: 1
     est_hours: 2
-    state: parked
-    parked_on: PENDING-211-vpp-startup-tuning
+    state: merged
+    parked_on: ''
     wbs: []
-    scope: Manager apply step (D-088 procedure, D-256) of the machine-211-vpp-tuning diagnosis (PR #251) on 172.30.110.211; product-mode apply-startup.sh, one restart of VPP + agent + API (~25-35 s without forwarding) after the owner confirms it
-    files_owned: docs/decisions/PENDING-211-vpp-startup-tuning.md docs/status/tasks/apply-211-vpp-startup-20261020* docs/decisions/LOG.md(D-256-row)
-    branch: claude/magical-cartwright-cda9e2
+    scope: Manager apply step (D-088 procedure, D-256) of the machine-211-vpp-tuning diagnosis (PR #251) on 172.30.110.211; product-mode apply-startup.sh, one restart of VPP + agent + API after the owner confirmed it
+    files_owned: docs/decisions/DEC-256-211-vpp-startup-tuning.md docs/status/tasks/apply-211-vpp-startup-20261020* docs/decisions/LOG.md(D-256-row)
+    branch: claude/apply-211-results-20261020
     worktree: /root/NGFW/.claude/worktrees/magical-cartwright-cda9e2
     owner: root manager
     started: '2026-10-20'
-    finished: ''
-    notes: 2026-10-20 approval record PR #252 (review round 1 BLOCK, 6 MAJOR fixed in round 2); rendering 92985d0c reproduced with origin/main's generator and by the host dry run (exit 3 only at the TD-17 gate); document on the host /root/machine-211-vpp-tuning-dataplane.json; owner said yes to a 9 s figure, the corrected 25-35 s figure (VPP + agent + API) was sent back; apply waits for that answer and for PR #252 on main
-    worker_status: manager session live (claude/magical-cartwright-cda9e2); parked on the owner's answer to the corrected outage figure
-    completion_evidence: ''
+    finished: '2026-10-20'
+    notes: Approval record PR #252 (review round 1 BLOCK with 6 MAJOR, round 2 APPROVE, minors fixed); owner accepted the corrected 25-35 s figure; apply 06:39:50-06:41:28 UTC COMMITTED, forwarding gap ~22 s, all checks passed under the owner's TRex traffic (tx-error 0 on six ports over 93 s). Open follow-ups - running dataplane domain commit (admin login); pointer in PR #251's wip after that PR merges.
+    worker_status: completed; session finished
+    completion_evidence: PR252 head 2150f1046 merge 7442c6a5f (quick gate pass); apply work dir /var/lib/ngfw/startup-apply/20261020-063950-212602 COMMITTED (live sha256 92985d0c…); checks in docs/status/tasks/apply-211-vpp-startup-20261020-wip.md; results branch claude/apply-211-results-20261020

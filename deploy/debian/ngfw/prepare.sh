@@ -40,6 +40,9 @@ done
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'build changed tracked source; regenerate and review first' >&2; exit 1; }
 mkdir -p -- "$OUTPUT"
 cp -a -- "$ROOT/deploy/debian/ngfw/debian" "$ROOT/deploy/debian/ngfw/tests" "$ROOT/deploy/debian/ngfw/assets" "$OUTPUT/"
+# The packaging tests read the A/B provisioning sources (never executed) to model the
+# .requires/ links those tools create; dh_auto_test runs inside this tree, so copy them here.
+install -D -m 0644 -t "$OUTPUT/tests/ab-upgrade-sources" "$ROOT/deploy/upgrade/provision" "$ROOT/deploy/upgrade/ngfw-upgrade"
 STAGE=$OUTPUT/stage
 mkdir -p "$STAGE/usr/bin" "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$STAGE/usr/lib/systemd/system"
 COMMIT=$(git -C "$ROOT" rev-parse --short=12 HEAD)

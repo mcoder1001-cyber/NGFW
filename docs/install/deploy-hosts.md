@@ -150,15 +150,20 @@ concurrent run changed it. Install only `main` builds outside explicit review.
 
 Before installation the script records the raw IPv4/IPv6 default routes and
 installed versions, then simulates APT. Any proposed dependency/VPP change or removal is
-rejected. The real APT call forbids downloads and removals and preserves existing
-configuration files. It makes no VPP restart request. With packages built from
+rejected. The real APT call forbids removals, preserves existing configuration
+files and cannot download: both calls hide every configured repository
+(`Dir::Etc::SourceList` and `Dir::Etc::SourceParts` set to `/dev/null`), so APT
+sees only the staged archives and the installed packages. apt 3 and newer refuse
+`--no-download` for local archives ("Pathname to install is not absolute"),
+which is why the repositories are hidden instead. It makes no VPP restart request. With packages built from
 D-253 on (`dh_installsystemd --no-stop-on-upgrade`) the APT step leaves every
 unit as it was: VPP, nftables, the sockets and the completed provisioning
 oneshots keep running, and only the explicit agent/API restart below changes
 service state. Packages built before D-253 stopped every unit they ship in their
 preinst, which stopped `vpp.service` for about nine seconds through
-`Requires=ngfw-firstboot.service` (observed on appliance 37 on 2026-10-13 and
-2026-10-19) and left `apply-executor.socket`, `ngfw-ra-openfile.socket` and
+`Requires=ngfw-firstboot.service` (observed on appliances 37 and 211 on 2026-10-13 and
+2026-10-19; `ngfw-meta` ships that drop-in on every appliance, and if dpkg fails
+after such a stop VPP stays down until manual recovery: check `vpp.service` first) and left `apply-executor.socket`, `ngfw-ra-openfile.socket` and
 `ngfw-ra-namespace-broker.socket` stopped, which this script does not restart.
 The script also does not stop `apply-executor.service` (the running executor keeps
 the previous `apply-executor.py` until an operator stops it while no start-up
@@ -239,7 +244,7 @@ step rechecks the routes under its lock. With the flag the empty before-state is
 accepted and recorded in `no-default-route.txt` in the recovery directory; the
 before/after comparison still applies, so a default route that appears during
 the upgrade is reported as a change. The upgrade itself needs no default route:
-APT runs with downloads forbidden.
+APT runs without any repository, so it cannot download.
 
 If a step fails, stop and inspect the reported recovery directory, APT plan,
 previous versions, backups and system logs through the console or surviving SSH

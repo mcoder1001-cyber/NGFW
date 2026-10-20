@@ -33,8 +33,9 @@ would be killed with it, `KillMode=control-group`). `deploy-hosts.sh` does not d
 this. (b) The base management firewall policy (`/etc/nftables.d/ngfw-base.nft`,
 rendered by `render-base-policy.py` through `ngfw-firewall-bootstrap.service`) is
 not re-rendered: a changed renderer applies at the next reboot. Do not restart
-`nftables.service` or `ngfw-firewall-bootstrap.service` to force it: `ngfw-firstboot.service`
-requires `nftables.service`, so that restarts VPP, the agent and the API.
+`nftables.service` or `ngfw-firewall-bootstrap.service` to force it: that restarts
+the agent (which requires `nftables.service`) and with it the API, and before
+D-255 also VPP (firstboot required `nftables.service`).
 Packages built before D-253 stopped every unit they ship in their preinst, which
 stopped VPP for about nine seconds through `Requires=ngfw-firstboot.service` (on
 A/B appliances also through `ngfw-upgrade-prepare.service`, required by firstboot)
@@ -48,6 +49,31 @@ pre-D-253 package runs that package's preinst with `upgrade` and stops the units
 once more. On an appliance upgraded with pre-D-253 packages, check
 `systemctl is-active apply-executor.socket ngfw-ra-openfile.socket
 ngfw-ra-namespace-broker.socket` and start them (or reboot) if they are inactive.
+Since D-255 `ngfw-firstboot.service` pulls `postgresql.service`,
+`valkey-server.service` and `nftables.service` in with `Wants=` instead of
+`Requires=` (the A/B snapshot unit `ngfw-upgrade-prepare.service` likewise wants
+PostgreSQL), so an explicit restart of one of them, whether by an operator
+(`systemctl restart postgresql.service`) or by the daemon's own package upgrade
+(the Ubuntu `valkey-server` postinst restarts and the `nftables` postinst
+try-restarts their units), no longer restarts firstboot and, through
+`Requires=ngfw-firstboot.service`, VPP, the agent and the API. A restart of
+`nftables.service` still restarts the agent, which requires the base firewall, and
+with it the API, which requires the agent; apply a changed base policy with
+`systemctl reload nftables.service`.
+The new unit text is read at the next `systemctl daemon-reload`
+(`deploy/deploy-hosts.sh` runs one after APT) or reboot; until then the running
+manager keeps the previous `Requires=`. On a fresh appliance the first boot still
+needs all three active and a PostgreSQL cluster that accepts connections
+(`pg_isready`, because Debian's `postgresql.service` is only an `ExecStart=/bin/true`
+wrapper that stays active when the `postgresql@<version>-main.service` cluster
+fails): `firstboot.sh` refuses to provision otherwise, keeps the bootstrap
+credentials and VPP, agent and API stay blocked until the retry succeeds. On a
+provisioned appliance VPP and the agent are still ordered after PostgreSQL, Valkey
+and nftables through firstboot's `After=`, but are no longer withheld when
+PostgreSQL or Valkey fail to start (the API fails and retries on its own until the
+database is up), and VPP is no longer withheld when nftables fails (firstboot's
+`Requires=nftables.service` did that before; the agent still is, through its own
+`Requires=`, so VPP then runs without configuration).
 `ngfw-web` has no maintainer script: after upgrading it, test the configuration
 (`nginx -t`) and reload `nginx.service`, otherwise a changed site file
 (`/etc/ngfw/nginx.conf`) stays unapplied until the next restart;

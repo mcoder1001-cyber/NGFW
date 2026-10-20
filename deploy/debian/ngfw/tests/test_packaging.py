@@ -19,10 +19,11 @@ SCRIPTS_SPEC = importlib.util.spec_from_file_location('maintainer_scripts', SOUR
 MAINTAINER = importlib.util.module_from_spec(SCRIPTS_SPEC)
 SCRIPTS_SPEC.loader.exec_module(MAINTAINER)
 PROVISIONING_UNITS = {'ngfw-firstboot.service', 'ngfw-firewall-bootstrap.service'}
-# Shipped units whose explicit stop reaches vpp.service: the two provisioning oneshots of ngfw-meta and,
-# on A/B appliances, ngfw-agent's ngfw-upgrade-prepare.service (RequiredBy=ngfw-firstboot.service,
-# materialised as ngfw-firstboot.service.requires/ by deploy/upgrade/provision and ngfw-upgrade).
-VPP_GUARDED_UNITS = PROVISIONING_UNITS | {'ngfw-upgrade-prepare.service'}
+# Shipped units whose explicit stop reaches vpp.service: ngfw-meta's ngfw-firstboot.service and, on A/B
+# appliances, ngfw-agent's ngfw-upgrade-prepare.service (RequiredBy=ngfw-firstboot.service, materialised
+# as ngfw-firstboot.service.requires/ by deploy/upgrade/provision and ngfw-upgrade). Since D-255 firstboot
+# only wants nftables.service, so ngfw-firewall-bootstrap.service (required by nftables) left the closure.
+VPP_GUARDED_UNITS = {'ngfw-firstboot.service', 'ngfw-upgrade-prepare.service'}
 
 
 class Packaging(unittest.TestCase):
@@ -397,15 +398,19 @@ class MaintainerScripts(unittest.TestCase):
                     self.assertEqual(stops, set(MAINTAINER.maintscript_units(package)))
 
     def test_upgrade_never_stops_a_unit_vpp_requires(self):
-        # vpp.service carries Requires=ngfw-firstboot.service (assets/vpp-firstboot.conf); through
-        # ngfw-firstboot.service -> nftables.service -> ngfw-firewall-bootstrap.service further Requires=
-        # links follow. An explicit stop of any of them stops VPP, the agent and the API
-        # (systemd.unit(5), Requires=): the 2026-10-13 and 2026-10-19 upgrades of appliance 37 restarted
-        # VPP for about nine seconds this way.
+        # vpp.service carries Requires=ngfw-firstboot.service (assets/vpp-firstboot.conf). An explicit
+        # stop of that unit stops VPP, the agent and the API (systemd.unit(5), Requires=): the
+        # 2026-10-13 and 2026-10-19 upgrades of appliance 37 restarted VPP for about nine seconds this
+        # way. Before D-255 the closure went on through firstboot's Requires= to nftables.service,
+        # ngfw-firewall-bootstrap.service, postgresql.service and valkey-server.service; now the
+        # provisioning oneshot is the only shipped unit whose stop reaches VPP, with
+        # ngfw-upgrade-prepare.service on A/B images (linked into ngfw-firstboot.service.requires/).
         guarded = MAINTAINER.stop_propagation_closure('vpp.service')
         shipped = {unit for package in self.packaged for unit in MAINTAINER.maintscript_units(package)}
-        self.assertEqual(guarded & shipped, VPP_GUARDED_UNITS)
-        self.assertLessEqual({'nftables.service', 'postgresql.service', 'valkey-server.service'}, guarded)
+        self.assertEqual(guarded, VPP_GUARDED_UNITS)
+        self.assertLessEqual(guarded, shipped)
+        for daemon in ('nftables.service', 'postgresql.service', 'valkey-server.service'):
+            self.assertNotIn(daemon, guarded)
         # The A/B provisioning links agree with the unit's own RequiredBy= (deploy/upgrade/provision,
         # deploy/upgrade/ngfw-upgrade); without them the closure would miss ngfw-upgrade-prepare.service.
         self.assertEqual(MAINTAINER.requiring_links(),
@@ -416,7 +421,7 @@ class MaintainerScripts(unittest.TestCase):
                 for script, arguments, calls in self.upgrade_calls(package):
                     self.assertEqual(MAINTAINER.stopped_units(calls) & guarded, set(), (script, arguments))
         # Not vacuous where a remove-only prerm exists: removing the packages does stop the guarded units.
-        for package, expected in (('ngfw-meta', PROVISIONING_UNITS), ('ngfw-agent', {'ngfw-upgrade-prepare.service'})):
+        for package, expected in (('ngfw-meta', {'ngfw-firstboot.service'}), ('ngfw-agent', {'ngfw-upgrade-prepare.service'})):
             stops = self.removal_stops(package)
             if stops is not None:
                 self.assertEqual(stops & guarded, expected)

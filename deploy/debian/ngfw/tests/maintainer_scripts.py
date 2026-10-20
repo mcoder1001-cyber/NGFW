@@ -24,7 +24,11 @@ UNIT_DIRECTORIES = ('deploy/systemd', 'deploy/vpp', 'deploy/upgrade', 'deploy/su
 UNIT_DESTINATION = 'usr/lib/systemd/system/'
 SCRIPTS = ('preinst', 'prerm', 'postinst', 'postrm')
 TOOLS = ('dh_installsystemd', 'dh_installdeb')
-DEPENDENCY_KEYS = ('Requires', 'Requisite', 'BindsTo')
+# [Unit] settings whose explicit stop or restart propagates from the named unit to the
+# configuring unit (systemd.unit(5): Requires=, Requisite=, BindsTo= "this unit will be
+# stopped (or restarted) if one of the other units is explicitly stopped (or restarted)";
+# PartOf= "limited to stopping and restarting"). Wants=, After= and Before= never do.
+DEPENDENCY_KEYS = ('Requires', 'Requisite', 'BindsTo', 'PartOf')
 # [Install] keys that, once the unit is enabled, create <target>.requires/ links: the same stop
 # propagation in the other direction. deploy/upgrade/provision and deploy/upgrade/ngfw-upgrade
 # materialise ngfw-upgrade-prepare.service's RequiredBy= as such links on A/B appliances.
@@ -104,7 +108,7 @@ def maintscript_units(package):
 
 
 def unit_keys(text, keys):
-    """Unit names listed by the given keys of a unit file or drop-in."""
+    """Unit names listed by the given keys of a unit file or drop-in, whatever the section."""
     names = set()
     for line in text.splitlines():
         key, separator, value = line.strip().partition('=')
@@ -113,9 +117,40 @@ def unit_keys(text, keys):
     return names
 
 
+def unit_settings(text):
+    """[(section, key, value)] for every assignment of a unit file or drop-in, in file order;
+    comment and blank lines are skipped and the section is None before the first header."""
+    settings, section = [], None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line[0] in '#;':
+            continue
+        if line.startswith('[') and line.endswith(']'):
+            section = line[1:-1]
+            continue
+        key, separator, value = line.partition('=')
+        if separator:
+            settings.append((section, key.strip(), value.strip()))
+    return settings
+
+
+def unit_setting(text, key, section='Unit'):
+    """The unit names a space-separated list setting accumulates, in order; an empty
+    assignment resets the list as systemd does."""
+    names = []
+    for found_section, found_key, value in unit_settings(text):
+        if found_section == section and found_key == key:
+            names = names + value.split() if value else []
+    return names
+
+
 def unit_dependencies(text):
-    """Units named by Requires=/Requisite=/BindsTo= lines: an explicit stop of one stops the unit."""
-    return unit_keys(text, DEPENDENCY_KEYS)
+    """Units named by the [Unit] dependency settings whose explicit stop or restart propagates
+    to the configuring unit (DEPENDENCY_KEYS); section-aware, comments skipped."""
+    names = set()
+    for key in DEPENDENCY_KEYS:
+        names.update(unit_setting(text, key))
+    return names
 
 
 def requiring_links():
@@ -137,17 +172,19 @@ def requiring_links():
     return links
 
 
-def stop_propagation_closure(start):
+def stop_propagation_closure(start, overrides=None):
     """Every unit whose explicit stop (or restart) propagates to `start` through the shipped
     unit files, drop-ins, [Install] RequiredBy= and the A/B .requires/ links (systemd.unit(5)
-    Requires=), excluding `start` itself."""
+    Requires=), excluding `start` itself. `overrides` ({unit name: text}) replaces shipped unit
+    texts, for negative controls."""
     edges = {}
     for package in packages():
         for name, path in shipped_units(package):
-            text = path.read_text()
+            text = (overrides or {}).get(name) or path.read_text()
             edges.setdefault(name, set()).update(unit_dependencies(text))
-            for dependent in unit_keys(text, REVERSE_DEPENDENCY_KEYS):
-                edges.setdefault(dependent, set()).add(name)
+            for key in REVERSE_DEPENDENCY_KEYS:
+                for dependent in unit_setting(text, key, 'Install'):
+                    edges.setdefault(dependent, set()).add(name)
         for target, path in shipped_dropins(package):
             edges.setdefault(target, set()).update(unit_dependencies(path.read_text()))
     for dependent, names in requiring_links().items():

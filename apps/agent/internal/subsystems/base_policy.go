@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"os"
-	"strings"
 	"sync"
 
-	binlcp "ngfw/agent/binapi/lcp"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/desired"
@@ -65,17 +63,7 @@ func registerBasePolicy(reg scheduler.Registry, w *Wiring) error {
 		return err
 	}
 	runtime := &basePolicyRuntime{config: config, namespace: func(ctx context.Context) (string, error) {
-		reply, err := binlcp.NewServiceClient(w.env.Client).LcpDefaultNsGet(ctx, &binlcp.LcpDefaultNsGet{})
-		if err != nil {
-			return "", err
-		}
-		namespace := strings.TrimRight(reply.Netns, "\x00")
-		// Unlike the generic descriptor's VPP bug workaround, invalid readback is
-		// ambiguous for host admission and must never be inferred to mean root.
-		if err := (lcp.DefaultNetns{Netns: namespace}).Validate(); err != nil {
-			return "", err
-		}
-		return namespace, nil
+		return basePolicyNamespace(ctx, w.env.Client)
 	}}
 	reg.Register(descriptor)
 	basePolicyRuntimes.Store(w.env.Owner, runtime)
